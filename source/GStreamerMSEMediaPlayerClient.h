@@ -213,7 +213,7 @@ public:
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     void notifySourceStartedSeeking(int32_t sourceId);
     void startPullingDataIfSeekFinished();
-
+    void destroyClientBackend();
 private:
     MessageQueue mBackendQueue;
     std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> mClientBackend;

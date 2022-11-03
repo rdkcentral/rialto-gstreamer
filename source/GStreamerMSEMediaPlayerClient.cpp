@@ -144,6 +144,12 @@ bool GStreamerMSEMediaPlayerClient::createBackend()
     return result;
 }
 
+// Deletes client backend -> this deletes mediapipeline object 
+void GStreamerMSEMediaPlayerClient::destroyClientBackend()
+{
+    mClientBackend.reset();
+}
+
 void GStreamerMSEMediaPlayerClient::play()
 {
     mBackendQueue.callInEventLoop([&]() { mClientBackend->play(); });
@@ -474,7 +480,11 @@ HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, uns
 
 void HaveDataMessage::handle()
 {
-    mPlayer->mClientBackend->haveData(mStatus, mNeedDataRequestId);
+    // Make sure we have a valid media pipeline before sending the data
+    if(mPlayer && mPlayer->mClientBackend)
+    {
+        mPlayer->mClientBackend->haveData(mStatus, mNeedDataRequestId);
+    }
 }
 
 PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
