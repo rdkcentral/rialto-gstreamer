@@ -20,6 +20,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include <IMediaPipelineCapabilities.h>
 #include <gst/gst.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -253,16 +254,18 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                       "Maximum height of video frames to be decoded", 0, 2160,
                                                       DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
 
-    MediaPlayerManager manager;
-    if (manager.getMediaPlayerClient())
+    std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
+        firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
+    if (mediaPlayerCapabilities)
     {
-        /*
-          Temporary codec hardcode (not supported by Rialto yet)
-        */
+        std::vector<std::string> supportedMimeTypes =
+            mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
 
-        // rialto_mse_sink_setup_supported_caps(elementClass, manager.getMediaPlayerClient()->getSupportedCaps(
-        //                                                        firebolt::rialto::MediaSourceType::VIDEO));
-        rialto_mse_sink_setup_supported_caps(elementClass, {"video/x-h264", "video/x-vp9", "video/x-av1"});
+        rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+    }
+    else
+    {
+        GST_ERROR("Failed to get supported mime types for VIDEO");
     }
 
     gst_element_class_set_details_simple(elementClass, "Rialto Video Sink", "Decoder/Video/Sink/Video",

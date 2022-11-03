@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
-void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass, const std::vector<std::string> &supportedCaps);
+void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
+                                          const std::vector<std::string> &supportedMimeType);
 
 #endif // GSTREAMERMSEUTILS_H
