@@ -22,6 +22,7 @@ set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 add_compile_options(-Wall -Werror)
 
 find_package(Rialto REQUIRED)
+find_package(ocdmRialto REQUIRED)
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0)
@@ -47,6 +48,7 @@ target_include_directories(gstrialtosinks
 
         PRIVATE
         ${RIALTO_INCLUDE_DIR}
+        ${RIALTOOCDM_INCLUDE_DIR}
         ${GSTREAMER_APP_INCLUDE_DIRS}
         )
 
@@ -55,7 +57,7 @@ target_link_libraries(gstrialtosinks
         ${GSTREAMER_APP_LIBRARIES}
 
         PRIVATE
-        ocdmRialto
+	Rialto::ocdmRialto
         Rialto::RialtoClient
         Threads::Threads
         )
