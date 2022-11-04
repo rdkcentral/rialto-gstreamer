@@ -40,22 +40,22 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
 
 GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
 {
-    if(!mStreamingStopped)
-    {
-        stopStreaming();
-    }
+    stopStreaming();
 }
 
 void GStreamerMSEMediaPlayerClient::stopStreaming()
 {
-    mBackendQueue.stop();
-
-    for (auto &source : mAttachedSources)
+    if(!mStreamingStopped)
     {
-        source.second.mBufferPuller->stop();
-    }
+        mBackendQueue.stop();
 
-    mStreamingStopped = true;
+        for (auto &source : mAttachedSources)
+        {
+            source.second.mBufferPuller->stop();
+        }
+
+        mStreamingStopped = true;
+    }
 }
 
 // Deletes client backend -> this deletes mediapipeline object
