@@ -67,11 +67,6 @@ public:
         return mMediaPlayerBackend->attachSource(source);
     }
 
-    std::vector<std::string> getSupportedCaps(firebolt::rialto::MediaSourceType type) override
-    {
-        return mMediaPlayerBackend->getSupportedCaps(type);
-    }
-
     bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) override
     {
         return mMediaPlayerBackend->load(type, mimeType, url);

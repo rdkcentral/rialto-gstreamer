@@ -17,14 +17,40 @@
  */
 
 #include "GStreamerMSEUtils.h"
+#include <unordered_map>
+#include <unordered_set>
 
-void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass, const std::vector<std::string> &supportedCaps)
+void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
+                                          const std::vector<std::string> &supportedMimeTypes)
 {
+    static const std::unordered_map<std::string, std::string> kMimeToCaps =
+        {{"audio/mp4", "audio/mpeg, mpegversion=4"},
+         {"audio/aac", "audio/mpeg, mpegversion=4"},
+         {"audio/x-eac3", "audio/x-eac3"},
+         {"audio/x-opus", "audio/x-opus, channel-mapping-family=0"},
+         {"video/h264", "video/x-h264, stream-format=byte-stream, alignment=nal"},
+         {"video/h265", "video/x-h265"},
+         {"video/x-av1", "video/x-av1"},
+         {"video/x-vp9", "video/x-vp9"}};
+
+    std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
     GstCaps *caps = gst_caps_new_empty();
-    for (const std::string &codec : supportedCaps)
+    for (const std::string &mime : supportedMimeTypes)
     {
-        GstCaps *newCaps = gst_caps_from_string(codec.c_str());
-        gst_caps_append(caps, newCaps);
+        auto mimeToCapsIt = kMimeToCaps.find(mime);
+        if (mimeToCapsIt != kMimeToCaps.end())
+        {
+            if (addedCaps.find(mimeToCapsIt->second) == addedCaps.end())
+            {
+                GstCaps *newCaps = gst_caps_from_string(mimeToCapsIt->second.c_str());
+                gst_caps_append(caps, newCaps);
+                addedCaps.insert(mimeToCapsIt->second);
+            }
+        }
+        else
+        {
+            GST_WARNING("Mime '%s' is not supported", mime.c_str());
+        }
     }
 
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);

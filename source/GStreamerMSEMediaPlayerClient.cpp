@@ -324,14 +324,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
     });
 }
 
-std::vector<std::string> GStreamerMSEMediaPlayerClient::getSupportedCaps(firebolt::rialto::MediaSourceType mediaType)
-{
-    std::vector<std::string> result;
-    mBackendQueue.callInEventLoop([&]() { result = mClientBackend->getSupportedCaps(mediaType); });
-
-    return result;
-}
-
 void GStreamerMSEMediaPlayerClient::setVideoRectangle(const std::string &rectangleString)
 {
     mBackendQueue.callInEventLoop([&]() {
@@ -395,20 +387,18 @@ uint32_t GStreamerMSEMediaPlayerClient::getMaxVideoHeight()
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
 {
     bool result = false;
-    mBackendQueue.callInEventLoop(
-        [&]()
+    mBackendQueue.callInEventLoop([&]() {
+        auto sourceIt = mAttachedSources.find(streamId);
+        if (sourceIt == mAttachedSources.end() || mServerSeekingState != SeekingState::IDLE)
         {
-            auto sourceIt = mAttachedSources.find(streamId);
-            if (sourceIt == mAttachedSources.end() || mServerSeekingState != SeekingState::IDLE)
-            {
-                GST_ERROR("There's no attached source with id %d or seek is not finished %u", streamId,
-                          static_cast<uint32_t>(mServerSeekingState));
+            GST_ERROR("There's no attached source with id %d or seek is not finished %u", streamId,
+                      static_cast<uint32_t>(mServerSeekingState));
 
-                result = false;
-                return;
-            }
-            result = sourceIt->second.mBufferPuller->requestPullBuffer(streamId, frameCount, needDataRequestId, this);
-        });
+            result = false;
+            return;
+        }
+        result = sourceIt->second.mBufferPuller->requestPullBuffer(streamId, frameCount, needDataRequestId, this);
+    });
 
     return result;
 }
