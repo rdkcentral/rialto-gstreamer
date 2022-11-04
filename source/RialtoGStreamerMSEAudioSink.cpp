@@ -20,6 +20,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include <IMediaPipelineCapabilities.h>
 #include <gst/gst.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -131,16 +132,18 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
     elementClass->change_state = rialto_mse_audio_sink_change_state;
 
-    MediaPlayerManager manager;
-    if (manager.getMediaPlayerClient())
+    std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
+        firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
+    if (mediaPlayerCapabilities)
     {
-        /*
-          Temporary codec hardcode (not supported by Rialto yet)
-        */
+        std::vector<std::string> supportedMimeTypes =
+            mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
 
-        // rialto_mse_sink_setup_supported_caps(elementClass, manager.getMediaPlayerClient()->getSupportedCaps(
-        //                                                        firebolt::rialto::MediaSourceType::AUDIO));
-        rialto_mse_sink_setup_supported_caps(elementClass, {"audio/x-opus", "audio/mpeg"});
+        rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+    }
+    else
+    {
+        GST_ERROR("Failed to get supported mime types for AUDIO");
     }
 
     gst_element_class_set_details_simple(elementClass, "Rialto Audio Sink", "Decoder/Audio/Sink/Audio",

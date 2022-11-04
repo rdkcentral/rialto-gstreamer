@@ -197,7 +197,6 @@ public:
 
     bool attachSource(firebolt::rialto::IMediaPipeline::MediaSource &source, RialtoMSEBaseSink *rialtoSink);
     void removeSource(int32_t sourceId);
-    std::vector<std::string> getSupportedCaps(firebolt::rialto::MediaSourceType mediaType);
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
 
     void setVideoRectangle(const std::string &rectangleString);

@@ -40,7 +40,6 @@ public:
     virtual bool seek(int64_t seekPosition) = 0;
     virtual bool setPlaybackRate(double rate) = 0;
     virtual bool setVideoWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height) = 0;
-    virtual std::vector<std::string> getSupportedCaps(MediaSourceType mediaType) = 0;
     virtual firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment) = 0;
