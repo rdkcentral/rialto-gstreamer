@@ -490,11 +490,7 @@ HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, uns
 
 void HaveDataMessage::handle()
 {
-    // Make sure we have a valid media pipeline before sending the data
-    if(mPlayer && mPlayer->mClientBackend)
-    {
-        mPlayer->mClientBackend->haveData(mStatus, mNeedDataRequestId);
-    }
+    mPlayer->mClientBackend->haveData(mStatus, mNeedDataRequestId);
 }
 
 PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
