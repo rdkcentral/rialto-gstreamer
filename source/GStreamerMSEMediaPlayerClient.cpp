@@ -32,13 +32,21 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend)
-    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false),
-      mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH), mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}
+    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), 
+      mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH), mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mPullDataStopped(false)
 {
     mBackendQueue.start();
 }
 
 GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
+{
+    if(!mPullDataStopped)
+    {
+        stopPullingData();
+    }
+}
+
+void GStreamerMSEMediaPlayerClient::stopPullingData()
 {
     mBackendQueue.stop();
 
@@ -46,6 +54,14 @@ GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
     {
         source.second.mBufferPuller->stop();
     }
+
+    mPullDataStopped = true;
+}
+
+// Deletes client backend -> this deletes mediapipeline object
+void GStreamerMSEMediaPlayerClient::destroyClientBackend()
+{
+    mClientBackend.reset();
 }
 
 void GStreamerMSEMediaPlayerClient::notifyDuration(int64_t duration)
@@ -142,12 +158,6 @@ bool GStreamerMSEMediaPlayerClient::createBackend()
     });
 
     return result;
-}
-
-// Deletes client backend -> this deletes mediapipeline object 
-void GStreamerMSEMediaPlayerClient::destroyClientBackend()
-{
-    mClientBackend.reset();
 }
 
 void GStreamerMSEMediaPlayerClient::play()

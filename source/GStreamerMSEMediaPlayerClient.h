@@ -213,6 +213,7 @@ public:
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     void notifySourceStartedSeeking(int32_t sourceId);
     void startPullingDataIfSeekFinished();
+    void stopPullingData();
     void destroyClientBackend();
 private:
     MessageQueue mBackendQueue;
@@ -231,4 +232,7 @@ private:
     {
         unsigned int x, y, width, height;
     } mVideoRectangle;
+
+    // To check if the backend message queue and pulling of data to serve backend is stopped or not
+    bool mPullDataStopped;
 };
