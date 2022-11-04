@@ -33,20 +33,20 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend)
     : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), 
-      mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH), mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mPullDataStopped(false)
+      mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH), mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false)
 {
     mBackendQueue.start();
 }
 
 GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
 {
-    if(!mPullDataStopped)
+    if(!mStreamingStopped)
     {
-        stopPullingData();
+        stopStreaming();
     }
 }
 
-void GStreamerMSEMediaPlayerClient::stopPullingData()
+void GStreamerMSEMediaPlayerClient::stopStreaming()
 {
     mBackendQueue.stop();
 
@@ -55,7 +55,7 @@ void GStreamerMSEMediaPlayerClient::stopPullingData()
         source.second.mBufferPuller->stop();
     }
 
-    mPullDataStopped = true;
+    mStreamingStopped = true;
 }
 
 // Deletes client backend -> this deletes mediapipeline object
