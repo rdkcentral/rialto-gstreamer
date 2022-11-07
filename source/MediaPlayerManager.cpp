@@ -65,6 +65,8 @@ void MediaPlayerManager::releaseMediaPlayerClient()
             m_refCount--;
             if (m_refCount == 0)
             {
+                m_mseClient->stopStreaming();
+                m_mseClient->destroyClientBackend();
                 m_mseClient.reset();
             }
 

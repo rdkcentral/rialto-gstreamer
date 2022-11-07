@@ -31,17 +31,17 @@ include( FindPackageHandleStandardArgs )
 
 # Handle the QUIETLY and REQUIRED arguments and set the RIALTOOCDM_FOUND to TRUE
 # if all listed variables are TRUE
-find_package_handle_standard_args( RIALTO DEFAULT_MSG
+find_package_handle_standard_args( ocdmRialto DEFAULT_MSG
         RIALTOOCDM_LIBRARY RIALTOOCDM_INCLUDE_DIR )
 
 mark_as_advanced( RIALTOOCDM_INCLUDE_DIR RIALTOOCDM_LIBRARY )
 
-if( RIALTOOCDM_FOUND )
+if( ocdmRialto_FOUND )
     set( RIALTOOCDM_LIBRARIES ${RIALTOOCDM_LIBRARY} )
     set( RIALTOOCDM_INCLUDE_DIRS ${RIALTOOCDM_INCLUDE_DIR} )
 endif()
 
-if( RIALTOOCDM_FOUND AND NOT TARGET Rialto::ocdmRialto )
+if( ocdmRialto_FOUND AND NOT TARGET Rialto::ocdmRialto )
     add_library( Rialto::ocdmRialto SHARED IMPORTED )
     set_target_properties( Rialto::ocdmRialto PROPERTIES
             IMPORTED_LOCATION "${RIALTOOCDM_LIBRARY}"
