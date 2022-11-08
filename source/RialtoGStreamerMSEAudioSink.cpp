@@ -70,6 +70,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
 static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps *caps)
 {
     GstStructure *structure = gst_caps_get_structure(caps, 0);
+    firebolt::rialto::SegmentAlignment alignment = get_segment_alignment(structure);
     const gchar *strct_name = gst_structure_get_name(structure);
     if (strct_name)
     {
@@ -86,11 +87,11 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
                                                       {}};
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mpeg", audioConfig);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mpeg", audioConfig, alignment);
             }
             else
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment);
             }
         }
         else if (g_str_has_prefix(strct_name, "audio/x-opus"))
@@ -115,24 +116,27 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
                 }
                 else
                 {
-                    GST_ERROR_OBJECT(id_header, "Failed to read opus header details from a GstBuffer!");
+                    GST_ERROR("Failed to read opus header details from a GstBuffer!");
                 }
                 gst_buffer_unref(id_header);
 
                 firebolt::rialto::AudioConfig audioConfig{number_of_channels, sample_rate, codec_specific_config};
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment);
             }
             else
             {
-                GST_ERROR_OBJECT(caps, "Failed to parse opus caps!");
+                GST_ERROR("Failed to parse opus caps!");
             }
         }
-
-        GST_INFO_OBJECT(caps, "%s audio media source created", strct_name);
-        return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO, strct_name);
+        else
+        {
+            GST_INFO("%s audio media source created", strct_name);
+            return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO,
+                                                                 strct_name, alignment);
+        }
     }
-    GST_ERROR_OBJECT(caps, "Empty caps' structure name! Failed to set mime type for audio media source.");
-    return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO, "");
+    GST_ERROR("Empty caps' structure name! Failed to set mime type for audio media source.");
+    return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO, "", alignment);
 }
 
 static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)

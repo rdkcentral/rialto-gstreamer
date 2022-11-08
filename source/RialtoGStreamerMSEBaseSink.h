@@ -19,6 +19,7 @@
 #pragma once
 
 #include <IMediaPipeline.h>
+#include <MediaCommon.h>
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
@@ -64,5 +65,6 @@ void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);
 bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event);
+firebolt::rialto::SegmentAlignment get_segment_alignment(const GstStructure *s);
 }
 ;

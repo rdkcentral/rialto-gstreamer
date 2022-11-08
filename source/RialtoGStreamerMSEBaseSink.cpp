@@ -625,3 +625,22 @@ void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint
         sink->priv->mCallbacks.qosCallback(processed, dropped);
     }
 }
+
+firebolt::rialto::SegmentAlignment get_segment_alignment(const GstStructure *s)
+{
+    const gchar *alignment = gst_structure_get_string(s, "alignment");
+    if (alignment)
+    {   
+        GST_INFO("Alignment found %s", alignment);
+        if (strcmp(alignment, "au") == 0)
+        {
+            return firebolt::rialto::SegmentAlignment::AU;
+        }
+        else if (strcmp(alignment, "nal") == 0)
+        {
+            return firebolt::rialto::SegmentAlignment::NAL;
+        }
+    }
+
+    return firebolt::rialto::SegmentAlignment::UNDEFINED;
+}
