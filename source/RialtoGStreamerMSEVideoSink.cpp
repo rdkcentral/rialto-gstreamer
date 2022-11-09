@@ -85,13 +85,13 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
         if (g_str_has_prefix(strct_name, "video/x-h264"))
         {
             firebolt::rialto::IMediaPipeline::MediaSource viddat(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 "video/x-h264", alignment);
+                                                                 "video/h264", alignment);
             return viddat;
         }
-        else if (g_str_has_prefix(strct_name, "video/mpeg"))
+        else if (g_str_has_prefix(strct_name, "video/x-h265"))
         {
             return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 "video/mpeg2", alignment);
+                                                                 "video/h265", alignment);
         }
         else
         {
@@ -100,9 +100,11 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
                                                                  strct_name, alignment);
         }
     }
-
-    GST_ERROR("Empty caps' structure name! Failed to set mime type when constructing video media source");
-    return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO, "", alignment);
+    else
+    {
+        GST_ERROR("Empty caps' structure name! Failed to set mime type when constructing video media source");
+        return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO, "", alignment);
+    }
 }
 
 static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)

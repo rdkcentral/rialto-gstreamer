@@ -75,8 +75,7 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
     if (strct_name)
     {
         if (g_str_has_prefix(strct_name, "audio/mpeg") || g_str_has_prefix(strct_name, "audio/x-eac3") ||
-            g_str_has_prefix(strct_name, "audio/eac3") || g_str_has_prefix(strct_name, "audio/x-ac3") ||
-            g_str_has_prefix(strct_name, "audio/ac3"))
+            g_str_has_prefix(strct_name, "audio/x-ac3"))
         {
             gint sample_rate = 0;
             gint number_of_channels = 0;
@@ -87,7 +86,7 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
                                                       {}};
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mpeg", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment);
             }
             else
             {
