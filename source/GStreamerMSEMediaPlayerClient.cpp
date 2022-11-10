@@ -510,7 +510,8 @@ void PullBufferMessage::handle()
             }
             else
             {
-                GST_ERROR_OBJECT(mRialtoSink, "Could not get a sample");
+                //it's not a critical issue. It might be caused by receiving too many need data requests.
+                GST_INFO_OBJECT(mRialtoSink, "Could not get a sample");
             }
             break;
         }

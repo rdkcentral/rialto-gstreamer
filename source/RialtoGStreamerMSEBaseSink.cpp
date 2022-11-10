@@ -226,11 +226,34 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
     }
 }
 
-static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink)
+static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetTime)
 {
     GST_INFO_OBJECT(sink, "Stopping flushing");
     std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
     sink->priv->mIsFlushOngoing = false;
+
+    if (resetTime)
+    {
+        GST_DEBUG_OBJECT(sink, "sending reset_time message");
+        gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_reset_time(GST_OBJECT_CAST(sink), 0));
+    }
+}
+
+static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
+{
+    sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->notifySourceStartedSeeking(sink->priv->mSourceId);
+
+    if (sink->priv->m_mediaPlayerManager.hasControl())
+    {
+        // this will force sink's async transition to paused state and make that pipeline will need to
+        // wait for RialtoServer's preroll after seek
+        gst_element_lost_state(GST_ELEMENT_CAST(sink));
+
+        std::unique_lock<std::mutex> lock(sink->priv->mSeekMutex);
+        GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->mLastSegment.start));
+        sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->seek(sink->priv->mLastSegment.start);
+        sink->priv->mSeekCondVariable.wait(lock);
+    }
 }
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
@@ -256,55 +279,35 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
             {
                 rialto_mse_base_sink_flush_start(sink);
             }
+            else
+            {
+                GST_ERROR_OBJECT(sink, "Flushless seek is not supported");
+                gst_event_unref(event);
+                return FALSE;
+            }
 
             if (seekFormat == GST_FORMAT_TIME)
             {
-                gint64 duration = sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->getDuration();
-
                 gint64 seekPosition = -1;
                 switch (startType)
                 {
                 case GST_SEEK_TYPE_SET:
                     seekPosition = start;
-                    // FIXME: the duration is always 0, so we would set the seekPosition to be always 0 too
-                    // it's because RialtoServer never sends notifyDuration update
-                    // if (seekPosition > duration) {
-                    //    seekPosition = duration;
-                    //}
                     break;
                 case GST_SEEK_TYPE_END:
-                    seekPosition = duration - start;
-                    if (seekPosition < 0)
-                    {
-                        seekPosition = 0;
-                    }
-                    break;
-                    break;
+                    GST_ERROR_OBJECT(sink, "GST_SEEK_TYPE_END seek is not supported");
+                    gst_event_unref(event);
+                    return FALSE;
                 default:
                     break;
                 }
+
                 if (seekPosition != -1)
                 {
-                    GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(seekPosition));
-                    sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->notifySourceStartedSeeking(
-                        sink->priv->mSourceId);
-                    // playsink calls sink's send_event functions one by one, so we can only block controller sink here
-                    if (sink->priv->m_mediaPlayerManager.hasControl())
-                    {
-                        // this will force sink's async transition to paused state and make that pipeline will need to
-                        // wait for RialtoServer's preroll after seek
-                        gst_element_lost_state(GST_ELEMENT_CAST(sink));
-
-                        std::unique_lock<std::mutex> lock(sink->priv->mSeekMutex);
-                        sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->seek(seekPosition);
-                        sink->priv->mSeekCondVariable.wait(lock);
-                    }
+                    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
+                    gst_segment_init (&sink->priv->mLastSegment, GST_FORMAT_TIME);
+                    sink->priv->mLastSegment.start = seekPosition;
                 }
-            }
-
-            if (flags & GST_SEEK_FLAG_FLUSH)
-            {
-                rialto_mse_base_sink_flush_stop(sink);
             }
         }
     }
@@ -552,6 +555,20 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
         }
         break;
     }
+    case GST_EVENT_FLUSH_START:
+    {
+        rialto_mse_base_sink_flush_start(sink);
+        break;
+    }
+    case GST_EVENT_FLUSH_STOP:
+    {
+        gboolean reset_time;
+        gst_event_parse_flush_stop(event, &reset_time);
+
+        rialto_mse_base_sink_seek(sink);
+        rialto_mse_base_sink_flush_stop(sink, reset_time);
+        break;
+    }
     default:
         break;
     }
@@ -568,7 +585,7 @@ GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
     {
         GstSample *sample = sink->priv->mSamples.front();
         GstBuffer *buffer = gst_sample_get_buffer(sample);
-        GST_DEBUG_OBJECT(sink, "Pulling buffer %p with PTS %" GST_TIME_FORMAT, buffer,
+        GST_LOG_OBJECT(sink, "Pulling buffer %p with PTS %" GST_TIME_FORMAT, buffer,
                          GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
 
         return sample;
