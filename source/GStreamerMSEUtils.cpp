@@ -23,15 +23,15 @@
 void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                                           const std::vector<std::string> &supportedMimeTypes)
 {
-    static const std::unordered_map<std::string, std::string> kMimeToCaps =
-        {{"audio/mp4", "audio/mpeg, mpegversion=4"},
-         {"audio/aac", "audio/mpeg, mpegversion=4"},
-         {"audio/x-eac3", "audio/x-eac3"},
-         {"audio/x-opus", "audio/x-opus, channel-mapping-family=0"},
-         {"video/h264", "video/x-h264, stream-format=byte-stream, alignment=nal"},
-         {"video/h265", "video/x-h265"},
-         {"video/x-av1", "video/x-av1"},
-         {"video/x-vp9", "video/x-vp9"}};
+    static const std::unordered_map<std::string, std::vector<std::string>> kMimeToCaps =
+        {{"audio/mp4", {"audio/mpeg, mpegversion=1", "audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
+         {"audio/aac", {"audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
+         {"audio/x-eac3", {"audio/x-ec3", "audio/x-eac3"}},
+         {"audio/x-opus", {"audio/x-opus"}},
+         {"video/h264", {"video/x-h264"}},
+         {"video/h265", {"video/x-h265"}},
+         {"video/x-av1", {"video/x-av1"}},
+         {"video/x-vp9", {"video/x-vp9"}}};
 
     std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
     GstCaps *caps = gst_caps_new_empty();
@@ -40,11 +40,15 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         auto mimeToCapsIt = kMimeToCaps.find(mime);
         if (mimeToCapsIt != kMimeToCaps.end())
         {
-            if (addedCaps.find(mimeToCapsIt->second) == addedCaps.end())
+            for (const std::string &capsStr : mimeToCapsIt->second)
             {
-                GstCaps *newCaps = gst_caps_from_string(mimeToCapsIt->second.c_str());
-                gst_caps_append(caps, newCaps);
-                addedCaps.insert(mimeToCapsIt->second);
+                if (addedCaps.find(capsStr) == addedCaps.end())
+                {
+                    GST_INFO("Caps '%s' is supported", capsStr.c_str());
+                    GstCaps *newCaps = gst_caps_from_string(capsStr.c_str());
+                    gst_caps_append(caps, newCaps);
+                    addedCaps.insert(capsStr);
+                }
             }
         }
         else
