@@ -214,6 +214,7 @@ public:
     void startPullingDataIfSeekFinished();
     void stopStreaming();
     void destroyClientBackend();
+
 private:
     MessageQueue mBackendQueue;
     std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> mClientBackend;

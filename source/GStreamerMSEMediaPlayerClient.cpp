@@ -32,8 +32,8 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend)
-    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), 
-      mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH), mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false)
+    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH),
+      mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false)
 {
     mBackendQueue.start();
 }
@@ -45,7 +45,7 @@ GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
 
 void GStreamerMSEMediaPlayerClient::stopStreaming()
 {
-    if(!mStreamingStopped)
+    if (!mStreamingStopped)
     {
         mBackendQueue.stop();
 
@@ -510,7 +510,7 @@ void PullBufferMessage::handle()
             }
             else
             {
-                //it's not a critical issue. It might be caused by receiving too many need data requests.
+                // it's not a critical issue. It might be caused by receiving too many need data requests.
                 GST_INFO_OBJECT(mRialtoSink, "Could not get a sample");
             }
             break;

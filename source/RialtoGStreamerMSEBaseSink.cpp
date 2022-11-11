@@ -305,7 +305,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                 if (seekPosition != -1)
                 {
                     std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-                    gst_segment_init (&sink->priv->mLastSegment, GST_FORMAT_TIME);
+                    gst_segment_init(&sink->priv->mLastSegment, GST_FORMAT_TIME);
                     sink->priv->mLastSegment.start = seekPosition;
                 }
             }
@@ -586,7 +586,7 @@ GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
         GstSample *sample = sink->priv->mSamples.front();
         GstBuffer *buffer = gst_sample_get_buffer(sample);
         GST_LOG_OBJECT(sink, "Pulling buffer %p with PTS %" GST_TIME_FORMAT, buffer,
-                         GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
+                       GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
 
         return sample;
     }
@@ -647,7 +647,7 @@ firebolt::rialto::SegmentAlignment get_segment_alignment(const GstStructure *s)
 {
     const gchar *alignment = gst_structure_get_string(s, "alignment");
     if (alignment)
-    {   
+    {
         GST_INFO("Alignment found %s", alignment);
         if (strcmp(alignment, "au") == 0)
         {
