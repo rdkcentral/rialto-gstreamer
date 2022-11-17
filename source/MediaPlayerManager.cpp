@@ -50,31 +50,34 @@ std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlaye
     }
 }
 
-bool MediaPlayerManager::hasControl(const GstObject *gstBinParent)
-{
-    std::lock_guard<std::mutex> guard(m_mutex);
-
-    auto it = m_mediaPlayerClientsInfo.find(gstBinParent);
-    if (it != m_mediaPlayerClientsInfo.end())
-    {
-        if (it->second.controller == this)
-        {
-            return true;
-        }
-        else
-        { // in case there's no controller anymore
-            return acquireControl(*it);
-        }
-    }
-}
-
-void MediaPlayerManager::releaseMediaPlayerClient(const GstObject *gstBinParent)
+bool MediaPlayerManager::hasControl()
 {
     if (nullptr != m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
-        auto it = m_mediaPlayerClientsInfo.find(gstBinParent);
+        auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
+        if (it != m_mediaPlayerClientsInfo.end())
+        {
+            if (it->second.controller == this)
+            {
+                return true;
+            }
+            else
+            { // in case there's no controller anymore
+                return acquireControl(*it);
+            }
+        }
+    }
+}
+
+void MediaPlayerManager::releaseMediaPlayerClient()
+{
+    if (nullptr != m_client.lock())
+    {
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+
+        auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
         if (it != m_mediaPlayerClientsInfo.end())
         {
             it->second.refCount--;
@@ -90,6 +93,7 @@ void MediaPlayerManager::releaseMediaPlayerClient(const GstObject *gstBinParent)
                     it->second.controller = nullptr;
             }
             m_client = nullptr;
+            m_currentGstBinParent = nullptr;
         }
     }
 }
@@ -130,7 +134,7 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent)
             newClientInfo->refCount = 1;
             m_mediaPlayerClientsInfo.insert(std::pair<const GstObject *gstBinParent, MediaPlayerClientInfo>(gstBinParent, newClientInfo));
 
-            // Store a weak pointer to the client locally
+            // Store client info in object
             m_client = client;
             m_currentGstBinParent = gstBinParent;
         }

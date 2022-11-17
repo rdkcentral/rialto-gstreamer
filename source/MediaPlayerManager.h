@@ -28,8 +28,8 @@ public:
     ~MediaPlayerManager();
 
     std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient(const GstObject *gstBinParent);
-    void releaseMediaPlayerClient(const GstObject *gstBinParent);
-    bool hasControl(const GstObject *gstBinParent);
+    void releaseMediaPlayerClient();
+    bool hasControl();
 
 private:
     void createMediaPlayerClient(const GstObject *gstBinParent);
