@@ -19,14 +19,11 @@
 #include "MediaPlayerManager.h"
 #include "ClientBackend.h"
 
-unsigned MediaPlayerManager::m_refCount = 0;
-void *MediaPlayerManager::m_controller = nullptr;
-std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::m_mseClient = nullptr;
-std::mutex MediaPlayerManager::m_mutex;
+std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
+std::map<const GstObject *gstBinParent, MediaPlayerClientInfo> m_mediaPlayerClientsInfo;
 
-MediaPlayerManager::MediaPlayerManager() : m_isReleaseNeeded(true)
+MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr)
 {
-    createMediaPlayerClient();
 }
 
 MediaPlayerManager::~MediaPlayerManager()
@@ -34,78 +31,113 @@ MediaPlayerManager::~MediaPlayerManager()
     releaseMediaPlayerClient();
 }
 
-std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient()
+std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient(const GstObject *gstBinParent)
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return m_mseClient;
-}
-
-bool MediaPlayerManager::hasControl()
-{
-    std::lock_guard<std::mutex> guard(m_mutex);
-    if (m_controller == this)
+    if (nullptr == m_client.lock())
     {
-        return true;
+        createMediaPlayerClient(gstBinParent);
+        return m_client.lock();
     }
     else
-    { // in case there's no controller anymore
-        return acquireControl();
+    {
+        if (gstBinParent != m_currentGstBinParent)
+        {
+            // New parent gst bin, release old client and create new
+            releaseMediaPlayerClient();
+            createMediaPlayerClient(gstBinParent);
+        }
+        return m_client.lock();
     }
 }
 
-void MediaPlayerManager::releaseMediaPlayerClient()
+bool MediaPlayerManager::hasControl(const GstObject *gstBinParent)
 {
-    if (m_isReleaseNeeded)
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    auto it = m_mediaPlayerClientsInfo.find(gstBinParent);
+    if (it != m_mediaPlayerClientsInfo.end())
     {
-        std::lock_guard<std::mutex> guard(m_mutex);
-
-        m_isReleaseNeeded = false;
-        if (m_refCount > 0)
+        if (it->second.controller == this)
         {
-            m_refCount--;
-            if (m_refCount == 0)
-            {
-                m_mseClient->stopStreaming();
-                m_mseClient->destroyClientBackend();
-                m_mseClient.reset();
-            }
-
-            if (m_controller == this)
-                m_controller = nullptr;
+            return true;
+        }
+        else
+        { // in case there's no controller anymore
+            return acquireControl(*it);
         }
     }
 }
 
-bool MediaPlayerManager::acquireControl()
+void MediaPlayerManager::releaseMediaPlayerClient(const GstObject *gstBinParent)
 {
-    if (m_controller == nullptr)
+    if (nullptr != m_client.lock())
     {
-        m_controller = this;
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+
+        auto it = m_mediaPlayerClientsInfo.find(gstBinParent);
+        if (it != m_mediaPlayerClientsInfo.end())
+        {
+            it->second.refCount--;
+            if (it->second.refCount == 0)
+            {
+                it->second.client->stopStreaming();
+                it->second.client->destroyClientBackend();
+                m_mediaPlayerClientsInfo.erase(it);
+            }
+            else
+            {
+                if (it->second.controller == this)
+                    it->second.controller = nullptr;
+            }
+            m_client = nullptr;
+        }
+    }
+}
+
+bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo)
+{
+    if (mediaPlayerClientInfo.controller == nullptr)
+    {
+        mediaPlayerClientInfo.controller = this;
         return true;
     }
 
     return false;
 }
 
-void MediaPlayerManager::createMediaPlayerClient()
+void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent)
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
-    if (m_refCount == 0)
+    auto it = mediaPlayerClients.find(gstBinParent);
+    if (it != mediaPlayerClients.end())
+    {
+        it->second.refCount++;
+        m_client = it->second.client;
+    }
+    else
     {
         std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> clientBackend =
             std::make_shared<firebolt::rialto::client::ClientBackend>();
-        m_mseClient = std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend);
+        client = std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend);
 
-        if (m_mseClient->createBackend())
+        if (client->createBackend())
         {
-            m_controller = this;
+            // Store the new client in global map
+            MediaPlayerClientInfo newClientInfo;
+            newClientInfo->client = client;
+            newClientInfo->controller = this;
+            newClientInfo->refCount = 1;
+            m_mediaPlayerClientsInfo.insert(std::pair<const GstObject *gstBinParent, MediaPlayerClientInfo>(gstBinParent, newClientInfo));
+
+            // Store a weak pointer to the client locally
+            m_client = client;
+            m_currentGstBinParent = gstBinParent;
         }
         else
         {
-            m_mseClient.reset();
+            // Failed to create backend
             return;
         }
     }
-    m_refCount++;
 }

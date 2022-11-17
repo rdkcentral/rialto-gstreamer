@@ -27,21 +27,26 @@ public:
     MediaPlayerManager();
     ~MediaPlayerManager();
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient();
-    void releaseMediaPlayerClient();
-    bool hasControl();
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient(const GstObject *gstBinParent);
+    void releaseMediaPlayerClient(const GstObject *gstBinParent);
+    bool hasControl(const GstObject *gstBinParent);
 
 private:
-    void createMediaPlayerClient();
-    bool acquireControl();
+    void createMediaPlayerClient(const GstObject *gstBinParent);
+    bool acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo);
 
-    bool m_isReleaseNeeded;
+    struct MediaPlayerClientInfo
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
+        void *controller;
+        uint32_t refCount;
+    };
 
-    static std::mutex m_mutex;
-    static void *m_controller;
+    std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
+    GstObject *m_currentGstBinParent;
 
-    static std::shared_ptr<GStreamerMSEMediaPlayerClient> m_mseClient;
-    static unsigned m_refCount;
+    static std::mutex m_mediaPlayerClientsMutex;
+    static std::map<const GstObject *gstBinParent, MediaPlayerClientInfo> m_mediaPlayerClientsInfo;
 };
 
 #endif // MEDIAPLAYERMANAGER_H
