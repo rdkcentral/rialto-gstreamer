@@ -20,6 +20,7 @@
 #define MEDIAPLAYERMANAGER_H
 
 #include "GStreamerMSEMediaPlayerClient.h"
+#include <map>
 
 class MediaPlayerManager
 {
@@ -44,10 +45,10 @@ private:
     };
 
     std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
-    GstObject *m_currentGstBinParent;
+    const GstObject *m_currentGstBinParent;
 
     static std::mutex m_mediaPlayerClientsMutex;
-    static std::map<const GstObject *gstBinParent, MediaPlayerClientInfo> m_mediaPlayerClientsInfo;
+    static std::map<const GstObject *, MediaPlayerClientInfo> m_mediaPlayerClientsInfo;
 };
 
 #endif // MEDIAPLAYERMANAGER_H
