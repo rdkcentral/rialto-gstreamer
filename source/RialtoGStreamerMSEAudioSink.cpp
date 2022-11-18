@@ -45,8 +45,9 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
         firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::AUDIO, "");
-        if (!priv->m_mediaPlayerManager.getMediaPlayerClient()->attachSource(vsource, sink))
+        if ((!client) || (!client->attachSource(vsource, sink)))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach audio source");
             return GST_STATE_CHANGE_FAILURE;
@@ -153,7 +154,8 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         g_free(capsStr);
         firebolt::rialto::IMediaPipeline::MediaSource asource = create_media_source(caps);
 
-        if (!sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->attachSource(asource, sink))
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if ((!client) || (!client->attachSource(asource, sink)))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach AUDIO source");
         }
@@ -179,12 +181,6 @@ static void rialto_mse_audio_sink_qos_handle(GstElement *element, uint64_t proce
 static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)
 {
     RialtoMSEBaseSinkPrivate *priv = sink->parent.priv;
-
-    if (!priv->m_mediaPlayerManager.getMediaPlayerClient())
-    {
-        GST_ERROR_OBJECT(sink, "Failed to initialise AUDIO sink. There's no media player client.");
-        return;
-    }
 
     if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
     {

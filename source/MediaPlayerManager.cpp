@@ -31,23 +31,32 @@ MediaPlayerManager::~MediaPlayerManager()
     releaseMediaPlayerClient();
 }
 
-std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient(const GstObject *gstBinParent)
+bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent)
 {
-    if (nullptr == m_client.lock())
+    if (!m_client.lock())
     {
         createMediaPlayerClient(gstBinParent);
-        return m_client.lock();
+    }
+    else if (gstBinParent != m_currentGstBinParent)
+    {
+        // New parent gst bin, release old client and create new
+        releaseMediaPlayerClient();
+        createMediaPlayerClient(gstBinParent);
+    }
+
+    if(!m_client.lock())
+    {
+        return false;
     }
     else
     {
-        if (gstBinParent != m_currentGstBinParent)
-        {
-            // New parent gst bin, release old client and create new
-            releaseMediaPlayerClient();
-            createMediaPlayerClient(gstBinParent);
-        }
-        return m_client.lock();
+        return true;
     }
+}
+
+std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient()
+{
+    return m_client.lock();
 }
 
 bool MediaPlayerManager::hasControl()
@@ -69,6 +78,8 @@ bool MediaPlayerManager::hasControl()
             }
         }
     }
+
+    return false;
 }
 
 void MediaPlayerManager::releaseMediaPlayerClient()
