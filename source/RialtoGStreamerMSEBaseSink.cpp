@@ -189,6 +189,7 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
         {
             return FALSE;
         }
+
         GstFormat fmt;
         gst_query_parse_position(query, &fmt, NULL);
         switch (fmt)
@@ -381,6 +382,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
         }
+        client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
 
         priv->mIsFlushOngoing = false;
         if (priv->m_mediaPlayerManager.hasControl())

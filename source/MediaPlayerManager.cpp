@@ -61,7 +61,7 @@ std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlaye
 
 bool MediaPlayerManager::hasControl()
 {
-    if (nullptr != m_client.lock())
+    if (!m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
@@ -84,7 +84,7 @@ bool MediaPlayerManager::hasControl()
 
 void MediaPlayerManager::releaseMediaPlayerClient()
 {
-    if (nullptr != m_client.lock())
+    if (!m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
