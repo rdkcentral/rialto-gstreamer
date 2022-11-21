@@ -190,5 +190,6 @@ void ProcessProtectionMetadata(GstBuffer *buffer, BufferProtectionMetadata &meta
             getSubSamplesFromProtectionMetadata(protectionMeta, metadata);
             getInitWithLast15FromProtectionMetadata(protectionMeta, metadata);
         }
+        gst_buffer_remove_meta(buffer, reinterpret_cast<GstMeta *>(protectionMeta));
     }
 }
