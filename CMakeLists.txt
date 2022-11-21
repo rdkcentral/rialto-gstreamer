@@ -32,6 +32,7 @@ add_library(gstrialtosinks
         SHARED
         source/RialtoGStreamerMSEVideoSink.cpp
         source/RialtoGStreamerMSEAudioSink.cpp
+        source/GStreamerUtils.cpp
         source/GStreamerEMEUtils.cpp
         source/GStreamerMSEUtils.cpp
         source/GStreamerMSEMediaPlayerClient.cpp

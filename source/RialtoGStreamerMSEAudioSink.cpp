@@ -67,11 +67,16 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     return result;
 }
 
-static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps *caps)
+static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink,
+                                                                                               GstCaps *caps)
 {
     GstStructure *structure = gst_caps_get_structure(caps, 0);
-    firebolt::rialto::SegmentAlignment alignment = get_segment_alignment(structure);
     const gchar *strct_name = gst_structure_get_name(structure);
+
+    firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
+    std::vector<uint8_t> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
+    firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
+
     if (strct_name)
     {
         if (g_str_has_prefix(strct_name, "audio/mpeg") || g_str_has_prefix(strct_name, "audio/x-eac3") ||
@@ -81,16 +86,19 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
             gint number_of_channels = 0;
             gst_structure_get_int(structure, "rate", &sample_rate);
             gst_structure_get_int(structure, "channels", &number_of_channels);
+
+            
+
             firebolt::rialto::AudioConfig audioConfig{static_cast<uint32_t>(number_of_channels),
                                                       static_cast<uint32_t>(sample_rate),
                                                       {}};
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment, codecData, format);
             }
             else
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment, codecData, format);
             }
         }
         else if (g_str_has_prefix(strct_name, "audio/x-opus"))
@@ -115,12 +123,13 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
                 }
                 else
                 {
-                    GST_ERROR("Failed to read opus header details from a GstBuffer!");
+                    GST_ERROR_OBJECT(sink, "Failed to read opus header details from a GstBuffer!");
                 }
                 gst_buffer_unref(id_header);
 
                 firebolt::rialto::AudioConfig audioConfig{number_of_channels, sample_rate, codec_specific_config};
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment,
+                                                                     codecData, format);
             }
             else
             {
@@ -129,12 +138,12 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
         }
         else
         {
-            GST_INFO("%s audio media source created", strct_name);
+            GST_INFO_OBJECT(sink, "%s audio media source created", strct_name);
             return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO,
-                                                                 strct_name, alignment);
+                                                                 strct_name, alignment, codecData, format);
         }
     }
-    GST_ERROR("Empty caps' structure name! Failed to set mime type for audio media source.");
+    GST_ERROR_OBJECT(sink, "Empty caps' structure name! Failed to set mime type for audio media source.");
     return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO, "", alignment);
 }
 
@@ -151,7 +160,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 
         GST_INFO_OBJECT(sink, "Attaching AUDIO source with caps %s", capsStr);
         g_free(capsStr);
-        firebolt::rialto::IMediaPipeline::MediaSource asource = create_media_source(caps);
+        firebolt::rialto::IMediaPipeline::MediaSource asource = rialto_mse_audio_sink_create_media_source(sink, caps);
 
         if (!sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->attachSource(asource, sink))
         {
