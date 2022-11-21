@@ -65,8 +65,10 @@ void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);
 bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event);
-firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(RialtoMSEBaseSink *sink, const GstStructure *s);
+firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(RialtoMSEBaseSink *sink,
+                                                                              const GstStructure *s);
 std::vector<uint8_t> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink, const GstStructure *structure);
-firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink, const GstStructure *structure);
+firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink,
+                                                                      const GstStructure *structure);
 }
 ;

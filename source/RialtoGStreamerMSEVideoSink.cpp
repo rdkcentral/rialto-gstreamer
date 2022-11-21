@@ -75,7 +75,8 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
     return result;
 }
 
-static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps)
+static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink,
+                                                                                               GstCaps *caps)
 {
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     const gchar *strct_name = gst_structure_get_name(structure);

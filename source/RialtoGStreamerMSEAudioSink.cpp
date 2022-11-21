@@ -87,18 +87,18 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_creat
             gst_structure_get_int(structure, "rate", &sample_rate);
             gst_structure_get_int(structure, "channels", &number_of_channels);
 
-            
-
             firebolt::rialto::AudioConfig audioConfig{static_cast<uint32_t>(number_of_channels),
                                                       static_cast<uint32_t>(sample_rate),
                                                       {}};
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment, codecData, format);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment, codecData,
+                                                                     format);
             }
             else
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment, codecData, format);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment,
+                                                                     codecData, format);
             }
         }
         else if (g_str_has_prefix(strct_name, "audio/x-opus"))
