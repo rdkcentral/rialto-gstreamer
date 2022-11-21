@@ -49,14 +49,12 @@ enum
 
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_eos_handler");
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
 }
 
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
                                                               firebolt::rialto::PlaybackState state)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_rialto_state_changed_handler");
     GstState current = GST_STATE(sink);
     GstState next = GST_STATE_NEXT(sink);
     GstState pending = GST_STATE_PENDING(sink);
@@ -95,7 +93,6 @@ static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_init");
     GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
@@ -112,7 +109,6 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_finalize(GObject *object)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_finalize");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
     RialtoMSEBaseSinkPrivate *priv = sink->priv;
     GST_INFO_OBJECT(sink, "Finalize: %" GST_PTR_FORMAT " %" GST_PTR_FORMAT, sink, priv);
@@ -123,7 +119,6 @@ static void rialto_mse_base_sink_finalize(GObject *object)
 
 static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_get_property");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
 
     switch (propId)
@@ -142,7 +137,6 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
 
 static void rialto_mse_base_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_set_property");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
 
     switch (propId)
@@ -161,7 +155,6 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
 
 static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_query");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     GST_DEBUG_OBJECT(sink, "handling query '%s'", GST_QUERY_TYPE_NAME(query));
     switch (GST_QUERY_TYPE(query))
@@ -211,7 +204,6 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
 
 static void rialto_mse_base_sink_change_playback_rate(RialtoMSEBaseSink *sink, GstEvent *event)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_change_playback_rate");
     const GstStructure *structure{gst_event_get_structure(event)};
     gdouble playbackRate{1.0};
     if (gst_structure_get_double(structure, "rate", &playbackRate) == TRUE)
@@ -227,7 +219,6 @@ static void rialto_mse_base_sink_change_playback_rate(RialtoMSEBaseSink *sink, G
 
 static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_flush_start");
     std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
     if (!sink->priv->mIsFlushOngoing)
     {
@@ -240,7 +231,6 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetTime)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_flush_stop");
     GST_INFO_OBJECT(sink, "Stopping flushing");
     std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
     sink->priv->mIsFlushOngoing = false;
@@ -254,7 +244,6 @@ static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetT
 
 static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_seek");
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
     if (!client)
     {
@@ -279,7 +268,6 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_send_event");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     GST_DEBUG_OBJECT(sink, "handling event '%s'", GST_EVENT_TYPE_NAME(event));
     bool shouldForwardUpstream = GST_EVENT_IS_UPSTREAM(event);
@@ -354,7 +342,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
 static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *element, GstStateChange transition)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_change_state");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     RialtoMSEBaseSinkPrivate *priv = sink->priv;
 
@@ -460,7 +447,6 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
 static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_class_init");
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 
@@ -485,7 +471,6 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_chain");
     size_t MAX_INTERNAL_BUFFERS_QUEUE_SIZE = 24;
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
     GST_LOG_OBJECT(sink, "Handling buffer %p with PTS %" GST_TIME_FORMAT, buf, GST_TIME_ARGS(GST_BUFFER_PTS(buf)));
@@ -518,7 +503,6 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
 
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_initialise_sinkpad");
     GstPadTemplate *pad_template =
         gst_element_class_get_pad_template(GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink)), "sink");
     GstPad *sinkPad = gst_pad_new_from_template(pad_template, "sink");
@@ -537,7 +521,6 @@ bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
 
 bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
-    GST_ERROR("lukewill: rialto_mse_base_sink_event");
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
     GST_DEBUG_OBJECT(sink, "handling event '%s'", GST_EVENT_TYPE_NAME(event));
     switch (GST_EVENT_TYPE(event))

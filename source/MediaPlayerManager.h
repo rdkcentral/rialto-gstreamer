@@ -34,15 +34,15 @@ public:
     bool hasControl();
 
 private:
-    void createMediaPlayerClient(const GstObject *gstBinParent);
-    bool acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo);
-
     struct MediaPlayerClientInfo
     {
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
         void *controller;
         uint32_t refCount;
     };
+
+    void createMediaPlayerClient(const GstObject *gstBinParent);
+    bool acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo);
 
     std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
     const GstObject *m_currentGstBinParent;
