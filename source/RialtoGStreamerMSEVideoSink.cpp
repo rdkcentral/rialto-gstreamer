@@ -89,19 +89,19 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_video_sink_creat
         if (g_str_has_prefix(strct_name, "video/x-h264"))
         {
             firebolt::rialto::IMediaPipeline::MediaSource viddat(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 "video/h264", alignment, codecData, format);
+                                                                 "video/h264", alignment, format, codecData);
             return viddat;
         }
         else if (g_str_has_prefix(strct_name, "video/x-h265"))
         {
             return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 "video/h265", alignment, codecData, format);
+                                                                 "video/h265", alignment, format, codecData);
         }
         else
         {
             GST_INFO_OBJECT(sink, "%s video media source created", strct_name);
             return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 strct_name, alignment, codecData, format);
+                                                                 strct_name, alignment, format, codecData);
         }
     }
     else

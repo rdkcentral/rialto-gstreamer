@@ -92,13 +92,13 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_creat
                                                       {}};
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment, codecData,
-                                                                     format);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment, format,
+                                                                     codecData);
             }
             else
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment,
-                                                                     codecData, format);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment, format,
+                                                                     codecData);
             }
         }
         else if (g_str_has_prefix(strct_name, "audio/x-opus"))
@@ -129,7 +129,7 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_creat
 
                 firebolt::rialto::AudioConfig audioConfig{number_of_channels, sample_rate, codec_specific_config};
                 return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment,
-                                                                     codecData, format);
+                                                                     format, codecData);
             }
             else
             {
@@ -140,7 +140,7 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_creat
         {
             GST_INFO_OBJECT(sink, "%s audio media source created", strct_name);
             return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO,
-                                                                 strct_name, alignment, codecData, format);
+                                                                 strct_name, alignment, format, codecData);
         }
     }
     GST_ERROR_OBJECT(sink, "Empty caps' structure name! Failed to set mime type for audio media source.");
