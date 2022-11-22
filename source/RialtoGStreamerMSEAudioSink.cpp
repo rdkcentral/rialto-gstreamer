@@ -128,8 +128,8 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_creat
                 gst_buffer_unref(id_header);
 
                 firebolt::rialto::AudioConfig audioConfig{number_of_channels, sample_rate, codec_specific_config};
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment,
-                                                                     format, codecData);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment, format,
+                                                                     codecData);
             }
             else
             {
