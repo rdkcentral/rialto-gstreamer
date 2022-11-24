@@ -31,9 +31,10 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
-    const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend)
-    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH),
-      mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false)
+    const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
+    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false),
+    mMaxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
+    mMaxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
     mBackendQueue.start();
 }
@@ -381,23 +382,6 @@ std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
 bool GStreamerMSEMediaPlayerClient::isConnectedToServer()
 {
     return mIsConnected;
-}
-
-void GStreamerMSEMediaPlayerClient::setMaxVideoWidth(uint32_t maxWidth)
-{
-    mMaxWidth = maxWidth;
-}
-void GStreamerMSEMediaPlayerClient::setMaxVideoHeight(uint32_t maxHeight)
-{
-    mMaxHeight = maxHeight;
-}
-uint32_t GStreamerMSEMediaPlayerClient::getMaxVideoWidth()
-{
-    return mMaxWidth;
-}
-uint32_t GStreamerMSEMediaPlayerClient::getMaxVideoHeight()
-{
-    return mMaxHeight;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)

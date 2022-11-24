@@ -20,6 +20,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include "RialtoGStreamerMSEVideoSinkPrivate.h"
 #include <IMediaPipelineCapabilities.h>
 #include <gst/gst.h>
 #include <inttypes.h>
@@ -54,8 +55,11 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
-        // Attach the media player client to media player manager
-        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element), priv->width, priv->height))
+        // Attach the media player client to media player manager.
+        // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
+        // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first) the
+        // video capabilities will NOT be set.
+        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element), priv->maxWidth, priv->maxHeight))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
@@ -63,7 +67,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::VIDEO, "");
-        if ((!client) || (!client->attachSource(vsource, sink)))
+        if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(sink))))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach video source");
             return GST_STATE_CHANGE_FAILURE;
@@ -172,7 +176,8 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         }
         else
         {
-            g_value_set_uint(value, priv->maxWidth());
+            // maxWidth should only be set for video only streams.
+            g_value_set_uint(value, priv->maxWidth);
         }
         break;
     case PROP_MAX_VIDEO_HEIGHT:
@@ -182,7 +187,8 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         }
         else
         {
-            g_value_set_uint(value, priv->maxHeight());
+            // maxHeight should only be set for video only streams.
+            g_value_set_uint(value, priv->maxHeight);
         }
         break;
     default:
@@ -221,7 +227,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         else
         {
-            priv->width = g_value_get_uint(value);
+            priv->maxWidth = g_value_get_uint(value);
         }
         break;
     case PROP_MAX_VIDEO_HEIGHT:
@@ -231,7 +237,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         else
         {
-            priv->height = g_value_get_uint(value);
+            priv->maxHeight = g_value_get_uint(value);
         }
         break;
     default:
@@ -283,6 +289,7 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 {
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
+    gobjectClass->finalize = rialto_mse_video_sink_finalize;
     gobjectClass->get_property = rialto_mse_video_sink_get_property;
     gobjectClass->set_property = rialto_mse_video_sink_set_property;
     elementClass->change_state = rialto_mse_video_sink_change_state;

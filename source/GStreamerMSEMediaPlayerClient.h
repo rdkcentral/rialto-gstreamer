@@ -165,7 +165,7 @@ class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineCli
     friend class QosMessage;
 
 public:
-    GStreamerMSEMediaPlayerClient(const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend);
+    GStreamerMSEMediaPlayerClient(const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;
@@ -204,10 +204,6 @@ public:
 
     bool isConnectedToServer();
 
-    void setMaxVideoWidth(uint32_t maxWidth);
-    void setMaxVideoHeight(uint32_t maxHeight);
-    uint32_t getMaxVideoWidth();
-    uint32_t getMaxVideoHeight();
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     void notifySourceStartedSeeking(int32_t sourceId);
@@ -225,8 +221,8 @@ private:
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     SeekingState mServerSeekingState = SeekingState::IDLE;
 
-    uint32_t mMaxWidth;
-    uint32_t mMaxHeight;
+    const uint32_t mMaxWidth;
+    const uint32_t mMaxHeight;
 
     struct Rectangle
     {

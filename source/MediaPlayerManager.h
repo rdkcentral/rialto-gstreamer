@@ -41,7 +41,7 @@ private:
         uint32_t refCount;
     };
 
-    void createMediaPlayerClient(const GstObject *gstBinParent);
+    void createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     bool acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo);
 
     std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
