@@ -360,13 +360,11 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
-        // Attach the media player client to media player manager
-        if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element)))
+        if (!client)
         {
-            GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
+            GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
             return GST_STATE_CHANGE_FAILURE;
         }
-        client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
 
         priv->mIsFlushOngoing = false;
         if (priv->m_mediaPlayerManager.hasControl())

@@ -46,20 +46,22 @@ enum
 
 static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *element, GstStateChange transition)
 {
-    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
+    RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(element);
+    RialtoMSEVideoSinkPrivate *priv = sink->priv;
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
 
     switch (transition)
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         // Attach the media player client to media player manager
-        if (!sink->priv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element)))
+        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element), priv->width, priv->height))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::VIDEO, "");
         if ((!client) || (!client->attachSource(vsource, sink)))
         {
@@ -147,13 +149,14 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
 static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
-    RialtoMSEBaseSinkPrivate *priv = sink->parent.priv;
+    RialtoMSEVideoSinkPrivate *priv = sink->priv;
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
 
     switch (propId)
     {
     case PROP_WINDOW_SET:
-        if (!sink || !priv || !(client = priv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!sink || !basePriv || !(client = basePriv->m_mediaPlayerManager.getMediaPlayerClient()))
         {
             GST_WARNING_OBJECT(object, "missing media player client");
         }
@@ -163,27 +166,23 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         }
         break;
     case PROP_MAX_VIDEO_WIDTH:
-        if (!sink || !priv || !(client = priv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!sink || !priv)
         {
-            g_value_set_uint(value, DEFAULT_MAX_VIDEO_WIDTH);
-            GST_WARNING_OBJECT(object, "missing media player client. Using default width value %u",
-                               DEFAULT_MAX_VIDEO_WIDTH);
+            GST_WARNING_OBJECT(object, "Sink not initalised");
         }
         else
         {
-            g_value_set_uint(value, client->getMaxVideoWidth());
+            g_value_set_uint(value, priv->maxWidth());
         }
         break;
     case PROP_MAX_VIDEO_HEIGHT:
-        if (!sink || !priv || !(client = priv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!sink || !priv)
         {
-            g_value_set_uint(value, DEFAULT_MAX_VIDEO_HEIGHT);
-            GST_WARNING_OBJECT(object, "missing media player client. Using default height value %u",
-                               DEFAULT_MAX_VIDEO_HEIGHT);
+            GST_WARNING_OBJECT(object, "Sink not initalised");
         }
         else
         {
-            g_value_set_uint(value, client->getMaxVideoHeight());
+            g_value_set_uint(value, priv->maxHeight());
         }
         break;
     default:
@@ -195,13 +194,14 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
 static void rialto_mse_video_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
-    RialtoMSEBaseSinkPrivate *priv = sink->parent.priv;
+    RialtoMSEVideoSinkPrivate *priv = sink->priv;
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
 
     switch (propId)
     {
     case PROP_WINDOW_SET:
-        if (!priv || !(client = priv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!basePriv || !(client = basePriv->m_mediaPlayerManager.getMediaPlayerClient()))
         {
             GST_WARNING_OBJECT(object, "missing media player client");
         }
@@ -215,23 +215,23 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         break;
     case PROP_MAX_VIDEO_WIDTH:
-        if (!sink || !priv || !(client = priv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!sink || !priv)
         {
-            GST_WARNING_OBJECT(object, "missing media player client.");
+            GST_WARNING_OBJECT(object, "Sink not initalised");
         }
         else
         {
-            client->setMaxVideoWidth(g_value_get_uint(value));
+            priv->width = g_value_get_uint(value);
         }
         break;
     case PROP_MAX_VIDEO_HEIGHT:
-        if (!sink || !priv || !(client = priv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!sink || !priv)
         {
-            GST_WARNING_OBJECT(object, "missing media player client.");
+            GST_WARNING_OBJECT(object, "Sink not initalised");
         }
         else
         {
-            client->setMaxVideoHeight(g_value_get_uint(value));
+            priv->height = g_value_get_uint(value);
         }
         break;
     default:
@@ -253,7 +253,10 @@ static void rialto_mse_video_sink_qos_handle(GstElement *element, uint64_t proce
 
 static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
 {
-    RialtoMSEBaseSinkPrivate *priv = sink->parent.priv;
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+
+    sink->priv = static_cast<RialtoMSEVideoSinkPrivate *>(rialto_mse_video_sink_get_instance_private(sink));
+    new (sink->priv) RialtoMSEVideoSinkPrivate();
 
     if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
     {
@@ -261,11 +264,19 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
         return;
     }
 
-    gst_pad_set_chain_function(priv->mSinkPad, rialto_mse_base_sink_chain);
-    gst_pad_set_event_function(priv->mSinkPad, rialto_mse_video_sink_event);
+    gst_pad_set_chain_function(basePriv->mSinkPad, rialto_mse_base_sink_chain);
+    gst_pad_set_event_function(basePriv->mSinkPad, rialto_mse_video_sink_event);
 
-    priv->mCallbacks.qosCallback = std::bind(rialto_mse_video_sink_qos_handle, GST_ELEMENT_CAST(sink),
-                                             std::placeholders::_1, std::placeholders::_2);
+    basePriv->mCallbacks.qosCallback = std::bind(rialto_mse_video_sink_qos_handle, GST_ELEMENT_CAST(sink),
+                                                 std::placeholders::_1, std::placeholders::_2);
+}
+
+static void rialto_mse_video_sink_finalize(GObject *object)
+{
+    RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
+    RialtoMSEVideoSinkPrivate *priv = sink->priv;
+
+    priv->~RialtoMSEVideoSinkPrivate();
 }
 
 static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)

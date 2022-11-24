@@ -29,7 +29,7 @@ public:
     ~MediaPlayerManager();
 
     std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient();
-    bool attachMediaPlayerClient(const GstObject *gstBinParent);
+    bool attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
     void releaseMediaPlayerClient();
     bool hasControl();
 

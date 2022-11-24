@@ -24,19 +24,15 @@ std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlay
 
 MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr)
 {
-    GST_ERROR("lukewill: %p", this);
 }
 
 MediaPlayerManager::~MediaPlayerManager()
 {
-    GST_ERROR("lukewill: %p", this);
     releaseMediaPlayerClient();
-    GST_ERROR("lukewill: %p", this);
 }
 
-bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent)
+bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0)
 {
-    GST_ERROR("lukewill: %p", this);
     if (!m_client.lock())
     {
         createMediaPlayerClient(gstBinParent);
@@ -48,7 +44,6 @@ bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent)
         createMediaPlayerClient(gstBinParent);
     }
 
-    GST_ERROR("lukewill: %p", this);
     if(!m_client.lock())
     {
         return false;
@@ -61,13 +56,11 @@ bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent)
 
 std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient()
 {
-    GST_ERROR("lukewill: %p", this);
     return m_client.lock();
 }
 
 bool MediaPlayerManager::hasControl()
 {
-    GST_ERROR("lukewill: %p", this);
     if (m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
@@ -75,7 +68,6 @@ bool MediaPlayerManager::hasControl()
         auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
         if (it != m_mediaPlayerClientsInfo.end())
         {
-            GST_ERROR("lukewill: %p", this);
             if (it->second.controller == this)
             {
                 return true;
@@ -87,13 +79,11 @@ bool MediaPlayerManager::hasControl()
         }
     }
 
-    GST_ERROR("lukewill: %p", this);
     return false;
 }
 
 void MediaPlayerManager::releaseMediaPlayerClient()
 {
-    GST_ERROR("lukewill: %p", this);
     if (m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
@@ -117,25 +107,21 @@ void MediaPlayerManager::releaseMediaPlayerClient()
             m_currentGstBinParent = nullptr;
         }
     }
-    GST_ERROR("lukewill: %p", this);
 }
 
 bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo)
 {
-    GST_ERROR("lukewill: %p", this);
     if (mediaPlayerClientInfo.controller == nullptr)
     {
         mediaPlayerClientInfo.controller = this;
         return true;
     }
-    GST_ERROR("lukewill: %p", this);
 
     return false;
 }
 
 void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent)
 {
-    GST_ERROR("lukewill: %p", this);
     std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
     auto it = m_mediaPlayerClientsInfo.find(gstBinParent);
@@ -166,10 +152,8 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent)
         }
         else
         {
-            GST_ERROR("lukewill: %p", this);
             // Failed to create backend
             return;
         }
     }
-    GST_ERROR("lukewill: %p", this);
 }
