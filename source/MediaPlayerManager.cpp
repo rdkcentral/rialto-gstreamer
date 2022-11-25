@@ -45,6 +45,7 @@ bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, 
 
     if (!m_client.lock())
     {
+        GST_ERROR("Failed to attach the media player client");
         return false;
     }
     else
@@ -76,6 +77,14 @@ bool MediaPlayerManager::hasControl()
                 return acquireControl(it->second);
             }
         }
+        else
+        {
+            GST_WARNING("Could not find the attached media player client");
+        }
+    }
+    else
+    {
+        GST_WARNING("No media player client attached");
     }
 
     return false;
@@ -104,6 +113,10 @@ void MediaPlayerManager::releaseMediaPlayerClient()
             }
             m_client.reset();
             m_currentGstBinParent = nullptr;
+        }
+        else
+        {
+            GST_ERROR("Could not find the attached media player client");
         }
     }
 }
@@ -154,7 +167,7 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
         }
         else
         {
-            // Failed to create backend
+            GST_ERROR("Failed to create the media player client backend");
             return;
         }
     }

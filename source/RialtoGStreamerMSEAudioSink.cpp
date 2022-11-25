@@ -39,19 +39,20 @@ G_DEFINE_TYPE_WITH_CODE(RialtoMSEAudioSink, rialto_mse_audio_sink, RIALTO_TYPE_M
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
+    RialtoMSEBaseSinkPrivate *priv = sink->priv;
 
     switch (transition)
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         // Attach the media player client to media player manager
-        if (!sink->priv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element)))
+        if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element)))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = priv->m_mediaPlayerManager.getMediaPlayerClient();
         firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::AUDIO, "");
         if ((!client) || (!client->attachSource(vsource, sink)))
         {
