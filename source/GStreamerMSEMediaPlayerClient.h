@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "ClientBackendInterface.h"
+#include "MediaPlayerClientBackendInterface.h"
 #include "MessageQueue.h"
 #include <IMediaPipeline.h>
 #include <MediaCommon.h>
@@ -165,7 +165,7 @@ class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineCli
     friend class QosMessage;
 
 public:
-    GStreamerMSEMediaPlayerClient(const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
+    GStreamerMSEMediaPlayerClient(const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;
@@ -213,7 +213,7 @@ public:
 
 private:
     MessageQueue mBackendQueue;
-    std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> mClientBackend;
+    std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
     int64_t mDuration;
     std::atomic<bool> mIsConnected;

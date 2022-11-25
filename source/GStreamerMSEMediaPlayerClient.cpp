@@ -31,8 +31,8 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
-    const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
-    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false),
+    const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
+    : mClientBackend(MediaPlayerClientBackend), mPosition(0), mDuration(0), mIsConnected(false), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false),
     mMaxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
     mMaxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {

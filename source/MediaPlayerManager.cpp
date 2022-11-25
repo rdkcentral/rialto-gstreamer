@@ -17,7 +17,7 @@
  */
 
 #include "MediaPlayerManager.h"
-#include "ClientBackend.h"
+#include "MediaPlayerClientBackend.h"
 
 std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
 std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
@@ -133,8 +133,8 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
     }
     else
     {
-        std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> clientBackend =
-            std::make_shared<firebolt::rialto::client::ClientBackend>();
+        std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> clientBackend =
+            std::make_shared<firebolt::rialto::client::MediaPlayerClientBackend>();
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend, maxVideoWidth, maxVideoHeight);
 
         if (client->createBackend())

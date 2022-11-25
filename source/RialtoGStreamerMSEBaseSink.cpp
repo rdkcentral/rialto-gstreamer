@@ -356,7 +356,18 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
-        // TODO: call RialtoControl
+        priv->m_rialtoControlClient.getRialtoControlBackend();
+        if (priv->m_rialtoControlClient.isRialtoControlBackendCreated())
+        {
+            GST_ERROR_OBJECT(sink, "Cannot get the rialto control object");
+            return GST_STATE_CHANGE_FAILURE;
+        }
+
+        if (priv->m_rialtoControlClient.setApplicationState(firebolt::rialto::client::ApplicationState::RUNNING))
+        {
+            GST_ERROR_OBJECT(sink, "Cannot set rialto state to running");
+            return GST_STATE_CHANGE_FAILURE;
+        }
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
@@ -423,7 +434,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
-        // TODO: Remove RialtoControl
+        priv->m_rialtoControlClient.removeRialtoControlBackend();
         break;
     default:
         break;
