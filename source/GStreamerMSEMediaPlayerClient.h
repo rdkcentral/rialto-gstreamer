@@ -221,9 +221,6 @@ private:
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     SeekingState mServerSeekingState = SeekingState::IDLE;
 
-    const uint32_t mMaxWidth;
-    const uint32_t mMaxHeight;
-
     struct Rectangle
     {
         unsigned int x, y, width, height;
@@ -231,4 +228,7 @@ private:
 
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
     bool mStreamingStopped;
+
+    const uint32_t mMaxWidth;
+    const uint32_t mMaxHeight;
 };

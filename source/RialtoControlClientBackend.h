@@ -19,6 +19,7 @@
 #pragma once
 
 #include "RialtoControlClientBackendInterface.h"
+#include <gst/gst.h>
 #include <IRialtoControl.h>
 
 #include <memory>
@@ -43,14 +44,14 @@ public:
 
     void removeRialtoControlBackend() override
     {
-        mRialtoControlBackend.reset();
+        mRialtoControl.reset();
     }
 
-    bool isRialtoControlBackendCreated() const override { return static_cast<bool>(mRialtoControlBackend); }
+    bool isRialtoControlBackendCreated() const override { return static_cast<bool>(mRialtoControl); }
 
     bool setApplicationState(ApplicationState state) override
     {
-        return mRialtoControlBackend->setApplicationState(state);
+        return mRialtoControl->setApplicationState(state);
     }
 
 private:

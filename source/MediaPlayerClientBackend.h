@@ -20,7 +20,6 @@
 
 #include "MediaPlayerClientBackendInterface.h"
 #include <IMediaPipeline.h>
-#include <IRialtoControl.h>
 
 #include <memory>
 

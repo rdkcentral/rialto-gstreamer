@@ -28,6 +28,7 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <memory>
 
 G_BEGIN_DECLS
 
@@ -71,7 +72,7 @@ struct _RialtoMSEBaseSinkPrivate
     RialtoGStreamerMSEBaseSinkCallbacks mCallbacks;
 
     MediaPlayerManager m_mediaPlayerManager;
-    RialtoControlClientBackendInterface m_rialtoControlClient;
+    std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> m_rialtoControlClient;
     bool mHandleResetTimeMessage = false;
 };
 }

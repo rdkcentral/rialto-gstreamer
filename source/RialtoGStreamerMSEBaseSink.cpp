@@ -18,6 +18,7 @@
 
 #define USE_GLIB 1
 
+#include "RialtoControlClientBackend.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipeline.h>
@@ -96,6 +97,8 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
+
+    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::RialtoControlClientBackend>();
 
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
@@ -356,14 +359,14 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
-        priv->m_rialtoControlClient.getRialtoControlBackend();
-        if (priv->m_rialtoControlClient.isRialtoControlBackendCreated())
+        priv->m_rialtoControlClient->getRialtoControlBackend();
+        if (priv->m_rialtoControlClient->isRialtoControlBackendCreated())
         {
             GST_ERROR_OBJECT(sink, "Cannot get the rialto control object");
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        if (priv->m_rialtoControlClient.setApplicationState(firebolt::rialto::client::ApplicationState::RUNNING))
+        if (priv->m_rialtoControlClient->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
         {
             GST_ERROR_OBJECT(sink, "Cannot set rialto state to running");
             return GST_STATE_CHANGE_FAILURE;
@@ -434,7 +437,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
-        priv->m_rialtoControlClient.removeRialtoControlBackend();
+        priv->m_rialtoControlClient->removeRialtoControlBackend();
         break;
     default:
         break;
