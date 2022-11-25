@@ -46,10 +46,15 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         // Attach the media player client to media player manager
-        if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element)))
+        GstObject parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
+        if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
+        }
+        else
+        {
+            GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", gst_object_get_name(parentObject), parentObject)
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = priv->m_mediaPlayerManager.getMediaPlayerClient();
