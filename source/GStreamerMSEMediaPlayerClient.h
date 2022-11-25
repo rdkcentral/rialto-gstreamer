@@ -165,7 +165,9 @@ class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineCli
     friend class QosMessage;
 
 public:
-    GStreamerMSEMediaPlayerClient(const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
+    GStreamerMSEMediaPlayerClient(
+        const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
+        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;

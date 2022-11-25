@@ -58,9 +58,10 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
     {
         // Attach the media player client to media player manager.
         // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
-        // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first) the
-        // video capabilities will NOT be set.
-        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element), priv->maxWidth, priv->maxHeight))
+        // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first)
+        // the video capabilities will NOT be set.
+        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(rialto_mse_base_get_oldest_gst_bin_parent(element),
+                                                                    priv->maxWidth, priv->maxHeight))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;

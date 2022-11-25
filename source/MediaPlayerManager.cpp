@@ -22,16 +22,15 @@
 std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
 std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
 
-MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr)
-{
-}
+MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr) {}
 
 MediaPlayerManager::~MediaPlayerManager()
 {
     releaseMediaPlayerClient();
 }
 
-bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
+bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
+                                                 const uint32_t maxVideoHeight)
 {
     if (!m_client.lock())
     {
@@ -44,7 +43,7 @@ bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, 
         createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
     }
 
-    if(!m_client.lock())
+    if (!m_client.lock())
     {
         return false;
     }
@@ -109,7 +108,7 @@ void MediaPlayerManager::releaseMediaPlayerClient()
     }
 }
 
-bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo& mediaPlayerClientInfo)
+bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo)
 {
     if (mediaPlayerClientInfo.controller == nullptr)
     {
@@ -120,7 +119,8 @@ bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo& mediaPlayerClient
     return false;
 }
 
-void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
+void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
+                                                 const uint32_t maxVideoHeight)
 {
     std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
@@ -135,7 +135,8 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
     {
         std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> clientBackend =
             std::make_shared<firebolt::rialto::client::MediaPlayerClientBackend>();
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend, maxVideoWidth, maxVideoHeight);
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+            std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend, maxVideoWidth, maxVideoHeight);
 
         if (client->createBackend())
         {
@@ -144,7 +145,8 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
             newClientInfo.client = client;
             newClientInfo.controller = this;
             newClientInfo.refCount = 1;
-            m_mediaPlayerClientsInfo.insert(std::pair<const GstObject *, MediaPlayerClientInfo>(gstBinParent, newClientInfo));
+            m_mediaPlayerClientsInfo.insert(
+                std::pair<const GstObject *, MediaPlayerClientInfo>(gstBinParent, newClientInfo));
 
             // Store client info in object
             m_client = client;

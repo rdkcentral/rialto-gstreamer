@@ -26,9 +26,9 @@
 #include "RialtoControlClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <queue>
-#include <memory>
 
 G_BEGIN_DECLS
 
