@@ -20,6 +20,7 @@
 
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoControlClientBackend.h"
+#include "GStreamerUtils.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipeline.h>
 #include <gst/gst.h>
@@ -534,7 +535,7 @@ bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
 bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
-    GST_DEBUG_OBJECT(sink, "handling event '%s'", GST_EVENT_TYPE_NAME(event));
+    GST_DEBUG_OBJECT(sink, "handling event %" GST_PTR_FORMAT, event);
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_SEGMENT:
@@ -696,12 +697,61 @@ GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
     return result;
 }
 
-firebolt::rialto::SegmentAlignment get_segment_alignment(const GstStructure *s)
+std::vector<uint8_t> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink, const GstStructure *structure)
+{
+    std::vector<uint8_t> codecData;
+
+    const GValue *codec_data;
+    codec_data = gst_structure_get_value(structure, "codec_data");
+    if (codec_data)
+    {
+        GstBuffer *buf = gst_value_get_buffer(codec_data);
+        if (buf)
+        {
+            GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
+            if (mappedBuf)
+            {
+                codecData.assign(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+            }
+            else
+            {
+                GST_ERROR_OBJECT(sink, "Failed to read codec_data");
+            }
+        }
+    }
+
+    return codecData;
+}
+
+firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink,
+                                                                      const GstStructure *structure)
+{
+    const gchar *streamFormat = gst_structure_get_string(structure, "stream-format");
+    firebolt::rialto::StreamFormat format = firebolt::rialto::StreamFormat::UNDEFINED;
+    if (streamFormat)
+    {
+        static const std::unordered_map<std::string, firebolt::rialto::StreamFormat> stringToStreamFormatMap =
+            {{"raw", firebolt::rialto::StreamFormat::RAW},
+             {"avc", firebolt::rialto::StreamFormat::AVC},
+             {"byte-stream", firebolt::rialto::StreamFormat::BYTE_STREAM}};
+
+        auto strToStreamFormatIt = stringToStreamFormatMap.find(streamFormat);
+        if (strToStreamFormatIt != stringToStreamFormatMap.end())
+        {
+            format = strToStreamFormatIt->second;
+        }
+    }
+
+    return format;
+}
+
+firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(RialtoMSEBaseSink *sink,
+                                                                              const GstStructure *s)
 {
     const gchar *alignment = gst_structure_get_string(s, "alignment");
     if (alignment)
     {
-        GST_INFO("Alignment found %s", alignment);
+        GST_DEBUG_OBJECT(sink, "Alignment found %s", alignment);
         if (strcmp(alignment, "au") == 0)
         {
             return firebolt::rialto::SegmentAlignment::AU;
