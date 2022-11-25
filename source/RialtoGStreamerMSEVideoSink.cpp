@@ -60,17 +60,14 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
         // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first)
         // the video capabilities will NOT be set.
-        GstObject parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
+        GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
         if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject,
                                                                     priv->maxWidth, priv->maxHeight))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
         }
-        else
-        {
-            GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", gst_object_get_name(parentObject), parentObject)
-        }
+        GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", gst_object_get_name(parentObject), parentObject);
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::VIDEO, "");
