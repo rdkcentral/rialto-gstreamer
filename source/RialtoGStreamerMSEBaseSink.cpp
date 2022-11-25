@@ -360,13 +360,13 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
         priv->m_rialtoControlClient->getRialtoControlBackend();
-        if (priv->m_rialtoControlClient->isRialtoControlBackendCreated())
+        if (!priv->m_rialtoControlClient->isRialtoControlBackendCreated())
         {
             GST_ERROR_OBJECT(sink, "Cannot get the rialto control object");
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        if (priv->m_rialtoControlClient->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
+        if (!priv->m_rialtoControlClient->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
         {
             GST_ERROR_OBJECT(sink, "Cannot set rialto state to running");
             return GST_STATE_CHANGE_FAILURE;

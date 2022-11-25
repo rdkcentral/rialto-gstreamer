@@ -33,8 +33,9 @@ GST_DEBUG_CATEGORY_STATIC(RialtoMSEVideoSinkDebug);
 
 #define rialto_mse_video_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoMSEVideoSink, rialto_mse_video_sink, RIALTO_TYPE_MSE_BASE_SINK,
-                        GST_DEBUG_CATEGORY_INIT(RialtoMSEVideoSinkDebug, "rialtomsevideosink", 0,
-                                                "rialto mse video sink"));
+                        G_ADD_PRIVATE(RialtoMSEVideoSink)
+                            GST_DEBUG_CATEGORY_INIT(RialtoMSEVideoSinkDebug, "rialtomsevideosink", 0,
+                                                    "rialto mse video sink"));
 
 enum
 {
