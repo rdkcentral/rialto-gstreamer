@@ -43,6 +43,7 @@ enum
     PROP_WINDOW_SET,
     PROP_MAX_VIDEO_WIDTH,
     PROP_MAX_VIDEO_HEIGHT,
+    PROP_FRAME_STEP_ON_PREROLL,
     PROP_LAST
 };
 
@@ -164,12 +165,18 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
     RialtoMSEVideoSinkPrivate *priv = sink->priv;
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
+    if (!sink || !basePriv)
+    {
+        GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
     switch (propId)
     {
     case PROP_WINDOW_SET:
-        if (!sink || !basePriv || !(client = basePriv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!client)
         {
             GST_WARNING_OBJECT(object, "missing media player client");
         }
@@ -179,27 +186,20 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         }
         break;
     case PROP_MAX_VIDEO_WIDTH:
-        if (!sink || !priv)
-        {
-            GST_WARNING_OBJECT(object, "Sink not initalised");
-        }
-        else
-        {
-            // maxWidth should only be set for video only streams.
-            g_value_set_uint(value, priv->maxWidth);
-        }
+    {
+        g_value_set_uint(value, priv->maxWidth);
         break;
+    }
     case PROP_MAX_VIDEO_HEIGHT:
-        if (!sink || !priv)
-        {
-            GST_WARNING_OBJECT(object, "Sink not initalised");
-        }
-        else
-        {
-            // maxHeight should only be set for video only streams.
-            g_value_set_uint(value, priv->maxHeight);
-        }
+    {
+        g_value_set_uint(value, priv->maxHeight);
         break;
+    }
+    case PROP_FRAME_STEP_ON_PREROLL:
+    {
+        g_value_set_boolean(value, priv->stepOnPrerollEnabled);
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -211,12 +211,18 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
     RialtoMSEVideoSinkPrivate *priv = sink->priv;
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
+    if (!sink || !basePriv)
+    {
+        GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
     switch (propId)
     {
     case PROP_WINDOW_SET:
-        if (!basePriv || !(client = basePriv->m_mediaPlayerManager.getMediaPlayerClient()))
+        if (!client)
         {
             GST_WARNING_OBJECT(object, "missing media player client");
         }
@@ -230,25 +236,21 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         break;
     case PROP_MAX_VIDEO_WIDTH:
-        if (!sink || !priv)
-        {
-            GST_WARNING_OBJECT(object, "Sink not initalised");
-        }
-        else
-        {
-            priv->maxWidth = g_value_get_uint(value);
-        }
+        priv->maxWidth = g_value_get_uint(value);
         break;
     case PROP_MAX_VIDEO_HEIGHT:
-        if (!sink || !priv)
-        {
-            GST_WARNING_OBJECT(object, "Sink not initalised");
-        }
-        else
-        {
-            priv->maxHeight = g_value_get_uint(value);
-        }
+        priv->maxHeight = g_value_get_uint(value);
         break;
+    case PROP_FRAME_STEP_ON_PREROLL:
+    {
+        bool stepOnPrerollEnabled = g_value_get_boolean(value);
+        if (stepOnPrerollEnabled && !priv->stepOnPrerollEnabled)
+        {
+            GST_INFO_OBJECT(object, "Frame stepping on preroll");
+        }
+        priv->stepOnPrerollEnabled = stepOnPrerollEnabled;
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -308,14 +310,19 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                         nullptr, GParamFlags(G_PARAM_WRITABLE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH,
-                                    g_param_spec_uint("maxVideoWidth", "maxVideoWidth",
-                                                      "Maximum width of video frames to be decoded", 0, 3840,
-                                                      DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
+                                    g_param_spec_uint("maxVideoWidth",
+                                                      "maxVideoWidth", "Maximum width of video frames to be decoded. Should only be set for video only streams.",
+                                                      0, 3840, DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_HEIGHT,
-                                    g_param_spec_uint("maxVideoHeight", "maxVideoHeight",
-                                                      "Maximum height of video frames to be decoded", 0, 2160,
-                                                      DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
+                                    g_param_spec_uint("maxVideoHeight",
+                                                      "maxVideoHeight", "Maximum height of video frames to be decoded. should only be set for video only streams.",
+                                                      0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_FRAME_STEP_ON_PREROLL,
+                                    g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
+                                                         "allow frame stepping on preroll into pause", FALSE,
+                                                         G_PARAM_READWRITE));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();

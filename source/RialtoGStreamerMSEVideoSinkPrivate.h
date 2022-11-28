@@ -26,5 +26,6 @@ struct _RialtoMSEVideoSinkPrivate
 {
     uint32_t maxWidth = 0;
     uint32_t maxHeight = 0;
+    bool stepOnPrerollEnabled = false;
 };
 }
