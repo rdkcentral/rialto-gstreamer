@@ -1,0 +1,90 @@
+ #
+ # Copyright (C) 2022 Sky UK
+ #
+ # This library is free software; you can redistribute it and/or
+ # modify it under the terms of the GNU Lesser General Public
+ # License as published by the Free Software Foundation;
+ # version 2.1 of the License.
+ #
+ # This library is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ # Lesser General Public License for more details.
+ #
+ # You should have received a copy of the GNU Lesser General Public
+ # License along with this library; if not, write to the Free Software
+ # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ #
+
+name: clang-format
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "master" branch
+  push:
+    branches: [ "master", "rdkcentral:master" ]
+  pull_request:
+    branches: [ "master", "rdkcentral:master" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+ # This runs the clang-format program and processes the results
+  run-clang-format:
+    name: Run clang-format
+    # Runs on ubuntu
+    runs-on: ubuntu-latest
+    # Timeout after
+    timeout-minutes: 2
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout repo
+        uses: actions/checkout@v3
+
+      # Setup github for python 3.8
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-format-12
+
+      # Run the prgram with rialto config
+      - name: Run clang-format
+        run: |
+              find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format-12 -style=file -n --Werror {} \; &> clang-format_errors.log
+
+      # Process the clang-format errors and generate a junit xml file
+      # Generate a failure if errors detected
+      - name: Process clang-format results
+        id: create-clang-format-xml
+        if: failure() || success()
+        run: python scripts/clang-format/process_clang-format_errors.py
+
+      # Report the errors on failure using the xml file
+      - name: Check results
+        uses: dorny/test-reporter@v1
+        if: failure()
+        with:
+          name: Clang-format errors
+          path: clang-format_errors.xml
+          reporter: java-junit
+
+      # Upload logs on failure
+      - name: Upload logs
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: logs
+          path: |
+            clang-format_errors.log
+            clang-format_errors.xml

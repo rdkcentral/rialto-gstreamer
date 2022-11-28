@@ -19,8 +19,8 @@
 #define USE_GLIB 1
 
 #include "RialtoGStreamerMSEBaseSink.h"
-#include "RialtoControlClientBackend.h"
 #include "GStreamerUtils.h"
+#include "RialtoControlClientBackend.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipeline.h>
 #include <gst/gst.h>
