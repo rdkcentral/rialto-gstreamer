@@ -1,2 +1,4 @@
 /build*
 /cmake-build-*
+/clang-format_errors.log
+/clang-format_errors.xml
