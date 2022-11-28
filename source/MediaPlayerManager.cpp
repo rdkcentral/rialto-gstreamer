@@ -17,95 +17,158 @@
  */
 
 #include "MediaPlayerManager.h"
-#include "ClientBackend.h"
+#include "MediaPlayerClientBackend.h"
 
-unsigned MediaPlayerManager::m_refCount = 0;
-void *MediaPlayerManager::m_controller = nullptr;
-std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::m_mseClient = nullptr;
-std::mutex MediaPlayerManager::m_mutex;
+std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
+std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
 
-MediaPlayerManager::MediaPlayerManager() : m_isReleaseNeeded(true)
-{
-    createMediaPlayerClient();
-}
+MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr) {}
 
 MediaPlayerManager::~MediaPlayerManager()
 {
     releaseMediaPlayerClient();
 }
 
+bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
+                                                 const uint32_t maxVideoHeight)
+{
+    if (!m_client.lock())
+    {
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
+    }
+    else if (gstBinParent != m_currentGstBinParent)
+    {
+        // New parent gst bin, release old client and create new
+        releaseMediaPlayerClient();
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
+    }
+
+    if (!m_client.lock())
+    {
+        GST_ERROR("Failed to attach the media player client");
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
 std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient()
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return m_mseClient;
+    return m_client.lock();
 }
 
 bool MediaPlayerManager::hasControl()
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    if (m_controller == this)
+    if (m_client.lock())
     {
-        return true;
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+
+        auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
+        if (it != m_mediaPlayerClientsInfo.end())
+        {
+            if (it->second.controller == this)
+            {
+                return true;
+            }
+            else
+            { // in case there's no controller anymore
+                return acquireControl(it->second);
+            }
+        }
+        else
+        {
+            GST_WARNING("Could not find the attached media player client");
+        }
     }
     else
-    { // in case there's no controller anymore
-        return acquireControl();
+    {
+        GST_WARNING("No media player client attached");
     }
+
+    return false;
 }
 
 void MediaPlayerManager::releaseMediaPlayerClient()
 {
-    if (m_isReleaseNeeded)
+    if (m_client.lock())
     {
-        std::lock_guard<std::mutex> guard(m_mutex);
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
-        m_isReleaseNeeded = false;
-        if (m_refCount > 0)
+        auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
+        if (it != m_mediaPlayerClientsInfo.end())
         {
-            m_refCount--;
-            if (m_refCount == 0)
+            it->second.refCount--;
+            if (it->second.refCount == 0)
             {
-                m_mseClient->stopStreaming();
-                m_mseClient->destroyClientBackend();
-                m_mseClient.reset();
+                it->second.client->stopStreaming();
+                it->second.client->destroyClientBackend();
+                m_mediaPlayerClientsInfo.erase(it);
             }
-
-            if (m_controller == this)
-                m_controller = nullptr;
+            else
+            {
+                if (it->second.controller == this)
+                    it->second.controller = nullptr;
+            }
+            m_client.reset();
+            m_currentGstBinParent = nullptr;
+        }
+        else
+        {
+            GST_ERROR("Could not find the attached media player client");
         }
     }
 }
 
-bool MediaPlayerManager::acquireControl()
+bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo)
 {
-    if (m_controller == nullptr)
+    if (mediaPlayerClientInfo.controller == nullptr)
     {
-        m_controller = this;
+        mediaPlayerClientInfo.controller = this;
         return true;
     }
 
     return false;
 }
 
-void MediaPlayerManager::createMediaPlayerClient()
+void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
+                                                 const uint32_t maxVideoHeight)
 {
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
-    if (m_refCount == 0)
+    auto it = m_mediaPlayerClientsInfo.find(gstBinParent);
+    if (it != m_mediaPlayerClientsInfo.end())
     {
-        std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> clientBackend =
-            std::make_shared<firebolt::rialto::client::ClientBackend>();
-        m_mseClient = std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend);
+        it->second.refCount++;
+        m_client = it->second.client;
+        m_currentGstBinParent = gstBinParent;
+    }
+    else
+    {
+        std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> clientBackend =
+            std::make_shared<firebolt::rialto::client::MediaPlayerClientBackend>();
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+            std::make_shared<GStreamerMSEMediaPlayerClient>(clientBackend, maxVideoWidth, maxVideoHeight);
 
-        if (m_mseClient->createBackend())
+        if (client->createBackend())
         {
-            m_controller = this;
+            // Store the new client in global map
+            MediaPlayerClientInfo newClientInfo;
+            newClientInfo.client = client;
+            newClientInfo.controller = this;
+            newClientInfo.refCount = 1;
+            m_mediaPlayerClientsInfo.insert(
+                std::pair<const GstObject *, MediaPlayerClientInfo>(gstBinParent, newClientInfo));
+
+            // Store client info in object
+            m_client = client;
+            m_currentGstBinParent = gstBinParent;
         }
         else
         {
-            m_mseClient.reset();
+            GST_ERROR("Failed to create the media player client backend");
             return;
         }
     }
-    m_refCount++;
 }

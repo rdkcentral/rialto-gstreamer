@@ -45,8 +45,18 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
+        // Attach the media player client to media player manager
+        GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
+        if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject))
+        {
+            GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
+            return GST_STATE_CHANGE_FAILURE;
+        }
+        GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", gst_object_get_name(parentObject), parentObject);
+
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = priv->m_mediaPlayerManager.getMediaPlayerClient();
         firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::AUDIO, "");
-        if (!priv->m_mediaPlayerManager.getMediaPlayerClient()->attachSource(vsource, sink))
+        if ((!client) || (!client->attachSource(vsource, sink)))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach audio source");
             return GST_STATE_CHANGE_FAILURE;
@@ -67,11 +77,16 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     return result;
 }
 
-static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps *caps)
+static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink,
+                                                                                               GstCaps *caps)
 {
     GstStructure *structure = gst_caps_get_structure(caps, 0);
-    firebolt::rialto::SegmentAlignment alignment = get_segment_alignment(structure);
     const gchar *strct_name = gst_structure_get_name(structure);
+
+    firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
+    std::vector<uint8_t> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
+    firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
+
     if (strct_name)
     {
         if (g_str_has_prefix(strct_name, "audio/mpeg") || g_str_has_prefix(strct_name, "audio/x-eac3") ||
@@ -81,16 +96,19 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
             gint number_of_channels = 0;
             gst_structure_get_int(structure, "rate", &sample_rate);
             gst_structure_get_int(structure, "channels", &number_of_channels);
+
             firebolt::rialto::AudioConfig audioConfig{static_cast<uint32_t>(number_of_channels),
                                                       static_cast<uint32_t>(sample_rate),
                                                       {}};
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/mp4", audioConfig, alignment, format,
+                                                                     codecData);
             }
             else
             {
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-eac3", audioConfig, alignment, format,
+                                                                     codecData);
             }
         }
         else if (g_str_has_prefix(strct_name, "audio/x-opus"))
@@ -115,12 +133,13 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
                 }
                 else
                 {
-                    GST_ERROR("Failed to read opus header details from a GstBuffer!");
+                    GST_ERROR_OBJECT(sink, "Failed to read opus header details from a GstBuffer!");
                 }
                 gst_buffer_unref(id_header);
 
                 firebolt::rialto::AudioConfig audioConfig{number_of_channels, sample_rate, codec_specific_config};
-                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment);
+                return firebolt::rialto::IMediaPipeline::MediaSource(-1, "audio/x-opus", audioConfig, alignment, format,
+                                                                     codecData);
             }
             else
             {
@@ -129,12 +148,12 @@ static firebolt::rialto::IMediaPipeline::MediaSource create_media_source(GstCaps
         }
         else
         {
-            GST_INFO("%s audio media source created", strct_name);
+            GST_INFO_OBJECT(sink, "%s audio media source created", strct_name);
             return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO,
-                                                                 strct_name, alignment);
+                                                                 strct_name, alignment, format, codecData);
         }
     }
-    GST_ERROR("Empty caps' structure name! Failed to set mime type for audio media source.");
+    GST_ERROR_OBJECT(sink, "Empty caps' structure name! Failed to set mime type for audio media source.");
     return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::AUDIO, "", alignment);
 }
 
@@ -151,9 +170,10 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 
         GST_INFO_OBJECT(sink, "Attaching AUDIO source with caps %s", capsStr);
         g_free(capsStr);
-        firebolt::rialto::IMediaPipeline::MediaSource asource = create_media_source(caps);
+        firebolt::rialto::IMediaPipeline::MediaSource asource = rialto_mse_audio_sink_create_media_source(sink, caps);
 
-        if (!sink->priv->m_mediaPlayerManager.getMediaPlayerClient()->attachSource(asource, sink))
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if ((!client) || (!client->attachSource(asource, sink)))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach AUDIO source");
         }
@@ -179,12 +199,6 @@ static void rialto_mse_audio_sink_qos_handle(GstElement *element, uint64_t proce
 static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)
 {
     RialtoMSEBaseSinkPrivate *priv = sink->parent.priv;
-
-    if (!priv->m_mediaPlayerManager.getMediaPlayerClient())
-    {
-        GST_ERROR_OBJECT(sink, "Failed to initialise AUDIO sink. There's no media player client.");
-        return;
-    }
 
     if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
     {

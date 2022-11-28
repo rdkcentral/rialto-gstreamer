@@ -154,7 +154,7 @@ public:
         return true;
     }
 
-    template <class Function, class... Args> bool callInEventLoop(Function &&f, Args &&... args)
+    template <class Function, class... Args> bool callInEventLoop(Function &&f, Args &&...args)
     {
         return callInEventLoopImpl(std::bind(std::forward<Function>(f), std::forward<Args>(args)...));
     }

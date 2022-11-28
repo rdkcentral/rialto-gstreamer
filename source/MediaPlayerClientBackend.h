@@ -18,37 +18,24 @@
 
 #pragma once
 
-#include "ClientBackendInterface.h"
+#include "MediaPlayerClientBackendInterface.h"
 #include <IMediaPipeline.h>
-#include <IRialtoControl.h>
 
 #include <memory>
 
 namespace firebolt::rialto::client
 {
-class ClientBackend final : public ClientBackendInterface
+class MediaPlayerClientBackend final : public MediaPlayerClientBackendInterface
 {
 public:
-    ClientBackend() : mMediaPlayerBackend(nullptr) {}
-    ~ClientBackend() final { mMediaPlayerBackend.reset(); }
+    MediaPlayerClientBackend() : mMediaPlayerBackend(nullptr) {}
+    ~MediaPlayerClientBackend() final { mMediaPlayerBackend.reset(); }
 
     void createMediaPlayerBackend(std::weak_ptr<IMediaPipelineClient> client, uint32_t maxWidth, uint32_t maxHeight) override
     {
         firebolt::rialto::VideoRequirements videoRequirements;
         videoRequirements.maxWidth = maxWidth;
         videoRequirements.maxHeight = maxHeight;
-
-        mRialtoControl = firebolt::rialto::IRialtoControlFactory::createFactory()->getRialtoControl();
-        if (!mRialtoControl)
-        {
-            GST_ERROR("Could not create rialto control");
-            return;
-        }
-        if (!mRialtoControl->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
-        {
-            GST_ERROR("Could not set RUNNING application state");
-            return;
-        }
 
         mMediaPlayerBackend =
             firebolt::rialto::IMediaPipelineFactory::createFactory()->createMediaPipeline(client, videoRequirements);
@@ -97,6 +84,5 @@ public:
 
 private:
     std::unique_ptr<IMediaPipeline> mMediaPlayerBackend;
-    std::shared_ptr<IRialtoControl> mRialtoControl;
 };
 } // namespace firebolt::rialto::client

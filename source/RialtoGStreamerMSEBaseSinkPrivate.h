@@ -23,8 +23,10 @@
 #include <string>
 
 #include "MediaPlayerManager.h"
+#include "RialtoControlClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <queue>
 
@@ -70,6 +72,7 @@ struct _RialtoMSEBaseSinkPrivate
     RialtoGStreamerMSEBaseSinkCallbacks mCallbacks;
 
     MediaPlayerManager m_mediaPlayerManager;
+    std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> m_rialtoControlClient;
     bool mHandleResetTimeMessage = false;
 };
 }

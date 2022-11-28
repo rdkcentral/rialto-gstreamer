@@ -17,57 +17,10 @@
  */
 
 #include "GStreamerEMEUtils.h"
+#include "GStreamerUtils.h"
 #include <RialtoGStreamerEMEProtectionMetadata.h>
 #include <cstdint>
 #include <stdio.h>
-
-class GstMappedBuffer
-{
-public:
-    explicit GstMappedBuffer(GstBuffer *buffer, GstMapFlags flags) : m_buffer(buffer)
-    {
-        m_isMapped = gst_buffer_map(m_buffer, &m_info, flags);
-    }
-
-    ~GstMappedBuffer()
-    {
-        if (m_isMapped)
-        {
-            gst_buffer_unmap(m_buffer, &m_info);
-        }
-    }
-
-    uint8_t *data()
-    {
-        if (m_isMapped)
-        {
-            return static_cast<uint8_t *>(m_info.data);
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
-
-    size_t size() const
-    {
-        if (m_isMapped)
-        {
-            return static_cast<size_t>(m_info.size);
-        }
-        else
-        {
-            return 0;
-        }
-    }
-
-    explicit operator bool() const { return m_isMapped; }
-
-private:
-    GstBuffer *m_buffer;
-    GstMapInfo m_info;
-    bool m_isMapped;
-};
 
 void getEncryptedFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta, BufferProtectionMetadata &metadata)
 {

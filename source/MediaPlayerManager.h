@@ -20,6 +20,7 @@
 #define MEDIAPLAYERMANAGER_H
 
 #include "GStreamerMSEMediaPlayerClient.h"
+#include <map>
 
 class MediaPlayerManager
 {
@@ -28,20 +29,28 @@ public:
     ~MediaPlayerManager();
 
     std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient();
+    bool attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth = 0,
+                                 const uint32_t maxVideoHeight = 0);
     void releaseMediaPlayerClient();
     bool hasControl();
 
 private:
-    void createMediaPlayerClient();
-    bool acquireControl();
+    struct MediaPlayerClientInfo
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
+        void *controller;
+        uint32_t refCount;
+    };
 
-    bool m_isReleaseNeeded;
+    void createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
+                                 const uint32_t maxVideoHeight);
+    bool acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo);
 
-    static std::mutex m_mutex;
-    static void *m_controller;
+    std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
+    const GstObject *m_currentGstBinParent;
 
-    static std::shared_ptr<GStreamerMSEMediaPlayerClient> m_mseClient;
-    static unsigned m_refCount;
+    static std::mutex m_mediaPlayerClientsMutex;
+    static std::map<const GstObject *, MediaPlayerClientInfo> m_mediaPlayerClientsInfo;
 };
 
 #endif // MEDIAPLAYERMANAGER_H

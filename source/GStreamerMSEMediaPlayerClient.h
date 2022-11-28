@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "ClientBackendInterface.h"
+#include "MediaPlayerClientBackendInterface.h"
 #include "MessageQueue.h"
 #include <IMediaPipeline.h>
 #include <MediaCommon.h>
@@ -165,7 +165,9 @@ class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineCli
     friend class QosMessage;
 
 public:
-    GStreamerMSEMediaPlayerClient(const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend);
+    GStreamerMSEMediaPlayerClient(
+        const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
+        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;
@@ -204,10 +206,6 @@ public:
 
     bool isConnectedToServer();
 
-    void setMaxVideoWidth(uint32_t maxWidth);
-    void setMaxVideoHeight(uint32_t maxHeight);
-    uint32_t getMaxVideoWidth();
-    uint32_t getMaxVideoHeight();
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     void notifySourceStartedSeeking(int32_t sourceId);
@@ -217,16 +215,13 @@ public:
 
 private:
     MessageQueue mBackendQueue;
-    std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> mClientBackend;
+    std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
     int64_t mDuration;
     std::atomic<bool> mIsConnected;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     SeekingState mServerSeekingState = SeekingState::IDLE;
-
-    uint32_t mMaxWidth;
-    uint32_t mMaxHeight;
 
     struct Rectangle
     {
@@ -235,4 +230,7 @@ private:
 
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
     bool mStreamingStopped;
+
+    const uint32_t mMaxWidth;
+    const uint32_t mMaxHeight;
 };

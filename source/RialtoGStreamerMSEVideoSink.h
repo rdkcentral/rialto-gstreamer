@@ -39,6 +39,7 @@ typedef struct _RialtoMSEVideoSinkPrivate RialtoMSEVideoSinkPrivate;
 struct _RialtoMSEVideoSink
 {
     RialtoMSEBaseSink parent;
+    RialtoMSEVideoSinkPrivate *priv;
 };
 
 struct _RialtoMSEVideoSinkClass

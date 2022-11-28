@@ -24,10 +24,10 @@
 
 namespace firebolt::rialto::client
 {
-class ClientBackendInterface
+class MediaPlayerClientBackendInterface
 {
 public:
-    virtual ~ClientBackendInterface() = default;
+    virtual ~MediaPlayerClientBackendInterface() = default;
     virtual void createMediaPlayerBackend(std::weak_ptr<IMediaPipelineClient> client, uint32_t maxWidth,
                                           uint32_t maxHeight) = 0;
     virtual bool isMediaPlayerBackendCreated() const = 0;

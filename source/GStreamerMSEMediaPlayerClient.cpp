@@ -31,9 +31,12 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
-    const std::shared_ptr<firebolt::rialto::client::ClientBackendInterface> &ClientBackend)
-    : mClientBackend(ClientBackend), mPosition(0), mDuration(0), mIsConnected(false), mMaxWidth(DEFAULT_MAX_VIDEO_WIDTH),
-      mMaxHeight(DEFAULT_MAX_VIDEO_HEIGHT), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false)
+    const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
+    const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
+    : mClientBackend(MediaPlayerClientBackend), mPosition(0), mDuration(0),
+      mIsConnected(false), mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false),
+      mMaxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
+      mMaxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
     mBackendQueue.start();
 }
@@ -136,26 +139,28 @@ int64_t GStreamerMSEMediaPlayerClient::getDuration()
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;
-    mBackendQueue.callInEventLoop([&]() {
-        mClientBackend->createMediaPlayerBackend(shared_from_this(), mMaxWidth, mMaxHeight);
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            mClientBackend->createMediaPlayerBackend(shared_from_this(), mMaxWidth, mMaxHeight);
 
-        if (mClientBackend->isMediaPlayerBackendCreated())
-        {
-            std::string utf8url = "mse://1";
-            firebolt::rialto::MediaType mediaType = firebolt::rialto::MediaType::MSE;
-            if (!mClientBackend->load(mediaType, "", utf8url))
+            if (mClientBackend->isMediaPlayerBackendCreated())
             {
-                GST_ERROR("Could not load RialtoClient");
-                return;
+                std::string utf8url = "mse://1";
+                firebolt::rialto::MediaType mediaType = firebolt::rialto::MediaType::MSE;
+                if (!mClientBackend->load(mediaType, "", utf8url))
+                {
+                    GST_ERROR("Could not load RialtoClient");
+                    return;
+                }
+                mIsConnected = true;
+                result = true;
             }
-            mIsConnected = true;
-            result = true;
-        }
-        else
-        {
-            GST_ERROR("Media player backend could not be created");
-        }
-    });
+            else
+            {
+                GST_ERROR("Media player backend could not be created");
+            }
+        });
 
     return result;
 }
@@ -177,27 +182,31 @@ void GStreamerMSEMediaPlayerClient::stop()
 
 void GStreamerMSEMediaPlayerClient::notifySourceStartedSeeking(int32_t sourceId)
 {
-    mBackendQueue.callInEventLoop([&]() {
-        auto sourceIt = mAttachedSources.find(sourceId);
-        if (sourceIt == mAttachedSources.end())
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-            return;
-        }
+            auto sourceIt = mAttachedSources.find(sourceId);
+            if (sourceIt == mAttachedSources.end())
+            {
+                return;
+            }
 
-        sourceIt->second.mSeekingState = SeekingState::SEEKING;
-        sourceIt->second.mBufferPuller->stop();
+            sourceIt->second.mSeekingState = SeekingState::SEEKING;
+            sourceIt->second.mBufferPuller->stop();
 
-        startPullingDataIfSeekFinished();
-    });
+            startPullingDataIfSeekFinished();
+        });
 }
 
 void GStreamerMSEMediaPlayerClient::seek(int64_t seekPosition)
 {
-    mBackendQueue.callInEventLoop([&]() {
-        mServerSeekingState = SeekingState::SEEKING;
-        mClientBackend->seek(seekPosition);
-        mPosition = seekPosition;
-    });
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            mServerSeekingState = SeekingState::SEEKING;
+            mClientBackend->seek(seekPosition);
+            mPosition = seekPosition;
+        });
 }
 
 void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
@@ -216,31 +225,33 @@ bool GStreamerMSEMediaPlayerClient::attachSource(firebolt::rialto::IMediaPipelin
     }
 
     bool result = false;
-    mBackendQueue.callInEventLoop([&]() {
-        result = mClientBackend->attachSource(source);
-
-        if (result)
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-            std::shared_ptr<BufferPuller> bufferPuller;
-            if (source.getType() == firebolt::rialto::MediaSourceType::AUDIO)
-            {
-                std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
-                bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), audioBufferParser);
-            }
-            else if (source.getType() == firebolt::rialto::MediaSourceType::VIDEO)
-            {
-                std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
-                bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), videoBufferParser);
-            }
+            result = mClientBackend->attachSource(source);
 
-            if (mAttachedSources.find(source.getId()) == mAttachedSources.end())
+            if (result)
             {
-                mAttachedSources.emplace(source.getId(), AttachedSource(rialtoSink, bufferPuller));
-                rialtoSink->priv->mSourceId = source.getId();
-                bufferPuller->start();
+                std::shared_ptr<BufferPuller> bufferPuller;
+                if (source.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+                {
+                    std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
+                    bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), audioBufferParser);
+                }
+                else if (source.getType() == firebolt::rialto::MediaSourceType::VIDEO)
+                {
+                    std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
+                    bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), videoBufferParser);
+                }
+
+                if (mAttachedSources.find(source.getId()) == mAttachedSources.end())
+                {
+                    mAttachedSources.emplace(source.getId(), AttachedSource(rialtoSink, bufferPuller));
+                    rialtoSink->priv->mSourceId = source.getId();
+                    bufferPuller->start();
+                }
             }
-        }
-    });
+        });
 
     return result;
 }
@@ -252,128 +263,136 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
 {
-    mBackendQueue.callInEventLoop([&]() {
-        if (mServerSeekingState != SeekingState::SEEK_DONE)
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-            return;
-        }
-
-        for (const auto &source : mAttachedSources)
-        {
-            if (source.second.mSeekingState != SeekingState::SEEKING)
+            if (mServerSeekingState != SeekingState::SEEK_DONE)
             {
                 return;
             }
-        }
 
-        GST_INFO("Server and all attached sourced finished seek");
+            for (const auto &source : mAttachedSources)
+            {
+                if (source.second.mSeekingState != SeekingState::SEEKING)
+                {
+                    return;
+                }
+            }
 
-        mServerSeekingState = SeekingState::IDLE;
-        for (auto &source : mAttachedSources)
-        {
-            source.second.mBufferPuller->start();
-            source.second.mSeekingState = SeekingState::IDLE;
-        }
-    });
+            GST_INFO("Server and all attached sourced finished seek");
+
+            mServerSeekingState = SeekingState::IDLE;
+            for (auto &source : mAttachedSources)
+            {
+                source.second.mBufferPuller->start();
+                source.second.mSeekingState = SeekingState::IDLE;
+            }
+        });
 }
 
 void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::PlaybackState state)
 {
     GST_DEBUG("Received state change to state %u", static_cast<uint32_t>(state));
-    mBackendQueue.callInEventLoop([&]() {
-        switch (state)
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-        case firebolt::rialto::PlaybackState::PAUSED:
-        case firebolt::rialto::PlaybackState::PLAYING:
-        {
-            for (const auto &source : mAttachedSources)
+            switch (state)
             {
-                rialto_mse_base_handle_rialto_server_state_changed(source.second.mRialtoSink, state);
-            }
-            break;
-        }
-        case firebolt::rialto::PlaybackState::END_OF_STREAM:
-        {
-            for (const auto &source : mAttachedSources)
+            case firebolt::rialto::PlaybackState::PAUSED:
+            case firebolt::rialto::PlaybackState::PLAYING:
             {
-                rialto_mse_base_handle_rialto_server_eos(source.second.mRialtoSink);
-            }
-        }
-        break;
-        case firebolt::rialto::PlaybackState::FLUSHED:
-        {
-            if (mServerSeekingState == SeekingState::SEEKING)
-            {
-                mServerSeekingState = SeekingState::SEEK_DONE;
-                startPullingDataIfSeekFinished();
-
-                for (auto &source : mAttachedSources)
+                for (const auto &source : mAttachedSources)
                 {
-                    rialto_mse_base_handle_rialto_server_completed_seek(source.second.mRialtoSink);
+                    rialto_mse_base_handle_rialto_server_state_changed(source.second.mRialtoSink, state);
+                }
+                break;
+            }
+            case firebolt::rialto::PlaybackState::END_OF_STREAM:
+            {
+                for (const auto &source : mAttachedSources)
+                {
+                    rialto_mse_base_handle_rialto_server_eos(source.second.mRialtoSink);
                 }
             }
-            else
-            {
-                GST_WARNING("Received unexpected FLUSHED state change");
-            }
             break;
-        }
-        case firebolt::rialto::PlaybackState::FAILURE:
-        {
-            for (auto &source : mAttachedSources)
+            case firebolt::rialto::PlaybackState::FLUSHED:
             {
                 if (mServerSeekingState == SeekingState::SEEKING)
                 {
-                    rialto_mse_base_handle_rialto_server_completed_seek(source.second.mRialtoSink);
-                }
-                gst_element_set_state(GST_ELEMENT_CAST(source.second.mRialtoSink), GST_STATE_READY);
-            }
-            mServerSeekingState = SeekingState::IDLE;
-            mPosition = 0;
+                    mServerSeekingState = SeekingState::SEEK_DONE;
+                    startPullingDataIfSeekFinished();
 
+                    for (auto &source : mAttachedSources)
+                    {
+                        rialto_mse_base_handle_rialto_server_completed_seek(source.second.mRialtoSink);
+                    }
+                }
+                else
+                {
+                    GST_WARNING("Received unexpected FLUSHED state change");
+                }
+                break;
+            }
+            case firebolt::rialto::PlaybackState::FAILURE:
+            {
+                for (auto &source : mAttachedSources)
+                {
+                    if (mServerSeekingState == SeekingState::SEEKING)
+                    {
+                        rialto_mse_base_handle_rialto_server_completed_seek(source.second.mRialtoSink);
+                    }
+                    gst_element_set_state(GST_ELEMENT_CAST(source.second.mRialtoSink), GST_STATE_READY);
+                }
+                mServerSeekingState = SeekingState::IDLE;
+                mPosition = 0;
+
+                break;
+            }
             break;
-        }
-        break;
-        default:
-            break;
-        }
-    });
+            default:
+                break;
+            }
+        });
 }
 
 void GStreamerMSEMediaPlayerClient::setVideoRectangle(const std::string &rectangleString)
 {
-    mBackendQueue.callInEventLoop([&]() {
-        if (!mClientBackend || !mClientBackend->isMediaPlayerBackendCreated())
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-            GST_WARNING("Missing RialtoClient backend - can't set video window now");
-            return;
-        }
+            if (!mClientBackend || !mClientBackend->isMediaPlayerBackendCreated())
+            {
+                GST_WARNING("Missing RialtoClient backend - can't set video window now");
+                return;
+            }
 
-        if (rectangleString.empty())
-        {
-            GST_WARNING("Empty video rectangle string");
-            return;
-        }
+            if (rectangleString.empty())
+            {
+                GST_WARNING("Empty video rectangle string");
+                return;
+            }
 
-        Rectangle rect = {0, 0, 0, 0};
-        if (sscanf(rectangleString.c_str(), "%u,%u,%u,%u", &rect.x, &rect.y, &rect.width, &rect.height) != 4)
-        {
-            GST_WARNING("Invalid video rectangle values");
-            return;
-        }
+            Rectangle rect = {0, 0, 0, 0};
+            if (sscanf(rectangleString.c_str(), "%u,%u,%u,%u", &rect.x, &rect.y, &rect.width, &rect.height) != 4)
+            {
+                GST_WARNING("Invalid video rectangle values");
+                return;
+            }
 
-        mClientBackend->setVideoWindow(rect.x, rect.y, rect.width, rect.height);
-        mVideoRectangle = rect;
-    });
+            mClientBackend->setVideoWindow(rect.x, rect.y, rect.width, rect.height);
+            mVideoRectangle = rect;
+        });
 }
 
 std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
 {
     char rectangle[64];
-    mBackendQueue.callInEventLoop([&]() {
-        sprintf(rectangle, "%u,%u,%u,%u", mVideoRectangle.x, mVideoRectangle.y, mVideoRectangle.width,
-                mVideoRectangle.height);
-    });
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            sprintf(rectangle, "%u,%u,%u,%u", mVideoRectangle.x, mVideoRectangle.y, mVideoRectangle.width,
+                    mVideoRectangle.height);
+        });
 
     return std::string(rectangle);
 }
@@ -383,38 +402,23 @@ bool GStreamerMSEMediaPlayerClient::isConnectedToServer()
     return mIsConnected;
 }
 
-void GStreamerMSEMediaPlayerClient::setMaxVideoWidth(uint32_t maxWidth)
-{
-    mMaxWidth = maxWidth;
-}
-void GStreamerMSEMediaPlayerClient::setMaxVideoHeight(uint32_t maxHeight)
-{
-    mMaxHeight = maxHeight;
-}
-uint32_t GStreamerMSEMediaPlayerClient::getMaxVideoWidth()
-{
-    return mMaxWidth;
-}
-uint32_t GStreamerMSEMediaPlayerClient::getMaxVideoHeight()
-{
-    return mMaxHeight;
-}
-
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
 {
     bool result = false;
-    mBackendQueue.callInEventLoop([&]() {
-        auto sourceIt = mAttachedSources.find(streamId);
-        if (sourceIt == mAttachedSources.end() || mServerSeekingState != SeekingState::IDLE)
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-            GST_ERROR("There's no attached source with id %d or seek is not finished %u", streamId,
-                      static_cast<uint32_t>(mServerSeekingState));
+            auto sourceIt = mAttachedSources.find(streamId);
+            if (sourceIt == mAttachedSources.end() || mServerSeekingState != SeekingState::IDLE)
+            {
+                GST_ERROR("There's no attached source with id %d or seek is not finished %u", streamId,
+                          static_cast<uint32_t>(mServerSeekingState));
 
-            result = false;
-            return;
-        }
-        result = sourceIt->second.mBufferPuller->requestPullBuffer(streamId, frameCount, needDataRequestId, this);
-    });
+                result = false;
+                return;
+            }
+            result = sourceIt->second.mBufferPuller->requestPullBuffer(streamId, frameCount, needDataRequestId, this);
+        });
 
     return result;
 }
@@ -422,18 +426,21 @@ bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frame
 bool GStreamerMSEMediaPlayerClient::handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo)
 {
     bool result = false;
-    mBackendQueue.callInEventLoop([&]() {
-        auto sourceIt = mAttachedSources.find(sourceId);
-        if (sourceIt == mAttachedSources.end())
+    mBackendQueue.callInEventLoop(
+        [&]()
         {
-            result = false;
-            return;
-        }
+            auto sourceIt = mAttachedSources.find(sourceId);
+            if (sourceIt == mAttachedSources.end())
+            {
+                result = false;
+                return;
+            }
 
-        rialto_mse_base_handle_rialto_server_sent_qos(sourceIt->second.mRialtoSink, qosInfo.processed, qosInfo.dropped);
+            rialto_mse_base_handle_rialto_server_sent_qos(sourceIt->second.mRialtoSink, qosInfo.processed,
+                                                          qosInfo.dropped);
 
-        result = true;
-    });
+            result = true;
+        });
 
     return result;
 }
