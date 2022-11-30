@@ -82,6 +82,8 @@ public:
 
     bool getPosition(int64_t &position) override { return mMediaPlayerBackend->getPosition(position); }
 
+    bool renderFrame() override { return mMediaPlayerBackend->renderFrame(); }
+
 private:
     std::unique_ptr<IMediaPipeline> mMediaPlayerBackend;
 };

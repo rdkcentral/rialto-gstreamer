@@ -261,7 +261,7 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
     {
         // this will force sink's async transition to paused state and make that pipeline will need to
         // wait for RialtoServer's preroll after seek
-        gst_element_lost_state(GST_ELEMENT_CAST(sink));
+        rialto_mse_base_sink_lost_state(sink);
 
         std::unique_lock<std::mutex> lock(sink->priv->mSeekMutex);
         GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->mLastSegment.start));
@@ -763,4 +763,9 @@ firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(Ri
     }
 
     return firebolt::rialto::SegmentAlignment::UNDEFINED;
+}
+
+void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
+{
+    gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }

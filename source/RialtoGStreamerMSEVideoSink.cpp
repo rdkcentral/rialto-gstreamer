@@ -247,6 +247,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         if (stepOnPrerollEnabled && !priv->stepOnPrerollEnabled)
         {
             GST_INFO_OBJECT(object, "Frame stepping on preroll");
+            client->renderFrame(RIALTO_MSE_BASE_SINK(sink));
         }
         priv->stepOnPrerollEnabled = stepOnPrerollEnabled;
         break;

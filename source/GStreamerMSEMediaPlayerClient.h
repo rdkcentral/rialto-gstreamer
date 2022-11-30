@@ -204,21 +204,19 @@ public:
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
 
-    bool isConnectedToServer();
-
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     void notifySourceStartedSeeking(int32_t sourceId);
     void startPullingDataIfSeekFinished();
     void stopStreaming();
     void destroyClientBackend();
+    bool renderFrame(RialtoMSEBaseSink *sink);
 
 private:
     MessageQueue mBackendQueue;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
     int64_t mDuration;
-    std::atomic<bool> mIsConnected;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     SeekingState mServerSeekingState = SeekingState::IDLE;
