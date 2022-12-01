@@ -18,8 +18,8 @@
 
 #include "GStreamerMSEMediaPlayerClient.h"
 #include "RialtoGStreamerMSEBaseSink.h"
-#include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include "RialtoGStreamerMSEVideoSink.h"
 #include <chrono>
 #include <thread>
 
@@ -34,9 +34,8 @@ const int64_t segmentStartMaximumDiff = 1000000000;
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
-    : mClientBackend(MediaPlayerClientBackend), mPosition(0), mDuration(0),
-      mVideoRectangle{0, 0, 1920, 1080}, mStreamingStopped(false),
-      mMaxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
+    : mClientBackend(MediaPlayerClientBackend), mPosition(0), mDuration(0), mVideoRectangle{0, 0, 1920, 1080},
+      mStreamingStopped(false), mMaxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       mMaxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
     mBackendQueue.start();
