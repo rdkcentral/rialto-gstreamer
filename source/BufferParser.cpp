@@ -77,8 +77,9 @@ void BufferParser::addProtectionMetadataToSegment(std::unique_ptr<IMediaPipeline
     if (metadata.encrypted)
     {
         GST_DEBUG("encrypted: %d mksId: %d key len: %lu iv len: %lu SUBSAMPLES: %lu, initWithLast15: %u",
-                  metadata.encrypted, metadata.mediaKeySessionId, metadata.kid.size(), metadata.iv.size(),
-                  metadata.subsamples.size(), metadata.initWithLast15);
+                  metadata.encrypted, metadata.mediaKeySessionId, (long unsigned int) metadata.kid.size(),
+                  (long unsigned int) metadata.iv.size(), (long unsigned int) metadata.subsamples.size(),
+                  metadata.initWithLast15);
 
         segment->setEncrypted(true);
         segment->setMediaKeySessionId(metadata.mediaKeySessionId);
@@ -89,7 +90,7 @@ void BufferParser::addProtectionMetadataToSegment(std::unique_ptr<IMediaPipeline
         size_t subSampleCount = metadata.subsamples.size();
         for (size_t subSampleIdx = 0; subSampleIdx < subSampleCount; ++subSampleIdx)
         {
-            GST_DEBUG("SUBSAMPLE: %lu/%lu C: %d E: %d", subSampleIdx, subSampleCount,
+            GST_DEBUG("SUBSAMPLE: %lu/%lu C: %d E: %d", (long unsigned int) subSampleIdx, (long unsigned int) subSampleCount,
                       metadata.subsamples[subSampleIdx].first, metadata.subsamples[subSampleIdx].second);
             segment->addSubSample(metadata.subsamples[subSampleIdx].first, metadata.subsamples[subSampleIdx].second);
         }
