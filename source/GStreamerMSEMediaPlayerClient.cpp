@@ -479,14 +479,20 @@ void BufferPuller::clearQueue()
     mQueue.clear();
 }
 
-HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId,
-                                 GStreamerMSEMediaPlayerClient *player)
-    : mStatus(status), mNeedDataRequestId(needDataRequestId), mPlayer(player)
+HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId,
+                                 unsigned int needDataRequestId, GStreamerMSEMediaPlayerClient *player)
+    : mStatus(status), mSourceId(sourceId), mNeedDataRequestId(needDataRequestId), mPlayer(player)
 {
 }
 
 void HaveDataMessage::handle()
 {
+    if (mPlayer->mAttachedSources.find(mSourceId) == mPlayer->mAttachedSources.end())
+    {
+        GST_WARNING("Source id %d is invalid", mSourceId);
+        return;
+    }
+
     mPlayer->mClientBackend->haveData(mStatus, mNeedDataRequestId);
 }
 
@@ -567,7 +573,7 @@ void PullBufferMessage::handle()
         status = firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES;
     }
 
-    mPlayer->mBackendQueue.postMessage(std::make_shared<HaveDataMessage>(status, mNeedDataRequestId, mPlayer));
+    mPlayer->mBackendQueue.postMessage(std::make_shared<HaveDataMessage>(status, mSourceId, mNeedDataRequestId, mPlayer));
 }
 
 NeedDataMessage::NeedDataMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
@@ -581,8 +587,8 @@ void NeedDataMessage::handle()
     if (!mPlayer->requestPullBuffer(mSourceId, mFrameCount, mNeedDataRequestId))
     {
         GST_ERROR("Failed to pull buffer for sourceId=%d and NeedDataRequestId %u", mSourceId, mNeedDataRequestId);
-        mPlayer->mBackendQueue.postMessage(
-            std::make_shared<HaveDataMessage>(firebolt::rialto::MediaSourceStatus::ERROR, mNeedDataRequestId, mPlayer));
+        mPlayer->mBackendQueue.postMessage(std::make_shared<HaveDataMessage>(firebolt::rialto::MediaSourceStatus::ERROR,
+                                                                             mSourceId, mNeedDataRequestId, mPlayer));
     }
 }
 

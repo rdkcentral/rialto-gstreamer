@@ -67,12 +67,13 @@ private:
 class HaveDataMessage : public Message
 {
 public:
-    HaveDataMessage(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId,
+    HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId, unsigned int needDataRequestId,
                     GStreamerMSEMediaPlayerClient *player);
     void handle();
 
 private:
     firebolt::rialto::MediaSourceStatus mStatus;
+    int mSourceId;
     unsigned int mNeedDataRequestId;
     GStreamerMSEMediaPlayerClient *mPlayer;
 };
