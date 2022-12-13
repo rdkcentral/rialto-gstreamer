@@ -360,6 +360,11 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
+        if (!priv->mSinkPad)
+        {
+            GST_ERROR_OBJECT(sink, "Cannot start, because there's no sink pad");
+            return GST_STATE_CHANGE_FAILURE;
+        }
         priv->m_rialtoControlClient->getRialtoControlBackend();
         if (!priv->m_rialtoControlClient->isRialtoControlBackendCreated())
         {
@@ -518,8 +523,13 @@ bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
 {
     GstPadTemplate *pad_template =
         gst_element_class_get_pad_template(GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink)), "sink");
-    GstPad *sinkPad = gst_pad_new_from_template(pad_template, "sink");
+    if (!pad_template)
+    {
+        GST_ERROR_OBJECT(sink, "Could not find sink pad template");
+        return false;
+    }
 
+    GstPad *sinkPad = gst_pad_new_from_template(pad_template, "sink");
     if (!sinkPad)
     {
         GST_ERROR_OBJECT(sink, "Could not create sinkpad");
