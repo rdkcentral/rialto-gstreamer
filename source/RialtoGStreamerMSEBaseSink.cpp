@@ -49,6 +49,19 @@ enum
     PROP_LAST
 };
 
+static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
+{
+    sink->priv->mIsStateCommitNeeded = true;
+    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
+}
+
+static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
+{
+    sink->priv->mIsStateCommitNeeded = false;
+    gst_element_post_message(GST_ELEMENT_CAST(sink),
+                             gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+}
+
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 {
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
@@ -69,9 +82,11 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
                      gst_element_state_get_name(next), gst_element_state_get_name(pending),
                      gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
 
-    if ((state == firebolt::rialto::PlaybackState::PAUSED && next == GST_STATE_PAUSED) ||
-        (state == firebolt::rialto::PlaybackState::PLAYING && next == GST_STATE_PLAYING))
+    if (sink->priv->mIsStateCommitNeeded &&
+        ((state == firebolt::rialto::PlaybackState::PAUSED && next == GST_STATE_PAUSED) ||
+         (state == firebolt::rialto::PlaybackState::PLAYING && next == GST_STATE_PLAYING)))
     {
+        sink->priv->mIsStateCommitNeeded = false;
         GST_STATE(sink) = next;
         GST_STATE_NEXT(sink) = postNext;
         GST_STATE_PENDING(sink) = GST_STATE_VOID_PENDING;
@@ -81,8 +96,7 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
 
         gst_element_post_message(GST_ELEMENT_CAST(sink),
                                  gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
-        gst_element_post_message(GST_ELEMENT_CAST(sink),
-                                 gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+        rialto_mse_base_async_done(sink);
     }
 }
 
@@ -389,7 +403,8 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         priv->mIsFlushOngoing = false;
         if (priv->m_mediaPlayerManager.hasControl())
         {
-            gst_element_post_message(element, gst_message_new_async_start(GST_OBJECT(element)));
+            priv->mIsStateCommitNeeded = true;
+            rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
             client->pause();
         }
@@ -404,7 +419,8 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         if (priv->m_mediaPlayerManager.hasControl())
         {
-            gst_element_post_message(element, gst_message_new_async_start(GST_OBJECT(element)));
+            priv->mIsStateCommitNeeded = true;
+            rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
             client->play();
         }
@@ -418,7 +434,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         if (priv->m_mediaPlayerManager.hasControl())
         {
-            gst_element_post_message(element, gst_message_new_async_start(GST_OBJECT(element)));
+            rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
             client->pause();
         }
@@ -429,7 +445,10 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
             return GST_STATE_CHANGE_FAILURE;
         }
-
+        if (priv->mIsStateCommitNeeded)
+        {
+            rialto_mse_base_async_done(sink);
+        }
         client->removeSource(priv->mSourceId);
         {
             std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
@@ -777,5 +796,6 @@ firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(Ri
 
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
+    sink->priv->mIsStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
