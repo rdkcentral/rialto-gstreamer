@@ -86,7 +86,6 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
         ((state == firebolt::rialto::PlaybackState::PAUSED && next == GST_STATE_PAUSED) ||
          (state == firebolt::rialto::PlaybackState::PLAYING && next == GST_STATE_PLAYING)))
     {
-        sink->priv->mIsStateCommitNeeded = false;
         GST_STATE(sink) = next;
         GST_STATE_NEXT(sink) = postNext;
         GST_STATE_PENDING(sink) = GST_STATE_VOID_PENDING;
@@ -403,7 +402,6 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         priv->mIsFlushOngoing = false;
         if (priv->m_mediaPlayerManager.hasControl())
         {
-            priv->mIsStateCommitNeeded = true;
             rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
             client->pause();
@@ -419,7 +417,6 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         if (priv->m_mediaPlayerManager.hasControl())
         {
-            priv->mIsStateCommitNeeded = true;
             rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
             client->play();
@@ -445,10 +442,13 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
             return GST_STATE_CHANGE_FAILURE;
         }
+
         if (priv->mIsStateCommitNeeded)
         {
+            GST_DEBUG_OBJECT(sink, "Sending async_done in PAUSED->READY transition");
             rialto_mse_base_async_done(sink);
         }
+
         client->removeSource(priv->mSourceId);
         {
             std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
