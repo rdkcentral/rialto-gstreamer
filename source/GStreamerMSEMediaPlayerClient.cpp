@@ -213,13 +213,13 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
     mBackendQueue.callInEventLoop([&]() { mClientBackend->setPlaybackRate(rate); });
 }
 
-bool GStreamerMSEMediaPlayerClient::attachSource(firebolt::rialto::IMediaPipeline::MediaSource &source,
+bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                                                  RialtoMSEBaseSink *rialtoSink)
 {
-    if (source.getType() != firebolt::rialto::MediaSourceType::AUDIO &&
-        source.getType() != firebolt::rialto::MediaSourceType::VIDEO)
+    if (source->getType() != firebolt::rialto::MediaSourceType::AUDIO &&
+        source->getType() != firebolt::rialto::MediaSourceType::VIDEO)
     {
-        GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source.getType()));
+        GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source->getType()));
         return false;
     }
 
@@ -232,21 +232,21 @@ bool GStreamerMSEMediaPlayerClient::attachSource(firebolt::rialto::IMediaPipelin
             if (result)
             {
                 std::shared_ptr<BufferPuller> bufferPuller;
-                if (source.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+                if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
                 {
                     std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
                     bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), audioBufferParser);
                 }
-                else if (source.getType() == firebolt::rialto::MediaSourceType::VIDEO)
+                else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
                 {
                     std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
                     bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), videoBufferParser);
                 }
 
-                if (mAttachedSources.find(source.getId()) == mAttachedSources.end())
+                if (mAttachedSources.find(source->getId()) == mAttachedSources.end())
                 {
-                    mAttachedSources.emplace(source.getId(), AttachedSource(rialtoSink, bufferPuller));
-                    rialtoSink->priv->mSourceId = source.getId();
+                    mAttachedSources.emplace(source->getId(), AttachedSource(rialtoSink, bufferPuller));
+                    rialtoSink->priv->mSourceId = source->getId();
                     bufferPuller->start();
                 }
             }

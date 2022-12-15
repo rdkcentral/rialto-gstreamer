@@ -775,6 +775,19 @@ firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(Ri
     return firebolt::rialto::SegmentAlignment::UNDEFINED;
 }
 
+bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStructure *s, int &dvProfile)
+{
+    gboolean isDolbyVisionEnabled = false;
+    if (gst_structure_get_boolean(s, "dovi-stream", &isDolbyVisionEnabled) && isDolbyVisionEnabled)
+    {
+        if (gst_structure_get_int(s, "dv_profile", &dvProfile))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
     gst_element_lost_state(GST_ELEMENT_CAST(sink));

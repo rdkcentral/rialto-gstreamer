@@ -49,7 +49,7 @@ public:
 
     bool isMediaPlayerBackendCreated() const override { return static_cast<bool>(mMediaPlayerBackend); }
 
-    bool attachSource(firebolt::rialto::IMediaPipeline::MediaSource &source) override
+    bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) override
     {
         return mMediaPlayerBackend->attachSource(source);
     }
