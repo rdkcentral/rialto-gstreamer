@@ -71,10 +71,9 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
                         parentObject);
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-        // TODO: Make MediaSource pure virtual??
+
         std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
-            std::make_unique<firebolt::rialto::IMediaPipeline::MediaSource>(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                            "");
+            std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(-1, "");
         if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(sink))))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach video source");
