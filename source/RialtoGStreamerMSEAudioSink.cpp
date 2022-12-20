@@ -156,8 +156,8 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             mimeType = strct_name;
         }
 
-        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceAudio>(-1, mimeType, audioConfig, alignment,
-                                                                               format, codecData);
+        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceAudio>(-1, mimeType, audioConfig,
+                                                                                    alignment, format, codecData);
     }
 
     GST_ERROR_OBJECT(sink, "Empty caps' structure name! Failed to set mime type for audio media source.");
