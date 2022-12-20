@@ -115,7 +115,7 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
         {
             mimeType = "video/h265";
 
-            int dolbyVisionProfile = -1;
+            uint32_t dolbyVisionProfile = -1;
             if (rialto_mse_base_sink_get_dv_profile(sink, structure, dolbyVisionProfile))
             {
                 return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision>(-1, mimeType,
