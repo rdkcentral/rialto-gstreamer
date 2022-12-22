@@ -519,9 +519,6 @@ void PullBufferMessage::handle()
     bool isEos = false;
     unsigned int addedSegments = 0;
 
-    /// TODO: leave until RialtoServer stops flooding us with NeedData requests when there are no available samples
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-
     for (unsigned int frame = 0; frame < mFrameCount; ++frame)
     {
         GstSample *sample = rialto_mse_base_sink_get_front_sample(RIALTO_MSE_BASE_SINK(mRialtoSink));
