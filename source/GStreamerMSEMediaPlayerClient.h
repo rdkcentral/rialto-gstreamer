@@ -179,7 +179,7 @@ public:
     void notifyVideoData(bool hasData) override;
     void notifyAudioData(bool hasData) override;
     void notifyNeedMediaData(int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
-                             const std::shared_ptr<firebolt::rialto::ShmInfo> &shmInfo) override;
+                             const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> &shmInfo) override;
     void notifyCancelNeedMediaData(int32_t sourceId) override;
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
 
