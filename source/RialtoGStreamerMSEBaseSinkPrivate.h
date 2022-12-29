@@ -34,7 +34,7 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
 {
-    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false) {}
+    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false), mIsStateCommitNeeded(false) {}
     ~_RialtoMSEBaseSinkPrivate()
     {
         if (mCaps)
@@ -62,6 +62,7 @@ struct _RialtoMSEBaseSinkPrivate
     std::queue<GstSample *> mSamples;
     bool mIsEos = false;
     std::atomic<bool> mIsFlushOngoing;
+    std::atomic<bool> mIsStateCommitNeeded;
     std::mutex mSinkMutex;
 
     std::condition_variable mNeedDataCondVariable;
