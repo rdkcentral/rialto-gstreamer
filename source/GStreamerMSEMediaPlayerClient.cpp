@@ -90,8 +90,9 @@ void GStreamerMSEMediaPlayerClient::notifyVideoData(bool hasData) {}
 
 void GStreamerMSEMediaPlayerClient::notifyAudioData(bool hasData) {}
 
-void GStreamerMSEMediaPlayerClient::notifyNeedMediaData(int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
-                                                        const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> & /*shmInfo*/)
+void GStreamerMSEMediaPlayerClient::notifyNeedMediaData(
+    int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
+    const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> & /*shmInfo*/)
 {
     mBackendQueue.postMessage(std::make_shared<NeedDataMessage>(sourceId, frameCount, needDataRequestId, this));
 
