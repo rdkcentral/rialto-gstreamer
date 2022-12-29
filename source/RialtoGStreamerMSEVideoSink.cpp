@@ -71,7 +71,9 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
                         parentObject);
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-        firebolt::rialto::IMediaPipeline::MediaSource vsource(-1, firebolt::rialto::MediaSourceType::VIDEO, "");
+
+        std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
+            std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(-1, "");
         if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(sink))))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach video source");
@@ -93,8 +95,8 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
     return result;
 }
 
-static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink,
-                                                                                               GstCaps *caps)
+static std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource>
+rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps)
 {
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     const gchar *strct_name = gst_structure_get_name(structure);
@@ -102,32 +104,42 @@ static firebolt::rialto::IMediaPipeline::MediaSource rialto_mse_video_sink_creat
     firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
     std::vector<uint8_t> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
     firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
+    std::string mimeType;
     if (strct_name)
     {
         if (g_str_has_prefix(strct_name, "video/x-h264"))
         {
-            firebolt::rialto::IMediaPipeline::MediaSource viddat(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 "video/h264", alignment, format, codecData);
-            return viddat;
+            mimeType = "video/h264";
         }
         else if (g_str_has_prefix(strct_name, "video/x-h265"))
         {
-            return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 "video/h265", alignment, format, codecData);
+            mimeType = "video/h265";
+
+            uint32_t dolbyVisionProfile = -1;
+            if (rialto_mse_base_sink_get_dv_profile(sink, structure, dolbyVisionProfile))
+            {
+                return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision>(-1, mimeType,
+                                                                                                       dolbyVisionProfile,
+                                                                                                       alignment, format,
+                                                                                                       codecData);
+            }
         }
         else
         {
-            GST_INFO_OBJECT(sink, "%s video media source created", strct_name);
-            return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO,
-                                                                 strct_name, alignment, format, codecData);
+            mimeType = strct_name;
         }
+
+        GST_INFO_OBJECT(sink, "%s video media source created", mimeType.c_str());
+        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(-1, mimeType, alignment, format,
+                                                                                    codecData);
     }
     else
     {
         GST_ERROR_OBJECT(sink,
                          "Empty caps' structure name! Failed to set mime type when constructing video media source");
-        return firebolt::rialto::IMediaPipeline::MediaSource(-1, firebolt::rialto::MediaSourceType::VIDEO, "", alignment);
     }
+
+    return nullptr;
 }
 
 static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
@@ -139,16 +151,23 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
-        gchar *capsStr = gst_caps_to_string(caps);
 
-        GST_INFO_OBJECT(sink, "Attaching VIDEO source with caps %s", capsStr);
-        g_free(capsStr);
-        firebolt::rialto::IMediaPipeline::MediaSource vsource = rialto_mse_video_sink_create_media_source(sink, caps);
+        GST_INFO_OBJECT(sink, "Attaching VIDEO source with caps %" GST_PTR_FORMAT, caps);
 
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-        if ((!client) || (!client->attachSource(vsource, sink)))
+        std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
+            rialto_mse_video_sink_create_media_source(sink, caps);
+        if (vsource)
         {
-            GST_ERROR_OBJECT(sink, "Failed to attach VIDEO source");
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+            if ((!client) || (!client->attachSource(vsource, sink)))
+            {
+                GST_ERROR_OBJECT(sink, "Failed to attach VIDEO source");
+            }
+        }
+        else
+        {
+            GST_ERROR_OBJECT(sink, "Failed to create VIDEO source");
         }
 
         break;

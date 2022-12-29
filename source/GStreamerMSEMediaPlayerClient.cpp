@@ -91,7 +91,7 @@ void GStreamerMSEMediaPlayerClient::notifyVideoData(bool hasData) {}
 void GStreamerMSEMediaPlayerClient::notifyAudioData(bool hasData) {}
 
 void GStreamerMSEMediaPlayerClient::notifyNeedMediaData(int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
-                                                        const std::shared_ptr<firebolt::rialto::ShmInfo> & /*shmInfo*/)
+                                                        const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> & /*shmInfo*/)
 {
     mBackendQueue.postMessage(std::make_shared<NeedDataMessage>(sourceId, frameCount, needDataRequestId, this));
 
@@ -213,13 +213,13 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
     mBackendQueue.callInEventLoop([&]() { mClientBackend->setPlaybackRate(rate); });
 }
 
-bool GStreamerMSEMediaPlayerClient::attachSource(firebolt::rialto::IMediaPipeline::MediaSource &source,
+bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                                                  RialtoMSEBaseSink *rialtoSink)
 {
-    if (source.getType() != firebolt::rialto::MediaSourceType::AUDIO &&
-        source.getType() != firebolt::rialto::MediaSourceType::VIDEO)
+    if (source->getType() != firebolt::rialto::MediaSourceType::AUDIO &&
+        source->getType() != firebolt::rialto::MediaSourceType::VIDEO)
     {
-        GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source.getType()));
+        GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source->getType()));
         return false;
     }
 
@@ -232,21 +232,21 @@ bool GStreamerMSEMediaPlayerClient::attachSource(firebolt::rialto::IMediaPipelin
             if (result)
             {
                 std::shared_ptr<BufferPuller> bufferPuller;
-                if (source.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+                if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
                 {
                     std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
                     bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), audioBufferParser);
                 }
-                else if (source.getType() == firebolt::rialto::MediaSourceType::VIDEO)
+                else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
                 {
                     std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
                     bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), videoBufferParser);
                 }
 
-                if (mAttachedSources.find(source.getId()) == mAttachedSources.end())
+                if (mAttachedSources.find(source->getId()) == mAttachedSources.end())
                 {
-                    mAttachedSources.emplace(source.getId(), AttachedSource(rialtoSink, bufferPuller));
-                    rialtoSink->priv->mSourceId = source.getId();
+                    mAttachedSources.emplace(source->getId(), AttachedSource(rialtoSink, bufferPuller));
+                    rialtoSink->priv->mSourceId = source->getId();
                     bufferPuller->start();
                 }
             }
@@ -518,9 +518,6 @@ void PullBufferMessage::handle()
 {
     bool isEos = false;
     unsigned int addedSegments = 0;
-
-    /// TODO: leave until RialtoServer stops flooding us with NeedData requests when there are no available samples
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     for (unsigned int frame = 0; frame < mFrameCount; ++frame)
     {

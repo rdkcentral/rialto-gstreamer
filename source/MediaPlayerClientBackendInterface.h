@@ -31,7 +31,7 @@ public:
     virtual void createMediaPlayerBackend(std::weak_ptr<IMediaPipelineClient> client, uint32_t maxWidth,
                                           uint32_t maxHeight) = 0;
     virtual bool isMediaPlayerBackendCreated() const = 0;
-    virtual bool attachSource(firebolt::rialto::IMediaPipeline::MediaSource &source) = 0;
+    virtual bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) = 0;
     virtual bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) = 0;
     virtual bool play() = 0;
     virtual bool pause() = 0;
