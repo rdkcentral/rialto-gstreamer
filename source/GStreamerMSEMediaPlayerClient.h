@@ -213,12 +213,15 @@ public:
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(RialtoMSEBaseSink *sink);
+    void setVolume(double volume);
+    double getVolume();
 
 private:
     MessageQueue mBackendQueue;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
     int64_t mDuration;
+    double mVolume;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     SeekingState mServerSeekingState = SeekingState::IDLE;

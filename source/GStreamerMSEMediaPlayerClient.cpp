@@ -413,6 +413,29 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
     return result;
 }
 
+void GStreamerMSEMediaPlayerClient::setVolume(double volume)
+{
+    mBackendQueue.callInEventLoop([&]() { mClientBackend->setVolume(volume); });
+}
+
+double GStreamerMSEMediaPlayerClient::getVolume()
+{
+    double volume;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mClientBackend->getVolume(volume))
+            {
+                mVolume = volume;
+            }
+            else
+            {
+                volume = mVolume;
+            }
+        });
+    return volume;
+}
+
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
 {
     bool result = false;

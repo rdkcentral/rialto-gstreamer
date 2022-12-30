@@ -36,6 +36,13 @@ G_DEFINE_TYPE_WITH_CODE(RialtoMSEAudioSink, rialto_mse_audio_sink, RIALTO_TYPE_M
                         GST_DEBUG_CATEGORY_INIT(RialtoMSEAudioSinkDebug, "rialtomseaudiosink", 0,
                                                 "rialto mse audio sink"));
 
+enum
+{
+    PROP_0,
+    PROP_VOLUME,
+    PROP_LAST
+};
+
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
@@ -200,6 +207,70 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     return rialto_mse_base_sink_event(pad, parent, event);
 }
 
+static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
+{
+    RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    if (!sink || !basePriv)
+    {
+        GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+
+    switch (propId)
+    {
+    case PROP_VOLUME:
+    {
+        if (!client)
+        {
+            GST_WARNING_OBJECT(object, "missing media player client");
+            return;
+        }
+        g_value_set_double(value, client->getVolume());
+        break;
+    }
+    default:
+    {
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
+        break;
+    }
+    }
+}
+
+static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
+{
+    RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    if (!sink || !basePriv)
+    {
+        GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+
+    switch (propId)
+    {
+    case PROP_VOLUME:
+    {
+        if (!client)
+        {
+            GST_WARNING_OBJECT(object, "missing media player client");
+            return;
+        }
+        client->setVolume(g_value_get_double(value));
+        break;
+    }
+    default:
+    {
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
+        break;
+    }
+    }
+}
+
 static void rialto_mse_audio_sink_qos_handle(GstElement *element, uint64_t processed, uint64_t dropped)
 {
     GstBus *bus = gst_element_get_bus(element);
@@ -229,8 +300,15 @@ static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)
 
 static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
 {
+    GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
+    gobjectClass->get_property = rialto_mse_audio_sink_get_property;
+    gobjectClass->set_property = rialto_mse_audio_sink_set_property;
     elementClass->change_state = rialto_mse_audio_sink_change_state;
+
+    g_object_class_install_property(gobjectClass, PROP_VOLUME,
+                                    g_param_spec_double("volume", "Volume", "Volume of this stream", 0, 1.0, 1.0,
+                                                        GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();

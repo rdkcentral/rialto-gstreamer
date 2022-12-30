@@ -84,6 +84,10 @@ public:
 
     bool renderFrame() override { return mMediaPlayerBackend->renderFrame(); }
 
+    bool setVolume(double volume) { return mMediaPlayerBackend->setVolume(volume); }
+
+    bool getVolume(double &volume) { return mMediaPlayerBackend->getVolume(volume); }
+
 private:
     std::unique_ptr<IMediaPipeline> mMediaPlayerBackend;
 };
