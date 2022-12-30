@@ -21,6 +21,7 @@
 #include "GStreamerMSEUtils.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipelineCapabilities.h>
+#include <gst/audio/audio.h>
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 #include <inttypes.h>
@@ -33,8 +34,9 @@ GST_DEBUG_CATEGORY_STATIC(RialtoMSEAudioSinkDebug);
 
 #define rialto_mse_audio_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoMSEAudioSink, rialto_mse_audio_sink, RIALTO_TYPE_MSE_BASE_SINK,
-                        GST_DEBUG_CATEGORY_INIT(RialtoMSEAudioSinkDebug, "rialtomseaudiosink", 0,
-                                                "rialto mse audio sink"));
+                        G_IMPLEMENT_INTERFACE(GST_TYPE_STREAM_VOLUME, NULL)
+                            GST_DEBUG_CATEGORY_INIT(RialtoMSEAudioSinkDebug, "rialtomseaudiosink", 0,
+                                                    "rialto mse audio sink"));
 
 enum
 {

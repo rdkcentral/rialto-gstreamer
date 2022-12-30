@@ -25,7 +25,7 @@ find_package(Rialto 1.0 REQUIRED)
 find_package(ocdmRialto 1.0 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0 gstreamer-pbutils-1.0)
+pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0 gstreamer-pbutils-1.0 gstreamer-audio-1.0)
 
 add_library(gstrialtosinks
 
