@@ -39,36 +39,12 @@ GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *appSink
       m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_resetTimeout(5000)
 {
     mBackendQueue.start();
-    if (!createBackend("", 0, nullptr))
-    {
-        GST_ERROR("Cannot create backend");
-    }
+    mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
 }
 
 GStreamerWebAudioPlayerClient::~GStreamerWebAudioPlayerClient()
 {
     mBackendQueue.stop();
-}
-
-bool GStreamerWebAudioPlayerClient::createBackend(const std::string &audioMimeType, const uint32_t priority,
-                                                  const firebolt::rialto::WebAudioConfig *config)
-{
-    GST_DEBUG("entry:");
-
-    bool result = true;
-    mBackendQueue.callInEventLoop(
-        [&]()
-        {
-            mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
-            mClientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, config);
-
-            if (!mClientBackend->isWebAudioBackendCreated())
-            {
-                GST_ERROR("Could not create web audio backend");
-                result = false;
-            }
-        });
-    return result;
 }
 
 bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
@@ -84,7 +60,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     bool isBigEndian;
     bool isSigned;
     bool isFloat;
-
+    uint32_t priority = 1;
     // Required capabilities
     if (format.empty())
     {
@@ -128,15 +104,26 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mClientBackend)
+            firebolt::rialto::WebAudioPcmConfig pcm;
+            pcm.rate = rate;
+            pcm.channels = channels;
+            pcm.sampleSize = sampleSize;
+            pcm.isBigEndian = isBigEndian;
+            pcm.isSigned = isSigned;
+            pcm.isFloat = isFloat;
+            firebolt::rialto::WebAudioConfig config{pcm};
+            std::string audioMimeType = "audio/" + format;
+
+            if (mClientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
             {
-                result = mClientBackend->open(rate, channels, sampleSize, isBigEndian, isSigned, isFloat);
                 mIsOpen = true;
             }
             else
             {
-                GST_ERROR("No web audio backend");
+                GST_ERROR("Could not create web audio backend");
+                mIsOpen = false;
             }
+            result = mIsOpen;
         });
 
     return result;
@@ -153,6 +140,50 @@ bool GStreamerWebAudioPlayerClient::play()
             if (mClientBackend)
             {
                 result = mClientBackend->play();
+            }
+            else
+            {
+                GST_ERROR("No web audio backend");
+            }
+        });
+
+    return result;
+}
+
+
+bool GStreamerWebAudioPlayerClient::pause()
+{
+    GST_DEBUG("entry:");
+
+    bool result = false;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mClientBackend)
+            {
+                result = mClientBackend->pause();
+            }
+            else
+            {
+                GST_ERROR("No web audio backend");
+            }
+        });
+
+    return result;
+}
+
+bool GStreamerWebAudioPlayerClient::setEos()
+{
+    GST_DEBUG("entry:");
+
+    bool result = false;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mClientBackend)
+            {
+                result = mClientBackend->setEos();
+                mIsOpen = false;
             }
             else
             {
@@ -198,28 +229,6 @@ bool GStreamerWebAudioPlayerClient::reset()
     return true;
 }
 
-bool GStreamerWebAudioPlayerClient::close()
-{
-    GST_DEBUG("entry:");
-
-    bool result = false;
-    mBackendQueue.callInEventLoop(
-        [&]()
-        {
-            if (mClientBackend)
-            {
-                result = mClientBackend->close();
-                mIsOpen = false;
-            }
-            else
-            {
-                GST_ERROR("No web audio backend");
-            }
-        });
-
-    return result;
-}
-
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
     mBackendQueue.callInEventLoop(
@@ -263,7 +272,6 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     uint32_t maximumFrames = 0u;
     bool supportDeferredPlay = false;
     uint32_t availableFrames = 0u;
-    int16_t *sharedBuffer = nullptr;
 
     if (!mClientBackend->getBufferAvailable(availableFrames))
     {
@@ -315,6 +323,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                     }
                     else
                     {
+                        /*
                         // Get the buffer here as getBuffer must be paired with a commit
                         if (nullptr == sharedBuffer)
                         {
@@ -326,12 +335,14 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                         }
                         memcpy(sharedBuffer + bytesCopied, &(*it)[0], it->size());
                         bytesCopied += it->size();
+                        */
                     }
                 }
 
                 // Commit buffer if we have written data
                 if (bytesCopied != 0)
                 {
+                   /*
                     if (!mClientBackend->commitBuffer(bytesCopied / 4))
                     {
                         // Keep the stored samples if we fail to push the data
@@ -346,11 +357,12 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                             mSampleDataBuffers.push_back(tmpBufferData);
                         }
                     }
+                    */
                 }
             }
         }
     }
-
+/*
     if (mSampleDataBuffers.empty())
     {
         // Check if there are anymore samples to push //
@@ -361,7 +373,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
             mSampleDataFrameCount += bufferData.size() / 4;
         }
     }
-
+*/
     // If we still have samples stored that could not be pushed, start a timer.
     // This avoids any stoppages in the pushing of samples to the server if the consumption of
     // samples is slow.
@@ -371,6 +383,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     }
     else
     {
+        /*
         if ((mIsResetInProgress) && (!mClientBackend->reset()))
         {
             GST_ERROR("Reset failed, try again when sample timer expires");
@@ -388,6 +401,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                 m_resetCond.notify_all();
             }
         }
+        */
     }
 }
 
@@ -415,11 +429,6 @@ std::vector<uint8_t> GStreamerWebAudioPlayerClient::getNextBufferData()
     gst_sample_unref(sample);
 
     return bufferData;
-}
-
-bool GStreamerWebAudioPlayerClient::isOpen()
-{
-    return mIsOpen;
 }
 
 void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayerState state) {}

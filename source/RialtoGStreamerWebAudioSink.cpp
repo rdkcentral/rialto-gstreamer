@@ -17,6 +17,7 @@
  */
 
 #include "RialtoGStreamerWebAudioSink.h"
+#include "GStreamerWebAudioPlayerClient.h"
 #include <gst/gst.h>
 
 using namespace firebolt::rialto::client;
@@ -28,6 +29,12 @@ GST_DEBUG_CATEGORY_STATIC(RialtoWebAudioSinkDebug);
 G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_BIN,
                         GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtouiaudiosink", 0, "rialto web audio sink"));
 
+/*
+void rialto_web_audio_sink_eos_handler(RialtoWebAudioSink *sink)
+{
+    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
+}
+*/
 GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, RialtoWebAudioSink *sink)
 {
     GstFlowReturn result = GST_FLOW_ERROR;
@@ -150,15 +157,15 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
         break;
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
         GST_DEBUG("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
-        sink->priv->mWebAudioClient->reset();
+        sink->priv->mWebAudioClient->pause();
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
         GST_WARNING("GST_STATE_CHANGE_PAUSED_TO_READY");
-        sink->priv->mWebAudioClient->close();
+        sink->priv->mWebAudioClient->reset();
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
         GST_WARNING("GST_STATE_CHANGE_READY_TO_NULL");
-        sink->priv->mWebAudioClient = nullptr;
+        // sink->priv->mWebAudioClient = nullptr;
     default:
         break;
     }
@@ -177,8 +184,15 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
 
 static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
+    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
     switch (GST_EVENT_TYPE(event))
     {
+    case GST_EVENT_EOS:
+    {
+        GST_WARNING("GST_EVENT_EOS");
+        sink->priv->mWebAudioClient->setEos();
+        break;
+    }
     default:
         break;
     }
@@ -198,7 +212,6 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     }
 
     sink->priv->mWebAudioClient = std::make_unique<GStreamerWebAudioPlayerClient>(sink->priv->mAppSink);
-
     gst_element_set_name(sink->priv->mAppSink, "rialtouiaudioappsink");
     gst_bin_add(GST_BIN(sink), sink->priv->mAppSink);
     gst_element_sync_state_with_parent(sink->priv->mAppSink);
@@ -233,9 +246,10 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 
-    //g_type_class_add_private(klass, sizeof(RialtoWebAudioSinkPrivate));
+    // g_type_class_add_private(klass, sizeof(RialtoWebAudioSinkPrivate));
 
-    gst_element_class_set_metadata(elementClass, "Rialto Web Audio sink", "Generic", "A sink for Rialto Web Audio", "Sky");
+    gst_element_class_set_metadata(elementClass, "Rialto Web Audio sink", "Generic", "A sink for Rialto Web Audio",
+                                   "Sky");
 
     gobjectClass->finalize = rialto_web_audio_sink_finalize;
 

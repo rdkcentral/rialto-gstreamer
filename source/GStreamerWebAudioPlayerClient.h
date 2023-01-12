@@ -72,6 +72,20 @@ public:
     bool play();
 
     /**
+     * @brief Pause the web audio.
+     *
+     * @retval true on success.
+     */
+    bool pause();
+
+    /**
+     * @brief Notify EOS.
+     *
+     * @retval true on success.
+     */
+    bool setEos();
+
+    /**
      * @brief Send any remaining samples then reset the web audio.
      *
      * Will not return from this method until all data has been played out.
@@ -81,25 +95,11 @@ public:
     bool reset();
 
     /**
-     * @brief Close the web audio.
-     *
-     * @retval true on success.
-     */
-    bool close();
-
-    /**
      * @brief Notifies that there is a new sample in gstreamer.
      *
      * @retval true on success.
      */
     bool notifyNewSample();
-
-    /**
-     * @brief Query whether web audio is open.
-     *
-     * @retval true if open.
-     */
-    bool isOpen();
 
     /**
      * @brief Notify push sample timer expiry.
@@ -128,14 +128,6 @@ private:
      * @retval vector of the next buffer data.
      */
     std::vector<uint8_t> getNextBufferData();
-
-    /**
-     * @brief Create the web audio client backend.
-     *
-     * @retval true if success.
-     */
-    bool createBackend(const std::string &audioMimeType, const uint32_t priority,
-                       const firebolt::rialto::WebAudioConfig *config);
 
     /**
      * @brief Backend message queue.

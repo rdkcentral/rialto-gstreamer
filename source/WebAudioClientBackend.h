@@ -30,7 +30,7 @@ public:
     WebAudioClientBackend() : mWebAudioPlayerBackend(nullptr) {}
     ~WebAudioClientBackend() final { mWebAudioPlayerBackend.reset(); }
 
-    void createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
+    bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
                                const uint32_t priority, const WebAudioConfig *config) override
     {
         mWebAudioPlayerBackend =
@@ -40,41 +40,30 @@ public:
         if (!mWebAudioPlayerBackend)
         {
             GST_ERROR("Could not create web audio backend");
-            return;
+            return false;
         }
-    }
-
-    bool isWebAudioBackendCreated() const override { return static_cast<bool>(mWebAudioPlayerBackend); }
-
-    bool open(const uint32_t rate, const uint32_t channels, const uint32_t sampleSize, bool isBigEndian, bool isSigned,
-              bool isFloat) override
-    {
-        // return mWebAudioPlayerBackend->Open(rate, channels, sampleSize, isBigEndian, isSigned, isFloat);
         return true;
     }
-    bool close() override { return true; }
+
     bool play() override { return mWebAudioPlayerBackend->play(); }
-    bool reset() override { return true; }
+    bool pause() override { return mWebAudioPlayerBackend->pause(); }
+    bool setEos() override { return mWebAudioPlayerBackend->pause(); }
     bool getBufferAvailable(uint32_t &availableFrames) override
     {
-        // return mWebAudioPlayerBackend->GetBufferAvailable(availableFrames);
-        return true;
+        std::shared_ptr<firebolt::rialto::WebAudioShmInfo> webAudioShmInfo;
+        return mWebAudioPlayerBackend->getBufferAvailable(availableFrames, webAudioShmInfo);
     }
     bool getBufferDelay(uint32_t &delayFrames) override { return mWebAudioPlayerBackend->getBufferDelay(delayFrames); }
-    bool commitBuffer(const uint32_t writtenFrames) override
+    bool writeBuffer(const uint32_t numberOfFrames, void *data) override
     {
-        // return mWebAudioPlayerBackend->CommitBuffer(writtenFrames);
-        return true;
-    }
-    bool getBuffer(int16_t **bufferPtr, const uint32_t requestedFrames)
-    {
-        // return mWebAudioPlayerBackend->GetBuffer(bufferPtr, requestedFrames);
-        return true;
+        return mWebAudioPlayerBackend->writeBuffer(numberOfFrames, data);
     }
     bool getDeviceInfo(uint32_t &preferredFrames, uint32_t &maximumFrames, bool &supportDeferredPlay) override
     {
         return mWebAudioPlayerBackend->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay);
     }
+    bool setVolume(double volume) { return mWebAudioPlayerBackend->setVolume(volume); }
+    bool getVolume(double &volume) { return mWebAudioPlayerBackend->setVolume(volume); }
 
 private:
     std::unique_ptr<IWebAudioPlayer> mWebAudioPlayerBackend;

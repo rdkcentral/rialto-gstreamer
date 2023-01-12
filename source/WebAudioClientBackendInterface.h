@@ -26,18 +26,17 @@ class WebAudioClientBackendInterface
 {
 public:
     virtual ~WebAudioClientBackendInterface() = default;
-    virtual void createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
+    virtual bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
                                        const uint32_t priority, const WebAudioConfig *config) = 0;
-    virtual bool isWebAudioBackendCreated() const = 0;
-    virtual bool open(const uint32_t rate, const uint32_t channels, const uint32_t sampleSize, bool isBigEndian,
-                      bool isSigned, bool isFloat) = 0;
-    virtual bool close() = 0;
+
     virtual bool play() = 0;
-    virtual bool reset() = 0;
+    virtual bool pause() = 0;
+    virtual bool setEos() = 0;
     virtual bool getBufferAvailable(uint32_t &availableFrames) = 0;
     virtual bool getBufferDelay(uint32_t &delayFrames) = 0;
-    virtual bool commitBuffer(const uint32_t writtenFrames) = 0;
-    virtual bool getBuffer(int16_t **bufferPtr, const uint32_t requestedFrames) = 0;
+    virtual bool writeBuffer(const uint32_t numberOfFrames, void *data) = 0;
     virtual bool getDeviceInfo(uint32_t &preferredFrames, uint32_t &maximumFrames, bool &supportDeferredPlay) = 0;
+    virtual bool setVolume(double volume) = 0;
+    virtual bool getVolume(double &volume) = 0;
 };
 } // namespace firebolt::rialto::client
