@@ -90,8 +90,9 @@ void GStreamerMSEMediaPlayerClient::notifyVideoData(bool hasData) {}
 
 void GStreamerMSEMediaPlayerClient::notifyAudioData(bool hasData) {}
 
-void GStreamerMSEMediaPlayerClient::notifyNeedMediaData(int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
-                                                        const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> & /*shmInfo*/)
+void GStreamerMSEMediaPlayerClient::notifyNeedMediaData(
+    int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
+    const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> & /*shmInfo*/)
 {
     mBackendQueue.postMessage(std::make_shared<NeedDataMessage>(sourceId, frameCount, needDataRequestId, this));
 
@@ -410,6 +411,29 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
             }
         });
     return result;
+}
+
+void GStreamerMSEMediaPlayerClient::setVolume(double volume)
+{
+    mBackendQueue.callInEventLoop([&]() { mClientBackend->setVolume(volume); });
+}
+
+double GStreamerMSEMediaPlayerClient::getVolume()
+{
+    double volume;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mClientBackend->getVolume(volume))
+            {
+                mVolume = volume;
+            }
+            else
+            {
+                volume = mVolume;
+            }
+        });
+    return volume;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
