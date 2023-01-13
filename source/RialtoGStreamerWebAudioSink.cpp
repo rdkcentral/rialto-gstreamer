@@ -29,12 +29,6 @@ GST_DEBUG_CATEGORY_STATIC(RialtoWebAudioSinkDebug);
 G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_BIN,
                         GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtouiaudiosink", 0, "rialto web audio sink"));
 
-/*
-void rialto_web_audio_sink_eos_handler(RialtoWebAudioSink *sink)
-{
-    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
-}
-*/
 GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, RialtoWebAudioSink *sink)
 {
     GstFlowReturn result = GST_FLOW_ERROR;
@@ -161,7 +155,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
         GST_WARNING("GST_STATE_CHANGE_PAUSED_TO_READY");
-        sink->priv->mWebAudioClient->reset();
+        //sink->priv->mWebAudioClient->reset();
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
         GST_WARNING("GST_STATE_CHANGE_READY_TO_NULL");
@@ -234,6 +228,7 @@ static void rialto_web_audio_sink_finalize(GObject *object)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
     RialtoWebAudioSinkPrivate *priv = sink->priv;
+    sink->priv->mWebAudioClient = nullptr;
     GST_INFO_OBJECT(sink, "Finalize: %" GST_PTR_FORMAT " %" GST_PTR_FORMAT, sink, priv);
 
     priv->~RialtoWebAudioSinkPrivate();

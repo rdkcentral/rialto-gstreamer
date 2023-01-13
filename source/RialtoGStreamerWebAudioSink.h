@@ -26,7 +26,7 @@ G_BEGIN_DECLS
 
 #define RIALTO_TYPE_WEB_AUDIO_SINK (rialto_web_audio_sink_get_type())
 #define RIALTO_WEB_AUDIO_SINK(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), RIALTO_TYPE_WEB_AUDIO_SINK, RialtoWebAudioSink))
-#define RIALTO_WEB_AUDIO_SINK_CLASS(klass)                                                                              \
+#define RIALTO_WEB_AUDIO_SINK_CLASS(klass)                                                                             \
     (G_TYPE_CHECK_CLASS_CAST((klass), RIALTO_TYPE_WEB_AUDIO_SINK, RialtoWebAudioSinkClass))
 #define RIALTO_IS_WEB_AUDIO_SINK(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), RIALTO_TYPE_WEB_AUDIO_SINK))
 #define RIALTO_IS_WEB_AUDIO_SINK_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), RIALTO_TYPE_WEB_AUDIO_SINK))

@@ -20,23 +20,70 @@
 #include "WebAudioClientBackend.h"
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <string.h>
 #include <thread>
 
+namespace
+{
 /**
  * @brief The callback called when push sampels timer expires
  *
  * @param[in] vSelf : private user data
  */
-static void notifyPushSamplesCallback(void *vSelf)
+void notifyPushSamplesCallback(void *vSelf)
 {
     GStreamerWebAudioPlayerClient *self = static_cast<GStreamerWebAudioPlayerClient *>(vSelf);
     self->notifyPushSamplesTimerExpired();
 }
 
+bool parseFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned, bool &isFloat)
+{
+    if (format.size() != 5)
+    {
+        return false;
+    }
+    std::string sampleSizeStr = format.substr(1, 2);
+    char *pEnd = NULL;
+    errno = 0;
+    sampleSize = strtoul(sampleSizeStr.c_str(), &pEnd, 10);
+    if (errno == ERANGE)
+    {
+        return false;
+    }
+    if (format.substr(3) == "LE")
+    {
+        isBigEndian = false;
+    }
+    else
+    {
+        isBigEndian = true;
+    }
+
+    switch (format[0])
+    {
+    case 'S':
+        isSigned = true;
+        isFloat = false;
+        break;
+    case 'U':
+        isSigned = false;
+        isFloat = false;
+        break;
+    case 'F':
+        isSigned = false;
+        isFloat = true;
+        break;
+    default:
+        return false;
+        break;
+    }
+    return true;
+}
+} // namespace
+
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *appSink)
-    : mIsOpen(false), mSampleDataFrameCount(0u), mIsResetInProgress(false), mAppSink(appSink),
-      m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_resetTimeout(5000)
+    : mIsOpen(false), mAppSink(appSink), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback")
 {
     mBackendQueue.start();
     mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
@@ -53,69 +100,50 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
 
     bool result = false;
     GstStructure *structure = gst_caps_get_structure(caps, 0);
+    std::string audioMimeType = gst_structure_get_name(structure);
+    audioMimeType = audioMimeType.substr(0, audioMimeType.find(' '));
     std::string format = gst_structure_get_string(structure, "format");
-    uint32_t sampleSize;
-    gint rate;
-    gint channels;
-    bool isBigEndian;
-    bool isSigned;
-    bool isFloat;
-    uint32_t priority = 1;
-    // Required capabilities
+    firebolt::rialto::WebAudioPcmConfig pcm;
+    gint tmp;
+
     if (format.empty())
     {
         GST_ERROR("Format not found in caps");
         return result;
     }
 
-    if (!gst_structure_get_int(structure, "rate", &rate))
+    if (!gst_structure_get_int(structure, "rate", &tmp))
     {
         GST_ERROR("Rate not found in caps");
         return result;
     }
+    pcm.rate = tmp;
 
-    if (!gst_structure_get_int(structure, "channels", &channels))
+    if (!gst_structure_get_int(structure, "channels", &tmp))
     {
         GST_ERROR("Rate not found in caps");
         return result;
     }
+    pcm.channels = tmp;
 
-    // Only format S16LE & F32LE supported
-    if (format == std::string("S16LE"))
+    if (parseFormat(format, pcm.sampleSize, pcm.isBigEndian, pcm.isSigned, pcm.isFloat))
     {
-        sampleSize = 16;
-        isBigEndian = false;
-        isSigned = true;
-        isFloat = false;
-    }
-    else if (format == std::string("F32LE"))
-    {
-        sampleSize = 32;
-        isBigEndian = false;
-        isSigned = false;
-        isFloat = true;
-    }
-    else
-    {
-        GST_ERROR("Format not supported");
+        GST_ERROR("Can't parse format or it is not supported");
         return result;
     }
 
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            firebolt::rialto::WebAudioPcmConfig pcm;
-            pcm.rate = rate;
-            pcm.channels = channels;
-            pcm.sampleSize = sampleSize;
-            pcm.isBigEndian = isBigEndian;
-            pcm.isSigned = isSigned;
-            pcm.isFloat = isFloat;
             firebolt::rialto::WebAudioConfig config{pcm};
-            std::string audioMimeType = "audio/" + format;
 
+            uint32_t priority = 1;
             if (mClientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
             {
+                if (!mClientBackend->getDeviceInfo(m_preferredFrames, m_maximumFrames, m_supportDeferredPlay))
+                {
+                    GST_ERROR("GetDeviceInfo failed, could not process samples");
+                }
                 mIsOpen = true;
             }
             else
@@ -137,7 +165,7 @@ bool GStreamerWebAudioPlayerClient::play()
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mClientBackend)
+            if (mIsOpen)
             {
                 result = mClientBackend->play();
             }
@@ -150,7 +178,6 @@ bool GStreamerWebAudioPlayerClient::play()
     return result;
 }
 
-
 bool GStreamerWebAudioPlayerClient::pause()
 {
     GST_DEBUG("entry:");
@@ -159,7 +186,7 @@ bool GStreamerWebAudioPlayerClient::pause()
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mClientBackend)
+            if (mIsOpen)
             {
                 result = mClientBackend->pause();
             }
@@ -180,10 +207,14 @@ bool GStreamerWebAudioPlayerClient::setEos()
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mClientBackend)
+            if (mIsOpen)
             {
+                if (mSampleDataBuffer.size())
+                {
+                    pushSamples();
+                }
+                m_pushSamplesTimer.cancel();
                 result = mClientBackend->setEos();
-                mIsOpen = false;
             }
             else
             {
@@ -194,55 +225,9 @@ bool GStreamerWebAudioPlayerClient::setEos()
     return result;
 }
 
-bool GStreamerWebAudioPlayerClient::reset()
-{
-    GST_DEBUG("entry:");
-
-    mBackendQueue.callInEventLoop(
-        [&]()
-        {
-            if (mClientBackend)
-            {
-                {
-                    std::unique_lock<std::mutex> resetlock(m_resetLock);
-                    mIsResetInProgress = true;
-                }
-
-                // Push any leftover samples
-                pushSamples();
-            }
-            else
-            {
-                GST_ERROR("No web audio backend");
-            }
-        });
-
-    std::unique_lock<std::mutex> resetlock(m_resetLock);
-    if (mIsResetInProgress)
-    {
-        const auto deadline = std::chrono::steady_clock::now() + m_resetTimeout;
-
-        // Wait until reset has been finished out before returning to client
-        m_resetCond.wait_until(resetlock, deadline);
-    }
-
-    return true;
-}
-
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
-    mBackendQueue.callInEventLoop(
-        [&]()
-        {
-            if (mClientBackend)
-            {
-                pushSamples();
-            }
-            else
-            {
-                GST_ERROR("No web audio backend");
-            }
-        });
+    mBackendQueue.callInEventLoop([&]() { pushSamples(); });
 }
 
 bool GStreamerWebAudioPlayerClient::notifyNewSample()
@@ -252,15 +237,10 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample()
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mClientBackend)
-            {
-                m_pushSamplesTimer.cancel();
-                pushSamples();
-            }
-            else
-            {
-                GST_ERROR("No web audio backend");
-            }
+            m_pushSamplesTimer.cancel();
+            std::vector<uint8_t> bufferData = getNextBufferData();
+            mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferData.begin(), bufferData.end());
+            pushSamples();
         });
 
     return true;
@@ -268,144 +248,54 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample()
 
 void GStreamerWebAudioPlayerClient::pushSamples()
 {
-    uint32_t preferredFrames = 0u;
-    uint32_t maximumFrames = 0u;
-    bool supportDeferredPlay = false;
-    uint32_t availableFrames = 0u;
+    GST_DEBUG("entry:");
+    if (!mIsOpen || mSampleDataBuffer.empty())
+    {
+        return;
+    }
 
-    if (!mClientBackend->getBufferAvailable(availableFrames))
+    uint32_t availableFrames = 0u;
+    if (mClientBackend->getBufferAvailable(availableFrames))
     {
-        GST_ERROR("GetBufferAvailable failed, could not process samples");
-    }
-    else if (!mClientBackend->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay))
-    {
-        GST_ERROR("GetDeviceInfo failed, could not process samples");
-    }
-    else
-    {
-        if ((availableFrames >= preferredFrames) || (mIsResetInProgress))
+        auto dataToPush = std::min(availableFrames * 4, mSampleDataBuffer.size());
+        if ((dataToPush >= 0))
         {
-            // Store any buffes from gstreamer, up to the preferred frame count
-            while (mSampleDataFrameCount < preferredFrames)
+            if (mClientBackend->writeBuffer(dataToPush / 4, mSampleDataBuffer.data()))
             {
-                std::vector<uint8_t> bufferData = getNextBufferData();
-                if (bufferData.empty())
+                // remove pushed data from mSampleDataBuffer
+                if (dataToPush < mSampleDataBuffer.size())
                 {
-                    break;
-                }
-                else if (bufferData.size() / 4 > maximumFrames)
-                {
-                    GST_ERROR("Pulled buffer with frames %u too large, maximum frames %u", bufferData.size() / 4,
-                              maximumFrames);
-                    break;
+                    // to compact the memory copy everything to a new vector and swap.
+                    std::vector<uint8_t>(mSampleDataBuffer.begin() + dataToPush, mSampleDataBuffer.end())
+                        .swap(mSampleDataBuffer);
                 }
                 else
                 {
-                    mSampleDataBuffers.push_back(bufferData);
-                    mSampleDataFrameCount += bufferData.size() / 4;
+                    mSampleDataBuffer.clear();
                 }
             }
-
-            // Write data to the shared buffer and commit
-            if ((mSampleDataFrameCount >= preferredFrames) || (mIsResetInProgress))
+            else
             {
-                uint32_t framesMax = std::min(maximumFrames, availableFrames);
-                uint32_t bytesCopied = 0u;
-                std::vector<uint8_t> tmpBufferData;
-
-                for (auto it = mSampleDataBuffers.begin(); it != mSampleDataBuffers.end(); it++)
-                {
-                    if ((it->size() + bytesCopied) / 4 > framesMax)
-                    {
-                        // Cannot fit in buffer, store the data until we have committed
-                        tmpBufferData = *it;
-                        break;
-                    }
-                    else
-                    {
-                        /*
-                        // Get the buffer here as getBuffer must be paired with a commit
-                        if (nullptr == sharedBuffer)
-                        {
-                            if (!mClientBackend->getBuffer(&sharedBuffer, framesMax))
-                            {
-                                GST_ERROR("GetBuffer could not get the buffer");
-                                break;
-                            }
-                        }
-                        memcpy(sharedBuffer + bytesCopied, &(*it)[0], it->size());
-                        bytesCopied += it->size();
-                        */
-                    }
-                }
-
-                // Commit buffer if we have written data
-                if (bytesCopied != 0)
-                {
-                   /*
-                    if (!mClientBackend->commitBuffer(bytesCopied / 4))
-                    {
-                        // Keep the stored samples if we fail to push the data
-                        GST_ERROR("CommitBuffer failed");
-                    }
-                    else
-                    {
-                        mSampleDataFrameCount = tmpBufferData.size() / 4;
-                        mSampleDataBuffers.clear();
-                        if (!tmpBufferData.empty())
-                        {
-                            mSampleDataBuffers.push_back(tmpBufferData);
-                        }
-                    }
-                    */
-                }
+                GST_ERROR("writeBuffer failed, could not process samples");
             }
         }
-    }
-/*
-    if (mSampleDataBuffers.empty())
-    {
-        // Check if there are anymore samples to push //
-        std::vector<uint8_t> bufferData = getNextBufferData();
-        if (!bufferData.empty())
-        {
-            mSampleDataBuffers.push_back(bufferData);
-            mSampleDataFrameCount += bufferData.size() / 4;
-        }
-    }
-*/
-    // If we still have samples stored that could not be pushed, start a timer.
-    // This avoids any stoppages in the pushing of samples to the server if the consumption of
-    // samples is slow.
-    if (!mSampleDataBuffers.empty())
-    {
-        m_pushSamplesTimer.arm(100);
     }
     else
     {
-        /*
-        if ((mIsResetInProgress) && (!mClientBackend->reset()))
-        {
-            GST_ERROR("Reset failed, try again when sample timer expires");
-            m_pushSamplesTimer.arm(100);
-        }
-        else
-        {
-            // Cancel any timers, no more samples to push
-            m_pushSamplesTimer.cancel();
-            {
-                {
-                    std::unique_lock<std::mutex> resetlock(m_resetLock);
-                    mIsResetInProgress = false;
-                }
-                m_resetCond.notify_all();
-            }
-        }
-        */
+        GST_ERROR("getBufferAvailable failed, could not process samples");
+    }
+
+    // If we still have samples stored that could not be pushed and the size is
+    // bigger thean a portion of 1/3 the device preferred frames, start a timer.
+    // This avoids any stoppages in the pushing of samples to the server if the consumption of
+    // samples is slow.
+    if (mSampleDataBuffer.size() / 4 > m_preferredFrames / 3)
+    {
+        m_pushSamplesTimer.arm(100);
     }
 }
 
-std::vector<uint8_t> GStreamerWebAudioPlayerClient::getNextBufferData()
+std::vector<uint8_t> GStreamerWebAudioPlayerClient::getNextBufferData() const
 {
     GstSample *sample = gst_app_sink_try_pull_sample(GST_APP_SINK(mAppSink), 0);
     if (!sample)
@@ -431,4 +321,18 @@ std::vector<uint8_t> GStreamerWebAudioPlayerClient::getNextBufferData()
     return bufferData;
 }
 
-void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayerState state) {}
+void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayerState state)
+{
+    switch (state)
+    {
+    case firebolt::rialto::WebAudioPlayerState::END_OF_STREAM:
+    {
+        GST_INFO("Notify end of stream.");
+        gst_element_post_message(mAppSink, gst_message_new_eos(GST_OBJECT_CAST(mAppSink)));
+    }
+    break;
+    default:
+    {
+    }
+    }
+}

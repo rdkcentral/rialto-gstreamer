@@ -86,15 +86,6 @@ public:
     bool setEos();
 
     /**
-     * @brief Send any remaining samples then reset the web audio.
-     *
-     * Will not return from this method until all data has been played out.
-     *
-     * @retval true on success.
-     */
-    bool reset();
-
-    /**
      * @brief Notifies that there is a new sample in gstreamer.
      *
      * @retval true on success.
@@ -127,7 +118,7 @@ private:
      *
      * @retval vector of the next buffer data.
      */
-    std::vector<uint8_t> getNextBufferData();
+    std::vector<uint8_t> getNextBufferData() const;
 
     /**
      * @brief Backend message queue.
@@ -145,19 +136,9 @@ private:
     std::atomic<bool> mIsOpen;
 
     /**
-     * @brief Vector of buffers to store the sample data.
+     * @brief Vector to store the sample data.
      */
-    std::vector<std::vector<uint8_t>> mSampleDataBuffers;
-
-    /**
-     * @brief Vector of buffers to store the sample data.
-     */
-    uint32_t mSampleDataFrameCount;
-
-    /**
-     * @brief Whether reset has been called and is currently been executed.
-     */
-    bool mIsResetInProgress;
+    std::vector<uint8_t> mSampleDataBuffer;
 
     /**
      * @brief Appsink from gstreamer.
@@ -170,17 +151,17 @@ private:
     Timer m_pushSamplesTimer;
 
     /**
-     * @brief Mutex for reset protection.
+     * @brief The preferred number of frames to be written.
      */
-    std::mutex m_resetLock;
+    uint32_t m_preferredFrames;
 
     /**
-     * @brief Reset cond for signalling reset complete.
+     * @brief The maximum number of frames that can be written.
      */
-    std::condition_variable m_resetCond;
+    uint32_t m_maximumFrames;
 
     /**
-     * @brief Time to wait (ms) for reset complete.
+     * @brief Whether defered play is supported.
      */
-    const std::chrono::milliseconds m_resetTimeout;
+    bool m_supportDeferredPlay;
 };
