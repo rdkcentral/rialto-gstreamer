@@ -84,7 +84,8 @@ bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bo
 } // namespace
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *appSink)
-    : mIsOpen(false), mAppSink(appSink), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback")
+    : mIsOpen(false), mAppSink(appSink),
+      m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false)
 {
     mBackendQueue.start();
     mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
@@ -208,14 +209,18 @@ bool GStreamerWebAudioPlayerClient::setEos()
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mIsOpen)
+            if (mIsOpen && !m_isEos)
             {
-                if (mSampleDataBuffer.size())
+                m_isEos = true;
+                if (mSampleDataBuffer.empty())
+                {
+                    result = mClientBackend->setEos();
+                }
+                else
                 {
                     pushSamples();
+                    result = true;
                 }
-                m_pushSamplesTimer.cancel();
-                result = mClientBackend->setEos();
             }
             else
             {
@@ -259,7 +264,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     if (mClientBackend->getBufferAvailable(availableFrames))
     {
         auto dataToPush = std::min(availableFrames * 4, mSampleDataBuffer.size());
-        if ((dataToPush >= 0))
+        if ((dataToPush / 4 > 0))
         {
             if (mClientBackend->writeBuffer(dataToPush / 4, mSampleDataBuffer.data()))
             {
@@ -278,21 +283,29 @@ void GStreamerWebAudioPlayerClient::pushSamples()
             else
             {
                 GST_ERROR("writeBuffer failed, could not process samples");
+                // clear the buffer if writeBuffer failed
+                mSampleDataBuffer.clear();
             }
         }
     }
     else
     {
         GST_ERROR("getBufferAvailable failed, could not process samples");
+        // clear the buffer if getBufferAvailable failed
+        mSampleDataBuffer.clear();
     }
 
     // If we still have samples stored that could not be pushed and the size is
-    // bigger thean a portion of 1/3 the device preferred frames, start a timer.
+    // bigger thean a 1/3 of the device preferred frames, start a timer.
     // This avoids any stoppages in the pushing of samples to the server if the consumption of
     // samples is slow.
-    if (mSampleDataBuffer.size() / 4 > m_preferredFrames / 3)
+    if ((mSampleDataBuffer.size() / 4 > m_preferredFrames / 3) || (m_isEos && mSampleDataBuffer.size()))
     {
         m_pushSamplesTimer.arm(100);
+    }
+    else if (m_isEos && mSampleDataBuffer.empty())
+    {
+        mClientBackend->setEos();
     }
 }
 

@@ -164,4 +164,9 @@ private:
      * @brief Whether defered play is supported.
      */
     bool m_supportDeferredPlay;
+
+    /**
+     * @brief Whether the sink element has received EOS.
+     */
+    bool m_isEos;
 };
