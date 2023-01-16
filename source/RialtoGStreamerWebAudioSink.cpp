@@ -27,7 +27,8 @@ GST_DEBUG_CATEGORY_STATIC(RialtoWebAudioSinkDebug);
 
 #define rialto_web_audio_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_BIN,
-                        GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0, "rialto web audio sink"));
+                        GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0,
+                                                "rialto web audio sink"));
 
 GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, RialtoWebAudioSink *sink)
 {
