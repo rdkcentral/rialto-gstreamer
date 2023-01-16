@@ -47,7 +47,7 @@ public:
 
     bool play() override { return mWebAudioPlayerBackend->play(); }
     bool pause() override { return mWebAudioPlayerBackend->pause(); }
-    bool setEos() override { return mWebAudioPlayerBackend->pause(); }
+    bool setEos() override { return mWebAudioPlayerBackend->setEos(); }
     bool getBufferAvailable(uint32_t &availableFrames) override
     {
         std::shared_ptr<firebolt::rialto::WebAudioShmInfo> webAudioShmInfo;
@@ -63,7 +63,7 @@ public:
         return mWebAudioPlayerBackend->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay);
     }
     bool setVolume(double volume) { return mWebAudioPlayerBackend->setVolume(volume); }
-    bool getVolume(double &volume) { return mWebAudioPlayerBackend->setVolume(volume); }
+    bool getVolume(double &volume) { return mWebAudioPlayerBackend->getVolume(volume); }
 
 private:
     std::unique_ptr<IWebAudioPlayer> mWebAudioPlayerBackend;

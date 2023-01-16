@@ -155,11 +155,9 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
         GST_WARNING("GST_STATE_CHANGE_PAUSED_TO_READY");
-        //sink->priv->mWebAudioClient->reset();
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
         GST_WARNING("GST_STATE_CHANGE_READY_TO_NULL");
-        // sink->priv->mWebAudioClient = nullptr;
     default:
         break;
     }
@@ -240,8 +238,6 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
 {
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
-
-    // g_type_class_add_private(klass, sizeof(RialtoWebAudioSinkPrivate));
 
     gst_element_class_set_metadata(elementClass, "Rialto Web Audio sink", "Generic", "A sink for Rialto Web Audio",
                                    "Sky");

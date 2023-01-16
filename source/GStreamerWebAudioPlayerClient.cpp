@@ -37,7 +37,8 @@ void notifyPushSamplesCallback(void *vSelf)
     self->notifyPushSamplesTimerExpired();
 }
 
-bool parseFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned, bool &isFloat)
+bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned,
+                             bool &isFloat)
 {
     if (format.size() != 5)
     {
@@ -126,7 +127,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     }
     pcm.channels = tmp;
 
-    if (parseFormat(format, pcm.sampleSize, pcm.isBigEndian, pcm.isSigned, pcm.isFloat))
+    if (parseGstStructureFormat(format, pcm.sampleSize, pcm.isBigEndian, pcm.isSigned, pcm.isFloat))
     {
         GST_ERROR("Can't parse format or it is not supported");
         return result;

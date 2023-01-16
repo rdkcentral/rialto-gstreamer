@@ -43,7 +43,7 @@ static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
     GST_INFO("Registering plugins with rank %u", sinkRank);
 
     return gst_element_register(plugin, "rialtomsevideosink", sinkRank, RIALTO_TYPE_MSE_VIDEO_SINK) &&
-           gst_element_register(plugin, "rialtomseaudiosink", sinkRank, RIALTO_TYPE_MSE_AUDIO_SINK)&&
+           gst_element_register(plugin, "rialtomseaudiosink", sinkRank, RIALTO_TYPE_MSE_AUDIO_SINK) &&
            gst_element_register(plugin, "rialtouiaudiosink", sinkRank, RIALTO_TYPE_WEB_AUDIO_SINK);
 }
 
