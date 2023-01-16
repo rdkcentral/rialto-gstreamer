@@ -52,14 +52,8 @@ bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bo
     {
         return false;
     }
-    if (format.substr(3) == "LE")
-    {
-        isBigEndian = false;
-    }
-    else
-    {
-        isBigEndian = true;
-    }
+
+    isBigEndian = format.substr(3) == "BE";
 
     switch (format[0])
     {
