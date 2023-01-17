@@ -116,9 +116,8 @@ private:
     /**
      * @brief Get the next sample data buffer from gstreamer.
      *
-     * @retval vector of the next buffer data.
      */
-    std::vector<uint8_t> getNextBufferData() const;
+    void getNextBufferData();
 
     /**
      * @brief Backend message queue.

@@ -238,8 +238,7 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample()
         [&]()
         {
             m_pushSamplesTimer.cancel();
-            std::vector<uint8_t> bufferData = getNextBufferData();
-            mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferData.begin(), bufferData.end());
+            getNextBufferData();
             pushSamples();
         });
 
@@ -253,14 +252,14 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     {
         return;
     }
-
+    constexpr uint32_t kFrameSize = 4;
     uint32_t availableFrames = 0u;
     if (mClientBackend->getBufferAvailable(availableFrames))
     {
-        auto dataToPush = std::min(availableFrames * 4, mSampleDataBuffer.size());
-        if ((dataToPush / 4 > 0))
+        auto dataToPush = std::min(availableFrames * kFrameSize, mSampleDataBuffer.size());
+        if ((dataToPush / kFrameSize > 0))
         {
-            if (mClientBackend->writeBuffer(dataToPush / 4, mSampleDataBuffer.data()))
+            if (mClientBackend->writeBuffer(dataToPush / kFrameSize, mSampleDataBuffer.data()))
             {
                 // remove pushed data from mSampleDataBuffer
                 if (dataToPush < mSampleDataBuffer.size())
@@ -289,26 +288,25 @@ void GStreamerWebAudioPlayerClient::pushSamples()
         mSampleDataBuffer.clear();
     }
 
-    // If we still have samples stored that could not be pushed and the size is
-    // bigger thean a 1/3 of the device preferred frames, start a timer.
+    // If we still have samples stored that could not be pushed
     // This avoids any stoppages in the pushing of samples to the server if the consumption of
     // samples is slow.
-    if ((mSampleDataBuffer.size() / 4 > m_preferredFrames / 3) || (m_isEos && mSampleDataBuffer.size()))
+    if (mSampleDataBuffer.size())
     {
         m_pushSamplesTimer.arm(100);
     }
-    else if (m_isEos && mSampleDataBuffer.empty())
+    else if (m_isEos)
     {
         mClientBackend->setEos();
     }
 }
 
-std::vector<uint8_t> GStreamerWebAudioPlayerClient::getNextBufferData() const
+void GStreamerWebAudioPlayerClient::getNextBufferData()
 {
     GstSample *sample = gst_app_sink_try_pull_sample(GST_APP_SINK(mAppSink), 0);
     if (!sample)
     {
-        return {};
+        return;
     }
 
     GstBuffer *buffer = gst_sample_get_buffer(sample);
@@ -319,14 +317,12 @@ std::vector<uint8_t> GStreamerWebAudioPlayerClient::getNextBufferData() const
     {
         GST_ERROR("Could not map audio buffer");
         gst_sample_unref(sample);
-        return {};
+        return;
     }
 
-    std::vector<uint8_t> bufferData(bufferMap.data, bufferMap.data + bufferSize);
+    mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferMap.data, bufferMap.data + bufferSize);
     gst_buffer_unmap(buffer, &bufferMap);
     gst_sample_unref(sample);
-
-    return bufferData;
 }
 
 void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayerState state)
