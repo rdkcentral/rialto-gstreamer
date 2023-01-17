@@ -454,14 +454,14 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
             priv->clearBuffersUnlocked();
         }
+        break;
+    case GST_STATE_CHANGE_READY_TO_NULL:
         if (priv->m_mediaPlayerManager.hasControl())
         {
             client->stop();
         }
 
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
-        break;
-    case GST_STATE_CHANGE_READY_TO_NULL:
         priv->m_rialtoControlClient->removeRialtoControlBackend();
         break;
     default:

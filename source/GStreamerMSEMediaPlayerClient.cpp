@@ -258,7 +258,15 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
 
 void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
 {
-    mBackendQueue.callInEventLoop([&]() { mAttachedSources.erase(sourceId); });
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (!mClientBackend->removeSource(sourceId))
+            {
+                GST_WARNING("Remove source %d failed", sourceId);
+            }
+            mAttachedSources.erase(sourceId);
+        });
 }
 
 void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
