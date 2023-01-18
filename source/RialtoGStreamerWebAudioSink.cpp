@@ -59,7 +59,6 @@ GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, Rialto
     {
         GST_ERROR_OBJECT(element, "Could not get the pad during audio prerolling");
     }
-
     return result;
 }
 
