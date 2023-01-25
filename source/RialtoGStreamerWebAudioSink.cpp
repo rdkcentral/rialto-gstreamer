@@ -27,6 +27,7 @@ GST_DEBUG_CATEGORY_STATIC(RialtoWebAudioSinkDebug);
 
 #define rialto_web_audio_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_BIN,
+        G_ADD_PRIVATE(RialtoWebAudioSink)
                         GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0,
                                                 "rialto web audio sink"));
 
@@ -35,7 +36,7 @@ GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, Rialto
     GstFlowReturn result = GST_FLOW_ERROR;
     GstPad *sinkPad = gst_element_get_static_pad(element, "sink");
     GstCaps *caps;
-
+    
     if (sinkPad)
     {
         caps = gst_pad_get_current_caps(sinkPad);
@@ -119,6 +120,7 @@ static gboolean rialto_web_audio_sink_send_event(GstElement *element, GstEvent *
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
+        GST_INFO_OBJECT(sink, "Attaching AUDIO source with caps %" GST_PTR_FORMAT, caps);
     }
     default:
         break;
@@ -193,33 +195,54 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 
 static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 {
+    GST_WARNING_OBJECT(sink, "enter: rialto_web_audio_sink_init. sink is of type: %s ", G_OBJECT_TYPE_NAME(sink));
+
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
     sink->priv->mAppSink = gst_element_factory_make("appsink", nullptr);
     if (!sink->priv->mAppSink)
     {
-        GST_ERROR_OBJECT(sink, "Could not create appsink");
+        GST_ERROR_OBJECT(sink, "Could not create rialtowebaudiosink");
         return;
     }
 
-    sink->priv->mWebAudioClient = std::make_unique<GStreamerWebAudioPlayerClient>(sink->priv->mAppSink);
-    gst_element_set_name(sink->priv->mAppSink, "rialtouiaudioappsink");
+    GST_WARNING_OBJECT(sink, "#@## 1");
+    sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(sink->priv->mAppSink);
+    GST_WARNING_OBJECT(sink, "#@## 2");
+    
+    gst_element_set_name(sink->priv->mAppSink, "rialtowebaudioappsink");
+    GST_WARNING_OBJECT(sink, "#@## 3");
+    
     gst_bin_add(GST_BIN(sink), sink->priv->mAppSink);
+    GST_WARNING_OBJECT(sink, "#@## 4");
+    
     gst_element_sync_state_with_parent(sink->priv->mAppSink);
-
-    rialto_web_audio_sink_initialise_appsink(RIALTO_WEB_AUDIO_SINK(sink));
-    rialto_web_audio_sink_initialise_ghostpad(RIALTO_WEB_AUDIO_SINK(sink));
-
+    GST_WARNING_OBJECT(sink, "#@## 5");
+    
+    rialto_web_audio_sink_initialise_appsink(sink);
+    GST_WARNING_OBJECT(sink, "#@## 6");
+    
+    rialto_web_audio_sink_initialise_ghostpad(sink);
+    GST_WARNING_OBJECT(sink, "#@## 7");
+    
     GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
+    GST_WARNING_OBJECT(sink, "#@## 8");
+    
     if (sinkPad)
     {
         gst_pad_set_event_function(sinkPad, rialto_web_audio_sink_event);
         gst_object_unref(sinkPad);
     }
+    else
+    {
+        GST_ERROR_OBJECT(sink, "Could not set pad's event function");
+    }
+
 
     g_signal_connect(sink->priv->mAppSink, "new-preroll", G_CALLBACK(rialto_web_audio_sink_preroll_callback), sink);
     g_signal_connect(sink->priv->mAppSink, "new-sample", G_CALLBACK(rialto_web_audio_sink_sample_callback), sink);
+    GST_WARNING_OBJECT(sink, "exit: rialto_web_audio_sink_init");
 }
 
 static void rialto_web_audio_sink_finalize(GObject *object)
@@ -239,6 +262,9 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 
+    GST_WARNING_OBJECT(klass, "web audio sink class is: %s ", G_OBJECT_CLASS_NAME(gobjectClass));
+    GST_WARNING_OBJECT(klass, "web audio sink base class is: %s ", G_OBJECT_CLASS_NAME(elementClass));
+    
     gst_element_class_set_metadata(elementClass, "Rialto Web Audio sink", "Generic", "A sink for Rialto Web Audio",
                                    "Sky");
 

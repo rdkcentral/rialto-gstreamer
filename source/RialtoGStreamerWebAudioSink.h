@@ -38,7 +38,7 @@ typedef struct _RialtoWebAudioSinkPrivate RialtoWebAudioSinkPrivate;
 struct _RialtoWebAudioSinkPrivate
 {
     GstElement *mAppSink;
-    std::unique_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
+    std::shared_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
 };
 
 struct _RialtoWebAudioSink

@@ -122,9 +122,9 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     }
     pcm.channels = tmp;
 
-    if (parseGstStructureFormat(format, pcm.sampleSize, pcm.isBigEndian, pcm.isSigned, pcm.isFloat))
+    if (!parseGstStructureFormat(format, pcm.sampleSize, pcm.isBigEndian, pcm.isSigned, pcm.isFloat))
     {
-        GST_ERROR("Can't parse format or it is not supported");
+        GST_ERROR("Can't parse format or it is not supported: %s", format.c_str());
         return result;
     }
 
