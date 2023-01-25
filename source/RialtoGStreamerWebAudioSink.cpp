@@ -142,17 +142,17 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
-        GST_DEBUG("GST_STATE_CHANGE_NULL_TO_READY");
+        GST_WARNING("GST_STATE_CHANGE_NULL_TO_READY");
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
-        GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
+        GST_WARNING("GST_STATE_CHANGE_READY_TO_PAUSED");
         break;
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
-        GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
+        GST_WARNING("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
         sink->priv->mWebAudioClient->play();
         break;
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
-        GST_DEBUG("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
+        GST_WARNING("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
         sink->priv->mWebAudioClient->pause();
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:

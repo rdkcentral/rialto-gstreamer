@@ -140,6 +140,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
                 {
                     GST_ERROR("GetDeviceInfo failed, could not process samples");
                 }
+                m_frameSize = (pcm.sampleSize * pcm.channels) / 8;
                 mIsOpen = true;
             }
             else
@@ -252,14 +253,13 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     {
         return;
     }
-    constexpr uint32_t kFrameSize = 4;
     uint32_t availableFrames = 0u;
     if (mClientBackend->getBufferAvailable(availableFrames))
     {
-        auto dataToPush = std::min(availableFrames * kFrameSize, mSampleDataBuffer.size());
-        if ((dataToPush / kFrameSize > 0))
+        auto dataToPush = std::min(availableFrames * m_frameSize, mSampleDataBuffer.size());
+        if ((dataToPush / m_frameSize > 0))
         {
-            if (mClientBackend->writeBuffer(dataToPush / kFrameSize, mSampleDataBuffer.data()))
+            if (mClientBackend->writeBuffer(dataToPush, mSampleDataBuffer.data()))
             {
                 // remove pushed data from mSampleDataBuffer
                 if (dataToPush < mSampleDataBuffer.size())
@@ -320,6 +320,7 @@ void GStreamerWebAudioPlayerClient::getNextBufferData()
         return;
     }
 
+    GST_WARNING("Read samples from gstreamer pipeline, size: %zu", bufferSize);
     mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferMap.data, bufferMap.data + bufferSize);
     gst_buffer_unmap(buffer, &bufferMap);
     gst_sample_unref(sample);

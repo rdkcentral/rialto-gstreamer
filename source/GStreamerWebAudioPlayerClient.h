@@ -168,4 +168,9 @@ private:
      * @brief Whether the sink element has received EOS.
      */
     bool m_isEos;
+
+    /**
+     * @brief The frame size of the current opened stream in bytes.
+     */
+    uint32_t m_frameSize;
 };
