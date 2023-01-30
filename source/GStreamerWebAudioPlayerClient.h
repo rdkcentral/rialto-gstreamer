@@ -170,7 +170,7 @@ private:
     bool m_isEos;
 
     /**
-     * @brief The frame size of the current opened stream in bytes.
+     * @brief The number of bytes in the frame.
      */
     uint32_t m_frameSize;
 };

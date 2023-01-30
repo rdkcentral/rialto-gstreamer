@@ -256,10 +256,15 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     uint32_t availableFrames = 0u;
     if (mClientBackend->getBufferAvailable(availableFrames))
     {
+        if(mSampleDataBuffer.size() % m_frameSize != 0)
+        {
+             GST_ERROR("mSampleDataBuffer size has a remainder if divided by m_frameSize!");
+        }
+
         auto dataToPush = std::min(availableFrames * m_frameSize, mSampleDataBuffer.size());
         if ((dataToPush / m_frameSize > 0))
         {
-            if (mClientBackend->writeBuffer(dataToPush, mSampleDataBuffer.data()))
+            if (mClientBackend->writeBuffer(dataToPush / m_frameSize, mSampleDataBuffer.data()))
             {
                 // remove pushed data from mSampleDataBuffer
                 if (dataToPush < mSampleDataBuffer.size())
