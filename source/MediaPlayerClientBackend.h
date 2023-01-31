@@ -54,6 +54,8 @@ public:
         return mMediaPlayerBackend->attachSource(source);
     }
 
+    bool removeSource(int32_t id) override { return mMediaPlayerBackend->removeSource(id); }
+
     bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) override
     {
         return mMediaPlayerBackend->load(type, mimeType, url);
