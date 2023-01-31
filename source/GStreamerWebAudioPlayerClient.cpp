@@ -254,18 +254,18 @@ void GStreamerWebAudioPlayerClient::pushSamples()
         return;
     }
     uint32_t availableFrames = 0u;
+    GST_ERROR("lukewill:");
     if (mClientBackend->getBufferAvailable(availableFrames))
     {
-        if(mSampleDataBuffer.size() % m_frameSize != 0)
-        {
-             GST_ERROR("mSampleDataBuffer size has a remainder if divided by m_frameSize!");
-        }
-
+        GST_ERROR("lukewill: getBufferAvailable %u, mSampleDataBuffer %u", availableFrames, mSampleDataBuffer.size());
         auto dataToPush = std::min(availableFrames * m_frameSize, mSampleDataBuffer.size());
+        GST_ERROR("lukewill: dataToPush %u", dataToPush);
         if ((dataToPush / m_frameSize > 0))
         {
+            GST_ERROR("lukewill: dataToPush / m_frameSize > 0");
             if (mClientBackend->writeBuffer(dataToPush / m_frameSize, mSampleDataBuffer.data()))
             {
+                GST_ERROR("lukewill: frames pushed %u", dataToPush / m_frameSize);
                 // remove pushed data from mSampleDataBuffer
                 if (dataToPush < mSampleDataBuffer.size())
                 {
