@@ -36,7 +36,7 @@ GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, Rialto
     GstFlowReturn result = GST_FLOW_ERROR;
     GstPad *sinkPad = gst_element_get_static_pad(element, "sink");
     GstCaps *caps;
-    
+
     if (sinkPad)
     {
         caps = gst_pad_get_current_caps(sinkPad);
@@ -142,24 +142,24 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
-        GST_WARNING("GST_STATE_CHANGE_NULL_TO_READY");
+        GST_DEBUG("GST_STATE_CHANGE_NULL_TO_READY");
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
-        GST_WARNING("GST_STATE_CHANGE_READY_TO_PAUSED");
+        GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
         break;
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
-        GST_WARNING("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
+        GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
         sink->priv->mWebAudioClient->play();
         break;
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
-        GST_WARNING("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
+        GST_DEBUG("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
         sink->priv->mWebAudioClient->pause();
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
-        GST_WARNING("GST_STATE_CHANGE_PAUSED_TO_READY");
+        GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_READY");
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
-        GST_WARNING("GST_STATE_CHANGE_READY_TO_NULL");
+        GST_DEBUG("GST_STATE_CHANGE_READY_TO_NULL");
     default:
         break;
     }
@@ -195,8 +195,6 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 
 static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 {
-    GST_WARNING_OBJECT(sink, "enter: rialto_web_audio_sink_init. sink is of type: %s ", G_OBJECT_TYPE_NAME(sink));
-
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
@@ -207,28 +205,20 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
         return;
     }
 
-    GST_WARNING_OBJECT(sink, "#@## 1");
     sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(sink->priv->mAppSink);
-    GST_WARNING_OBJECT(sink, "#@## 2");
-    
+
     gst_element_set_name(sink->priv->mAppSink, "rialtowebaudioappsink");
-    GST_WARNING_OBJECT(sink, "#@## 3");
-    
+
     gst_bin_add(GST_BIN(sink), sink->priv->mAppSink);
-    GST_WARNING_OBJECT(sink, "#@## 4");
-    
+
     gst_element_sync_state_with_parent(sink->priv->mAppSink);
-    GST_WARNING_OBJECT(sink, "#@## 5");
-    
+
     rialto_web_audio_sink_initialise_appsink(sink);
-    GST_WARNING_OBJECT(sink, "#@## 6");
-    
+
     rialto_web_audio_sink_initialise_ghostpad(sink);
-    GST_WARNING_OBJECT(sink, "#@## 7");
-    
+
     GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
-    GST_WARNING_OBJECT(sink, "#@## 8");
-    
+
     if (sinkPad)
     {
         gst_pad_set_event_function(sinkPad, rialto_web_audio_sink_event);
@@ -239,10 +229,8 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
         GST_ERROR_OBJECT(sink, "Could not set pad's event function");
     }
 
-
     g_signal_connect(sink->priv->mAppSink, "new-preroll", G_CALLBACK(rialto_web_audio_sink_preroll_callback), sink);
     g_signal_connect(sink->priv->mAppSink, "new-sample", G_CALLBACK(rialto_web_audio_sink_sample_callback), sink);
-    GST_WARNING_OBJECT(sink, "exit: rialto_web_audio_sink_init");
 }
 
 static void rialto_web_audio_sink_finalize(GObject *object)
@@ -262,9 +250,6 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 
-    GST_WARNING_OBJECT(klass, "web audio sink class is: %s ", G_OBJECT_CLASS_NAME(gobjectClass));
-    GST_WARNING_OBJECT(klass, "web audio sink base class is: %s ", G_OBJECT_CLASS_NAME(elementClass));
-    
     gst_element_class_set_metadata(elementClass, "Rialto Web Audio sink", "Generic", "A sink for Rialto Web Audio",
                                    "Sky");
 
