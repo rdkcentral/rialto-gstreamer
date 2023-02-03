@@ -140,7 +140,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
                 {
                     GST_ERROR("GetDeviceInfo failed, could not process samples");
                 }
-                m_frameSize = (pcm.sampleSize * pcm.channels) / 8;
+                m_frameSize = (pcm.sampleSize * pcm.channels) / CHAR_BIT;
                 mIsOpen = true;
             }
             else
