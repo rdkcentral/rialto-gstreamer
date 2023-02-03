@@ -23,8 +23,8 @@
 #include "RialtoControlClientBackend.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipeline.h>
-#include <gst/gst.h>
 #include <cstring>
+#include <gst/gst.h>
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
