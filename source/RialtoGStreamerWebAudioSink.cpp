@@ -206,19 +206,14 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     }
 
     sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(sink->priv->mAppSink);
-
     gst_element_set_name(sink->priv->mAppSink, "rialtowebaudioappsink");
-
     gst_bin_add(GST_BIN(sink), sink->priv->mAppSink);
-
     gst_element_sync_state_with_parent(sink->priv->mAppSink);
 
     rialto_web_audio_sink_initialise_appsink(sink);
-
     rialto_web_audio_sink_initialise_ghostpad(sink);
 
     GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
-
     if (sinkPad)
     {
         gst_pad_set_event_function(sinkPad, rialto_web_audio_sink_event);
