@@ -253,7 +253,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     {
         return;
     }
-    uint32_t availableFrames = 0u;
+    uintptr_t availableFrames = 0u;
     if (mClientBackend->getBufferAvailable(availableFrames))
     {
         auto dataToPush = std::min(availableFrames * m_frameSize, mSampleDataBuffer.size());

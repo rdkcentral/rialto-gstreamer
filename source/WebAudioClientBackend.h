@@ -48,7 +48,7 @@ public:
     bool play() override { return mWebAudioPlayerBackend->play(); }
     bool pause() override { return mWebAudioPlayerBackend->pause(); }
     bool setEos() override { return mWebAudioPlayerBackend->setEos(); }
-    bool getBufferAvailable(uint32_t &availableFrames) override
+    bool getBufferAvailable(uintptr_t &availableFrames) override
     {
         std::shared_ptr<firebolt::rialto::WebAudioShmInfo> webAudioShmInfo;
         return mWebAudioPlayerBackend->getBufferAvailable(availableFrames, webAudioShmInfo);
