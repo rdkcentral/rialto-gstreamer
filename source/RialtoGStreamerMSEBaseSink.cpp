@@ -727,9 +727,9 @@ GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
     return result;
 }
 
-std::vector<uint8_t> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink, const GstStructure *structure)
+firebolt::rialto::CodecData rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink, const GstStructure *structure)
 {
-    std::vector<uint8_t> codecData;
+    firebolt::rialto::CodecData codecData;
 
     const GValue *codec_data;
     codec_data = gst_structure_get_value(structure, "codec_data");
@@ -741,7 +741,7 @@ std::vector<uint8_t> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink
             GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
             if (mappedBuf)
             {
-                codecData.assign(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                codecData = firebolt::rialto::CodecData{{mappedBuf.data(), mappedBuf.data() + mappedBuf.size()}};
             }
             else
             {
