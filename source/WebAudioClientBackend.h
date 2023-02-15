@@ -28,7 +28,7 @@ class WebAudioClientBackend final : public WebAudioClientBackendInterface
 {
 public:
     WebAudioClientBackend() : mWebAudioPlayerBackend(nullptr) {}
-    ~WebAudioClientBackend() final { mWebAudioPlayerBackend.reset(); }
+    ~WebAudioClientBackend() final { destroyWebAudioBackend(); }
 
     bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
                                const uint32_t priority, const WebAudioConfig *config) override
@@ -42,6 +42,11 @@ public:
             GST_ERROR("Could not create web audio backend");
             return false;
         }
+        return true;
+    }
+    bool destroyWebAudioBackend() override
+    {
+        mWebAudioPlayerBackend.reset();
         return true;
     }
 

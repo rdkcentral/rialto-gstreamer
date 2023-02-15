@@ -154,6 +154,25 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     return result;
 }
 
+bool GStreamerWebAudioPlayerClient::close()
+{
+    GST_DEBUG("entry:");
+
+    bool result = false;
+
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            result = mClientBackend->destroyWebAudioBackend();
+            if (result)
+            {
+                mIsOpen = false;
+            }
+        });
+
+    return result;
+}
+
 bool GStreamerWebAudioPlayerClient::play()
 {
     GST_DEBUG("entry:");

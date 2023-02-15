@@ -65,6 +65,13 @@ public:
     bool open(GstCaps *caps);
 
     /**
+     * @brief Closes the web audio player.
+     *
+     * @retval true on success.
+     */
+    bool close();
+
+    /**
      * @brief Play the web audio.
      *
      * @retval true on success.
