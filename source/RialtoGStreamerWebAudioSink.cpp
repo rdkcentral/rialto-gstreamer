@@ -32,6 +32,38 @@ G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_BIN,
                             GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0,
                                                     "rialto web audio sink"));
 
+GstFlowReturn rialto_web_audio_sink_preroll_callback(GstElement *element, RialtoWebAudioSink *sink)
+{
+    GstFlowReturn result = GST_FLOW_ERROR;
+    GstPad *sinkPad = gst_element_get_static_pad(element, "sink");
+    GstCaps *caps;
+
+    if (sinkPad)
+    {
+        caps = gst_pad_get_current_caps(sinkPad);
+        if (caps)
+        {
+            GST_DEBUG_OBJECT(element, "Audio prerolled");
+            sink->priv->mWebAudioClient->open(caps);
+            GST_BIN_CLASS(parent_class)
+                ->handle_message(GST_BIN(sink), gst_message_new_async_done(GST_OBJECT(sink), GST_CLOCK_TIME_NONE));
+
+            result = GST_FLOW_OK;
+            gst_caps_unref(caps);
+        }
+        else
+        {
+            GST_ERROR_OBJECT(element, "Could not get caps during audio prerolling");
+        }
+        gst_object_unref(sinkPad);
+    }
+    else
+    {
+        GST_ERROR_OBJECT(element, "Could not get the pad during audio prerolling");
+    }
+    return result;
+}
+
 GstFlowReturn rialto_web_audio_sink_sample_callback(GstElement *element, RialtoWebAudioSink *sink)
 {
     bool res = sink->priv->mWebAudioClient->notifyNewSample();
@@ -131,22 +163,6 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
-        GstCaps *caps = gst_pad_get_current_caps(sinkPad);
-        if (caps)
-        {
-            if (!sink->priv->mWebAudioClient->open(caps))
-            {
-                GST_ERROR_OBJECT(element, "Could not open the web audio player");
-                result = GST_STATE_CHANGE_FAILURE;
-            }
-            gst_object_unref(caps);
-        }
-        else
-        {
-            GST_ERROR_OBJECT(element, "No caps set on sinkpad");
-            result = GST_STATE_CHANGE_FAILURE;
-        }
-
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
@@ -257,6 +273,7 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
         GST_ERROR_OBJECT(sink, "Could not set pad's event function");
     }
 
+    g_signal_connect(sink->priv->mAppSink, "new-preroll", G_CALLBACK(rialto_web_audio_sink_preroll_callback), sink);
     g_signal_connect(sink->priv->mAppSink, "new-sample", G_CALLBACK(rialto_web_audio_sink_sample_callback), sink);
 }
 

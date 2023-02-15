@@ -79,7 +79,7 @@ bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bo
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *appSink)
     : mIsOpen(false), mAppSink(appSink),
-      m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false)
+      m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false), m_config({})
 {
     mBackendQueue.start();
     mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
@@ -133,22 +133,36 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
         {
             firebolt::rialto::WebAudioConfig config{pcm};
 
-            uint32_t priority = 1;
-            if (mClientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
+            // Only recreate player if the config has changed
+            if (!mIsOpen || isNewConfig(audioMimeType, config))
             {
-                if (!mClientBackend->getDeviceInfo(m_preferredFrames, m_maximumFrames, m_supportDeferredPlay))
+                if (mIsOpen)
                 {
-                    GST_ERROR("GetDeviceInfo failed, could not process samples");
+                    // Destroy the previously created player
+                    ClientBackend->destroyWebAudioBackend();
                 }
-                m_frameSize = (pcm.sampleSize * pcm.channels) / CHAR_BIT;
-                mIsOpen = true;
+
+                uint32_t priority = 1;
+                if (mClientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
+                {
+                    if (!mClientBackend->getDeviceInfo(m_preferredFrames, m_maximumFrames, m_supportDeferredPlay))
+                    {
+                        GST_ERROR("GetDeviceInfo failed, could not process samples");
+                    }
+                    m_frameSize = (pcm.sampleSize * pcm.channels) / CHAR_BIT;
+                    mIsOpen = true;
+
+                    // Store config
+                    m_config.pcm = pcm;
+                    m_mimeType = audioMimeType;
+                }
+                else
+                {
+                    GST_ERROR("Could not create web audio backend");
+                    mIsOpen = false;
+                }
+                result = mIsOpen;
             }
-            else
-            {
-                GST_ERROR("Could not create web audio backend");
-                mIsOpen = false;
-            }
-            result = mIsOpen;
         });
 
     return result;
@@ -158,19 +172,13 @@ bool GStreamerWebAudioPlayerClient::close()
 {
     GST_DEBUG("entry:");
 
-    bool result = false;
-
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            result = mClientBackend->destroyWebAudioBackend();
-            if (result)
-            {
-                mIsOpen = false;
-            }
+            mClientBackend->destroyWebAudioBackend();
         });
 
-    return result;
+    return true;
 }
 
 bool GStreamerWebAudioPlayerClient::play()
@@ -342,6 +350,27 @@ void GStreamerWebAudioPlayerClient::getNextBufferData()
     mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferMap.data, bufferMap.data + bufferSize);
     gst_buffer_unmap(buffer, &bufferMap);
     gst_sample_unref(sample);
+}
+
+bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType, const WebAudioConfig &config)
+{
+    if (audioMimeType != m_mimeType)
+    {
+        return true;
+    }
+
+    if (audioMimeType != "audio/x-raw")
+    {
+        GST_ERROR("Cannot compare none pcm config");
+        return true;
+    }
+
+    if (config.pcm != m_config.pcm)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayerState state)

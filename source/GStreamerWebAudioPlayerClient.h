@@ -127,6 +127,13 @@ private:
     void getNextBufferData();
 
     /**
+     * @brief Checks the config against that previously stored in the object.
+     *
+     * @retval true if this is a new config.
+     */
+    bool isNewConfig(const std::string &audioMimeType, const WebAudioConfig &config);
+
+    /**
      * @brief Backend message queue.
      */
     MessageQueue mBackendQueue;
@@ -180,4 +187,19 @@ private:
      * @brief The number of bytes in the frame.
      */
     uint32_t m_frameSize;
+
+    /**
+     * @brief The number of bytes in the frame.
+     */
+    uint32_t m_frameSize;
+
+    /**
+     * @brief The current web audio player mime type.
+     */
+    std::string m_mimeType;
+
+    /**
+     * @brief The current web audio player config.
+     */
+    WebAudioConfig m_config;
 };
