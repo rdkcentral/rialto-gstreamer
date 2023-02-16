@@ -102,7 +102,7 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
     const gchar *strct_name = gst_structure_get_name(structure);
 
     firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
-    firebolt::rialto::CodecData codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
+    std::shared_ptr<std::vector<std::uint8_t>> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
     firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
     std::string mimeType;
     if (strct_name)

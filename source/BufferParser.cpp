@@ -112,7 +112,7 @@ void BufferParser::addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMedi
             if (mappedBuf)
             {
                 segment->setCodecData(
-                    firebolt::rialto::CodecData{{mappedBuf.data(), mappedBuf.data() + mappedBuf.size()}});
+                    std::make_shared<std::vector<std::uint8_t>>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size()));
             }
             else
             {
