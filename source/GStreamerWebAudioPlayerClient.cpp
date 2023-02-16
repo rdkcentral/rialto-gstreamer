@@ -75,6 +75,12 @@ bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bo
     }
     return true;
 }
+
+bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::rialto::WebAudioPcmConfig &rac)
+{
+    return lac.rate != rac.rate || lac.channels != rac.channels || lac.sampleSize != rac.sampleSize ||
+           lac.isBigEndian != rac.isBigEndian || lac.isSigned != rac.isSigned || lac.isFloat != rac.isFloat;
+}
 } // namespace
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *appSink)
@@ -139,7 +145,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
                 if (mIsOpen)
                 {
                     // Destroy the previously created player
-                    ClientBackend->destroyWebAudioBackend();
+                    mClientBackend->destroyWebAudioBackend();
                 }
 
                 uint32_t priority = 1;
@@ -352,7 +358,7 @@ void GStreamerWebAudioPlayerClient::getNextBufferData()
     gst_sample_unref(sample);
 }
 
-bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType, const WebAudioConfig &config)
+bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType, const firebolt::rialto::WebAudioConfig &config)
 {
     if (audioMimeType != m_mimeType)
     {

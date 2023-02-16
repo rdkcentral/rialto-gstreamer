@@ -131,7 +131,7 @@ private:
      *
      * @retval true if this is a new config.
      */
-    bool isNewConfig(const std::string &audioMimeType, const WebAudioConfig &config);
+    bool isNewConfig(const std::string &audioMimeType, const firebolt::rialto::WebAudioConfig &config);
 
     /**
      * @brief Backend message queue.
@@ -189,11 +189,6 @@ private:
     uint32_t m_frameSize;
 
     /**
-     * @brief The number of bytes in the frame.
-     */
-    uint32_t m_frameSize;
-
-    /**
      * @brief The current web audio player mime type.
      */
     std::string m_mimeType;
@@ -201,5 +196,5 @@ private:
     /**
      * @brief The current web audio player config.
      */
-    WebAudioConfig m_config;
+    firebolt::rialto::WebAudioConfig m_config;
 };
