@@ -44,10 +44,7 @@ public:
         }
         return true;
     }
-    void destroyWebAudioBackend() override
-    {
-        mWebAudioPlayerBackend.reset();
-    }
+    void destroyWebAudioBackend() override { mWebAudioPlayerBackend.reset(); }
 
     bool play() override { return mWebAudioPlayerBackend->play(); }
     bool pause() override { return mWebAudioPlayerBackend->pause(); }

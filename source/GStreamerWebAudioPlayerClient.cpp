@@ -178,11 +178,7 @@ bool GStreamerWebAudioPlayerClient::close()
 {
     GST_DEBUG("entry:");
 
-    mBackendQueue.callInEventLoop(
-        [&]()
-        {
-            mClientBackend->destroyWebAudioBackend();
-        });
+    mBackendQueue.callInEventLoop([&]() { mClientBackend->destroyWebAudioBackend(); });
 
     return true;
 }
@@ -358,7 +354,8 @@ void GStreamerWebAudioPlayerClient::getNextBufferData()
     gst_sample_unref(sample);
 }
 
-bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType, const firebolt::rialto::WebAudioConfig &config)
+bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType,
+                                                const firebolt::rialto::WebAudioConfig &config)
 {
     if (audioMimeType != m_mimeType)
     {
