@@ -41,6 +41,8 @@ private:
 
     void addProtectionMetadataToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
                                         GstBuffer *buffer, const GstMapInfo &map, GstStructure *structure);
+    void addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
+                               GstStructure *structure);
 };
 
 class AudioBufferParser : public BufferParser
