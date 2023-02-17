@@ -180,7 +180,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
         GST_DEBUG("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
         if (!sink->priv->mWebAudioClient->pause())
         {
-            GST_ERROR_OBJECT(sink, "Failed to play web audio");
+            GST_ERROR_OBJECT(sink, "Failed to pause web audio");
             result = GST_STATE_CHANGE_FAILURE;
         }
         break;
