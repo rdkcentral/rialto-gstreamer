@@ -384,6 +384,7 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     {
         GST_INFO("Notify end of stream.");
         gst_element_post_message(mAppSink, gst_message_new_eos(GST_OBJECT_CAST(mAppSink)));
+        m_isEos = false;
     }
     break;
     default:
