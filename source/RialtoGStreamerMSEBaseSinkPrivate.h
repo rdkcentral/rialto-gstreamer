@@ -75,5 +75,6 @@ struct _RialtoMSEBaseSinkPrivate
     MediaPlayerManager m_mediaPlayerManager;
     std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> m_rialtoControlClient;
     bool mHandleResetTimeMessage = false;
+    bool mSourceAttached = false;
 };
 }

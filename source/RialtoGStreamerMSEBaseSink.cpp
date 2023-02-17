@@ -454,6 +454,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         {
             std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
             priv->clearBuffersUnlocked();
+            priv->mSourceAttached = false;
         }
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:

@@ -145,12 +145,18 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
 static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
+    RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_CAPS:
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
+        if (basePriv->mSourceAttached)
+        {
+            GST_INFO_OBJECT(sink, "Source already attached. Skip calling attachSource");
+            break;
+        }
 
         GST_INFO_OBJECT(sink, "Attaching VIDEO source with caps %" GST_PTR_FORMAT, caps);
 
@@ -163,6 +169,10 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
             if ((!client) || (!client->attachSource(vsource, sink)))
             {
                 GST_ERROR_OBJECT(sink, "Failed to attach VIDEO source");
+            }
+            else
+            {
+                basePriv->mSourceAttached = true;
             }
         }
         else
