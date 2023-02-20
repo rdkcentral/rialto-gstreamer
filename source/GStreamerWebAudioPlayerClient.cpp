@@ -178,7 +178,13 @@ bool GStreamerWebAudioPlayerClient::close()
 {
     GST_DEBUG("entry:");
 
-    mBackendQueue.callInEventLoop([&]() { mClientBackend->destroyWebAudioBackend(); });
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            mClientBackend->destroyWebAudioBackend();
+            m_pushSamplesTimer.cancel();
+            mIsOpen = false;
+        });
 
     return true;
 }
@@ -248,7 +254,7 @@ bool GStreamerWebAudioPlayerClient::setEos()
             }
             else
             {
-                GST_ERROR("No web audio backend");
+                GST_DEBUG("No web audio backend, valid scenario");
             }
         });
 
