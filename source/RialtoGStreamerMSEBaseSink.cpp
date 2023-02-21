@@ -454,6 +454,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         {
             std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
             priv->clearBuffersUnlocked();
+            priv->mSourceAttached = false;
         }
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
@@ -727,9 +728,10 @@ GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
     return result;
 }
 
-std::vector<uint8_t> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink, const GstStructure *structure)
+std::shared_ptr<std::vector<std::uint8_t>> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
+                                                                               const GstStructure *structure)
 {
-    std::vector<uint8_t> codecData;
+    std::shared_ptr<std::vector<std::uint8_t>> codecData;
 
     const GValue *codec_data;
     codec_data = gst_structure_get_value(structure, "codec_data");
@@ -741,7 +743,8 @@ std::vector<uint8_t> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink
             GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
             if (mappedBuf)
             {
-                codecData.assign(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                codecData =
+                    std::make_shared<std::vector<std::uint8_t>>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
             }
             else
             {

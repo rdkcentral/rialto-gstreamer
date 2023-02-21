@@ -18,6 +18,7 @@
 
 #include "BufferParser.h"
 #include "GStreamerEMEUtils.h"
+#include "GStreamerUtils.h"
 #include <inttypes.h>
 
 using namespace firebolt::rialto;
@@ -35,6 +36,7 @@ std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(GstSampl
 
     mseData->setData(map.size, map.data);
 
+    addCodecDataToSegment(mseData, structure);
     addProtectionMetadataToSegment(mseData, buffer, map, structure);
 
     return mseData;
@@ -92,6 +94,30 @@ void BufferParser::addProtectionMetadataToSegment(std::unique_ptr<IMediaPipeline
             GST_DEBUG("SUBSAMPLE: %zu/%zu C: %d E: %d", subSampleIdx, subSampleCount,
                       metadata.subsamples[subSampleIdx].first, metadata.subsamples[subSampleIdx].second);
             segment->addSubSample(metadata.subsamples[subSampleIdx].first, metadata.subsamples[subSampleIdx].second);
+        }
+    }
+}
+
+void BufferParser::addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
+                                         GstStructure *structure)
+{
+    const GValue *codec_data;
+    codec_data = gst_structure_get_value(structure, "codec_data");
+    if (codec_data)
+    {
+        GstBuffer *buf = gst_value_get_buffer(codec_data);
+        if (buf)
+        {
+            GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
+            if (mappedBuf)
+            {
+                segment->setCodecData(
+                    std::make_shared<std::vector<std::uint8_t>>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size()));
+            }
+            else
+            {
+                GST_ERROR("Failed to read codec_data");
+            }
         }
     }
 }
