@@ -61,6 +61,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
         // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first)
         // the video capabilities will NOT be set.
+
         GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
         if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject, priv->maxWidth, priv->maxHeight))
         {
@@ -73,7 +74,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
         std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
-            std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(-1, "");
+            std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>("");
         if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(sink))))
         {
             GST_ERROR_OBJECT(sink, "Failed to attach video source");
@@ -118,7 +119,7 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             uint32_t dolbyVisionProfile = -1;
             if (rialto_mse_base_sink_get_dv_profile(sink, structure, dolbyVisionProfile))
             {
-                return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision>(-1, mimeType,
+                return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision>(mimeType,
                                                                                                        dolbyVisionProfile,
                                                                                                        alignment, format,
                                                                                                        codecData);
@@ -130,7 +131,7 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
         }
 
         GST_INFO_OBJECT(sink, "%s video media source created", mimeType.c_str());
-        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(-1, mimeType, alignment, format,
+        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(mimeType, alignment, format,
                                                                                     codecData);
     }
     else
