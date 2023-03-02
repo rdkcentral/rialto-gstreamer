@@ -129,7 +129,7 @@ void getEncryptionSchemeFromProtectionMetadata(GstRialtoProtectionMetadata *prot
                                                BufferProtectionMetadata &metadata)
 {
     const char *cipherModeBuf = gst_structure_get_string(protectionMeta->info, "cipher-mode");
-    GST_INFO("Retrieved encryption scheme '%s' from protection metadata.", cipherModeBuf);
+    GST_INFO("Retrieved encryption scheme '%s' from protection metadata.", cipherModeBuf ? cipherModeBuf : "unknown");
     if (g_strcmp0(cipherModeBuf, "cbcs") == 0)
     {
         metadata.cipherMode = firebolt::rialto::CipherMode::CBCS;
@@ -158,12 +158,12 @@ void getEncryptionPatternFromProtectionMetadata(GstRialtoProtectionMetadata *pro
 {
     if (gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metadata.encryptedBlocks) == false)
     {
-        GST_ERROR("Failed to get crypt_byte_block value!");
+        GST_INFO("Failed to get crypt_byte_block value!");
         return;
     }
     if (gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metadata.clearBlocks) == false)
     {
-        GST_ERROR("Failed to get skip_byte_block value!");
+        GST_INFO("Failed to get skip_byte_block value!");
         return;
     }
 
