@@ -87,6 +87,11 @@ void BufferParser::addProtectionMetadataToSegment(std::unique_ptr<IMediaPipeline
         segment->setKeyId(metadata.kid);
         segment->setInitVector(metadata.iv);
         segment->setInitWithLast15(metadata.initWithLast15);
+        segment->setCipherMode(metadata.cipherMode);
+        if (metadata.encryptionPatternSet)
+        {
+            segment->setEncryptionPattern(metadata.encryptedBlocks, metadata.clearBlocks);
+        }
 
         size_t subSampleCount = metadata.subsamples.size();
         for (size_t subSampleIdx = 0; subSampleIdx < subSampleCount; ++subSampleIdx)

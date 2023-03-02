@@ -125,6 +125,52 @@ void getInitWithLast15FromProtectionMetadata(GstRialtoProtectionMetadata *protec
     metadata.initWithLast15 = initWithLast15;
 }
 
+void getEncryptionSchemeFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta,
+                                               BufferProtectionMetadata &metadata)
+{
+    const char *cipherModeBuf = gst_structure_get_string(protectionMeta->info, "cipher-mode");
+    GST_INFO("Retrieved encryption scheme '%s' from protection metadata.", cipherModeBuf);
+    if (g_strcmp0(cipherModeBuf, "cbcs") == 0)
+    {
+        metadata.cipherMode = firebolt::rialto::CipherMode::CBCS;
+    }
+    else if (g_strcmp0(cipherModeBuf, "cenc") == 0)
+    {
+        metadata.cipherMode = firebolt::rialto::CipherMode::CENC;
+    }
+    else if (g_strcmp0(cipherModeBuf, "cbc1") == 0)
+    {
+        metadata.cipherMode = firebolt::rialto::CipherMode::CBC1;
+    }
+    else if (g_strcmp0(cipherModeBuf, "cens") == 0)
+    {
+        metadata.cipherMode = firebolt::rialto::CipherMode::CENS;
+    }
+    else
+    {
+        GST_ERROR("Unknown encryption scheme!");
+        metadata.cipherMode = firebolt::rialto::CipherMode::UNKNOWN;
+    }
+}
+
+void getEncryptionPatternFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta,
+                                                BufferProtectionMetadata &metadata)
+{
+    if (gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metadata.encryptedBlocks) == false)
+    {
+        GST_ERROR("Failed to get crypt_byte_block value!");
+        return;
+    }
+    if (gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metadata.clearBlocks) == false)
+    {
+        GST_ERROR("Failed to get skip_byte_block value!");
+        return;
+    }
+
+    GST_INFO("Successful retrieval of 'crypt_byte_block' and 'skip_byte_block'.");
+    metadata.encryptionPatternSet = true;
+}
+
 void ProcessProtectionMetadata(GstBuffer *buffer, BufferProtectionMetadata &metadata)
 {
     if (buffer == nullptr)
@@ -142,6 +188,8 @@ void ProcessProtectionMetadata(GstBuffer *buffer, BufferProtectionMetadata &meta
             getIVFromProtectionMetadata(protectionMeta, metadata);
             getSubSamplesFromProtectionMetadata(protectionMeta, metadata);
             getInitWithLast15FromProtectionMetadata(protectionMeta, metadata);
+            getEncryptionSchemeFromProtectionMetadata(protectionMeta, metadata);
+            getEncryptionPatternFromProtectionMetadata(protectionMeta, metadata);
         }
         gst_buffer_remove_meta(buffer, reinterpret_cast<GstMeta *>(protectionMeta));
     }

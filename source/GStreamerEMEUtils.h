@@ -17,6 +17,7 @@
  */
 
 #pragma once
+#include <MediaCommon.h>
 #include <gst/gst.h>
 #include <gst/gstprotection.h>
 
@@ -34,6 +35,12 @@ struct BufferProtectionMetadata
     // vector of bytesOfClearData, bytesOfEncryptedData
     std::vector<std::pair<uint32_t, uint32_t>> subsamples;
     uint32_t initWithLast15{0};
+
+    // Encryption scheme
+    firebolt::rialto::CipherMode cipherMode{firebolt::rialto::CipherMode::UNKNOWN};
+    uint32_t encryptedBlocks{0};
+    uint32_t clearBlocks{0};
+    bool encryptionPatternSet{false};
 };
 
 void ProcessProtectionMetadata(GstBuffer *buffer, BufferProtectionMetadata &metadata);
