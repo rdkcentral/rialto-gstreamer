@@ -148,7 +148,14 @@ void getEncryptionSchemeFromProtectionMetadata(GstRialtoProtectionMetadata *prot
     }
     else
     {
-        GST_ERROR("Unknown encryption scheme!");
+        if (cipherModeBuf)
+        {
+            GST_ERROR("Unknown encryption scheme '%s'!", cipherModeBuf);
+        }
+        else
+        {
+            GST_ERROR("Missing encryption scheme!");
+        }
         metadata.cipherMode = firebolt::rialto::CipherMode::UNKNOWN;
     }
 }
