@@ -90,7 +90,7 @@ void BufferParser::addProtectionMetadataToSegment(std::unique_ptr<IMediaPipeline
         segment->setCipherMode(metadata.cipherMode);
         if (metadata.encryptionPatternSet)
         {
-            segment->setEncryptionPattern(metadata.encryptedBlocks, metadata.clearBlocks);
+            segment->setEncryptionPattern(metadata.cryptBlocks, metadata.skipBlocks);
         }
 
         size_t subSampleCount = metadata.subsamples.size();

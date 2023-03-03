@@ -163,12 +163,12 @@ void getEncryptionSchemeFromProtectionMetadata(GstRialtoProtectionMetadata *prot
 void getEncryptionPatternFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta,
                                                 BufferProtectionMetadata &metadata)
 {
-    if (gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metadata.encryptedBlocks) == false)
+    if (gst_structure_get_uint(protectionMeta->info, "crypt_byte_block", &metadata.cryptBlocks) == false)
     {
         GST_INFO("Failed to get crypt_byte_block value!");
         return;
     }
-    if (gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metadata.clearBlocks) == false)
+    if (gst_structure_get_uint(protectionMeta->info, "skip_byte_block", &metadata.skipBlocks) == false)
     {
         GST_INFO("Failed to get skip_byte_block value!");
         return;

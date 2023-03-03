@@ -38,8 +38,8 @@ struct BufferProtectionMetadata
 
     // Encryption scheme
     firebolt::rialto::CipherMode cipherMode{firebolt::rialto::CipherMode::UNKNOWN};
-    uint32_t encryptedBlocks{0};
-    uint32_t clearBlocks{0};
+    uint32_t cryptBlocks{0};
+    uint32_t skipBlocks{0};
     bool encryptionPatternSet{false};
 };
 
