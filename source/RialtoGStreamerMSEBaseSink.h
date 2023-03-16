@@ -63,6 +63,7 @@ void rialto_mse_base_handle_rialto_server_state_changed(RialtoMSEBaseSink *sink,
 void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_completed_seek(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped);
+void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink);
 
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);

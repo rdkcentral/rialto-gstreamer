@@ -68,6 +68,14 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
 }
 
+static void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
+{
+    std::string errorStr = "Rialto server playback failed";
+    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_error(GST_ELEMENT_CAST(sink), g_error_new (GST_STREAM_ERROR, 0, errorStr.c_str()), errorStr.c_str()));
+
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_READY);
+}
+
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
                                                               firebolt::rialto::PlaybackState state)
 {

@@ -349,7 +349,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     {
                         rialto_mse_base_handle_rialto_server_completed_seek(source.second.mRialtoSink);
                     }
-                    gst_element_set_state(GST_ELEMENT_CAST(source.second.mRialtoSink), GST_STATE_READY);
+                    rialto_mse_base_handle_rialto_server_error(source.second.mRialtoSink);
                 }
                 mServerSeekingState = SeekingState::IDLE;
                 mPosition = 0;
