@@ -68,11 +68,9 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
 }
 
-static void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
+static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const char *message)
 {
-    std::string errorStr = "Rialto server playback failed";
-    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_error(GST_ELEMENT_CAST(sink), g_error_new (GST_STREAM_ERROR, 0, errorStr.c_str()), errorStr.c_str()));
-
+    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_error(GST_OBJECT_CAST(sink), g_error_new (GST_STREAM_ERROR, 0,message), message));
     gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_READY);
 }
 
@@ -128,6 +126,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     callbacks.seekCompletedCallback = std::bind(rialto_mse_base_sink_seek_completed_handler, sink);
     callbacks.stateChangedCallback =
         std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
+    callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
     sink->priv->mCallbacks = callbacks;
     gst_segment_init(&sink->priv->mLastSegment, GST_FORMAT_TIME);
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
@@ -717,6 +716,14 @@ void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint
     if (sink->priv->mCallbacks.qosCallback)
     {
         sink->priv->mCallbacks.qosCallback(processed, dropped);
+    }
+}
+
+void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
+{
+    if (sink->priv->mCallbacks.errorCallback)
+    {
+        sink->priv->mCallbacks.errorCallback("Rialto server playback failed");
     }
 }
 
