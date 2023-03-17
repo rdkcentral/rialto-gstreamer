@@ -145,16 +145,20 @@ class AttachedSource
     friend class GStreamerMSEMediaPlayerClient;
 
 public:
-    AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller)
-        : mRialtoSink(rialtoSink), mBufferPuller(puller)
+    AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
+                   firebolt::rialto::MediaSourceType type)
+        : mRialtoSink(rialtoSink), mBufferPuller(puller), mType(type)
     {
     }
+
+    firebolt::rialto::MediaSourceType getType() { return mType; }
 
 private:
     RialtoMSEBaseSink *mRialtoSink;
     std::shared_ptr<BufferPuller> mBufferPuller;
     SeekingState mSeekingState = SeekingState::IDLE;
     std::unordered_set<uint32_t> mOngoingNeedDataRequests;
+    firebolt::rialto::MediaSourceType mType = firebolt::rialto::MediaSourceType::UNKNOWN;
 };
 
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
@@ -215,6 +219,9 @@ public:
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double volume);
     double getVolume();
+    void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
+    void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
+    bool areAllStreamsAttached();
 
 private:
     MessageQueue mBackendQueue;
@@ -224,6 +231,9 @@ private:
     double mVolume;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
+    bool mWasAllSourcesAttachedSent = false;
+    int32_t mAudioStreams;
+    int32_t mVideoStreams;
     SeekingState mServerSeekingState = SeekingState::IDLE;
 
     struct Rectangle
