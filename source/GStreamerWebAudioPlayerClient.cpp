@@ -393,9 +393,9 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
         m_isEos = false;
         break;
     }
-    case firebolt::rialto::PlaybackState::FAILURE:
+    case firebolt::rialto::WebAudioPlayerState::FAILURE:
     {
-        std::string errMessage = "Rialto server playback failed";
+        std::string errMessage = "Rialto server webaudio playback failed";
         GST_ERROR("%s", errMessage.c_str());
         gst_element_post_message(mAppSink, gst_message_new_error(GST_OBJECT_CAST(mAppSink),
                                                                  g_error_new(GST_STREAM_ERROR, 0, errMessage.c_str()),
