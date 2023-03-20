@@ -533,11 +533,11 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                          GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_IS_SINGLE_PATH_STREAM,
-                                    g_param_spec_boolean("single path stream", "single path stream",
+                                    g_param_spec_boolean("single-path-stream", "single path stream",
                                                          "is single path stream", FALSE, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_N_STREAMS,
-                                    g_param_spec_int("streams number", "streams number", "streams number", 1, G_MAXINT,
+                                    g_param_spec_int("streams-number", "streams number", "streams number", 1, G_MAXINT,
                                                      1, GParamFlags(G_PARAM_READWRITE)));
 }
 
