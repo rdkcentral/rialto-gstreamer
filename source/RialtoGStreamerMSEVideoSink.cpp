@@ -80,8 +80,8 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         gint n_audio = 0;
         if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio))
         {
-            videoStreams = n_audio;
-            isVideoOnly = n_video == 0;
+            videoStreams = n_video;
+            isVideoOnly = n_audio == 0;
         }
         else
         {

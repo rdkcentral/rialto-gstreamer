@@ -463,13 +463,13 @@ void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bo
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mAudioStreams != UNKNOWN_STREAMS_NUMBER)
+            if (mAudioStreams == UNKNOWN_STREAMS_NUMBER)
             {
                 mAudioStreams = audioStreams;
                 GST_INFO("Set audio streams number to %d", mAudioStreams);
             }
 
-            if (mVideoStreams != UNKNOWN_STREAMS_NUMBER && isAudioOnly)
+            if (mVideoStreams == UNKNOWN_STREAMS_NUMBER && isAudioOnly)
             {
                 mVideoStreams = 0;
                 GST_INFO("Set video only session");
@@ -482,13 +482,13 @@ void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bo
     mBackendQueue.callInEventLoop(
         [&]()
         {
-            if (mVideoStreams != UNKNOWN_STREAMS_NUMBER)
+            if (mVideoStreams == UNKNOWN_STREAMS_NUMBER)
             {
                 mVideoStreams = videoStreams;
                 GST_INFO("Set video streams number to %d", mVideoStreams);
             }
 
-            if (mAudioStreams != UNKNOWN_STREAMS_NUMBER && isVideoOnly)
+            if (mAudioStreams == UNKNOWN_STREAMS_NUMBER && isVideoOnly)
             {
                 mAudioStreams = 0;
                 GST_INFO("Set audio only session");
