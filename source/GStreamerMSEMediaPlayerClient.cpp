@@ -472,7 +472,7 @@ void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bo
             if (mVideoStreams == UNKNOWN_STREAMS_NUMBER && isAudioOnly)
             {
                 mVideoStreams = 0;
-                GST_INFO("Set video only session");
+                GST_INFO("Set audio only session");
             }
         });
 }
@@ -491,35 +491,28 @@ void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bo
             if (mAudioStreams == UNKNOWN_STREAMS_NUMBER && isVideoOnly)
             {
                 mAudioStreams = 0;
-                GST_INFO("Set audio only session");
+                GST_INFO("Set video only session");
             }
         });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
 {
-    bool result = false;
-    mBackendQueue.callInEventLoop(
-        [&]()
+    int32_t attachedVideoSources = 0;
+    int32_t attachedAudioSources = 0;
+    for (auto &source : mAttachedSources)
+    {
+        if (source.second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
         {
-            int32_t attachedVideoSources = 0;
-            int32_t attachedAudioSources = 0;
-            for (auto &source : mAttachedSources)
-            {
-                if (source.second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
-                {
-                    attachedVideoSources++;
-                }
-                else if (source.second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
-                {
-                    attachedAudioSources++;
-                }
-            }
+            attachedVideoSources++;
+        }
+        else if (source.second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+        {
+            attachedAudioSources++;
+        }
+    }
 
-            result = attachedVideoSources == mVideoStreams && attachedAudioSources == mAudioStreams;
-        });
-
-    return result;
+    return attachedVideoSources == mVideoStreams && attachedAudioSources == mAudioStreams;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)

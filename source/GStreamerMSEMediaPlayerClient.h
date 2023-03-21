@@ -221,9 +221,10 @@ public:
     double getVolume();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
-    bool areAllStreamsAttached();
 
 private:
+    bool areAllStreamsAttached();
+
     MessageQueue mBackendQueue;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
