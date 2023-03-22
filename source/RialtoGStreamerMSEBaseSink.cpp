@@ -67,9 +67,11 @@ static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 {
-    if ((GST_STATE(sink) != GST_STATE_PAUSED) && (GST_STATE(sink) != GST_STATE_PLAYING))
+    GstState currentState = GST_STATE(sink);
+    if ((currentState != GST_STATE_PAUSED) && (currentState != GST_STATE_PLAYING))
     {
-        // Sink cannot post a EOS message in this state, post an error instead.
+        GST_INFO_ERROR(sink, "Sink cannot post a EOS message in state '%s', posting an error instead", gst_element_state_get_name(currentState));
+
         const char *errMessage = "Rialto sinks received EOS in non-playing state";
         gst_element_post_message(GST_ELEMENT_CAST(sink),
                                  gst_message_new_error(GST_OBJECT_CAST(sink),
