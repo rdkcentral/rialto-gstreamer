@@ -71,7 +71,7 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
         (GST_STATE_RETURN(sink) == GST_STATE_CHANGE_ASYNC))
     {
         // Force async change to Pause state, otherwise the EOS will be ignored
-        rialto_mse_base_async_done(sink);
+        rialto_mse_base_handle_rialto_server_state_changed(sink, firebolt::rialto::PlaybackState::PAUSED);
     }
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
 }
