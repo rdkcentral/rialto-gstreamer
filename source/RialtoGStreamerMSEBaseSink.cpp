@@ -65,10 +65,8 @@ static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 {
-    if ((sink->priv->mIsStateCommitNeeded) &&
-        (GST_STATE(sink) == GST_STATE_READY) &&
-        (GST_STATE_PENDING(sink) == GST_STATE_PAUSED) &&
-        (GST_STATE_RETURN(sink) == GST_STATE_CHANGE_ASYNC))
+    if ((sink->priv->mIsStateCommitNeeded) && (GST_STATE(sink) == GST_STATE_READY) &&
+        (GST_STATE_PENDING(sink) == GST_STATE_PAUSED) && (GST_STATE_RETURN(sink) == GST_STATE_CHANGE_ASYNC))
     {
         // Force async change to Pause state, otherwise the EOS will be ignored
         rialto_mse_base_handle_rialto_server_state_changed(sink, firebolt::rialto::PlaybackState::PAUSED);
