@@ -65,13 +65,19 @@ static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 {
-    if ((sink->priv->mIsStateCommitNeeded) && (GST_STATE(sink) == GST_STATE_READY) &&
-        (GST_STATE_PENDING(sink) == GST_STATE_PAUSED) && (GST_STATE_RETURN(sink) == GST_STATE_CHANGE_ASYNC))
+    if ((GST_STATE(sink) != GST_STATE_PAUSED) &&
+        (GST_STATE(sink) != GST_STATE_PLAYING))
     {
-        // Force async change to Pause state, otherwise the EOS will be ignored
-        rialto_mse_base_handle_rialto_server_state_changed(sink, firebolt::rialto::PlaybackState::PAUSED);
+        // Sink cannot post a EOS message in this state, post an error instead.
+        const char* errMessage = "Rialto sinks received EOS in non-playing state";
+        gst_element_post_message(GST_ELEMENT_CAST(sink),
+                                 gst_message_new_error(GST_OBJECT_CAST(sink), g_error_new(GST_STREAM_ERROR, 0, errMessage),
+                                                       errMessage));
     }
-    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
+    else
+    {
+        gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
+    }
 }
 
 static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const char *message)
