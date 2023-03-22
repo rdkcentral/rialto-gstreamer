@@ -73,15 +73,34 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
         g_free(parentObjectName);
 
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+        int videoStreams = 0;
+        bool isVideoOnly = false;
 
-        std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
-            std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>("");
-        if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(sink))))
+        gint n_video = 0;
+        gint n_audio = 0;
+        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio))
         {
-            GST_ERROR_OBJECT(sink, "Failed to attach video source");
+            videoStreams = n_video;
+            isVideoOnly = n_audio == 0;
+        }
+        else
+        {
+            std::lock_guard<std::mutex> lock(basePriv->mSinkMutex);
+            videoStreams = basePriv->m_numOfStreams;
+            isVideoOnly = basePriv->mIsSinglePathStream;
+        }
+
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (client)
+        {
+            client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+        }
+        else
+        {
+            GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
+
         break;
     }
     default:

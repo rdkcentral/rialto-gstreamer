@@ -47,6 +47,8 @@ enum
     PROP_0,
     PROP_LOCATION,
     PROP_HANDLE_RESET_TIME_MESSAGE,
+    PROP_IS_SINGLE_PATH_STREAM,
+    PROP_N_STREAMS,
     PROP_LAST
 };
 
@@ -159,6 +161,7 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
 
+    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
     switch (propId)
     {
     case PROP_LOCATION:
@@ -166,6 +169,12 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
         break;
     case PROP_HANDLE_RESET_TIME_MESSAGE:
         g_value_set_boolean(value, sink->priv->mHandleResetTimeMessage ? TRUE : FALSE);
+        break;
+    case PROP_IS_SINGLE_PATH_STREAM:
+        g_value_set_boolean(value, sink->priv->mIsSinglePathStream ? TRUE : FALSE);
+        break;
+    case PROP_N_STREAMS:
+        g_value_set_int(value, sink->priv->m_numOfStreams);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -177,6 +186,7 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
 
+    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
     switch (propId)
     {
     case PROP_LOCATION:
@@ -184,6 +194,12 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
         break;
     case PROP_HANDLE_RESET_TIME_MESSAGE:
         sink->priv->mHandleResetTimeMessage = g_value_get_boolean(value) != FALSE;
+        break;
+    case PROP_IS_SINGLE_PATH_STREAM:
+        sink->priv->mIsSinglePathStream = g_value_get_boolean(value) != FALSE;
+        break;
+    case PROP_N_STREAMS:
+        sink->priv->m_numOfStreams = g_value_get_int(value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -526,6 +542,14 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                     g_param_spec_boolean("handle-reset-time-message", "Handle Reset Time Message",
                                                          "Handle Reset Time Message", FALSE,
                                                          GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_IS_SINGLE_PATH_STREAM,
+                                    g_param_spec_boolean("single-path-stream", "single path stream",
+                                                         "is single path stream", FALSE, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_N_STREAMS,
+                                    g_param_spec_int("streams-number", "streams number", "streams number", 1, G_MAXINT,
+                                                     1, GParamFlags(G_PARAM_READWRITE)));
 }
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
@@ -843,4 +867,18 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
     sink->priv->mIsStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
+}
+
+bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)
+{
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-video") &&
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio"))
+    {
+        g_object_get(parentObject, "n-video", &n_video, nullptr);
+        g_object_get(parentObject, "n-audio", &n_audio, nullptr);
+
+        return true;
+    }
+
+    return false;
 }

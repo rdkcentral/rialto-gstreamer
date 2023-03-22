@@ -29,12 +29,16 @@ namespace
 // That difference should not be bigger than 1 video / audio frame.
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
+const int32_t UNKNOWN_STREAMS_NUMBER = -1;
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
-    : mClientBackend(MediaPlayerClientBackend), mPosition(0), mDuration(0), mVideoRectangle{0, 0, 1920, 1080},
+    : mClientBackend(MediaPlayerClientBackend), mPosition(0),
+      mDuration(0), mAudioStreams{UNKNOWN_STREAMS_NUMBER}, mVideoStreams{UNKNOWN_STREAMS_NUMBER}, mVideoRectangle{0, 0,
+                                                                                                                  1920,
+                                                                                                                  1080},
       mStreamingStopped(false), mMaxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       mMaxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -246,10 +250,20 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
 
                 if (mAttachedSources.find(source->getId()) == mAttachedSources.end())
                 {
-                    mAttachedSources.emplace(source->getId(), AttachedSource(rialtoSink, bufferPuller));
+                    mAttachedSources.emplace(source->getId(),
+                                             AttachedSource(rialtoSink, bufferPuller, source->getType()));
                     rialtoSink->priv->mSourceId = source->getId();
                     bufferPuller->start();
                 }
+            }
+
+            if (!mWasAllSourcesAttachedSent && areAllStreamsAttached())
+            {
+                // RialtoServer doesn't support dynamic source attachment.
+                // It means that when we notify that all sources were attached, we cannot add any more sources in the current session
+                GST_INFO("All sources attached");
+                mClientBackend->allSourcesAttached();
+                mWasAllSourcesAttachedSent = true;
             }
         });
 
@@ -442,6 +456,63 @@ double GStreamerMSEMediaPlayerClient::getVolume()
             }
         });
     return volume;
+}
+
+void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly)
+{
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mAudioStreams == UNKNOWN_STREAMS_NUMBER)
+            {
+                mAudioStreams = audioStreams;
+                GST_INFO("Set audio streams number to %d", mAudioStreams);
+            }
+
+            if (mVideoStreams == UNKNOWN_STREAMS_NUMBER && isAudioOnly)
+            {
+                mVideoStreams = 0;
+                GST_INFO("Set audio only session");
+            }
+        });
+}
+
+void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly)
+{
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mVideoStreams == UNKNOWN_STREAMS_NUMBER)
+            {
+                mVideoStreams = videoStreams;
+                GST_INFO("Set video streams number to %d", mVideoStreams);
+            }
+
+            if (mAudioStreams == UNKNOWN_STREAMS_NUMBER && isVideoOnly)
+            {
+                mAudioStreams = 0;
+                GST_INFO("Set video only session");
+            }
+        });
+}
+
+bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
+{
+    int32_t attachedVideoSources = 0;
+    int32_t attachedAudioSources = 0;
+    for (auto &source : mAttachedSources)
+    {
+        if (source.second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
+        {
+            attachedVideoSources++;
+        }
+        else if (source.second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+        {
+            attachedAudioSources++;
+        }
+    }
+
+    return attachedVideoSources == mVideoStreams && attachedAudioSources == mAudioStreams;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)

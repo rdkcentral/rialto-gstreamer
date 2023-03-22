@@ -76,5 +76,7 @@ struct _RialtoMSEBaseSinkPrivate
     std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> m_rialtoControlClient;
     bool mHandleResetTimeMessage = false;
     bool mSourceAttached = false;
+    bool mIsSinglePathStream = false;
+    int32_t m_numOfStreams = 1;
 };
-}
+G_END_DECLS

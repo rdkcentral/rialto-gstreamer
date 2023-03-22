@@ -50,5 +50,4 @@ GType rialto_mse_audio_sink_get_type(void);
 
 void rialto_mse_audio_sink_set_client_backend(GstElement *sink,
                                               const std::shared_ptr<GStreamerMSEMediaPlayerClient> &mediaPlayerClient);
-}
-;
+G_END_DECLS
