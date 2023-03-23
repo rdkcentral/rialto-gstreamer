@@ -87,8 +87,8 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const char *message)
 {
     gst_element_post_message(GST_ELEMENT_CAST(sink),
-                             gst_message_new_error(GST_OBJECT_CAST(sink), g_error_new(GST_STREAM_ERROR, 0, message),
-                                                   message));
+                             gst_message_new_error(GST_OBJECT_CAST(sink),
+                                                   g_error_new_literal(GST_STREAM_ERROR, 0, message), message));
     gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_READY);
 }
 
