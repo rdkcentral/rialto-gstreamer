@@ -18,7 +18,7 @@
 
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
-#include <RialtoGStreamerEMEProtectionMetadata.h>
+#include "RialtoGStreamerEMEProtectionMetadata.h"
 #include <cstdint>
 #include <stdio.h>
 

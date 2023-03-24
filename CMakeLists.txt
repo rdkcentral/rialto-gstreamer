@@ -43,6 +43,8 @@ add_library(gstrialtosinks
         source/MediaPlayerManager.cpp
         source/Timer.cpp
         source/BufferParser.cpp
+
+        source/RialtoGStreamerEMEProtectionMetadata.cpp
         )
 
 target_include_directories(gstrialtosinks
