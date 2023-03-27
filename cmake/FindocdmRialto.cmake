@@ -27,8 +27,8 @@ if (NOT NATIVE_BUILD )
 else()
     find_library( RIALTOOCDM_LIBRARY NAMES libocdm.so ocdmRialto )
 endif()
-message( "RIALTOOCDM_INCLUDE_DIR include dir = ${RIALTOOCDM_INCLUDE_DIR}" )
-message( "RIALTOOCDM_LIBRARY lib = ${RIALTOOCDM_LIBRARY}" )
+#message( "RIALTOOCDM_INCLUDE_DIR include dir = ${RIALTOOCDM_INCLUDE_DIR}" )
+#message( "RIALTOOCDM_LIBRARY lib = ${RIALTOOCDM_LIBRARY}" )
 
 include( FindPackageHandleStandardArgs )
 
