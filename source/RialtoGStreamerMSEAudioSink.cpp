@@ -45,6 +45,14 @@ enum
     PROP_LAST
 };
 
+enum
+{
+   SIGNAL_UNDERFLOW,
+   SIGNAL_LAST
+};
+
+static guint g_signals[SIGNAL_LAST] = {};
+
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
@@ -342,6 +350,11 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_VOLUME,
                                     g_param_spec_double("volume", "Volume", "Volume of this stream", 0, 1.0, 1.0,
                                                         GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_signals[SIGNAL_UNDERFLOW] = g_signal_new("underrun-callback", G_TYPE_FROM_CLASS(GST_ELEMENT_CLASS(klass)),
+                                               G_SIGNAL_RUN_LAST, 0, nullptr, nullptr,
+                                               g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
+                                               G_TYPE_POINTER);
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();

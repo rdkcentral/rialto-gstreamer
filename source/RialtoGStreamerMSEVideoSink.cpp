@@ -47,6 +47,17 @@ enum
     PROP_LAST
 };
 
+enum
+{
+   SIGNAL_FIRSTFRAME,
+   SIGNAL_UNDERFLOW,
+   SIGNAL_DECODEERROR,
+   SIGNAL_TIMECODE,
+   SIGNAL_LAST
+};
+
+static guint g_signals[SIGNAL_LAST] = {};
+
 static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(element);
@@ -375,6 +386,24 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
                                                          "allow frame stepping on preroll into pause", FALSE,
                                                          G_PARAM_READWRITE));
+
+    g_signals[SIGNAL_FIRSTFRAME] = g_signal_new("first-video-frame-callback",
+                                                G_TYPE_FROM_CLASS(GST_ELEMENT_CLASS(klass)), G_SIGNAL_RUN_LAST, 0,
+                                                nullptr, nullptr, g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
+                                                G_TYPE_UINT, G_TYPE_POINTER);
+
+    g_signals[SIGNAL_UNDERFLOW] = g_signal_new("buffer-underflow-callback", G_TYPE_FROM_CLASS(GST_ELEMENT_CLASS(klass)),
+                                               G_SIGNAL_RUN_LAST, 0, nullptr, nullptr,
+                                               g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
+                                               G_TYPE_POINTER);
+    g_signals[SIGNAL_DECODEERROR] =
+        g_signal_new("decode-error-callback", G_TYPE_FROM_CLASS(GST_ELEMENT_CLASS(klass)), G_SIGNAL_RUN_LAST, 0, nullptr,
+                     nullptr, g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_POINTER);
+
+    g_signals[SIGNAL_TIMECODE] = g_signal_new("timecode-callback", G_TYPE_FROM_CLASS(GST_ELEMENT_CLASS(klass)),
+                                              G_SIGNAL_RUN_LAST, 0, nullptr, nullptr, nullptr, G_TYPE_NONE, 3,
+                                              G_TYPE_UINT /* hours */, G_TYPE_UINT /* minutes */,
+                                              G_TYPE_UINT /* seconds */);
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
