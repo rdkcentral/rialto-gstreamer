@@ -142,6 +142,7 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             {
                 return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision>(mimeType,
                                                                                                        dolbyVisionProfile,
+                                                                                                       sink->priv->m_hasDrm,
                                                                                                        alignment, format,
                                                                                                        codecData);
             }
@@ -152,7 +153,7 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
         }
 
         GST_INFO_OBJECT(sink, "%s video media source created", mimeType.c_str());
-        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(mimeType, alignment, format,
+        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(mimeType, sink->priv->m_hasDrm, alignment, format,
                                                                                     codecData);
     }
     else

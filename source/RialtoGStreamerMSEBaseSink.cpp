@@ -49,6 +49,7 @@ enum
     PROP_HANDLE_RESET_TIME_MESSAGE,
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
+    PROP_HAS_DRM,
     PROP_LAST
 };
 
@@ -179,6 +180,9 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
     case PROP_N_STREAMS:
         g_value_set_int(value, sink->priv->m_numOfStreams);
         break;
+    case PROP_HAS_DRM:
+        g_value_set_boolean(value, sink->priv->m_hasDrm);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -203,6 +207,9 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
         break;
     case PROP_N_STREAMS:
         sink->priv->m_numOfStreams = g_value_get_int(value);
+        break;
+    case PROP_HAS_DRM:
+        sink->priv->m_hasDrm = g_value_get_boolean(value) != FALSE;
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -553,6 +560,10 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_N_STREAMS,
                                     g_param_spec_int("streams-number", "streams number", "streams number", 1, G_MAXINT,
                                                      1, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_HAS_DRM,
+                                    g_param_spec_boolean("has-drm", "has drm",
+                                                         "has drm", TRUE, GParamFlags(G_PARAM_READWRITE)));
 }
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)

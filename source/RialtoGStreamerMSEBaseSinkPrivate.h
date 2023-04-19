@@ -78,5 +78,6 @@ struct _RialtoMSEBaseSinkPrivate
     bool mSourceAttached = false;
     bool mIsSinglePathStream = false;
     int32_t m_numOfStreams = 1;
+    bool m_hasDrm = true;
 };
 G_END_DECLS
