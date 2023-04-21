@@ -21,6 +21,8 @@ project( gstrialtosinks LANGUAGES C CXX VERSION 1.0 )
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 add_compile_options(-Wall -Werror)
 
+# RIALTO-197: deprecated-declarations error in the latest stable2 for gstreamer.
+# Should be removed once the issue is fixed.
 add_compile_options(
   "-Wno-deprecated-declarations"
 )
