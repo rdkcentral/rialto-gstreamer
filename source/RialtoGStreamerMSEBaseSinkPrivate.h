@@ -34,7 +34,7 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
 {
-    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false), mIsStateCommitNeeded(false) {}
+    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false), mIsStateCommitNeeded(false), m_hasDrm(true) {}
     ~_RialtoMSEBaseSinkPrivate()
     {
         if (mCaps)
@@ -78,6 +78,6 @@ struct _RialtoMSEBaseSinkPrivate
     bool mSourceAttached = false;
     bool mIsSinglePathStream = false;
     int32_t m_numOfStreams = 1;
-    bool m_hasDrm = true;
+    std::atomic<bool> m_hasDrm;
 };
 G_END_DECLS
