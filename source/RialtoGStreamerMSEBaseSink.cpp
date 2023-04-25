@@ -562,8 +562,8 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                      1, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_HAS_DRM,
-                                    g_param_spec_boolean("has-drm", "has drm",
-                                                         "has drm", TRUE, GParamFlags(G_PARAM_READWRITE)));
+                                    g_param_spec_boolean("has-drm", "has drm", "has drm", TRUE,
+                                                         GParamFlags(G_PARAM_READWRITE)));
 }
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
