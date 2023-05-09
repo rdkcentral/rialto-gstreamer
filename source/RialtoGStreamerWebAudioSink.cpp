@@ -17,8 +17,8 @@
  */
 
 #include "RialtoGStreamerWebAudioSink.h"
+#include "ControlBackend.h"
 #include "GStreamerWebAudioPlayerClient.h"
-#include "RialtoControlClientBackend.h"
 #include <gst/gst.h>
 
 using namespace firebolt::rialto::client;
@@ -147,15 +147,9 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     {
         GST_DEBUG("GST_STATE_CHANGE_NULL_TO_READY");
 
-        sink->priv->mRialtoControlClient->getRialtoControlBackend();
-        if (!sink->priv->mRialtoControlClient->isRialtoControlBackendCreated())
+        if (!sink->priv->mRialtoControlClient->waitForRunning())
         {
-            GST_ERROR_OBJECT(sink, "Cannot get the rialto control object");
-            result = GST_STATE_CHANGE_FAILURE;
-        }
-        else if (!sink->priv->mRialtoControlClient->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
-        {
-            GST_ERROR_OBJECT(sink, "Cannot set rialto state to running");
+            GST_ERROR_OBJECT(sink, "Rialto client cannot reach running state");
             result = GST_STATE_CHANGE_FAILURE;
         }
         break;
@@ -199,7 +193,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     {
         GST_DEBUG("GST_STATE_CHANGE_READY_TO_NULL");
 
-        sink->priv->mRialtoControlClient->removeRialtoControlBackend();
+        sink->priv->mRialtoControlClient->removeControlBackend();
     }
     default:
         break;
@@ -245,7 +239,7 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
-    sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::RialtoControlClientBackend>();
+    sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
 
     sink->priv->mAppSink = gst_element_factory_make("appsink", nullptr);
     if (!sink->priv->mAppSink)

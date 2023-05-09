@@ -19,8 +19,8 @@
 #define USE_GLIB 1
 
 #include "RialtoGStreamerMSEBaseSink.h"
+#include "ControlBackend.h"
 #include "GStreamerUtils.h"
-#include "RialtoControlClientBackend.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipeline.h>
 #include <cstring>
@@ -137,7 +137,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
-    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::RialtoControlClientBackend>();
+    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
 
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
@@ -424,18 +424,12 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             GST_ERROR_OBJECT(sink, "Cannot start, because there's no sink pad");
             return GST_STATE_CHANGE_FAILURE;
         }
-        priv->m_rialtoControlClient->getRialtoControlBackend();
-        if (!priv->m_rialtoControlClient->isRialtoControlBackendCreated())
+        if (!priv->m_rialtoControlClient->waitForRunning())
         {
-            GST_ERROR_OBJECT(sink, "Cannot get the rialto control object");
+            GST_ERROR_OBJECT(sink, "Control: Rialto client cannot reach running state");
             return GST_STATE_CHANGE_FAILURE;
         }
-
-        if (!priv->m_rialtoControlClient->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
-        {
-            GST_ERROR_OBJECT(sink, "Cannot set rialto state to running");
-            return GST_STATE_CHANGE_FAILURE;
-        }
+        GST_INFO_OBJECT(sink, "Control: Rialto client reached running state");
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
@@ -509,7 +503,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
 
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
-        priv->m_rialtoControlClient->removeRialtoControlBackend();
+        priv->m_rialtoControlClient->removeControlBackend();
         break;
     default:
         break;

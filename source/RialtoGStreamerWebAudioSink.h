@@ -18,8 +18,8 @@
 
 #pragma once
 
+#include "ControlBackendInterface.h"
 #include "GStreamerWebAudioPlayerClient.h"
-#include "RialtoControlClientBackendInterface.h"
 #include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
 
@@ -40,7 +40,7 @@ struct _RialtoWebAudioSinkPrivate
 {
     GstElement *mAppSink;
     std::shared_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
-    std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> mRialtoControlClient;
+    std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> mRialtoControlClient;
 };
 
 struct _RialtoWebAudioSink
