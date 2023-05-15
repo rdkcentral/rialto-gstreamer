@@ -22,8 +22,8 @@
 
 #include <string>
 
+#include "ControlBackendInterface.h"
 #include "MediaPlayerManager.h"
-#include "RialtoControlClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
 #include <memory>
@@ -73,7 +73,7 @@ struct _RialtoMSEBaseSinkPrivate
     RialtoGStreamerMSEBaseSinkCallbacks mCallbacks;
 
     MediaPlayerManager m_mediaPlayerManager;
-    std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> m_rialtoControlClient;
+    std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
     bool mHandleResetTimeMessage = false;
     bool mSourceAttached = false;
     bool mIsSinglePathStream = false;
