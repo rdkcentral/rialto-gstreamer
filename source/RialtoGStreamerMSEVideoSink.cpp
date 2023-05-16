@@ -126,6 +126,12 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
     firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
     std::shared_ptr<std::vector<std::uint8_t>> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
     firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
+
+    gint width = 0;
+    gint height = 0;
+    gst_structure_get_int(structure, "width", &width);
+    gst_structure_get_int(structure, "height", &height);
+
     std::string mimeType;
     if (strct_name)
     {
@@ -142,6 +148,8 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             {
                 return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision>(mimeType,
                                                                                                        dolbyVisionProfile,
+                                                                                                       sink->priv->m_hasDrm,
+                                                                                                       width, height,
                                                                                                        alignment, format,
                                                                                                        codecData);
             }
@@ -152,7 +160,8 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
         }
 
         GST_INFO_OBJECT(sink, "%s video media source created", mimeType.c_str());
-        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(mimeType, alignment, format,
+        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceVideo>(mimeType, sink->priv->m_hasDrm,
+                                                                                    width, height, alignment, format,
                                                                                     codecData);
     }
     else

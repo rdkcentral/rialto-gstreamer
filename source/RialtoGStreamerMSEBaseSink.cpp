@@ -19,8 +19,8 @@
 #define USE_GLIB 1
 
 #include "RialtoGStreamerMSEBaseSink.h"
+#include "ControlBackend.h"
 #include "GStreamerUtils.h"
-#include "RialtoControlClientBackend.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <IMediaPipeline.h>
 #include <cstring>
@@ -49,6 +49,7 @@ enum
     PROP_HANDLE_RESET_TIME_MESSAGE,
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
+    PROP_HAS_DRM,
     PROP_LAST
 };
 
@@ -89,7 +90,6 @@ static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const ch
     gst_element_post_message(GST_ELEMENT_CAST(sink),
                              gst_message_new_error(GST_OBJECT_CAST(sink),
                                                    g_error_new_literal(GST_STREAM_ERROR, 0, message), message));
-    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_READY);
 }
 
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
@@ -137,7 +137,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
-    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::RialtoControlClientBackend>();
+    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
 
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
@@ -179,6 +179,9 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
     case PROP_N_STREAMS:
         g_value_set_int(value, sink->priv->m_numOfStreams);
         break;
+    case PROP_HAS_DRM:
+        g_value_set_boolean(value, sink->priv->m_hasDrm);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -203,6 +206,9 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
         break;
     case PROP_N_STREAMS:
         sink->priv->m_numOfStreams = g_value_get_int(value);
+        break;
+    case PROP_HAS_DRM:
+        sink->priv->m_hasDrm = g_value_get_boolean(value) != FALSE;
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -418,18 +424,12 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             GST_ERROR_OBJECT(sink, "Cannot start, because there's no sink pad");
             return GST_STATE_CHANGE_FAILURE;
         }
-        priv->m_rialtoControlClient->getRialtoControlBackend();
-        if (!priv->m_rialtoControlClient->isRialtoControlBackendCreated())
+        if (!priv->m_rialtoControlClient->waitForRunning())
         {
-            GST_ERROR_OBJECT(sink, "Cannot get the rialto control object");
+            GST_ERROR_OBJECT(sink, "Control: Rialto client cannot reach running state");
             return GST_STATE_CHANGE_FAILURE;
         }
-
-        if (!priv->m_rialtoControlClient->setApplicationState(firebolt::rialto::ApplicationState::RUNNING))
-        {
-            GST_ERROR_OBJECT(sink, "Cannot set rialto state to running");
-            return GST_STATE_CHANGE_FAILURE;
-        }
+        GST_INFO_OBJECT(sink, "Control: Rialto client reached running state");
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
@@ -503,7 +503,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
 
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
-        priv->m_rialtoControlClient->removeRialtoControlBackend();
+        priv->m_rialtoControlClient->removeControlBackend();
         break;
     default:
         break;
@@ -553,6 +553,10 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_N_STREAMS,
                                     g_param_spec_int("streams-number", "streams number", "streams number", 1, G_MAXINT,
                                                      1, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_HAS_DRM,
+                                    g_param_spec_boolean("has-drm", "has drm", "has drm", TRUE,
+                                                         GParamFlags(G_PARAM_READWRITE)));
 }
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)

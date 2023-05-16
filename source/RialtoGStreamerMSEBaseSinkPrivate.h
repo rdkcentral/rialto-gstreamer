@@ -22,8 +22,8 @@
 
 #include <string>
 
+#include "ControlBackendInterface.h"
 #include "MediaPlayerManager.h"
-#include "RialtoControlClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
 #include <memory>
@@ -34,7 +34,7 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
 {
-    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false), mIsStateCommitNeeded(false) {}
+    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false), mIsStateCommitNeeded(false), m_hasDrm(true) {}
     ~_RialtoMSEBaseSinkPrivate()
     {
         if (mCaps)
@@ -73,10 +73,11 @@ struct _RialtoMSEBaseSinkPrivate
     RialtoGStreamerMSEBaseSinkCallbacks mCallbacks;
 
     MediaPlayerManager m_mediaPlayerManager;
-    std::unique_ptr<firebolt::rialto::client::RialtoControlClientBackendInterface> m_rialtoControlClient;
+    std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
     bool mHandleResetTimeMessage = false;
     bool mSourceAttached = false;
     bool mIsSinglePathStream = false;
     int32_t m_numOfStreams = 1;
+    std::atomic<bool> m_hasDrm;
 };
 G_END_DECLS

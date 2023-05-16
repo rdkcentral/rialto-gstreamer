@@ -18,19 +18,17 @@
 
 #pragma once
 
-#include <IRialtoControl.h>
+#include <ControlCommon.h>
 
 #include <string>
 
 namespace firebolt::rialto::client
 {
-class RialtoControlClientBackendInterface
+class ControlBackendInterface
 {
 public:
-    virtual ~RialtoControlClientBackendInterface() = default;
-    virtual void getRialtoControlBackend() = 0;
-    virtual void removeRialtoControlBackend() = 0;
-    virtual bool isRialtoControlBackendCreated() const = 0;
-    virtual bool setApplicationState(ApplicationState state) = 0;
+    virtual ~ControlBackendInterface() = default;
+    virtual void removeControlBackend() = 0;
+    virtual bool waitForRunning() = 0;
 };
 } // namespace firebolt::rialto::client
