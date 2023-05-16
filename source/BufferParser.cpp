@@ -154,8 +154,8 @@ VideoBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structu
     gst_structure_get_int(structure, "height", &height);
     gst_structure_get_fraction(structure, "framerate", &frameRate.numerator, &frameRate.denominator);
 
-    GST_DEBUG("New video frame pts=%" PRId64 " duration=%" PRId64 " width=%d height=%d framerate=%d/%d", timeStamp, duration, width,
-              height, frameRate.numerator, frameRate.denominator);
+    GST_DEBUG("New video frame pts=%" PRId64 " duration=%" PRId64 " width=%d height=%d framerate=%d/%d", timeStamp,
+              duration, width, height, frameRate.numerator, frameRate.denominator);
 
     std::unique_ptr<IMediaPipeline::MediaSegmentVideo> mseData =
         std::make_unique<IMediaPipeline::MediaSegmentVideo>(streamId, timeStamp, duration, width, height, frameRate);
