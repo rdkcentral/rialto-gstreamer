@@ -31,8 +31,7 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"video/h264", {"video/x-h264"}},
          {"video/h265", {"video/x-h265"}},
          {"video/x-av1", {"video/x-av1"}},
-         {"video/x-vp9", {"video/x-vp9"}},
-         {"video/mp4", {"video/mpeg, mpegversion=4"}}};
+         {"video/x-vp9", {"video/x-vp9"}}};
 
     std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
     GstCaps *caps = gst_caps_new_empty();
