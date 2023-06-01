@@ -92,6 +92,10 @@ public:
 
     bool getVolume(double &volume) { return mMediaPlayerBackend->getVolume(volume); }
 
+    bool setMute(bool mute) { return mMediaPlayerBackend->setMute(mute); }
+
+    bool getMute(bool &mute) { return mMediaPlayerBackend->getMute(mute); }
+
 private:
     std::unique_ptr<IMediaPipeline> mMediaPlayerBackend;
 };

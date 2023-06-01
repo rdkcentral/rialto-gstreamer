@@ -42,6 +42,7 @@ enum
 {
     PROP_0,
     PROP_VOLUME,
+    PROP_MUTE,
     PROP_LAST
 };
 
@@ -265,6 +266,16 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         g_value_set_double(value, client->getVolume());
         break;
     }
+    case PROP_MUTE:
+    {
+        if (!client)
+        {
+            GST_WARNING_OBJECT(object, "missing media player client");
+            return;
+        }
+        g_value_set_boolean(value, client->getMute());
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -297,6 +308,16 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         client->setVolume(g_value_get_double(value));
         break;
     }
+    case PROP_MUTE;
+    {
+        if(!client)
+        {
+            GST_WARNING_OBJECT(object, "missing media player client");
+            return;
+        }
+        client->setMute(g_value_get_boolean(value));
+        break;
+    }    
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);

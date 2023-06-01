@@ -219,6 +219,8 @@ public:
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double volume);
     double getVolume();
+    void setMute(bool mute);
+    bool getMute();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
 
@@ -230,6 +232,7 @@ private:
     int64_t mPosition;
     int64_t mDuration;
     double mVolume;
+    bool mMute;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     bool mWasAllSourcesAttachedSent = false;
