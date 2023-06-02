@@ -310,14 +310,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_MUTE:
     {
-        if(!client)
+        if (!client)
         {
             GST_WARNING_OBJECT(object, "missing media player client");
             return;
         }
         client->setMute(g_value_get_boolean(value));
         break;
-    }    
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
