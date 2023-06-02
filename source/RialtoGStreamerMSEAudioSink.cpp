@@ -308,7 +308,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         client->setVolume(g_value_get_double(value));
         break;
     }
-    case PROP_MUTE;
+    case PROP_MUTE:
     {
         if(!client)
         {
