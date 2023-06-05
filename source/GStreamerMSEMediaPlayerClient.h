@@ -231,8 +231,8 @@ private:
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
     int64_t mDuration;
-    double mVolume;
-    bool mMute;
+    double mVolume = 1.0;
+    bool mMute = false;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     bool mWasAllSourcesAttachedSent = false;

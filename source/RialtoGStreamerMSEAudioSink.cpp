@@ -364,10 +364,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_VOLUME,
                                     g_param_spec_double("volume", "Volume", "Volume of this stream", 0, 1.0, 1.0,
                                                         GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    
+
     g_object_class_install_property(gobjectClass, PROP_MUTE,
-                                g_param_spec_boolean("mute", "Mute", "Mute status of this stream",
-                                                     FALSE, GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                    g_param_spec_boolean("mute", "Mute", "Mute status of this stream", FALSE,
+                                                         GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
