@@ -180,14 +180,15 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 
 static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
-    bool res = sink->priv->mWebAudioClient->notifyNewSample();
+    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
+    bool res = sink->priv->mWebAudioClient->notifyNewSample(buf);
     if (res)
     {
         return GST_FLOW_OK;
     }
     else
     {
-        GST_ERROR_OBJECT(element, "Failed to push sample");
+        GST_ERROR_OBJECT(sink, "Failed to push sample");
         return GST_FLOW_ERROR;
     }
 }
@@ -200,8 +201,6 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
 
     sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(GST_ELEMENT(sink));
-
-    rialto_web_audio_sink_initialise_appsink(sink);
 
     GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
     if (sinkPad)

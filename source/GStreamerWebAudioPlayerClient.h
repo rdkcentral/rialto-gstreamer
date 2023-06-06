@@ -97,7 +97,7 @@ public:
      *
      * @retval true on success.
      */
-    bool notifyNewSample(GstSample *sample);
+    bool notifyNewSample(GstBuffer *buf);
 
     /**
      * @brief Notify push sample timer expiry.
@@ -124,7 +124,7 @@ private:
      * @brief Get the next sample data buffer from gstreamer.
      *
      */
-    void getNextBufferData(GstSample *sample);
+    void getNextBufferData(GstBuffer *buf);
 
     /**
      * @brief Checks the config against that previously stored in the object.

@@ -265,7 +265,7 @@ void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
     mBackendQueue.callInEventLoop([&]() { pushSamples(); });
 }
 
-bool GStreamerWebAudioPlayerClient::notifyNewSample(GstSample *sample)
+bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
 {
     GST_DEBUG("entry:");
 
@@ -273,7 +273,7 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstSample *sample)
         [&]()
         {
             m_pushSamplesTimer.cancel();
-            getNextBufferData(sample);
+            getNextBufferData(buf);
             pushSamples();
         });
 
@@ -335,29 +335,28 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     }
 }
 
-void GStreamerWebAudioPlayerClient::getNextBufferData(GstSample *sample)
+void GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
 {
-    if (!sample)
+    if (!buf)
     {
         // Return failure
         return;
     }
 
-    GstBuffer *buffer = gst_sample_get_buffer(sample);
     uint32_t bufferSize = gst_buffer_get_size(buffer);
     GstMapInfo bufferMap;
 
     if (!gst_buffer_map(buffer, &bufferMap, GST_MAP_READ))
     {
         GST_ERROR("Could not map audio buffer");
-        gst_sample_unref(sample);
+        gst_buffer_unref(buf);
         // Return failure
         return;
     }
 
     mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferMap.data, bufferMap.data + bufferSize);
     gst_buffer_unmap(buffer, &bufferMap);
-    gst_sample_unref(sample);
+    gst_buffer_unref(buf);
 }
 
 bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType,
