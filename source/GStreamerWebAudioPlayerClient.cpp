@@ -355,7 +355,7 @@ void GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
     }
 
     mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferMap.data, bufferMap.data + bufferSize);
-    gst_buffer_unmap(buffer, &bufferMap);
+    gst_buffer_unmap(buf, &bufferMap);
     gst_buffer_unref(buf);
 }
 

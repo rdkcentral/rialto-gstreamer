@@ -164,6 +164,31 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     return result;
 }
 
+static bool rialto_mse_base_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
+{
+    GstPadTemplate *pad_template =
+        gst_element_class_get_pad_template(GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink)), "sink");
+    if (!pad_template)
+    {
+        GST_ERROR_OBJECT(sink, "Could not find sink pad template");
+        return false;
+    }
+
+    GstPad *sinkPad = gst_pad_new_from_template(pad_template, "sink");
+    if (!sinkPad)
+    {
+        GST_ERROR_OBJECT(sink, "Could not create sinkpad");
+        return false;
+    }
+
+    gst_element_add_pad(GST_ELEMENT_CAST(sink), sinkPad);
+
+    gst_pad_set_event_function(sinkPad, rialto_web_audio_sink_event);
+    gst_pad_set_chain_function(sinkPad, rialto_web_audio_sink_chain);
+
+    return true;
+}
+
 static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
@@ -188,16 +213,10 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 
     sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(GST_ELEMENT(sink));
 
-    GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
-    if (sinkPad)
+    if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
     {
-        gst_pad_set_event_function(sinkPad, rialto_web_audio_sink_event);
-        gst_pad_set_chain_function(sinkPad, rialto_web_audio_sink_chain);
-        gst_object_unref(sinkPad);
-    }
-    else
-    {
-        GST_ERROR_OBJECT(sink, "Could not set pad's event function");
+        GST_ERROR_OBJECT(sink, "Failed to initialise AUDIO sink. Sink pad initialisation failed.");
+        return;
     }
 }
 
