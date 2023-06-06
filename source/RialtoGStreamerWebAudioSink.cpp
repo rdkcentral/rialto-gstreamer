@@ -164,6 +164,21 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     return result;
 }
 
+static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
+{
+    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
+    bool res = sink->priv->mWebAudioClient->notifyNewSample(buf);
+    if (res)
+    {
+        return GST_FLOW_OK;
+    }
+    else
+    {
+        GST_ERROR_OBJECT(sink, "Failed to push sample");
+        return GST_FLOW_ERROR;
+    }
+}
+
 static bool rialto_mse_base_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
 {
     GstPadTemplate *pad_template =
@@ -189,21 +204,6 @@ static bool rialto_mse_base_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
     return true;
 }
 
-static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
-{
-    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
-    bool res = sink->priv->mWebAudioClient->notifyNewSample(buf);
-    if (res)
-    {
-        return GST_FLOW_OK;
-    }
-    else
-    {
-        GST_ERROR_OBJECT(sink, "Failed to push sample");
-        return GST_FLOW_ERROR;
-    }
-}
-
 static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 {
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
@@ -213,7 +213,7 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 
     sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(GST_ELEMENT(sink));
 
-    if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
+    if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_WEB_AUDIO_SINK(sink)))
     {
         GST_ERROR_OBJECT(sink, "Failed to initialise AUDIO sink. Sink pad initialisation failed.");
         return;
