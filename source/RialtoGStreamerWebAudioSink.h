@@ -22,6 +22,7 @@
 #include "GStreamerWebAudioPlayerClient.h"
 #include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
+#include <queue>
 
 G_BEGIN_DECLS
 
@@ -38,20 +39,19 @@ typedef struct _RialtoWebAudioSinkPrivate RialtoWebAudioSinkPrivate;
 
 struct _RialtoWebAudioSinkPrivate
 {
-    GstElement *mAppSink;
     std::shared_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> mRialtoControlClient;
 };
 
 struct _RialtoWebAudioSink
 {
-    GstBin parent;
+    GstElement parent;
     RialtoWebAudioSinkPrivate *priv;
 };
 
 struct _RialtoWebAudioSinkClass
 {
-    GstBinClass parent_class;
+    GstElementClass parent_class;
 };
 
 GType rialto_web_audio_sink_get_type(void);
