@@ -343,10 +343,10 @@ void GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
         return;
     }
 
-    uint32_t bufferSize = gst_buffer_get_size(buffer);
+    uint32_t bufferSize = gst_buffer_get_size(buf);
     GstMapInfo bufferMap;
 
-    if (!gst_buffer_map(buffer, &bufferMap, GST_MAP_READ))
+    if (!gst_buffer_map(buf, &bufferMap, GST_MAP_READ))
     {
         GST_ERROR("Could not map audio buffer");
         gst_buffer_unref(buf);

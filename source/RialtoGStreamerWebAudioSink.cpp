@@ -32,20 +32,6 @@ G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_ELEM
                             GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0,
                                                     "rialto web audio sink"));
 
-GstFlowReturn rialto_web_audio_sink_sample_callback(GstElement *element, RialtoWebAudioSink *sink)
-{
-    bool res = sink->priv->mWebAudioClient->notifyNewSample();
-    if (res)
-    {
-        return GST_FLOW_OK;
-    }
-    else
-    {
-        GST_ERROR_OBJECT(element, "New sample notification failed");
-        return GST_FLOW_ERROR;
-    }
-}
-
 static gboolean rialto_web_audio_sink_send_event(GstElement *element, GstEvent *event)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(element);
