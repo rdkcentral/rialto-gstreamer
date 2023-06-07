@@ -547,8 +547,7 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 
     g_signals[SIGNAL_UNDERFLOW] = g_signal_new("buffer-underflow-callback", G_TYPE_FROM_CLASS(klass),
                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
-                                               g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
-                                               G_TYPE_POINTER);
+                                               g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
     g_object_class_install_property(gobjectClass, PROP_LOCATION,
                                     g_param_spec_string("location", "location", "Location to read from", nullptr,
