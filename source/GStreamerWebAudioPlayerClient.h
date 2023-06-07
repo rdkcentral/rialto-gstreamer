@@ -93,6 +93,13 @@ public:
     bool setEos();
 
     /**
+     * @brief Whether the backend has been opened or not.
+     *
+     * @retval true if open.
+     */
+    bool isOpen();
+
+    /**
      * @brief Notifies that there is a new sample in gstreamer.
      *
      * @retval true on success.

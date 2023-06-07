@@ -260,6 +260,20 @@ bool GStreamerWebAudioPlayerClient::setEos()
     return result;
 }
 
+bool GStreamerWebAudioPlayerClient::isOpen()
+{
+    GST_DEBUG("entry:");
+
+    bool result = false;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            result = mIsOpen;
+        });
+
+    return result;
+}
+
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
     mBackendQueue.callInEventLoop([&]() { pushSamples(); });
