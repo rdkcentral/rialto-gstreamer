@@ -83,8 +83,8 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 }
 } // namespace
 
-GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *appSink)
-    : mIsOpen(false), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false), m_config({})
+GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(RialtoWebAudioSink *sink)
+    : mIsOpen(false), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false), m_config({}), mSink(sink)
 {
     mBackendQueue.start();
     mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
@@ -402,8 +402,7 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     case firebolt::rialto::WebAudioPlayerState::END_OF_STREAM:
     {
         GST_INFO("Notify end of stream.");
-        // Notify EOS
-        //gst_element_post_message(mAppSink, gst_message_new_eos(GST_OBJECT_CAST(mAppSink)));
+        rialto_web_audio_handle_rialto_server_error(mSink);
         m_isEos = false;
         break;
     }
@@ -411,11 +410,7 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     {
         std::string errMessage = "Rialto server webaudio playback failed";
         GST_ERROR("%s", errMessage.c_str());
-        // Notify Error
-        //gst_element_post_message(mAppSink,
-        //                         gst_message_new_error(GST_OBJECT_CAST(mAppSink),
-        //                                               g_error_new_literal(GST_STREAM_ERROR, 0, errMessage.c_str()),
-        //                                               errMessage.c_str()));
+        rialto_web_audio_handle_rialto_server_eos(mSink);
         break;
     }
     default:

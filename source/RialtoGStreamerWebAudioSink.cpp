@@ -32,11 +32,45 @@ G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_ELEM
                             GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0,
                                                     "rialto web audio sink"));
 
-static void rialto_mse_base_async_done(RialtoWebAudioSink *sink)
+static void rialto_web_audio_sink_eos_handler(RialtoWebAudioSink *sink)
 {
-    sink->priv->mIsStateCommitNeeded = false;
+    GstState currentState = GST_STATE(sink);
+    if ((currentState != GST_STATE_PAUSED) && (currentState != GST_STATE_PLAYING))
+    {
+        GST_ERROR_OBJECT(sink, "Sink cannot post a EOS message in state '%s', posting an error instead",
+                         gst_element_state_get_name(currentState));
+
+        const char *errMessage = "Web audio sink received EOS in non-playing state";
+        gst_element_post_message(GST_ELEMENT_CAST(sink),
+                                 gst_message_new_error(GST_OBJECT_CAST(sink),
+                                                       g_error_new_literal(GST_STREAM_ERROR, 0, errMessage), errMessage));
+    }
+    else
+    {
+        gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
+    }
+}
+
+static void rialto_web_audio_sink_error_handler(RialtoWebAudioSink *sink, const char *message)
+{
     gst_element_post_message(GST_ELEMENT_CAST(sink),
-                             gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+                             gst_message_new_error(GST_OBJECT_CAST(sink),
+                                                   g_error_new_literal(GST_STREAM_ERROR, 0, message), message));
+}
+
+static void rialto_web_audio_sink_rialto_state_changed_handler(RialtoWebAudioSink *sink,
+                                                              firebolt::rialto::WebAudioPlayerState state)
+{
+    GstState current = GST_STATE(sink);
+    GstState next = GST_STATE_NEXT(sink);
+    GstState pending = GST_STATE_PENDING(sink);
+
+    GST_DEBUG_OBJECT(sink,
+                     "Received server's state change to %u. Sink's states are: current state: %s next state: %s "
+                     "pending state: %s, last return state %s",
+                     static_cast<uint32_t>(state), gst_element_state_get_name(current),
+                     gst_element_state_get_name(next), gst_element_state_get_name(pending),
+                     gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
 }
 
 static void rialto_web_audio_sink_setup_supported_caps(GstElementClass *elementClass)
@@ -225,16 +259,8 @@ static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent,
     }
 }
 
-void func(void* data, void* userData)
-{
-    GST_ERROR("lukewill: %s", GST_PAD_TEMPLATE_NAME_TEMPLATE(GST_PAD_TEMPLATE(data)));
-}
-
 static bool rialto_web_audio_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
 {
-    GList *list = gst_element_class_get_pad_template_list(GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink)));
-    g_list_foreach(list, func, nullptr);
-
     GstPadTemplate *pad_template =
         gst_element_class_get_pad_template(GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink)), "sink");
     if (!pad_template)
@@ -264,8 +290,13 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
     sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-
     sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(GST_ELEMENT(sink));
+
+    RialtoGStreamerWebAudioSinkCallbacks callbacks;
+    callbacks.eosCallback = std::bind(rialto_web_audio_sink_eos_handler, sink);
+    callbacks.stateChangedCallback = std::bind(rialto_web_audio_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
+    callbacks.errorCallback = std::bind(rialto_web_audio_sink_error_handler, sink, std::placeholders::_1);
+    sink->priv->mCallbacks = callbacks;
 
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))
     {
@@ -303,4 +334,28 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
 
     gst_element_class_set_details_simple(elementClass, "Rialto Web Audio Sink", "Decoder/Audio/Sink/Audio",
                                          "Communicates with Rialto Server", "Sky");
+}
+
+void rialto_web_audio_handle_rialto_server_state_changed(RialtoWebAudioSink *sink, firebolt::rialto::WebAudioPlayerState state)
+{
+    if (sink->priv->mCallbacks.stateChangedCallback)
+    {
+        sink->priv->mCallbacks.stateChangedCallback(state);
+    }
+}
+
+void rialto_web_audio_handle_rialto_server_eos(RialtoWebAudioSink *sink)
+{
+    if (sink->priv->mCallbacks.eosCallback)
+    {
+        sink->priv->mCallbacks.eosCallback();
+    }
+}
+
+void rialto_web_audio_handle_rialto_server_error(RialtoWebAudioSink *sink)
+{
+    if (sink->priv->mCallbacks.errorCallback)
+    {
+        sink->priv->mCallbacks.errorCallback("Rialto server playback failed");
+    }
 }

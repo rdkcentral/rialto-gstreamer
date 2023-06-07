@@ -23,6 +23,7 @@
 #include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
 #include <queue>
+#include <functional>
 
 G_BEGIN_DECLS
 
@@ -37,11 +38,19 @@ typedef struct _RialtoWebAudioSink RialtoWebAudioSink;
 typedef struct _RialtoWebAudioSinkClass RialtoWebAudioSinkClass;
 typedef struct _RialtoWebAudioSinkPrivate RialtoWebAudioSinkPrivate;
 
+struct RialtoGStreamerWebAudioSinkCallbacks
+{
+    std::function<void(const char *message)> errorCallback;
+    std::function<void(void)> eosCallback;
+    std::function<void(firebolt::rialto::WebAudioPlayerState)> stateChangedCallback;
+};
+
 struct _RialtoWebAudioSinkPrivate
 {
     std::shared_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> mRialtoControlClient;
     bool mIsPlayingAsync = false;
+    RialtoGStreamerWebAudioSinkCallbacks mCallbacks;
 };
 
 struct _RialtoWebAudioSink
@@ -56,5 +65,9 @@ struct _RialtoWebAudioSinkClass
 };
 
 GType rialto_web_audio_sink_get_type(void);
+
+void rialto_web_audio_handle_rialto_server_state_changed(RialtoWebAudioSink *sink, firebolt::rialto::WebAudioPlayerState state);
+void rialto_web_audio_handle_rialto_server_eos(RialtoWebAudioSink *sink);
+void rialto_web_audio_handle_rialto_server_error(RialtoWebAudioSink *sink);
 
 G_END_DECLS

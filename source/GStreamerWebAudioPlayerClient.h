@@ -20,6 +20,7 @@
 
 #include "MessageQueue.h"
 #include "Timer.h"
+#include "RialtoGStreamerWebAudioSink.h"
 #include "WebAudioClientBackendInterface.h"
 #include <MediaCommon.h>
 #include <condition_variable>
@@ -45,9 +46,9 @@ public:
     /**
      * @brief Constructor.
      *
-     * @param[in] appSink : Gstreamer appsink.
+     * @param[in] sink : The WebAudioSink.
      */
-    GStreamerWebAudioPlayerClient(GstElement *appSink);
+    GStreamerWebAudioPlayerClient(RialtoWebAudioSink *sink);
 
     /**
      * @brief Destructor.
@@ -161,9 +162,9 @@ private:
     std::vector<uint8_t> mSampleDataBuffer;
 
     /**
-     * @brief Appsink from gstreamer.
+     * @brief The associated WebAudioSink from gstreamer.
      */
-    //GstElement *mAppSink;
+    RialtoWebAudioSink *mSink;
 
     /**
      * @brief The push samples timer.
