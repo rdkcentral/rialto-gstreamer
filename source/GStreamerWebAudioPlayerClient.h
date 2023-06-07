@@ -38,6 +38,13 @@
 #include <thread>
 #include <unistd.h>
 
+struct WebAudioSinkCallbacks
+{
+    std::function<void(const char *message)> errorCallback;
+    std::function<void(void)> eosCallback;
+    std::function<void(firebolt::rialto::WebAudioPlayerState)> stateChangedCallback;
+};
+
 class GStreamerWebAudioPlayerClient : public firebolt::rialto::IWebAudioPlayerClient,
                                       public std::enable_shared_from_this<GStreamerWebAudioPlayerClient>
 {
@@ -45,9 +52,9 @@ public:
     /**
      * @brief Constructor.
      *
-     * @param[in] sink : The WebAudioSink.
+     * @param[in] callbacks : The callbacks for the sink.
      */
-    GStreamerWebAudioPlayerClient(GstElement *sink);
+    GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks);
 
     /**
      * @brief Destructor.
@@ -161,11 +168,6 @@ private:
     std::vector<uint8_t> mSampleDataBuffer;
 
     /**
-     * @brief The associated WebAudioSink from gstreamer.
-     */
-    GstElement *mSink;
-
-    /**
      * @brief The push samples timer.
      */
     Timer m_pushSamplesTimer;
@@ -204,4 +206,9 @@ private:
      * @brief The current web audio player config.
      */
     firebolt::rialto::WebAudioConfig m_config;
+
+    /**
+     * @brief The sink callbacks.
+     */
+    WebAudioSinkCallbacks m_callbacks;
 };

@@ -59,7 +59,7 @@ static void rialto_web_audio_sink_error_handler(RialtoWebAudioSink *sink, const 
 }
 
 static void rialto_web_audio_sink_rialto_state_changed_handler(RialtoWebAudioSink *sink,
-                                                              firebolt::rialto::WebAudioPlayerState state)
+                                                               firebolt::rialto::WebAudioPlayerState state)
 {
     GstState current = GST_STATE(sink);
     GstState next = GST_STATE_NEXT(sink);
@@ -289,14 +289,13 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
-    sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-    sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(GST_ELEMENT(sink));
-
-    RialtoGStreamerWebAudioSinkCallbacks callbacks;
+    WebAudioSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_web_audio_sink_eos_handler, sink);
     callbacks.stateChangedCallback = std::bind(rialto_web_audio_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
     callbacks.errorCallback = std::bind(rialto_web_audio_sink_error_handler, sink, std::placeholders::_1);
-    sink->priv->mCallbacks = callbacks;
+
+    sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+    sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(callbacks);
 
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))
     {
@@ -334,31 +333,4 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
 
     gst_element_class_set_details_simple(elementClass, "Rialto Web Audio Sink", "Decoder/Audio/Sink/Audio",
                                          "Communicates with Rialto Server", "Sky");
-}
-
-void rialto_web_audio_handle_rialto_server_state_changed(GstElement *sink, firebolt::rialto::WebAudioPlayerState state)
-{
-    RialtoWebAudioSink *webAudioSink = RIALTO_WEB_AUDIO_SINK(sink);
-    if (webAudioSink->priv->mCallbacks.stateChangedCallback)
-    {
-        webAudioSink->priv->mCallbacks.stateChangedCallback(state);
-    }
-}
-
-void rialto_web_audio_handle_rialto_server_eos(GstElement *sink)
-{
-    RialtoWebAudioSink *webAudioSink = RIALTO_WEB_AUDIO_SINK(sink);
-    if (webAudioSink->priv->mCallbacks.eosCallback)
-    {
-        webAudioSink->priv->mCallbacks.eosCallback();
-    }
-}
-
-void rialto_web_audio_handle_rialto_server_error(GstElement *sink)
-{
-    RialtoWebAudioSink *webAudioSink = RIALTO_WEB_AUDIO_SINK(sink);
-    if (webAudioSink->priv->mCallbacks.errorCallback)
-    {
-        webAudioSink->priv->mCallbacks.errorCallback("Rialto server playback failed");
-    }
 }

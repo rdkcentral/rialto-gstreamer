@@ -39,19 +39,11 @@ typedef struct _RialtoWebAudioSink RialtoWebAudioSink;
 typedef struct _RialtoWebAudioSinkClass RialtoWebAudioSinkClass;
 typedef struct _RialtoWebAudioSinkPrivate RialtoWebAudioSinkPrivate;
 
-struct RialtoGStreamerWebAudioSinkCallbacks
-{
-    std::function<void(const char *message)> errorCallback;
-    std::function<void(void)> eosCallback;
-    std::function<void(firebolt::rialto::WebAudioPlayerState)> stateChangedCallback;
-};
-
 struct _RialtoWebAudioSinkPrivate
 {
     std::shared_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> mRialtoControlClient;
     bool mIsPlayingAsync = false;
-    RialtoGStreamerWebAudioSinkCallbacks mCallbacks;
 };
 
 struct _RialtoWebAudioSink
