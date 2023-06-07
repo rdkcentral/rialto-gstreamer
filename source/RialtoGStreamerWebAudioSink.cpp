@@ -98,21 +98,24 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
-        if (sink->priv->mWebAudioClient->isOpen())
-        {
-            GST_INFO_OBJECT(sink, "Delay pausing the player until it has been opened");
-            rialto_mse_base_async_start(sink);
-            status = GST_STATE_CHANGE_ASYNC;
-        }
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
     {
         GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
-        if (!sink->priv->mWebAudioClient->play())
+        if (!sink->priv->mWebAudioClient->isOpen())
         {
-            GST_ERROR_OBJECT(sink, "Failed to play web audio");
-            result = GST_STATE_CHANGE_FAILURE;
+            GST_INFO_OBJECT(sink, "Delay playing until the caps are recieved and the player is opened");
+            rialto_mse_base_async_start(sink);
+            result = GST_STATE_CHANGE_ASYNC;
+        }
+        else
+        {
+            if (!sink->priv->mWebAudioClient->play())
+            {
+                GST_ERROR_OBJECT(sink, "Failed to play web audio");
+                result = GST_STATE_CHANGE_FAILURE;
+            }
         }
         break;
     }
@@ -181,11 +184,25 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         gst_event_parse_caps(event, &caps);
         GST_INFO_OBJECT(sink, "Opening WebAudio with caps %" GST_PTR_FORMAT, caps);
 
-        result = sink->priv->mWebAudioClient->open(caps);
-
-        if (sink->priv->mIsStateCommitNeeded)
+        if (!sink->priv->mWebAudioClient->open(caps))
+        {
+            GST_ERROR_OBJECT(sink, "Failed to open web audio");
+        }
+        else if (sink->priv->mIsStateCommitNeeded)
         {
             rialto_mse_base_async_done(sink);
+            if (!sink->priv->mWebAudioClient->play())
+            {
+                GST_ERROR_OBJECT(sink, "Failed to play web audio");
+            }
+            else
+            {
+                result = true;
+            }
+        }
+        else
+        {
+            result = true;
         }
         break;
     }
