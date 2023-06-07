@@ -336,26 +336,29 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
                                          "Communicates with Rialto Server", "Sky");
 }
 
-void rialto_web_audio_handle_rialto_server_state_changed(RialtoWebAudioSink *sink, firebolt::rialto::WebAudioPlayerState state)
+void rialto_web_audio_handle_rialto_server_state_changed(GstElement *sink, firebolt::rialto::WebAudioPlayerState state)
 {
-    if (sink->priv->mCallbacks.stateChangedCallback)
+    RialtoWebAudioSink *webAudioSink = RIALTO_WEB_AUDIO_SINK(sink);
+    if (webAudioSink->priv->mCallbacks.stateChangedCallback)
     {
-        sink->priv->mCallbacks.stateChangedCallback(state);
+        webAudioSink->priv->mCallbacks.stateChangedCallback(state);
     }
 }
 
-void rialto_web_audio_handle_rialto_server_eos(RialtoWebAudioSink *sink)
+void rialto_web_audio_handle_rialto_server_eos(GstElement *sink)
 {
-    if (sink->priv->mCallbacks.eosCallback)
+    RialtoWebAudioSink *webAudioSink = RIALTO_WEB_AUDIO_SINK(sink);
+    if (webAudioSink->priv->mCallbacks.eosCallback)
     {
-        sink->priv->mCallbacks.eosCallback();
+        webAudioSink->priv->mCallbacks.eosCallback();
     }
 }
 
-void rialto_web_audio_handle_rialto_server_error(RialtoWebAudioSink *sink)
+void rialto_web_audio_handle_rialto_server_error(GstElement *sink)
 {
-    if (sink->priv->mCallbacks.errorCallback)
+    RialtoWebAudioSink *webAudioSink = RIALTO_WEB_AUDIO_SINK(sink);
+    if (webAudioSink->priv->mCallbacks.errorCallback)
     {
-        sink->priv->mCallbacks.errorCallback("Rialto server playback failed");
+        webAudioSink->priv->mCallbacks.errorCallback("Rialto server playback failed");
     }
 }

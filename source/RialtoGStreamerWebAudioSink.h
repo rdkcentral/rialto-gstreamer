@@ -24,6 +24,7 @@
 #include <gst/gst.h>
 #include <queue>
 #include <functional>
+#include <MediaCommon.h>
 
 G_BEGIN_DECLS
 
@@ -66,8 +67,8 @@ struct _RialtoWebAudioSinkClass
 
 GType rialto_web_audio_sink_get_type(void);
 
-void rialto_web_audio_handle_rialto_server_state_changed(RialtoWebAudioSink *sink, firebolt::rialto::WebAudioPlayerState state);
-void rialto_web_audio_handle_rialto_server_eos(RialtoWebAudioSink *sink);
-void rialto_web_audio_handle_rialto_server_error(RialtoWebAudioSink *sink);
+void rialto_web_audio_handle_rialto_server_state_changed(GstElement *sink, firebolt::rialto::WebAudioPlayerState state);
+void rialto_web_audio_handle_rialto_server_eos(GstElement *sink);
+void rialto_web_audio_handle_rialto_server_error(GstElement *sink);
 
 G_END_DECLS

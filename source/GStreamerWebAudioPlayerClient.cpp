@@ -83,7 +83,7 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 }
 } // namespace
 
-GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(RialtoWebAudioSink *sink)
+GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(GstElement *sink)
     : mIsOpen(false), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false), m_config({}), mSink(sink)
 {
     mBackendQueue.start();
@@ -413,8 +413,18 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
         rialto_web_audio_handle_rialto_server_eos(mSink);
         break;
     }
+    case firebolt::rialto::WebAudioPlayerState::IDLE:
+    case firebolt::rialto::WebAudioPlayerState::PLAYING:
+    case firebolt::rialto::WebAudioPlayerState::PAUSED:
+    {
+        rialto_web_audio_handle_rialto_server_state_changed(state);
+        break;
+    }
+    case firebolt::rialto::WebAudioPlayerState::UNKNOWN:
     default:
     {
+        GST_WARNING("Web audio player sent unknown state");
+        break;
     }
     }
 }

@@ -20,7 +20,6 @@
 
 #include "MessageQueue.h"
 #include "Timer.h"
-#include "RialtoGStreamerWebAudioSink.h"
 #include "WebAudioClientBackendInterface.h"
 #include <MediaCommon.h>
 #include <condition_variable>
@@ -48,7 +47,7 @@ public:
      *
      * @param[in] sink : The WebAudioSink.
      */
-    GStreamerWebAudioPlayerClient(RialtoWebAudioSink *sink);
+    GStreamerWebAudioPlayerClient(GstElement *sink);
 
     /**
      * @brief Destructor.
@@ -164,7 +163,7 @@ private:
     /**
      * @brief The associated WebAudioSink from gstreamer.
      */
-    RialtoWebAudioSink *mSink;
+    GstElement *mSink;
 
     /**
      * @brief The push samples timer.
