@@ -786,7 +786,7 @@ void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink)
 {
     GST_WARNING_OBJECT(sink, "Sending underflow signal");
-    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0, 0, 0);
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0);
 }
 
 GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
