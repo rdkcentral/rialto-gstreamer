@@ -55,8 +55,8 @@ enum
 
 enum
 {
-   SIGNAL_UNDERFLOW,
-   SIGNAL_LAST
+    SIGNAL_UNDERFLOW,
+    SIGNAL_LAST
 };
 
 static guint g_signals[SIGNAL_LAST] = {0};

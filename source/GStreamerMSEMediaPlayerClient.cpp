@@ -751,7 +751,6 @@ void QosMessage::handle()
     }
 }
 
-
 BufferUnderflowMessage::BufferUnderflowMessage(int sourceId, GStreamerMSEMediaPlayerClient *player)
     : mSourceId(sourceId), mPlayer(player)
 {
