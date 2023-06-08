@@ -354,7 +354,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     }
 }
 
-void GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
+bool GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
 {
     if (!buf)
     {
