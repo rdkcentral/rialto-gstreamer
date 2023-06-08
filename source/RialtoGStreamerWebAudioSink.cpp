@@ -227,7 +227,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             {
                 sink->priv->mIsPlayingAsync = false;
                 gst_element_post_message(GST_ELEMENT_CAST(sink),
-                                        gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+                                         gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
                 result = true;
             }
         }
@@ -291,7 +291,8 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 
     WebAudioSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_web_audio_sink_eos_handler, sink);
-    callbacks.stateChangedCallback = std::bind(rialto_web_audio_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
+    callbacks.stateChangedCallback =
+        std::bind(rialto_web_audio_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
     callbacks.errorCallback = std::bind(rialto_web_audio_sink_error_handler, sink, std::placeholders::_1);
 
     sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
