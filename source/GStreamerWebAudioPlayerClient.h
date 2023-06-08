@@ -135,10 +135,13 @@ private:
     void pushSamples();
 
     /**
-     * @brief Get the next sample data buffer from gstreamer.
+     * @brief Get the data from the new sample.
      *
+     * @param[in] buf : The new buffer to be added.
+     *
+     * @retval true on success, false otherwise.
      */
-    void getNextBufferData(GstBuffer *buf);
+    bool getNextBufferData(GstBuffer *buf);
 
     /**
      * @brief Checks the config against that previously stored in the object.
