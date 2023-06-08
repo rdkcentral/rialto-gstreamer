@@ -219,6 +219,8 @@ public:
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double volume);
     double getVolume();
+    void setMute(bool mute);
+    bool getMute();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
 
@@ -229,7 +231,8 @@ private:
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
     int64_t mPosition;
     int64_t mDuration;
-    double mVolume;
+    double mVolume = 1.0;
+    bool mMute = false;
     std::mutex mPlayerMutex;
     std::unordered_map<int32_t, AttachedSource> mAttachedSources;
     bool mWasAllSourcesAttachedSent = false;

@@ -458,6 +458,29 @@ double GStreamerMSEMediaPlayerClient::getVolume()
     return volume;
 }
 
+void GStreamerMSEMediaPlayerClient::setMute(bool mute)
+{
+    mBackendQueue.callInEventLoop([&]() { mClientBackend->setMute(mute); });
+}
+
+bool GStreamerMSEMediaPlayerClient::getMute()
+{
+    bool mute;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            if (mClientBackend->getMute(mute))
+            {
+                mMute = mute;
+            }
+            else
+            {
+                mute = mMute;
+            }
+        });
+    return mute;
+}
+
 void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly)
 {
     mBackendQueue.callInEventLoop(
