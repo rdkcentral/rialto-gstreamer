@@ -49,5 +49,7 @@ public:
     virtual bool renderFrame() = 0;
     virtual bool setVolume(double volume) = 0;
     virtual bool getVolume(double &volume) = 0;
+    virtual bool setMute(bool mute) = 0;
+    virtual bool getMute(bool &mute) = 0;
 };
 } // namespace firebolt::rialto::client
