@@ -196,7 +196,6 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
 static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
-    GST_ERROR("lukewill: Event %s", gst_event_type_get_name(GST_EVENT_TYPE(event)));
     bool result = false;
     switch (GST_EVENT_TYPE(event))
     {
