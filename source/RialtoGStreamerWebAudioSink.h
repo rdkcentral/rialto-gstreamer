@@ -21,10 +21,7 @@
 #include "ControlBackendInterface.h"
 #include "GStreamerWebAudioPlayerClient.h"
 #include <MediaCommon.h>
-#include <functional>
-#include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
-#include <queue>
 
 G_BEGIN_DECLS
 

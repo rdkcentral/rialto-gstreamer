@@ -109,6 +109,8 @@ public:
     /**
      * @brief Notifies that there is a new sample in gstreamer.
      *
+     * @param[in] buf : The new sample buffer.
+     *
      * @retval true on success.
      */
     bool notifyNewSample(GstBuffer *buf);
