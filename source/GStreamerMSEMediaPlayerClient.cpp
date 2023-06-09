@@ -110,6 +110,11 @@ void GStreamerMSEMediaPlayerClient::notifyQos(int32_t sourceId, const firebolt::
     mBackendQueue.postMessage(std::make_shared<QosMessage>(sourceId, qosInfo, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
+{
+    mBackendQueue.postMessage(std::make_shared<BufferUnderflowMessage>(sourceId, this));
+}
+
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position)
 {
     if (mClientBackend->getPosition(*position))
@@ -581,6 +586,27 @@ bool GStreamerMSEMediaPlayerClient::handleQos(int sourceId, firebolt::rialto::Qo
     return result;
 }
 
+bool GStreamerMSEMediaPlayerClient::handleBufferUnderflow(int sourceId)
+{
+    bool result = false;
+    mBackendQueue.callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = mAttachedSources.find(sourceId);
+            if (sourceIt == mAttachedSources.end())
+            {
+                result = false;
+                return;
+            }
+
+            rialto_mse_base_handle_rialto_server_sent_buffer_underflow(sourceIt->second.mRialtoSink);
+
+            result = true;
+        });
+
+    return result;
+}
+
 firebolt::rialto::AddSegmentStatus GStreamerMSEMediaPlayerClient::addSegment(
     unsigned int needDataRequestId, const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment)
 {
@@ -745,5 +771,18 @@ void QosMessage::handle()
     if (!mPlayer->handleQos(mSourceId, mQosInfo))
     {
         GST_ERROR("Failed to handle qos for sourceId=%d", mSourceId);
+    }
+}
+
+BufferUnderflowMessage::BufferUnderflowMessage(int sourceId, GStreamerMSEMediaPlayerClient *player)
+    : mSourceId(sourceId), mPlayer(player)
+{
+}
+
+void BufferUnderflowMessage::handle()
+{
+    if (!mPlayer->handleBufferUnderflow(mSourceId))
+    {
+        GST_ERROR("Failed to handle buffer underflow for sourceId=%d", mSourceId);
     }
 }
