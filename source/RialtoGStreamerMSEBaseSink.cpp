@@ -347,9 +347,9 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     {
     case GST_EVENT_SEEK:
     {
-        gdouble rate;
+        gdouble rate{1.0};
         GstFormat seekFormat;
-        GstSeekFlags flags;
+        GstSeekFlags flags{GST_SEEK_FLAG_NONE};
         GstSeekType startType, stopType;
         gint64 start, stop;
         if (event)
@@ -359,6 +359,23 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
             if (flags & GST_SEEK_FLAG_FLUSH)
             {
                 rialto_mse_base_sink_flush_start(sink);
+            }
+            else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
+            {
+                std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+                    sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+                if ((client) && (sink->priv->m_mediaPlayerManager.hasControl()))
+                {
+                    GST_DEBUG_OBJECT(sink, "Instant playback rate change: %.2f", rate);
+                    client->setPlaybackRate(rate);
+                    break;
+                }
+                else
+                {
+                    GST_ERROR_OBJECT(sink, "Playback rate change failed - client is null or does not have control.");
+                    gst_event_unref(event);
+                    return FALSE;
+                }
             }
             else
             {
