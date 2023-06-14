@@ -19,9 +19,22 @@
 #include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerWebAudioSink.h"
+#include <cstring>
 
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
+
+    char commitID[] = COMMIT_ID;
+
+    if (std::strlen(commitID) > 0)
+    {
+        GST_INFO("Commit ID: %s", commitID);
+    }
+    else
+    {
+        GST_WARNING("Failed to get git commit ID.");
+    }
+
     guint sinkRank = GST_RANK_PRIMARY + 100;
 
     const char *sinkRankStr = getenv("RIALTO_SINKS_RANK");
