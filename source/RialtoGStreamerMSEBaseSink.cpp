@@ -53,6 +53,14 @@ enum
     PROP_LAST
 };
 
+enum
+{
+    SIGNAL_UNDERFLOW,
+    SIGNAL_LAST
+};
+
+static guint g_signals[SIGNAL_LAST] = {0};
+
 static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
     sink->priv->mIsStateCommitNeeded = true;
@@ -339,9 +347,9 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     {
     case GST_EVENT_SEEK:
     {
-        gdouble rate;
+        gdouble rate{1.0};
         GstFormat seekFormat;
-        GstSeekFlags flags;
+        GstSeekFlags flags{GST_SEEK_FLAG_NONE};
         GstSeekType startType, stopType;
         gint64 start, stop;
         if (event)
@@ -351,6 +359,23 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
             if (flags & GST_SEEK_FLAG_FLUSH)
             {
                 rialto_mse_base_sink_flush_start(sink);
+            }
+            else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
+            {
+                std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+                    sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+                if ((client) && (sink->priv->m_mediaPlayerManager.hasControl()))
+                {
+                    GST_DEBUG_OBJECT(sink, "Instant playback rate change: %.2f", rate);
+                    client->setPlaybackRate(rate);
+                    break;
+                }
+                else
+                {
+                    GST_ERROR_OBJECT(sink, "Playback rate change failed - client is null or does not have control.");
+                    gst_event_unref(event);
+                    return FALSE;
+                }
             }
             else
             {
@@ -536,6 +561,10 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     elementClass->query = rialto_mse_base_sink_query;
     elementClass->send_event = rialto_mse_base_sink_send_event;
     elementClass->change_state = rialto_mse_base_sink_change_state;
+
+    g_signals[SIGNAL_UNDERFLOW] = g_signal_new("buffer-underflow-callback", G_TYPE_FROM_CLASS(klass),
+                                               (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
+                                               g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
     g_object_class_install_property(gobjectClass, PROP_LOCATION,
                                     g_param_spec_string("location", "location", "Location to read from", nullptr,
@@ -769,6 +798,12 @@ void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
     {
         sink->priv->mCallbacks.errorCallback("Rialto server playback failed");
     }
+}
+
+void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink)
+{
+    GST_WARNING_OBJECT(sink, "Sending underflow signal");
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0);
 }
 
 GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
