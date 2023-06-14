@@ -133,6 +133,17 @@ private:
     GStreamerMSEMediaPlayerClient *mPlayer;
 };
 
+class BufferUnderflowMessage : public Message
+{
+public:
+    BufferUnderflowMessage(int sourceId, GStreamerMSEMediaPlayerClient *player);
+    void handle();
+
+private:
+    int mSourceId;
+    GStreamerMSEMediaPlayerClient *mPlayer;
+};
+
 enum class SeekingState
 {
     IDLE,
@@ -186,6 +197,7 @@ public:
                              const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> &shmInfo) override;
     void notifyCancelNeedMediaData(int32_t sourceId) override;
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
+    void notifyBufferUnderflow(int32_t sourceId) override;
 
     void getPositionDo(int64_t *position);
     int64_t getPosition();
@@ -212,6 +224,7 @@ public:
 
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
+    bool handleBufferUnderflow(int sourceId);
     void notifySourceStartedSeeking(int32_t sourceId);
     void startPullingDataIfSeekFinished();
     void stopStreaming();

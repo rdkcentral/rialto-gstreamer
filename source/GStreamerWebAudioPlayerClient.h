@@ -38,6 +38,13 @@
 #include <thread>
 #include <unistd.h>
 
+struct WebAudioSinkCallbacks
+{
+    std::function<void(const char *message)> errorCallback;
+    std::function<void(void)> eosCallback;
+    std::function<void(firebolt::rialto::WebAudioPlayerState)> stateChangedCallback;
+};
+
 class GStreamerWebAudioPlayerClient : public firebolt::rialto::IWebAudioPlayerClient,
                                       public std::enable_shared_from_this<GStreamerWebAudioPlayerClient>
 {
@@ -45,9 +52,9 @@ public:
     /**
      * @brief Constructor.
      *
-     * @param[in] appSink : Gstreamer appsink.
+     * @param[in] callbacks : The callbacks for the sink.
      */
-    GStreamerWebAudioPlayerClient(GstElement *appSink);
+    GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks);
 
     /**
      * @brief Destructor.
@@ -93,11 +100,20 @@ public:
     bool setEos();
 
     /**
+     * @brief Whether the backend has been opened or not.
+     *
+     * @retval true if open.
+     */
+    bool isOpen();
+
+    /**
      * @brief Notifies that there is a new sample in gstreamer.
+     *
+     * @param[in] buf : The new sample buffer.
      *
      * @retval true on success.
      */
-    bool notifyNewSample();
+    bool notifyNewSample(GstBuffer *buf);
 
     /**
      * @brief Notify push sample timer expiry.
@@ -121,10 +137,13 @@ private:
     void pushSamples();
 
     /**
-     * @brief Get the next sample data buffer from gstreamer.
+     * @brief Get the data from the new sample.
      *
+     * @param[in] buf : The new buffer to be added.
+     *
+     * @retval true on success, false otherwise.
      */
-    void getNextBufferData();
+    bool getNextBufferData(GstBuffer *buf);
 
     /**
      * @brief Checks the config against that previously stored in the object.
@@ -152,11 +171,6 @@ private:
      * @brief Vector to store the sample data.
      */
     std::vector<uint8_t> mSampleDataBuffer;
-
-    /**
-     * @brief Appsink from gstreamer.
-     */
-    GstElement *mAppSink;
 
     /**
      * @brief The push samples timer.
@@ -197,4 +211,9 @@ private:
      * @brief The current web audio player config.
      */
     firebolt::rialto::WebAudioConfig m_config;
+
+    /**
+     * @brief The sink callbacks.
+     */
+    WebAudioSinkCallbacks m_callbacks;
 };
