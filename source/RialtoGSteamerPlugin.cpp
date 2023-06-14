@@ -23,7 +23,6 @@
 
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
-
     char commitID[] = COMMIT_ID;
 
     if (std::strlen(commitID) > 0)
