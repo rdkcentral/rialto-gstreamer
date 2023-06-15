@@ -368,14 +368,18 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                 {
                     GST_DEBUG_OBJECT(sink, "Instant playback rate change: %.2f", rate);
                     client->setPlaybackRate(rate);
-                    break;
                 }
-                else
+
+                gdouble rateMultiplier = rate / sink->priv->mLastSegment.rate;
+                GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
+                gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
+                gst_event_unref(event);
+                if (gst_pad_send_event(sink->priv->mSinkPad, rateChangeEvent) != TRUE)
                 {
-                    GST_ERROR_OBJECT(sink, "Playback rate change failed - client is null or does not have control.");
-                    gst_event_unref(event);
+                    GST_ERROR_OBJECT(sink, "Sending instant rate change failed.");
                     return FALSE;
                 }
+                return TRUE;
             }
             else
             {
@@ -424,7 +428,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     }
 
     gst_event_unref(event);
-
     return TRUE;
 }
 
