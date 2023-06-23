@@ -119,7 +119,7 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
 
     firebolt::rialto::AudioConfig audioConfig;
     firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
-    std::shared_ptr<std::vector<std::uint8_t>> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
+    std::shared_ptr<firebolt::rialto::CodecData> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
     firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
     std::string mimeType;
 

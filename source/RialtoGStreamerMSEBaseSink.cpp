@@ -825,11 +825,9 @@ GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
     return result;
 }
 
-std::shared_ptr<std::vector<std::uint8_t>> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
-                                                                               const GstStructure *structure)
+std::shared_ptr<firebolt::rialto::CodecData> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
+                                                                                 const GstStructure *structure)
 {
-    std::shared_ptr<std::vector<std::uint8_t>> codecData;
-
     const GValue *codec_data;
     codec_data = gst_structure_get_value(structure, "codec_data");
     if (codec_data)
@@ -840,17 +838,28 @@ std::shared_ptr<std::vector<std::uint8_t>> rialto_mse_base_sink_get_codec_data(R
             GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
             if (mappedBuf)
             {
-                codecData =
-                    std::make_shared<std::vector<std::uint8_t>>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+                codecData->data = std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                codecData->type = firebolt::rialto::CodecDataType::BUFFER;
+                return codecData;
             }
             else
             {
                 GST_ERROR_OBJECT(sink, "Failed to read codec_data");
+                return nullptr;
             }
+        }
+        const gchar *str = g_value_get_string(codec_data);
+        if (str)
+        {
+            auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+            codecData->data = std::vector<std::uint8_t>(str, str + std::strlen(str));
+            codecData->type = firebolt::rialto::CodecDataType::STRING;
+            return codecData;
         }
     }
 
-    return codecData;
+    return nullptr;
 }
 
 firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink,
