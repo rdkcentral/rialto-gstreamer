@@ -75,7 +75,7 @@ public:
 
     bool waitForRunning() override
     {
-        std::unique_lock<std::mutex> lock{m_cutex};
+        std::unique_lock<std::mutex> lock{m_mutex};
         if (ApplicationState::RUNNING == m_rialtoClientState)
         {
             return true;
@@ -90,7 +90,7 @@ private:
     {
         GST_INFO("Rialto Client application state changed to: %s",
                  state == ApplicationState::RUNNING ? "Active" : "Inactive/Unknown");
-        std::unique_lock<std::mutex> lock{m_cutex};
+        std::unique_lock<std::mutex> lock{m_mutex};
         m_rialtoClientState = state;
         m_stateCv.notify_one();
     }
@@ -99,7 +99,7 @@ private:
     ApplicationState m_rialtoClientState;
     std::shared_ptr<ControlClient> m_controlClient;
     std::shared_ptr<IControl> m_control;
-    std::mutex m_cutex;
+    std::mutex m_mutex;
     std::condition_variable m_stateCv;
 };
 } // namespace firebolt::rialto::client
