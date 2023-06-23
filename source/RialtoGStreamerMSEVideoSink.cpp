@@ -85,9 +85,9 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         }
         else
         {
-            std::lock_guard<std::mutex> lock(basePriv->mSinkMutex);
+            std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
             videoStreams = basePriv->m_numOfStreams;
-            isVideoOnly = basePriv->mIsSinglePathStream;
+            isVideoOnly = basePriv->m_isSinglePathStream;
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
@@ -183,7 +183,7 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
-        if (basePriv->mSourceAttached)
+        if (basePriv->m_sourceAttached)
         {
             GST_INFO_OBJECT(sink, "Source already attached. Skip calling attachSource");
             break;
@@ -203,7 +203,7 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
             }
             else
             {
-                basePriv->mSourceAttached = true;
+                basePriv->m_sourceAttached = true;
             }
         }
         else
@@ -342,11 +342,11 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
         return;
     }
 
-    gst_pad_set_chain_function(basePriv->mSinkPad, rialto_mse_base_sink_chain);
-    gst_pad_set_event_function(basePriv->mSinkPad, rialto_mse_video_sink_event);
+    gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
+    gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_video_sink_event);
 
-    basePriv->mCallbacks.qosCallback = std::bind(rialto_mse_video_sink_qos_handle, GST_ELEMENT_CAST(sink),
-                                                 std::placeholders::_1, std::placeholders::_2);
+    basePriv->m_callbacks.qosCallback = std::bind(rialto_mse_video_sink_qos_handle, GST_ELEMENT_CAST(sink),
+                                                  std::placeholders::_1, std::placeholders::_2);
 }
 
 static void rialto_mse_video_sink_finalize(GObject *object)

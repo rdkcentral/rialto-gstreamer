@@ -38,86 +38,86 @@ class CallInEventLoopMessage : public Message
 public:
     CallInEventLoopMessage(const std::function<void()> &func, std::mutex &callInEventLoopMutex,
                            std::condition_variable &callInEventLoopCondVar)
-        : mFunc(func), mCallInEventLoopMutex(callInEventLoopMutex), mCallInEventLoopCondVar(callInEventLoopCondVar)
+        : m_func(func), m_callInEventLoopMutex(callInEventLoopMutex), m_callInEventLoopCondVar(callInEventLoopCondVar)
     {
     }
     void handle()
     {
-        std::unique_lock<std::mutex> lock(mCallInEventLoopMutex);
-        mFunc();
-        mCallInEventLoopCondVar.notify_all();
+        std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
+        m_func();
+        m_callInEventLoopCondVar.notify_all();
     }
 
 private:
-    const std::function<void()> mFunc;
-    std::mutex &mCallInEventLoopMutex;
-    std::condition_variable &mCallInEventLoopCondVar;
+    const std::function<void()> m_func;
+    std::mutex &m_callInEventLoopMutex;
+    std::condition_variable &m_callInEventLoopCondVar;
 };
 
 class MessageQueue
 {
 public:
-    MessageQueue() : mRunning(false) {}
+    MessageQueue() : m_running(false) {}
 
     virtual ~MessageQueue() { stop(); }
 
     void start()
     {
-        if (mRunning)
+        if (m_running)
         {
             // queue is running
             return;
         }
-        mRunning = true;
+        m_running = true;
         std::thread startThread(&MessageQueue::processMessages, this);
-        mWorkerThread.swap(startThread);
+        m_workerThread.swap(startThread);
     }
 
     void stop()
     {
-        if (!mRunning)
+        if (!m_running)
         {
             // queue is not running
             return;
         }
-        callInEventLoop([this]() { mRunning = false; });
+        callInEventLoop([this]() { m_running = false; });
 
-        if (mWorkerThread.joinable())
-            mWorkerThread.join();
+        if (m_workerThread.joinable())
+            m_workerThread.join();
 
         clear();
     }
 
     void clear()
     {
-        std::unique_lock<std::mutex> lock(mMutex);
-        mQueue.clear();
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_queue.clear();
     }
 
     // Wait for a message to appear on the queue.
     std::shared_ptr<Message> waitForMessage()
     {
-        std::unique_lock<std::mutex> lock(mMutex);
-        while (mQueue.empty())
+        std::unique_lock<std::mutex> lock(m_mutex);
+        while (m_queue.empty())
         {
-            mCondVar.wait(lock);
+            m_condVar.wait(lock);
         }
-        std::shared_ptr<Message> message = mQueue.front();
-        mQueue.pop_front();
+        std::shared_ptr<Message> message = m_queue.front();
+        m_queue.pop_front();
         return message;
     }
 
     // Posts a message to the queue.
     bool postMessage(const std::shared_ptr<Message> &msg)
     {
-        const std::lock_guard<std::mutex> lock(mMutex);
-        if (!mRunning)
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_running)
         {
             GST_ERROR("Message queue is not running");
             return false;
         }
-        mQueue.push_back(msg);
-        mCondVar.notify_all();
+        m_queue.push_back(msg);
+        m_condVar.notify_all();
 
         return true;
     }
@@ -128,12 +128,12 @@ public:
         {
             std::shared_ptr<Message> message = waitForMessage();
             message->handle();
-        } while (mRunning);
+        } while (m_running);
     }
 
     bool callInEventLoopImpl(const std::function<void()> &func)
     {
-        if (std::this_thread::get_id() != mWorkerThread.get_id())
+        if (std::this_thread::get_id() != m_workerThread.get_id())
         {
             std::mutex callInEventLoopMutex;
             std::unique_lock<std::mutex> lock(callInEventLoopMutex);
@@ -160,37 +160,37 @@ public:
     }
 
 protected:
-    std::condition_variable mCondVar;
-    std::mutex mMutex;
-    std::deque<std::shared_ptr<Message>> mQueue;
-    std::thread mWorkerThread;
-    bool mRunning;
+    std::condition_variable m_condVar;
+    std::mutex m_mutex;
+    std::deque<std::shared_ptr<Message>> m_queue;
+    std::thread m_workerThread;
+    bool m_running;
 };
 
 class SetPositionMessage : public Message
 {
 public:
     SetPositionMessage(int64_t newPosition, int64_t &targetPosition)
-        : mNewPosition(newPosition), mTargetPosition(targetPosition)
+        : m_newPosition(newPosition), m_targetPosition(targetPosition)
     {
     }
-    void handle() { mTargetPosition = mNewPosition; }
+    void handle() { m_targetPosition = m_newPosition; }
 
 private:
-    int64_t mNewPosition;
-    int64_t &mTargetPosition;
+    int64_t m_newPosition;
+    int64_t &m_targetPosition;
 };
 
 class SetDurationMessage : public Message
 {
 public:
     SetDurationMessage(int64_t newDuration, int64_t &targetDuration)
-        : mNewDuration(newDuration), mTargetDuration(targetDuration)
+        : m_newDuration(newDuration), m_targetDuration(targetDuration)
     {
     }
-    void handle() { mTargetDuration = mNewDuration; }
+    void handle() { m_targetDuration = m_newDuration; }
 
 private:
-    int64_t mNewDuration;
-    int64_t &mTargetDuration;
+    int64_t m_newDuration;
+    int64_t &m_targetDuration;
 };

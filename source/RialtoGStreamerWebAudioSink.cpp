@@ -116,7 +116,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     {
         GST_DEBUG("GST_STATE_CHANGE_NULL_TO_READY");
 
-        if (!sink->priv->mRialtoControlClient->waitForRunning())
+        if (!sink->priv->m_rialtoControlClient->waitForRunning())
         {
             GST_ERROR_OBJECT(sink, "Rialto client cannot reach running state");
             result = GST_STATE_CHANGE_FAILURE;
@@ -131,16 +131,16 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
     {
         GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
-        if (!sink->priv->mWebAudioClient->isOpen())
+        if (!sink->priv->m_webAudioClient->isOpen())
         {
             GST_INFO_OBJECT(sink, "Delay playing until the caps are recieved and the player is opened");
-            sink->priv->mIsPlayingAsync = true;
+            sink->priv->m_isPlayingAsync = true;
             gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
             result = GST_STATE_CHANGE_ASYNC;
         }
         else
         {
-            if (!sink->priv->mWebAudioClient->play())
+            if (!sink->priv->m_webAudioClient->play())
             {
                 GST_ERROR_OBJECT(sink, "Failed to play web audio");
                 result = GST_STATE_CHANGE_FAILURE;
@@ -151,7 +151,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
     {
         GST_DEBUG("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
-        if (!sink->priv->mWebAudioClient->pause())
+        if (!sink->priv->m_webAudioClient->pause())
         {
             GST_ERROR_OBJECT(sink, "Failed to pause web audio");
             result = GST_STATE_CHANGE_FAILURE;
@@ -161,7 +161,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_PAUSED_TO_READY:
     {
         GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_READY");
-        if (!sink->priv->mWebAudioClient->close())
+        if (!sink->priv->m_webAudioClient->close())
         {
             GST_ERROR_OBJECT(sink, "Failed to close web audio");
             result = GST_STATE_CHANGE_FAILURE;
@@ -172,7 +172,7 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     {
         GST_DEBUG("GST_STATE_CHANGE_READY_TO_NULL");
 
-        sink->priv->mRialtoControlClient->removeControlBackend();
+        sink->priv->m_rialtoControlClient->removeControlBackend();
     }
     default:
         break;
@@ -202,7 +202,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     case GST_EVENT_EOS:
     {
         GST_DEBUG("GST_EVENT_EOS");
-        result = sink->priv->mWebAudioClient->setEos();
+        result = sink->priv->m_webAudioClient->setEos();
         gst_event_unref(event);
         break;
     }
@@ -212,19 +212,19 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         gst_event_parse_caps(event, &caps);
         GST_INFO_OBJECT(sink, "Opening WebAudio with caps %" GST_PTR_FORMAT, caps);
 
-        if (!sink->priv->mWebAudioClient->open(caps))
+        if (!sink->priv->m_webAudioClient->open(caps))
         {
             GST_ERROR_OBJECT(sink, "Failed to open web audio");
         }
-        else if (sink->priv->mIsPlayingAsync)
+        else if (sink->priv->m_isPlayingAsync)
         {
-            if (!sink->priv->mWebAudioClient->play())
+            if (!sink->priv->m_webAudioClient->play())
             {
                 GST_ERROR_OBJECT(sink, "Failed to play web audio");
             }
             else
             {
-                sink->priv->mIsPlayingAsync = false;
+                sink->priv->m_isPlayingAsync = false;
                 gst_element_post_message(GST_ELEMENT_CAST(sink),
                                          gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
                 result = true;
@@ -246,7 +246,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
-    bool res = sink->priv->mWebAudioClient->notifyNewSample(buf);
+    bool res = sink->priv->m_webAudioClient->notifyNewSample(buf);
     if (res)
     {
         return GST_FLOW_OK;
@@ -294,8 +294,8 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
         std::bind(rialto_web_audio_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
     callbacks.errorCallback = std::bind(rialto_web_audio_sink_error_handler, sink, std::placeholders::_1);
 
-    sink->priv->mRialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-    sink->priv->mWebAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(callbacks);
+    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+    sink->priv->m_webAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(callbacks);
 
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))
     {
@@ -308,7 +308,7 @@ static void rialto_web_audio_sink_finalize(GObject *object)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
     RialtoWebAudioSinkPrivate *priv = sink->priv;
-    sink->priv->mWebAudioClient = nullptr;
+    sink->priv->m_webAudioClient = nullptr;
     GST_INFO_OBJECT(sink, "Finalize: %" GST_PTR_FORMAT " %" GST_PTR_FORMAT, sink, priv);
 
     priv->~RialtoWebAudioSinkPrivate();
