@@ -28,8 +28,8 @@ namespace firebolt::rialto::client
 class MediaPlayerClientBackend final : public MediaPlayerClientBackendInterface
 {
 public:
-    MediaPlayerClientBackend() : mMediaPlayerBackend(nullptr) {}
-    ~MediaPlayerClientBackend() final { mMediaPlayerBackend.reset(); }
+    MediaPlayerClientBackend() : m_mediaPlayerBackend(nullptr) {}
+    ~MediaPlayerClientBackend() final { m_mediaPlayerBackend.reset(); }
 
     void createMediaPlayerBackend(std::weak_ptr<IMediaPipelineClient> client, uint32_t maxWidth, uint32_t maxHeight) override
     {
@@ -37,66 +37,66 @@ public:
         videoRequirements.maxWidth = maxWidth;
         videoRequirements.maxHeight = maxHeight;
 
-        mMediaPlayerBackend =
+        m_mediaPlayerBackend =
             firebolt::rialto::IMediaPipelineFactory::createFactory()->createMediaPipeline(client, videoRequirements);
 
-        if (!mMediaPlayerBackend)
+        if (!m_mediaPlayerBackend)
         {
             GST_ERROR("Could not create media player backend");
             return;
         }
     }
 
-    bool isMediaPlayerBackendCreated() const override { return static_cast<bool>(mMediaPlayerBackend); }
+    bool isMediaPlayerBackendCreated() const override { return static_cast<bool>(m_mediaPlayerBackend); }
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) override
     {
-        return mMediaPlayerBackend->attachSource(source);
+        return m_mediaPlayerBackend->attachSource(source);
     }
 
-    bool removeSource(int32_t id) override { return mMediaPlayerBackend->removeSource(id); }
+    bool removeSource(int32_t id) override { return m_mediaPlayerBackend->removeSource(id); }
 
-    bool allSourcesAttached() override { return mMediaPlayerBackend->allSourcesAttached(); }
+    bool allSourcesAttached() override { return m_mediaPlayerBackend->allSourcesAttached(); }
 
     bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) override
     {
-        return mMediaPlayerBackend->load(type, mimeType, url);
+        return m_mediaPlayerBackend->load(type, mimeType, url);
     }
 
-    bool play() override { return mMediaPlayerBackend->play(); }
-    bool pause() override { return mMediaPlayerBackend->pause(); }
-    bool stop() override { return mMediaPlayerBackend->stop(); }
+    bool play() override { return m_mediaPlayerBackend->play(); }
+    bool pause() override { return m_mediaPlayerBackend->pause(); }
+    bool stop() override { return m_mediaPlayerBackend->stop(); }
     bool haveData(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId) override
     {
-        return mMediaPlayerBackend->haveData(status, needDataRequestId);
+        return m_mediaPlayerBackend->haveData(status, needDataRequestId);
     }
-    bool seek(int64_t seekPosition) override { return mMediaPlayerBackend->setPosition(seekPosition); }
-    bool setPlaybackRate(double rate) override { return mMediaPlayerBackend->setPlaybackRate(rate); }
+    bool seek(int64_t seekPosition) override { return m_mediaPlayerBackend->setPosition(seekPosition); }
+    bool setPlaybackRate(double rate) override { return m_mediaPlayerBackend->setPlaybackRate(rate); }
     bool setVideoWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height) override
     {
-        return mMediaPlayerBackend->setVideoWindow(x, y, width, height);
+        return m_mediaPlayerBackend->setVideoWindow(x, y, width, height);
     }
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment)
     {
-        return mMediaPlayerBackend->addSegment(needDataRequestId, mediaSegment);
+        return m_mediaPlayerBackend->addSegment(needDataRequestId, mediaSegment);
     }
 
-    bool getPosition(int64_t &position) override { return mMediaPlayerBackend->getPosition(position); }
+    bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
 
-    bool renderFrame() override { return mMediaPlayerBackend->renderFrame(); }
+    bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
-    bool setVolume(double volume) { return mMediaPlayerBackend->setVolume(volume); }
+    bool setVolume(double volume) { return m_mediaPlayerBackend->setVolume(volume); }
 
-    bool getVolume(double &volume) { return mMediaPlayerBackend->getVolume(volume); }
+    bool getVolume(double &volume) { return m_mediaPlayerBackend->getVolume(volume); }
 
-    bool setMute(bool mute) { return mMediaPlayerBackend->setMute(mute); }
+    bool setMute(bool mute) { return m_mediaPlayerBackend->setMute(mute); }
 
-    bool getMute(bool &mute) { return mMediaPlayerBackend->getMute(mute); }
+    bool getMute(bool &mute) { return m_mediaPlayerBackend->getMute(mute); }
 
 private:
-    std::unique_ptr<IMediaPipeline> mMediaPlayerBackend;
+    std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };
 } // namespace firebolt::rialto::client

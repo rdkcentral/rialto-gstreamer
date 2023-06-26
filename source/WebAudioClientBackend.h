@@ -27,46 +27,46 @@ namespace firebolt::rialto::client
 class WebAudioClientBackend final : public WebAudioClientBackendInterface
 {
 public:
-    WebAudioClientBackend() : mWebAudioPlayerBackend(nullptr) {}
+    WebAudioClientBackend() : m_webAudioPlayerBackend(nullptr) {}
     ~WebAudioClientBackend() final { destroyWebAudioBackend(); }
 
     bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
                                const uint32_t priority, const WebAudioConfig *config) override
     {
-        mWebAudioPlayerBackend =
+        m_webAudioPlayerBackend =
             firebolt::rialto::IWebAudioPlayerFactory::createFactory()->createWebAudioPlayer(client, audioMimeType,
                                                                                             priority, config);
 
-        if (!mWebAudioPlayerBackend)
+        if (!m_webAudioPlayerBackend)
         {
             GST_ERROR("Could not create web audio backend");
             return false;
         }
         return true;
     }
-    void destroyWebAudioBackend() override { mWebAudioPlayerBackend.reset(); }
+    void destroyWebAudioBackend() override { m_webAudioPlayerBackend.reset(); }
 
-    bool play() override { return mWebAudioPlayerBackend->play(); }
-    bool pause() override { return mWebAudioPlayerBackend->pause(); }
-    bool setEos() override { return mWebAudioPlayerBackend->setEos(); }
+    bool play() override { return m_webAudioPlayerBackend->play(); }
+    bool pause() override { return m_webAudioPlayerBackend->pause(); }
+    bool setEos() override { return m_webAudioPlayerBackend->setEos(); }
     bool getBufferAvailable(uint32_t &availableFrames) override
     {
         std::shared_ptr<firebolt::rialto::WebAudioShmInfo> webAudioShmInfo;
-        return mWebAudioPlayerBackend->getBufferAvailable(availableFrames, webAudioShmInfo);
+        return m_webAudioPlayerBackend->getBufferAvailable(availableFrames, webAudioShmInfo);
     }
-    bool getBufferDelay(uint32_t &delayFrames) override { return mWebAudioPlayerBackend->getBufferDelay(delayFrames); }
+    bool getBufferDelay(uint32_t &delayFrames) override { return m_webAudioPlayerBackend->getBufferDelay(delayFrames); }
     bool writeBuffer(const uint32_t numberOfFrames, void *data) override
     {
-        return mWebAudioPlayerBackend->writeBuffer(numberOfFrames, data);
+        return m_webAudioPlayerBackend->writeBuffer(numberOfFrames, data);
     }
     bool getDeviceInfo(uint32_t &preferredFrames, uint32_t &maximumFrames, bool &supportDeferredPlay) override
     {
-        return mWebAudioPlayerBackend->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay);
+        return m_webAudioPlayerBackend->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay);
     }
-    bool setVolume(double volume) { return mWebAudioPlayerBackend->setVolume(volume); }
-    bool getVolume(double &volume) { return mWebAudioPlayerBackend->getVolume(volume); }
+    bool setVolume(double volume) { return m_webAudioPlayerBackend->setVolume(volume); }
+    bool getVolume(double &volume) { return m_webAudioPlayerBackend->getVolume(volume); }
 
 private:
-    std::unique_ptr<IWebAudioPlayer> mWebAudioPlayerBackend;
+    std::unique_ptr<IWebAudioPlayer> m_webAudioPlayerBackend;
 };
 } // namespace firebolt::rialto::client

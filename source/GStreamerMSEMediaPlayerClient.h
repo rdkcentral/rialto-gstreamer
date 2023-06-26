@@ -59,9 +59,9 @@ public:
     void clearQueue();
 
 private:
-    MessageQueue mQueue;
-    GstElement *mRialtoSink;
-    std::shared_ptr<BufferParser> mBufferParser;
+    MessageQueue m_queue;
+    GstElement *m_rialtoSink;
+    std::shared_ptr<BufferParser> m_bufferParser;
 };
 
 class HaveDataMessage : public Message
@@ -72,10 +72,10 @@ public:
     void handle();
 
 private:
-    firebolt::rialto::MediaSourceStatus mStatus;
-    int mSourceId;
-    unsigned int mNeedDataRequestId;
-    GStreamerMSEMediaPlayerClient *mPlayer;
+    firebolt::rialto::MediaSourceStatus m_status;
+    int m_sourceId;
+    unsigned int m_needDataRequestId;
+    GStreamerMSEMediaPlayerClient *m_player;
 };
 
 class PullBufferMessage : public Message
@@ -87,13 +87,13 @@ public:
     void handle();
 
 private:
-    int mSourceId;
-    size_t mFrameCount;
-    unsigned int mNeedDataRequestId;
-    GstElement *mRialtoSink;
-    std::shared_ptr<BufferParser> mBufferParser;
-    MessageQueue &mPullerQueue;
-    GStreamerMSEMediaPlayerClient *mPlayer;
+    int m_sourceId;
+    size_t m_frameCount;
+    unsigned int m_needDataRequestId;
+    GstElement *m_rialtoSink;
+    std::shared_ptr<BufferParser> m_bufferParser;
+    MessageQueue &m_pullerQueue;
+    GStreamerMSEMediaPlayerClient *m_player;
 };
 
 class NeedDataMessage : public Message
@@ -104,10 +104,10 @@ public:
     void handle();
 
 private:
-    int mSourceId;
-    size_t mFrameCount;
-    unsigned int mNeedDataRequestId;
-    GStreamerMSEMediaPlayerClient *mPlayer;
+    int m_sourceId;
+    size_t m_frameCount;
+    unsigned int m_needDataRequestId;
+    GStreamerMSEMediaPlayerClient *m_player;
 };
 
 class PlaybackStateMessage : public Message
@@ -117,8 +117,8 @@ public:
     void handle();
 
 private:
-    firebolt::rialto::PlaybackState mState;
-    GStreamerMSEMediaPlayerClient *mPlayer;
+    firebolt::rialto::PlaybackState m_state;
+    GStreamerMSEMediaPlayerClient *m_player;
 };
 
 class QosMessage : public Message
@@ -128,9 +128,9 @@ public:
     void handle();
 
 private:
-    int mSourceId;
-    firebolt::rialto::QosInfo mQosInfo;
-    GStreamerMSEMediaPlayerClient *mPlayer;
+    int m_sourceId;
+    firebolt::rialto::QosInfo m_qosInfo;
+    GStreamerMSEMediaPlayerClient *m_player;
 };
 
 class BufferUnderflowMessage : public Message
@@ -140,8 +140,8 @@ public:
     void handle();
 
 private:
-    int mSourceId;
-    GStreamerMSEMediaPlayerClient *mPlayer;
+    int m_sourceId;
+    GStreamerMSEMediaPlayerClient *m_player;
 };
 
 enum class SeekingState
@@ -158,18 +158,18 @@ class AttachedSource
 public:
     AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
                    firebolt::rialto::MediaSourceType type)
-        : mRialtoSink(rialtoSink), mBufferPuller(puller), mType(type)
+        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type)
     {
     }
 
-    firebolt::rialto::MediaSourceType getType() { return mType; }
+    firebolt::rialto::MediaSourceType getType() { return m_type; }
 
 private:
-    RialtoMSEBaseSink *mRialtoSink;
-    std::shared_ptr<BufferPuller> mBufferPuller;
-    SeekingState mSeekingState = SeekingState::IDLE;
-    std::unordered_set<uint32_t> mOngoingNeedDataRequests;
-    firebolt::rialto::MediaSourceType mType = firebolt::rialto::MediaSourceType::UNKNOWN;
+    RialtoMSEBaseSink *m_rialtoSink;
+    std::shared_ptr<BufferPuller> m_bufferPuller;
+    SeekingState m_seekingState = SeekingState::IDLE;
+    std::unordered_set<uint32_t> m_ongoingNeedDataRequests;
+    firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
 };
 
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
@@ -240,27 +240,27 @@ public:
 private:
     bool areAllStreamsAttached();
 
-    MessageQueue mBackendQueue;
-    std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> mClientBackend;
-    int64_t mPosition;
-    int64_t mDuration;
-    double mVolume = 1.0;
-    bool mMute = false;
-    std::mutex mPlayerMutex;
-    std::unordered_map<int32_t, AttachedSource> mAttachedSources;
-    bool mWasAllSourcesAttachedSent = false;
-    int32_t mAudioStreams;
-    int32_t mVideoStreams;
-    SeekingState mServerSeekingState = SeekingState::IDLE;
+    MessageQueue m_backendQueue;
+    std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
+    int64_t m_position;
+    int64_t m_duration;
+    double m_volume = 1.0;
+    bool m_mute = false;
+    std::mutex m_playerMutex;
+    std::unordered_map<int32_t, AttachedSource> m_attachedSources;
+    bool m_wasAllSourcesAttachedSent = false;
+    int32_t m_audioStreams;
+    int32_t m_videoStreams;
+    SeekingState m_serverSeekingState = SeekingState::IDLE;
 
     struct Rectangle
     {
         unsigned int x, y, width, height;
-    } mVideoRectangle;
+    } m_videoRectangle;
 
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
-    bool mStreamingStopped;
+    bool m_streamingStopped;
 
-    const uint32_t mMaxWidth;
-    const uint32_t mMaxHeight;
+    const uint32_t m_maxWidth;
+    const uint32_t m_maxHeight;
 };

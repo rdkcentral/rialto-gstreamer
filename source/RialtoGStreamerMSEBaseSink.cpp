@@ -63,13 +63,13 @@ static guint g_signals[SIGNAL_LAST] = {0};
 
 static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
-    sink->priv->mIsStateCommitNeeded = true;
+    sink->priv->m_isStateCommitNeeded = true;
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
 }
 
 static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 {
-    sink->priv->mIsStateCommitNeeded = false;
+    sink->priv->m_isStateCommitNeeded = false;
     gst_element_post_message(GST_ELEMENT_CAST(sink),
                              gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
 }
@@ -115,7 +115,7 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
                      gst_element_state_get_name(next), gst_element_state_get_name(pending),
                      gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
 
-    if (sink->priv->mIsStateCommitNeeded &&
+    if (sink->priv->m_isStateCommitNeeded &&
         ((state == firebolt::rialto::PlaybackState::PAUSED && next == GST_STATE_PAUSED) ||
          (state == firebolt::rialto::PlaybackState::PLAYING && next == GST_STATE_PLAYING)))
     {
@@ -135,8 +135,8 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
 static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)
 {
     GST_INFO_OBJECT(sink, "Seek completed");
-    std::unique_lock<std::mutex> lock(sink->priv->mSeekMutex);
-    sink->priv->mSeekCondVariable.notify_all();
+    std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
+    sink->priv->m_seekCondVariable.notify_all();
 }
 
 static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
@@ -153,8 +153,8 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     callbacks.stateChangedCallback =
         std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
     callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
-    sink->priv->mCallbacks = callbacks;
-    gst_segment_init(&sink->priv->mLastSegment, GST_FORMAT_TIME);
+    sink->priv->m_callbacks = callbacks;
+    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
 }
 
@@ -172,17 +172,17 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
 
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     switch (propId)
     {
     case PROP_LOCATION:
-        g_value_set_string(value, sink->priv->mUri.c_str());
+        g_value_set_string(value, sink->priv->m_uri.c_str());
         break;
     case PROP_HANDLE_RESET_TIME_MESSAGE:
-        g_value_set_boolean(value, sink->priv->mHandleResetTimeMessage ? TRUE : FALSE);
+        g_value_set_boolean(value, sink->priv->m_handleResetTimeMessage ? TRUE : FALSE);
         break;
     case PROP_IS_SINGLE_PATH_STREAM:
-        g_value_set_boolean(value, sink->priv->mIsSinglePathStream ? TRUE : FALSE);
+        g_value_set_boolean(value, sink->priv->m_isSinglePathStream ? TRUE : FALSE);
         break;
     case PROP_N_STREAMS:
         g_value_set_int(value, sink->priv->m_numOfStreams);
@@ -200,17 +200,17 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
 
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     switch (propId)
     {
     case PROP_LOCATION:
-        sink->priv->mUri = g_value_get_string(value);
+        sink->priv->m_uri = g_value_get_string(value);
         break;
     case PROP_HANDLE_RESET_TIME_MESSAGE:
-        sink->priv->mHandleResetTimeMessage = g_value_get_boolean(value) != FALSE;
+        sink->priv->m_handleResetTimeMessage = g_value_get_boolean(value) != FALSE;
         break;
     case PROP_IS_SINGLE_PATH_STREAM:
-        sink->priv->mIsSinglePathStream = g_value_get_boolean(value) != FALSE;
+        sink->priv->m_isSinglePathStream = g_value_get_boolean(value) != FALSE;
         break;
     case PROP_N_STREAMS:
         sink->priv->m_numOfStreams = g_value_get_int(value);
@@ -290,12 +290,12 @@ static void rialto_mse_base_sink_change_playback_rate(RialtoMSEBaseSink *sink, G
 
 static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 {
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-    if (!sink->priv->mIsFlushOngoing)
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    if (!sink->priv->m_isFlushOngoing)
     {
         GST_INFO_OBJECT(sink, "Starting flushing");
-        sink->priv->mIsEos = false;
-        sink->priv->mIsFlushOngoing = true;
+        sink->priv->m_isEos = false;
+        sink->priv->m_isFlushOngoing = true;
         sink->priv->clearBuffersUnlocked();
     }
 }
@@ -303,8 +303,8 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetTime)
 {
     GST_INFO_OBJECT(sink, "Stopping flushing");
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-    sink->priv->mIsFlushOngoing = false;
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    sink->priv->m_isFlushOngoing = false;
 
     if (resetTime)
     {
@@ -322,7 +322,7 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
         return;
     }
 
-    client->notifySourceStartedSeeking(sink->priv->mSourceId);
+    client->notifySourceStartedSeeking(sink->priv->m_sourceId);
 
     if (sink->priv->m_mediaPlayerManager.hasControl())
     {
@@ -330,10 +330,10 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
         // wait for RialtoServer's preroll after seek
         rialto_mse_base_sink_lost_state(sink);
 
-        std::unique_lock<std::mutex> lock(sink->priv->mSeekMutex);
-        GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->mLastSegment.start));
-        client->seek(sink->priv->mLastSegment.start);
-        sink->priv->mSeekCondVariable.wait(lock);
+        std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
+        GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->m_lastSegment.start));
+        client->seek(sink->priv->m_lastSegment.start);
+        sink->priv->m_seekCondVariable.wait(lock);
     }
 }
 
@@ -370,11 +370,11 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                     client->setPlaybackRate(rate);
                 }
 
-                gdouble rateMultiplier = rate / sink->priv->mLastSegment.rate;
+                gdouble rateMultiplier = rate / sink->priv->m_lastSegment.rate;
                 GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
                 gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
                 gst_event_unref(event);
-                if (gst_pad_send_event(sink->priv->mSinkPad, rateChangeEvent) != TRUE)
+                if (gst_pad_send_event(sink->priv->m_sinkPad, rateChangeEvent) != TRUE)
                 {
                     GST_ERROR_OBJECT(sink, "Sending instant rate change failed.");
                     return FALSE;
@@ -406,9 +406,9 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
                 if (seekPosition != -1)
                 {
-                    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-                    gst_segment_init(&sink->priv->mLastSegment, GST_FORMAT_TIME);
-                    sink->priv->mLastSegment.start = seekPosition;
+                    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+                    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
+                    sink->priv->m_lastSegment.start = seekPosition;
                 }
             }
         }
@@ -419,7 +419,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
     if (shouldForwardUpstream)
     {
-        bool result = gst_pad_push_event(sink->priv->mSinkPad, event);
+        bool result = gst_pad_push_event(sink->priv->m_sinkPad, event);
         if (!result)
         {
             GST_DEBUG_OBJECT(sink, "forwarding upstream event '%s' failed", GST_EVENT_TYPE_NAME(event));
@@ -447,7 +447,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
-        if (!priv->mSinkPad)
+        if (!priv->m_sinkPad)
         {
             GST_ERROR_OBJECT(sink, "Cannot start, because there's no sink pad");
             return GST_STATE_CHANGE_FAILURE;
@@ -467,7 +467,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        priv->mIsFlushOngoing = false;
+        priv->m_isFlushOngoing = false;
         if (priv->m_mediaPlayerManager.hasControl())
         {
             rialto_mse_base_async_start(sink);
@@ -511,17 +511,17 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        if (priv->mIsStateCommitNeeded)
+        if (priv->m_isStateCommitNeeded)
         {
             GST_DEBUG_OBJECT(sink, "Sending async_done in PAUSED->READY transition");
             rialto_mse_base_async_done(sink);
         }
 
-        client->removeSource(priv->mSourceId);
+        client->removeSource(priv->m_sourceId);
         {
-            std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
+            std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
             priv->clearBuffersUnlocked();
-            priv->mSourceAttached = false;
+            priv->m_sourceAttached = false;
         }
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
@@ -597,24 +597,24 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
     GST_LOG_OBJECT(sink, "Handling buffer %p with PTS %" GST_TIME_FORMAT, buf, GST_TIME_ARGS(GST_BUFFER_PTS(buf)));
 
-    std::unique_lock<std::mutex> lock(sink->priv->mSinkMutex);
+    std::unique_lock<std::mutex> lock(sink->priv->m_sinkMutex);
 
-    if (sink->priv->mSamples.size() >= MAX_INTERNAL_BUFFERS_QUEUE_SIZE)
+    if (sink->priv->m_samples.size() >= MAX_INTERNAL_BUFFERS_QUEUE_SIZE)
     {
         GST_DEBUG_OBJECT(sink, "Waiting for more space in buffers queue\n");
-        sink->priv->mNeedDataCondVariable.wait(lock);
+        sink->priv->m_needDataCondVariable.wait(lock);
     }
 
-    if (sink->priv->mIsFlushOngoing)
+    if (sink->priv->m_isFlushOngoing)
     {
         GST_DEBUG_OBJECT(sink, "Discarding buffer which was received during flushing");
         gst_buffer_unref(buf);
         return GST_FLOW_FLUSHING;
     }
 
-    GstSample *sample = gst_sample_new(buf, sink->priv->mCaps, &sink->priv->mLastSegment, nullptr);
+    GstSample *sample = gst_sample_new(buf, sink->priv->m_caps, &sink->priv->m_lastSegment, nullptr);
     if (sample)
-        sink->priv->mSamples.push(sample);
+        sink->priv->m_samples.push(sample);
     else
         GST_ERROR_OBJECT(sink, "Failed to create a sample");
 
@@ -641,7 +641,7 @@ bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
     }
 
     gst_element_add_pad(GST_ELEMENT_CAST(sink), sinkPad);
-    sink->priv->mSinkPad = sinkPad;
+    sink->priv->m_sinkPad = sinkPad;
 
     return true;
 }
@@ -654,14 +654,14 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     {
     case GST_EVENT_SEGMENT:
     {
-        std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-        gst_event_copy_segment(event, &sink->priv->mLastSegment);
+        std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+        gst_event_copy_segment(event, &sink->priv->m_lastSegment);
         break;
     }
     case GST_EVENT_EOS:
     {
-        std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-        sink->priv->mIsEos = true;
+        std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+        sink->priv->m_isEos = true;
         break;
     }
     case GST_EVENT_CAPS:
@@ -669,18 +669,18 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
         {
-            std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-            if (sink->priv->mCaps)
+            std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+            if (sink->priv->m_caps)
             {
-                if (!gst_caps_is_equal(caps, sink->priv->mCaps))
+                if (!gst_caps_is_equal(caps, sink->priv->m_caps))
                 {
-                    gst_caps_unref(sink->priv->mCaps);
-                    sink->priv->mCaps = gst_caps_copy(caps);
+                    gst_caps_unref(sink->priv->m_caps);
+                    sink->priv->m_caps = gst_caps_copy(caps);
                 }
             }
             else
             {
-                sink->priv->mCaps = gst_caps_copy(caps);
+                sink->priv->m_caps = gst_caps_copy(caps);
             }
         }
         break;
@@ -732,10 +732,10 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 
 GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
 {
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-    if (!sink->priv->mSamples.empty())
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    if (!sink->priv->m_samples.empty())
     {
-        GstSample *sample = sink->priv->mSamples.front();
+        GstSample *sample = sink->priv->m_samples.front();
         GstBuffer *buffer = gst_sample_get_buffer(sample);
         GST_LOG_OBJECT(sink, "Pulling buffer %p with PTS %" GST_TIME_FORMAT, buffer,
                        GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
@@ -748,58 +748,58 @@ GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
 
 void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink)
 {
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-    sink->priv->mNeedDataCondVariable.notify_all();
-    if (!sink->priv->mSamples.empty())
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    sink->priv->m_needDataCondVariable.notify_all();
+    if (!sink->priv->m_samples.empty())
     {
-        gst_sample_unref(sink->priv->mSamples.front());
-        sink->priv->mSamples.pop();
+        gst_sample_unref(sink->priv->m_samples.front());
+        sink->priv->m_samples.pop();
     }
 }
 
 bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink)
 {
-    std::lock_guard<std::mutex> lock(sink->priv->mSinkMutex);
-    return sink->priv->mSamples.empty() && sink->priv->mIsEos;
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    return sink->priv->m_samples.empty() && sink->priv->m_isEos;
 }
 
 void rialto_mse_base_handle_rialto_server_state_changed(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state)
 {
-    if (sink->priv->mCallbacks.stateChangedCallback)
+    if (sink->priv->m_callbacks.stateChangedCallback)
     {
-        sink->priv->mCallbacks.stateChangedCallback(state);
+        sink->priv->m_callbacks.stateChangedCallback(state);
     }
 }
 
 void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink)
 {
-    if (sink->priv->mCallbacks.eosCallback)
+    if (sink->priv->m_callbacks.eosCallback)
     {
-        sink->priv->mCallbacks.eosCallback();
+        sink->priv->m_callbacks.eosCallback();
     }
 }
 
 void rialto_mse_base_handle_rialto_server_completed_seek(RialtoMSEBaseSink *sink)
 {
-    if (sink->priv->mCallbacks.seekCompletedCallback)
+    if (sink->priv->m_callbacks.seekCompletedCallback)
     {
-        sink->priv->mCallbacks.seekCompletedCallback();
+        sink->priv->m_callbacks.seekCompletedCallback();
     }
 }
 
 void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped)
 {
-    if (sink->priv->mCallbacks.qosCallback)
+    if (sink->priv->m_callbacks.qosCallback)
     {
-        sink->priv->mCallbacks.qosCallback(processed, dropped);
+        sink->priv->m_callbacks.qosCallback(processed, dropped);
     }
 }
 
 void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
 {
-    if (sink->priv->mCallbacks.errorCallback)
+    if (sink->priv->m_callbacks.errorCallback)
     {
-        sink->priv->mCallbacks.errorCallback("Rialto server playback failed");
+        sink->priv->m_callbacks.errorCallback("Rialto server playback failed");
     }
 }
 
@@ -825,11 +825,9 @@ GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
     return result;
 }
 
-std::shared_ptr<std::vector<std::uint8_t>> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
-                                                                               const GstStructure *structure)
+std::shared_ptr<firebolt::rialto::CodecData> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
+                                                                                 const GstStructure *structure)
 {
-    std::shared_ptr<std::vector<std::uint8_t>> codecData;
-
     const GValue *codec_data;
     codec_data = gst_structure_get_value(structure, "codec_data");
     if (codec_data)
@@ -840,17 +838,28 @@ std::shared_ptr<std::vector<std::uint8_t>> rialto_mse_base_sink_get_codec_data(R
             GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
             if (mappedBuf)
             {
-                codecData =
-                    std::make_shared<std::vector<std::uint8_t>>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+                codecData->data = std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                codecData->type = firebolt::rialto::CodecDataType::BUFFER;
+                return codecData;
             }
             else
             {
                 GST_ERROR_OBJECT(sink, "Failed to read codec_data");
+                return nullptr;
             }
+        }
+        const gchar *str = g_value_get_string(codec_data);
+        if (str)
+        {
+            auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+            codecData->data = std::vector<std::uint8_t>(str, str + std::strlen(str));
+            codecData->type = firebolt::rialto::CodecDataType::STRING;
+            return codecData;
         }
     }
 
-    return codecData;
+    return nullptr;
 }
 
 firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink,
@@ -910,7 +919,7 @@ bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStruc
 
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
-    sink->priv->mIsStateCommitNeeded = true;
+    sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
 

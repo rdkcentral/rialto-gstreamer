@@ -19,6 +19,7 @@
 #include "BufferParser.h"
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
+#include <cstring>
 #include <inttypes.h>
 
 using namespace firebolt::rialto;
@@ -116,13 +117,24 @@ void BufferParser::addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMedi
             GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
             if (mappedBuf)
             {
-                segment->setCodecData(
-                    std::make_shared<std::vector<std::uint8_t>>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size()));
+                auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+                codecData->data = std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                codecData->type = firebolt::rialto::CodecDataType::BUFFER;
+                segment->setCodecData(codecData);
             }
             else
             {
                 GST_ERROR("Failed to read codec_data");
             }
+            return;
+        }
+        const gchar *str = g_value_get_string(codec_data);
+        if (str)
+        {
+            auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+            codecData->data = std::vector<std::uint8_t>(str, str + std::strlen(str));
+            codecData->type = firebolt::rialto::CodecDataType::STRING;
+            segment->setCodecData(codecData);
         }
     }
 }

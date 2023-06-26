@@ -34,49 +34,51 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
 {
-    _RialtoMSEBaseSinkPrivate() : mSourceId(-1), mIsFlushOngoing(false), mIsStateCommitNeeded(false), m_hasDrm(true) {}
+    _RialtoMSEBaseSinkPrivate() : m_sourceId(-1), m_isFlushOngoing(false), m_isStateCommitNeeded(false), m_hasDrm(true)
+    {
+    }
     ~_RialtoMSEBaseSinkPrivate()
     {
-        if (mCaps)
-            gst_caps_unref(mCaps);
+        if (m_caps)
+            gst_caps_unref(m_caps);
         clearBuffersUnlocked();
     }
 
     void clearBuffersUnlocked()
     {
-        mIsFlushOngoing = true;
-        mNeedDataCondVariable.notify_all();
-        while (!mSamples.empty())
+        m_isFlushOngoing = true;
+        m_needDataCondVariable.notify_all();
+        while (!m_samples.empty())
         {
-            GstSample *sample = mSamples.front();
-            mSamples.pop();
+            GstSample *sample = m_samples.front();
+            m_samples.pop();
             gst_sample_unref(sample);
         }
     }
 
-    GstPad *mSinkPad = nullptr;
-    GstSegment mLastSegment;
-    GstCaps *mCaps = nullptr;
+    GstPad *m_sinkPad = nullptr;
+    GstSegment m_lastSegment;
+    GstCaps *m_caps = nullptr;
 
-    std::atomic<int32_t> mSourceId;
-    std::queue<GstSample *> mSamples;
-    bool mIsEos = false;
-    std::atomic<bool> mIsFlushOngoing;
-    std::atomic<bool> mIsStateCommitNeeded;
-    std::mutex mSinkMutex;
+    std::atomic<int32_t> m_sourceId;
+    std::queue<GstSample *> m_samples;
+    bool m_isEos = false;
+    std::atomic<bool> m_isFlushOngoing;
+    std::atomic<bool> m_isStateCommitNeeded;
+    std::mutex m_sinkMutex;
 
-    std::condition_variable mNeedDataCondVariable;
-    std::condition_variable mSeekCondVariable;
-    std::mutex mSeekMutex;
+    std::condition_variable m_needDataCondVariable;
+    std::condition_variable m_seekCondVariable;
+    std::mutex m_seekMutex;
 
-    std::string mUri;
-    RialtoGStreamerMSEBaseSinkCallbacks mCallbacks;
+    std::string m_uri;
+    RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
 
     MediaPlayerManager m_mediaPlayerManager;
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
-    bool mHandleResetTimeMessage = false;
-    bool mSourceAttached = false;
-    bool mIsSinglePathStream = false;
+    bool m_handleResetTimeMessage = false;
+    bool m_sourceAttached = false;
+    bool m_isSinglePathStream = false;
     int32_t m_numOfStreams = 1;
     std::atomic<bool> m_hasDrm;
 };
