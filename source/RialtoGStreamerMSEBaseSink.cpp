@@ -383,7 +383,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
             }
             else
             {
-                GST_ERROR_OBJECT(sink, "Flushless seek is not supported");
+                GST_WARNING_OBJECT(sink, "Seek with flags 0x%X is not supported", flags);
                 gst_event_unref(event);
                 return FALSE;
             }
