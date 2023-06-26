@@ -328,9 +328,9 @@ void GStreamerWebAudioPlayerClient::pushSamples()
             else
             {
                 // Can only write partial buffer
-                bufferToPushSize += (availableBytes - bufferToPushSize);
                 bufferToPush = gst_buffer_append_region(bufferToPush, buffer, 0, (availableBytes - bufferToPushSize));
                 gst_buffer_resize(buffer, (availableBytes - bufferToPushSize), bufferSize - (availableBytes - bufferToPushSize));
+                bufferToPushSize += (availableBytes - bufferToPushSize);
             }
         }
 
