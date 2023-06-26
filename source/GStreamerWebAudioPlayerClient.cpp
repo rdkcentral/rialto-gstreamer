@@ -307,58 +307,57 @@ void GStreamerWebAudioPlayerClient::pushSamples()
         return;
     }
 
-    // TODO: Check buffers aligned with frames
     uint32_t availableFrames = 0u;
-    if (m_clientBackend->getBufferAvailable(availableFrames))
+    do
     {
-        uint32_t availableBytes = availableFrames * m_frameSize;
-        uint32_t bufferToPushSize = 0;
-        GstBuffer* bufferToPush = gst_buffer_new();
-        while ((!m_dataBuffers.empty()) && (bufferToPushSize < availableBytes))
+        if (!m_clientBackend->getBufferAvailable(availableFrames))
+        {
+            GST_ERROR("getBufferAvailable failed, could not process samples");
+            // clear the buffer if getBufferAvailable failed
+            std::queue<GstBuffer*> empty;
+            std::swap(m_dataBuffers, empty);
+        }
+        else if (0 != availableFrames)
         {
             GstBuffer* buffer = m_dataBuffers.front();
             gsize bufferSize = gst_buffer_get_size(buffer);
-            if (bufferSize <= (availableBytes - bufferToPushSize))
+            auto framesToWrite = std::min(availableFrames, bufferSize / m_frameSize);
+            if (framesToWrite > 0)
             {
-                // Writting all data from buffer so remove from the queue
-                m_dataBuffers.pop();
-                bufferToPushSize += bufferSize;
-                bufferToPush = gst_buffer_append(bufferToPush, buffer);
-            }
-            else
-            {
-                // Can only write partial buffer
-                bufferToPush = gst_buffer_append_region(bufferToPush, buffer, 0, (availableBytes - bufferToPushSize));
-                gst_buffer_resize(buffer, (availableBytes - bufferToPushSize), bufferSize - (availableBytes - bufferToPushSize));
-                bufferToPushSize += (availableBytes - bufferToPushSize);
-            }
-        }
-
-        if (bufferToPushSize / m_frameSize > 0)
-        {
-            GstMapInfo bufferMap;
-            if (!gst_buffer_map(bufferToPush, &bufferMap, GST_MAP_READ))
-            {
-                GST_ERROR("Could not map audio buffer, data lost!");
-            }
-            else
-            {
-                if (!m_clientBackend->writeBuffer(bufferToPushSize / m_frameSize, bufferMap.data))
+                GstMapInfo bufferMap;
+                if (!gst_buffer_map(buffer, &bufferMap, GST_MAP_READ))
                 {
                     GST_ERROR("Could not map audio buffer, data lost!");
                 }
-                gst_buffer_unmap(bufferToPush, &bufferMap);
+                else
+                {
+                    if (!m_clientBackend->writeBuffer(framesToWrite, bufferMap.data))
+                    {
+                        GST_ERROR("Could not map audio buffer, data lost!");
+                    }
+                    gst_buffer_unmap(buffer, &bufferMap);
+                }
             }
-            gst_buffer_unref(bufferToPush);
+
+            if (framesToWrite * m_frameSize < bufferSize)
+            {
+                // Handle any leftover data
+                uint32_t leftoverData = bufferSize - (availableFrames * m_frameSize);
+                gst_buffer_resize(buffer, framesToWrite * m_frameSize, leftoverData);
+                if ((leftoverData / m_frameSize == 0) && (m_dataBuffers.size() > 1))
+                {
+                    // If the leftover data is smaller than a frame, it must be processed with the next buffer
+                    m_dataBuffers.pop();
+                    m_dataBuffers.front() = gst_buffer_append(buffer, m_dataBuffers.front());
+                }
+            }
+            else
+            {
+                m_dataBuffers.pop();
+                gst_buffer_unref(buffer);
+            }
         }
-    }
-    else
-    {
-        GST_ERROR("getBufferAvailable failed, could not process samples");
-        // clear the buffer if getBufferAvailable failed
-        std::queue<GstBuffer*> empty;
-        std::swap(m_dataBuffers, empty);
-    }
+    } while (!m_dataBuffers.empty() && availableFrames != 0)
 
     // If we still have samples stored that could not be pushed
     // This avoids any stoppages in the pushing of samples to the server if the consumption of
