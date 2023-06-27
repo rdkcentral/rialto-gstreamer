@@ -312,13 +312,14 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     {
         if (!m_clientBackend->getBufferAvailable(availableFrames))
         {
-            GST_ERROR("getBufferAvailable failed, could not process samples");
             // clear the buffer if getBufferAvailable failed
             std::queue<GstBuffer*> empty;
             std::swap(m_dataBuffers, empty);
+            break;
         }
         else if (0 != availableFrames)
         {
+            bool writeFailure = false;
             GstBuffer* buffer = m_dataBuffers.front();
             gsize bufferSize = gst_buffer_get_size(buffer);
             auto framesToWrite = std::min(availableFrames, bufferSize / m_frameSize);
@@ -327,19 +328,21 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                 GstMapInfo bufferMap;
                 if (!gst_buffer_map(buffer, &bufferMap, GST_MAP_READ))
                 {
-                    GST_ERROR("Could not map audio buffer, data lost!");
+                    GST_ERROR("Could not map audio buffer, disacarding buffer!");
+                    writeFailure = true;
                 }
                 else
                 {
                     if (!m_clientBackend->writeBuffer(framesToWrite, bufferMap.data))
                     {
-                        GST_ERROR("Could not map audio buffer, data lost!");
+                        GST_ERROR("Could not map audio buffer, disacarding buffer!");
+                        writeFailure = true;
                     }
                     gst_buffer_unmap(buffer, &bufferMap);
                 }
             }
 
-            if (framesToWrite * m_frameSize < bufferSize)
+            if ((!writeFailure) && (framesToWrite * m_frameSize < bufferSize))
             {
                 // Handle any leftover data
                 uint32_t leftoverData = bufferSize - (availableFrames * m_frameSize);
@@ -357,7 +360,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                 gst_buffer_unref(buffer);
             }
         }
-    } while (!m_dataBuffers.empty() && availableFrames != 0)
+    } while (!m_dataBuffers.empty() && availableFrames != 0);
 
     // If we still have samples stored that could not be pushed
     // This avoids any stoppages in the pushing of samples to the server if the consumption of
