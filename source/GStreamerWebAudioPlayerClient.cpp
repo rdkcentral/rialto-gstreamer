@@ -309,10 +309,10 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     {
         if (!m_clientBackend->getBufferAvailable(availableFrames))
         {
-            // clear the buffer if getBufferAvailable failed
+            GST_ERROR("getBufferAvailable failed, could not process the samples");
+            // clear the queue if getBufferAvailable failed
             std::queue<GstBuffer *> empty;
             std::swap(m_dataBuffers, empty);
-            break;
         }
         else if (0 != availableFrames)
         {
@@ -325,14 +325,14 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                 GstMapInfo bufferMap;
                 if (!gst_buffer_map(buffer, &bufferMap, GST_MAP_READ))
                 {
-                    GST_ERROR("Could not map audio buffer, disacarding buffer!");
+                    GST_ERROR("Could not map audio buffer, discarding buffer!");
                     writeFailure = true;
                 }
                 else
                 {
                     if (!m_clientBackend->writeBuffer(framesToWrite, bufferMap.data))
                     {
-                        GST_ERROR("Could not map audio buffer, disacarding buffer!");
+                        GST_ERROR("Could not map audio buffer, discarding buffer!");
                         writeFailure = true;
                     }
                     gst_buffer_unmap(buffer, &bufferMap);
@@ -349,6 +349,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                     // If the leftover data is smaller than a frame, it must be processed with the next buffer
                     m_dataBuffers.pop();
                     m_dataBuffers.front() = gst_buffer_append(buffer, m_dataBuffers.front());
+                    gst_buffer_unref(buffer);
                 }
             }
             else
