@@ -138,15 +138,6 @@ private:
     void pushSamples();
 
     /**
-     * @brief Get the data from the new sample.
-     *
-     * @param[in] buf : The new buffer to be added.
-     *
-     * @retval true on success, false otherwise.
-     */
-    bool getNextBufferData(GstBuffer *buf);
-
-    /**
      * @brief Checks the config against that previously stored in the object.
      *
      * @retval true if this is a new config.

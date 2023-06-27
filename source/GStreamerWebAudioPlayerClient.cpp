@@ -284,15 +284,12 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
     m_backendQueue.callInEventLoop(
         [&]()
         {
-            m_pushSamplesTimer.cancel();
-            if (getNextBufferData(buf))
+            if (buf)
             {
+                m_pushSamplesTimer.cancel();
+                m_dataBuffers.push(buf);
                 pushSamples();
                 result = true;
-            }
-            else
-            {
-                GST_ERROR("Failed to get the data from the new buffer");
             }
         });
 
@@ -373,17 +370,6 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     {
         m_clientBackend->setEos();
     }
-}
-
-bool GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
-{
-    if (!buf)
-    {
-        return false;
-    }
-
-    m_dataBuffers.push(buf);
-    return true;
 }
 
 bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType,
