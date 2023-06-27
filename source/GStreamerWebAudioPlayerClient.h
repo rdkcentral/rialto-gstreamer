@@ -171,7 +171,7 @@ private:
     /**
      * @brief Vector to store the gst sample buffers.
      */
-    std::queue<GstBuffer*> m_dataBuffers;
+    std::queue<GstBuffer *> m_dataBuffers;
 
     /**
      * @brief The push samples timer.

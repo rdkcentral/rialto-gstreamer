@@ -313,14 +313,14 @@ void GStreamerWebAudioPlayerClient::pushSamples()
         if (!m_clientBackend->getBufferAvailable(availableFrames))
         {
             // clear the buffer if getBufferAvailable failed
-            std::queue<GstBuffer*> empty;
+            std::queue<GstBuffer *> empty;
             std::swap(m_dataBuffers, empty);
             break;
         }
         else if (0 != availableFrames)
         {
             bool writeFailure = false;
-            GstBuffer* buffer = m_dataBuffers.front();
+            GstBuffer *buffer = m_dataBuffers.front();
             gsize bufferSize = gst_buffer_get_size(buffer);
             auto framesToWrite = std::min(availableFrames, bufferSize / m_frameSize);
             if (framesToWrite > 0)
