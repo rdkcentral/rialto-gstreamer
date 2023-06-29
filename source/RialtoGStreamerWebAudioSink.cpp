@@ -255,7 +255,8 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
     {
     case PROP_TS_OFFSET:
     {
-        GST_ERROR_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the syncronisation of sources");
+        GST_ERROR_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
+                                 "syncronisation of sources");
         break;
     }
 
@@ -273,7 +274,8 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
     {
     case PROP_TS_OFFSET:
     {
-        GST_ERROR_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the syncronisation of sources");
+        GST_ERROR_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
+                                 "syncronisation of sources");
         break;
     }
     default:
@@ -371,7 +373,10 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
     elementClass->send_event = rialto_web_audio_sink_send_event;
 
     g_object_class_install_property(gobjectClass, PROP_TS_OFFSET,
-                                    g_param_spec_int64("ts-offset", "ts-offset", "Not supported, RialtoWebAudioSink does not require the syncronisation of sources", G_MININT64, G_MAXINT64, 0, GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+                                    g_param_spec_int64("ts-offset",
+                                                       "ts-offset", "Not supported, RialtoWebAudioSink does not require the syncronisation of sources",
+                                                       G_MININT64, G_MAXINT64, 0,
+                                                       GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
     rialto_web_audio_sink_setup_supported_caps(elementClass);
 
     gst_element_class_set_details_simple(elementClass, "Rialto Web Audio Sink", "Decoder/Audio/Sink/Audio",
