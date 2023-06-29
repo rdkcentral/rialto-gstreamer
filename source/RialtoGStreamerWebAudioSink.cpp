@@ -293,8 +293,8 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
     {
     case PROP_TS_OFFSET:
     {
-        GST_ERROR_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
-                                 "syncronisation of sources");
+        GST_INFO_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
+                                "syncronisation of sources");
         break;
     }
 
@@ -312,8 +312,8 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
     {
     case PROP_TS_OFFSET:
     {
-        GST_ERROR_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
-                                 "syncronisation of sources");
+        GST_INFO_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
+                                "syncronisation of sources");
         break;
     }
     default:
