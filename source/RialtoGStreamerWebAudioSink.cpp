@@ -294,7 +294,7 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
     case PROP_TS_OFFSET:
     {
         GST_INFO_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
-                                "syncronisation of sources");
+                                "synchronisation of sources");
         break;
     }
 
@@ -313,7 +313,7 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_TS_OFFSET:
     {
         GST_INFO_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
-                                "syncronisation of sources");
+                                "synchronisation of sources");
         break;
     }
     default:
@@ -414,7 +414,7 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
 
     g_object_class_install_property(gobjectClass, PROP_TS_OFFSET,
                                     g_param_spec_int64("ts-offset",
-                                                       "ts-offset", "Not supported, RialtoWebAudioSink does not require the syncronisation of sources",
+                                                       "ts-offset", "Not supported, RialtoWebAudioSink does not require the synchronisation of sources",
                                                        G_MININT64, G_MAXINT64, 0,
                                                        GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
     rialto_web_audio_sink_setup_supported_caps(elementClass);
