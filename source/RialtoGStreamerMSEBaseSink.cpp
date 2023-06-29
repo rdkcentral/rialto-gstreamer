@@ -333,7 +333,14 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
         std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
         GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->m_lastSegment.start));
         client->seek(sink->priv->m_lastSegment.start);
-        sink->priv->m_seekCondVariable.wait(lock);
+        if (sink->priv->m_sourceAttached)
+        {
+            sink->priv->m_seekCondVariable.wait(lock);
+        }
+        else
+        {
+            GST_DEBUG_OBJECT(sink, "Skip waiting for seek finish - source not attached yet.");
+        }
     }
 }
 
