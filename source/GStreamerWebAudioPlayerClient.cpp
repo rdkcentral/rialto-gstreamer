@@ -84,16 +84,16 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 } // namespace
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks)
-    : mIsOpen(false), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false),
+    : m_isOpen(false), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false),
       m_config({}), m_callbacks(callbacks)
 {
-    mBackendQueue.start();
-    mClientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
+    m_backendQueue.start();
+    m_clientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
 }
 
 GStreamerWebAudioPlayerClient::~GStreamerWebAudioPlayerClient()
 {
-    mBackendQueue.stop();
+    m_backendQueue.stop();
 }
 
 bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
@@ -134,29 +134,29 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
         return result;
     }
 
-    mBackendQueue.callInEventLoop(
+    m_backendQueue.callInEventLoop(
         [&]()
         {
             firebolt::rialto::WebAudioConfig config{pcm};
 
             // Only recreate player if the config has changed
-            if (!mIsOpen || isNewConfig(audioMimeType, config))
+            if (!m_isOpen || isNewConfig(audioMimeType, config))
             {
-                if (mIsOpen)
+                if (m_isOpen)
                 {
                     // Destroy the previously created player
-                    mClientBackend->destroyWebAudioBackend();
+                    m_clientBackend->destroyWebAudioBackend();
                 }
 
                 uint32_t priority = 1;
-                if (mClientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
+                if (m_clientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
                 {
-                    if (!mClientBackend->getDeviceInfo(m_preferredFrames, m_maximumFrames, m_supportDeferredPlay))
+                    if (!m_clientBackend->getDeviceInfo(m_preferredFrames, m_maximumFrames, m_supportDeferredPlay))
                     {
                         GST_ERROR("GetDeviceInfo failed, could not process samples");
                     }
                     m_frameSize = (pcm.sampleSize * pcm.channels) / CHAR_BIT;
-                    mIsOpen = true;
+                    m_isOpen = true;
 
                     // Store config
                     m_config.pcm = pcm;
@@ -165,9 +165,9 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
                 else
                 {
                     GST_ERROR("Could not create web audio backend");
-                    mIsOpen = false;
+                    m_isOpen = false;
                 }
-                result = mIsOpen;
+                result = m_isOpen;
             }
         });
 
@@ -178,12 +178,12 @@ bool GStreamerWebAudioPlayerClient::close()
 {
     GST_DEBUG("entry:");
 
-    mBackendQueue.callInEventLoop(
+    m_backendQueue.callInEventLoop(
         [&]()
         {
-            mClientBackend->destroyWebAudioBackend();
+            m_clientBackend->destroyWebAudioBackend();
             m_pushSamplesTimer.cancel();
-            mIsOpen = false;
+            m_isOpen = false;
         });
 
     return true;
@@ -194,12 +194,12 @@ bool GStreamerWebAudioPlayerClient::play()
     GST_DEBUG("entry:");
 
     bool result = false;
-    mBackendQueue.callInEventLoop(
+    m_backendQueue.callInEventLoop(
         [&]()
         {
-            if (mIsOpen)
+            if (m_isOpen)
             {
-                result = mClientBackend->play();
+                result = m_clientBackend->play();
             }
             else
             {
@@ -215,12 +215,12 @@ bool GStreamerWebAudioPlayerClient::pause()
     GST_DEBUG("entry:");
 
     bool result = false;
-    mBackendQueue.callInEventLoop(
+    m_backendQueue.callInEventLoop(
         [&]()
         {
-            if (mIsOpen)
+            if (m_isOpen)
             {
-                result = mClientBackend->pause();
+                result = m_clientBackend->pause();
             }
             else
             {
@@ -236,15 +236,15 @@ bool GStreamerWebAudioPlayerClient::setEos()
     GST_DEBUG("entry:");
 
     bool result = false;
-    mBackendQueue.callInEventLoop(
+    m_backendQueue.callInEventLoop(
         [&]()
         {
-            if (mIsOpen && !m_isEos)
+            if (m_isOpen && !m_isEos)
             {
                 m_isEos = true;
-                if (mSampleDataBuffer.empty())
+                if (m_dataBuffers.empty())
                 {
-                    result = mClientBackend->setEos();
+                    result = m_clientBackend->setEos();
                 }
                 else
                 {
@@ -266,14 +266,14 @@ bool GStreamerWebAudioPlayerClient::isOpen()
     GST_DEBUG("entry:");
 
     bool result = false;
-    mBackendQueue.callInEventLoop([&]() { result = mIsOpen; });
+    m_backendQueue.callInEventLoop([&]() { result = m_isOpen; });
 
     return result;
 }
 
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
-    mBackendQueue.callInEventLoop([&]() { pushSamples(); });
+    m_backendQueue.callInEventLoop([&]() { pushSamples(); });
 }
 
 bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
@@ -281,18 +281,15 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
     GST_DEBUG("entry:");
 
     bool result = false;
-    mBackendQueue.callInEventLoop(
+    m_backendQueue.callInEventLoop(
         [&]()
         {
-            m_pushSamplesTimer.cancel();
-            if (getNextBufferData(buf))
+            if (buf)
             {
+                m_pushSamplesTimer.cancel();
+                m_dataBuffers.push(buf);
                 pushSamples();
                 result = true;
-            }
-            else
-            {
-                GST_ERROR("Failed to get the data from the new buffer");
             }
         });
 
@@ -302,80 +299,78 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
 void GStreamerWebAudioPlayerClient::pushSamples()
 {
     GST_DEBUG("entry:");
-    if (!mIsOpen || mSampleDataBuffer.empty())
+    if (!m_isOpen || m_dataBuffers.empty())
     {
         return;
     }
+
     uint32_t availableFrames = 0u;
-    if (mClientBackend->getBufferAvailable(availableFrames))
+    do
     {
-        auto dataToPush = std::min(static_cast<std::size_t>(availableFrames * m_frameSize), mSampleDataBuffer.size());
-        if ((dataToPush / m_frameSize > 0))
+        if (!m_clientBackend->getBufferAvailable(availableFrames))
         {
-            if (mClientBackend->writeBuffer(dataToPush / m_frameSize, mSampleDataBuffer.data()))
+            GST_ERROR("getBufferAvailable failed, could not process the samples");
+            // clear the queue if getBufferAvailable failed
+            std::queue<GstBuffer *> empty;
+            std::swap(m_dataBuffers, empty);
+        }
+        else if (0 != availableFrames)
+        {
+            bool writeFailure = false;
+            GstBuffer *buffer = m_dataBuffers.front();
+            gsize bufferSize = gst_buffer_get_size(buffer);
+            auto framesToWrite = std::min(availableFrames, bufferSize / m_frameSize);
+            if (framesToWrite > 0)
             {
-                // remove pushed data from mSampleDataBuffer
-                if (dataToPush < mSampleDataBuffer.size())
+                GstMapInfo bufferMap;
+                if (!gst_buffer_map(buffer, &bufferMap, GST_MAP_READ))
                 {
-                    // to compact the memory copy everything to a new vector and swap.
-                    std::vector<uint8_t>(mSampleDataBuffer.begin() + dataToPush, mSampleDataBuffer.end())
-                        .swap(mSampleDataBuffer);
+                    GST_ERROR("Could not map audio buffer, discarding buffer!");
+                    writeFailure = true;
                 }
                 else
                 {
-                    mSampleDataBuffer.clear();
+                    if (!m_clientBackend->writeBuffer(framesToWrite, bufferMap.data))
+                    {
+                        GST_ERROR("Could not map audio buffer, discarding buffer!");
+                        writeFailure = true;
+                    }
+                    gst_buffer_unmap(buffer, &bufferMap);
+                }
+            }
+
+            if ((!writeFailure) && (framesToWrite * m_frameSize < bufferSize))
+            {
+                // Handle any leftover data
+                uint32_t leftoverData = bufferSize - (availableFrames * m_frameSize);
+                gst_buffer_resize(buffer, framesToWrite * m_frameSize, leftoverData);
+                if ((leftoverData / m_frameSize == 0) && (m_dataBuffers.size() > 1))
+                {
+                    // If the leftover data is smaller than a frame, it must be processed with the next buffer
+                    m_dataBuffers.pop();
+                    m_dataBuffers.front() = gst_buffer_append(buffer, m_dataBuffers.front());
+                    gst_buffer_unref(buffer);
                 }
             }
             else
             {
-                GST_ERROR("writeBuffer failed, could not process samples");
-                // clear the buffer if writeBuffer failed
-                mSampleDataBuffer.clear();
+                m_dataBuffers.pop();
+                gst_buffer_unref(buffer);
             }
         }
-    }
-    else
-    {
-        GST_ERROR("getBufferAvailable failed, could not process samples");
-        // clear the buffer if getBufferAvailable failed
-        mSampleDataBuffer.clear();
-    }
+    } while (!m_dataBuffers.empty() && availableFrames != 0);
 
     // If we still have samples stored that could not be pushed
     // This avoids any stoppages in the pushing of samples to the server if the consumption of
     // samples is slow.
-    if (mSampleDataBuffer.size())
+    if (m_dataBuffers.size())
     {
         m_pushSamplesTimer.arm(100);
     }
     else if (m_isEos)
     {
-        mClientBackend->setEos();
+        m_clientBackend->setEos();
     }
-}
-
-bool GStreamerWebAudioPlayerClient::getNextBufferData(GstBuffer *buf)
-{
-    if (!buf)
-    {
-        return false;
-    }
-
-    uint32_t bufferSize = gst_buffer_get_size(buf);
-    GstMapInfo bufferMap;
-
-    if (!gst_buffer_map(buf, &bufferMap, GST_MAP_READ))
-    {
-        GST_ERROR("Could not map audio buffer");
-        gst_buffer_unref(buf);
-        return false;
-    }
-
-    mSampleDataBuffer.insert(mSampleDataBuffer.end(), bufferMap.data, bufferMap.data + bufferSize);
-    gst_buffer_unmap(buf, &bufferMap);
-    gst_buffer_unref(buf);
-
-    return true;
 }
 
 bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType,
