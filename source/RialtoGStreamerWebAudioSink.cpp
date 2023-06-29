@@ -406,6 +406,8 @@ static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
                                    "Sky");
 
     gobjectClass->finalize = rialto_web_audio_sink_finalize;
+    gobjectClass->get_property = rialto_web_audio_sink_get_property;
+    gobjectClass->set_property = rialto_web_audio_sink_set_property;
 
     elementClass->change_state = rialto_web_audio_sink_change_state;
     elementClass->send_event = rialto_web_audio_sink_send_event;
