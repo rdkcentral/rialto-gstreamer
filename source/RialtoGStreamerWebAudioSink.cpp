@@ -32,6 +32,19 @@ G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_ELEM
                             GST_DEBUG_CATEGORY_INIT(RialtoWebAudioSinkDebug, "rialtowebaudiosink", 0,
                                                     "rialto web audio sink"));
 
+static void rialto_web_audio_async_start(RialtoWebAudioSink *sink)
+{
+    sink->priv->m_isStateCommitNeeded = true;
+    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
+}
+
+static void rialto_web_audio_async_done(RialtoWebAudioSink *sink)
+{
+    sink->priv->m_isStateCommitNeeded = false;
+    gst_element_post_message(GST_ELEMENT_CAST(sink),
+                             gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+}
+
 static void rialto_web_audio_sink_eos_handler(RialtoWebAudioSink *sink)
 {
     GstState currentState = GST_STATE(sink);
@@ -71,6 +84,23 @@ static void rialto_web_audio_sink_rialto_state_changed_handler(RialtoWebAudioSin
                      static_cast<uint32_t>(state), gst_element_state_get_name(current),
                      gst_element_state_get_name(next), gst_element_state_get_name(pending),
                      gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
+
+    if (sink->priv->m_isStateCommitNeeded &&
+        ((state == firebolt::rialto::WebAudioPlayerState::PAUSED && next == GST_STATE_PAUSED) ||
+         (state == firebolt::rialto::WebAudioPlayerState::PLAYING && next == GST_STATE_PLAYING)))
+    {
+        GstState postNext = next == pending ? GST_STATE_VOID_PENDING : pending;
+        GST_STATE(sink) = next;
+        GST_STATE_NEXT(sink) = postNext;
+        GST_STATE_PENDING(sink) = GST_STATE_VOID_PENDING;
+        GST_STATE_RETURN(sink) = GST_STATE_CHANGE_SUCCESS;
+
+        GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
+
+        gst_element_post_message(GST_ELEMENT_CAST(sink),
+                                 gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
+        rialto_web_audio_async_done(sink);
+    }
 }
 
 static void rialto_web_audio_sink_setup_supported_caps(GstElementClass *elementClass)
@@ -134,9 +164,9 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
         if (!sink->priv->m_webAudioClient->isOpen())
         {
             GST_INFO_OBJECT(sink, "Delay playing until the caps are recieved and the player is opened");
-            sink->priv->m_isPlayingAsync = true;
-            gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
+            sink->priv->m_isPlayingDelayed = true;
             result = GST_STATE_CHANGE_ASYNC;
+            rialto_web_audio_async_start(sink);
         }
         else
         {
@@ -144,6 +174,11 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
             {
                 GST_ERROR_OBJECT(sink, "Failed to play web audio");
                 result = GST_STATE_CHANGE_FAILURE;
+            }
+            else
+            {
+                result = GST_STATE_CHANGE_ASYNC;
+                rialto_web_audio_async_start(sink);
             }
         }
         break;
@@ -155,6 +190,11 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
         {
             GST_ERROR_OBJECT(sink, "Failed to pause web audio");
             result = GST_STATE_CHANGE_FAILURE;
+        }
+        else
+        {
+            result = GST_STATE_CHANGE_ASYNC;
+            rialto_web_audio_async_start(sink);
         }
         break;
     }
@@ -216,7 +256,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         {
             GST_ERROR_OBJECT(sink, "Failed to open web audio");
         }
-        else if (sink->priv->m_isPlayingAsync)
+        else if (sink->priv->m_isPlayingDelayed)
         {
             if (!sink->priv->m_webAudioClient->play())
             {
@@ -224,9 +264,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             }
             else
             {
-                sink->priv->m_isPlayingAsync = false;
-                gst_element_post_message(GST_ELEMENT_CAST(sink),
-                                         gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+                sink->priv->m_isPlayingDelayed = false;
                 result = true;
             }
         }
