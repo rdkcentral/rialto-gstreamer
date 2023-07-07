@@ -319,7 +319,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
             bool writeFailure = false;
             GstBuffer *buffer = m_dataBuffers.front();
             gsize bufferSize = gst_buffer_get_size(buffer);
-            auto framesToWrite = std::min(availableFrames, bufferSize / m_frameSize);
+            auto framesToWrite = std::min(availableFrames, static_cast<uint32_t>(bufferSize / m_frameSize));
             if (framesToWrite > 0)
             {
                 GstMapInfo bufferMap;
