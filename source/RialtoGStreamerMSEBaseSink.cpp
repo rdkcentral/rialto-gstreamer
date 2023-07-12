@@ -367,6 +367,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
             {
                 rialto_mse_base_sink_flush_start(sink);
             }
+#if GST_CHECK_VERSION(1,18,0)
             else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
             {
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
@@ -388,6 +389,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                 }
                 return TRUE;
             }
+#endif
             else
             {
                 GST_WARNING_OBJECT(sink, "Seek with flags 0x%X is not supported", flags);
