@@ -367,7 +367,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
             {
                 rialto_mse_base_sink_flush_start(sink);
             }
-#if GST_CHECK_VERSION(1,18,0)
+#if GST_CHECK_VERSION(1, 18, 0)
             else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
             {
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
