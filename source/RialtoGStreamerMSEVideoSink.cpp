@@ -355,6 +355,8 @@ static void rialto_mse_video_sink_finalize(GObject *object)
     RialtoMSEVideoSinkPrivate *priv = sink->priv;
 
     priv->~RialtoMSEVideoSinkPrivate();
+
+    GST_CALL_PARENT(G_OBJECT_CLASS, finalize, (object));
 }
 
 static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
