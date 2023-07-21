@@ -326,9 +326,19 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
 
     if (sink->priv->m_mediaPlayerManager.hasControl())
     {
+        GstState current = GST_STATE(sink);
+
         // this will force sink's async transition to paused state and make that pipeline will need to
         // wait for RialtoServer's preroll after seek
         rialto_mse_base_sink_lost_state(sink);
+
+        // Pause rialto server so that the state of the sinks and server are syncronised.
+        // The pipeline will re-initiate the playing state on seek is complete.
+        if (GST_STATE_PLAYING == current)
+        {
+            GST_INFO_OBJECT(sink, "The server is in the Playing state, pause the pipeline on seek");
+            client->pause();
+        }
 
         std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
         GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->m_lastSegment.start));
