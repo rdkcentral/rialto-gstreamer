@@ -45,9 +45,9 @@ add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 if( NOT CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
     add_subdirectory(source)
 else() # UnitTests
-    # include( cmake/googletest.cmake )
+    include( cmake/googletest.cmake )
 
-    # add_subdirectory( tests/third-party EXCLUDE_FROM_ALL )
-    # add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
-    # add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
+    add_subdirectory( tests/third-party EXCLUDE_FROM_ALL )
+    add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
+    add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
 endif()
