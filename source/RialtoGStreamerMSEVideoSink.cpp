@@ -349,21 +349,10 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
                                                   std::placeholders::_1, std::placeholders::_2);
 }
 
-static void rialto_mse_video_sink_finalize(GObject *object)
-{
-    RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
-    RialtoMSEVideoSinkPrivate *priv = sink->priv;
-
-    priv->~RialtoMSEVideoSinkPrivate();
-
-    GST_CALL_PARENT(G_OBJECT_CLASS, finalize, (object));
-}
-
 static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 {
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
-    gobjectClass->finalize = rialto_mse_video_sink_finalize;
     gobjectClass->get_property = rialto_mse_video_sink_get_property;
     gobjectClass->set_property = rialto_mse_video_sink_set_property;
     elementClass->change_state = rialto_mse_video_sink_change_state;
