@@ -20,6 +20,7 @@
 #include "WebAudioClientBackendInterface.h"
 #include <IWebAudioPlayer.h>
 #include <IWebAudioPlayerClient.h>
+#include <gst/gst.h>
 #include <memory>
 
 namespace firebolt::rialto::client

@@ -71,6 +71,7 @@ add_gtests (
         # gtest code
         ControlBackendTests.cpp
         MediaPlayerClientBackendTests.cpp
+        WebAudioClientBackendTests.cpp
         )
 
 target_include_directories(
