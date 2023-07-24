@@ -20,7 +20,7 @@
 
 #include "MediaPlayerClientBackendInterface.h"
 #include <IMediaPipeline.h>
-
+#include <gst/gst.h>
 #include <memory>
 
 namespace firebolt::rialto::client
