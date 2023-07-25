@@ -56,7 +56,6 @@ public:
     void stop();
     bool requestPullBuffer(int sourceId, size_t frameCount, unsigned int needDataRequestId,
                            GStreamerMSEMediaPlayerClient *player);
-    void clearQueue();
 
 private:
     MessageQueue m_queue;
@@ -201,8 +200,6 @@ public:
 
     void getPositionDo(int64_t *position);
     int64_t getPosition();
-    void getDurationDo(int64_t *duration);
-    int64_t getDuration();
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);

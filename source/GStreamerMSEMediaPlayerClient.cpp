@@ -133,18 +133,6 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition()
     return position;
 }
 
-void GStreamerMSEMediaPlayerClient::getDurationDo(int64_t *duration)
-{
-    *duration = m_duration;
-}
-
-int64_t GStreamerMSEMediaPlayerClient::getDuration()
-{
-    int64_t duration;
-    m_backendQueue.callInEventLoop(&GStreamerMSEMediaPlayerClient::getDurationDo, this, &duration);
-    return duration;
-}
-
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;
@@ -631,11 +619,6 @@ bool BufferPuller::requestPullBuffer(int sourceId, size_t frameCount, unsigned i
 {
     return m_queue.postMessage(std::make_shared<PullBufferMessage>(sourceId, frameCount, needDataRequestId,
                                                                    m_rialtoSink, m_bufferParser, m_queue, player));
-}
-
-void BufferPuller::clearQueue()
-{
-    m_queue.clear();
 }
 
 HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId,
