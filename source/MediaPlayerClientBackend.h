@@ -79,7 +79,7 @@ public:
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
-               const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment)
+               const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment) override
     {
         return m_mediaPlayerBackend->addSegment(needDataRequestId, mediaSegment);
     }
@@ -88,13 +88,13 @@ public:
 
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
-    bool setVolume(double volume) { return m_mediaPlayerBackend->setVolume(volume); }
+    bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }
 
-    bool getVolume(double &volume) { return m_mediaPlayerBackend->getVolume(volume); }
+    bool getVolume(double &volume) override { return m_mediaPlayerBackend->getVolume(volume); }
 
-    bool setMute(bool mute) { return m_mediaPlayerBackend->setMute(mute); }
+    bool setMute(bool mute) override { return m_mediaPlayerBackend->setMute(mute); }
 
-    bool getMute(bool &mute) { return m_mediaPlayerBackend->getMute(mute); }
+    bool getMute(bool &mute) override { return m_mediaPlayerBackend->getMute(mute); }
 
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;

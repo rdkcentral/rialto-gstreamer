@@ -69,7 +69,7 @@ class HaveDataMessage : public Message
 public:
     HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId, unsigned int needDataRequestId,
                     GStreamerMSEMediaPlayerClient *player);
-    void handle();
+    void handle() override;
 
 private:
     firebolt::rialto::MediaSourceStatus m_status;
@@ -84,7 +84,7 @@ public:
     PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId, GstElement *rialtoSink,
                       const std::shared_ptr<BufferParser> &bufferParser, MessageQueue &pullerQueue,
                       GStreamerMSEMediaPlayerClient *player);
-    void handle();
+    void handle() override;
 
 private:
     int m_sourceId;
@@ -101,7 +101,7 @@ class NeedDataMessage : public Message
 public:
     NeedDataMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
                     GStreamerMSEMediaPlayerClient *player);
-    void handle();
+    void handle() override;
 
 private:
     int m_sourceId;
@@ -114,7 +114,7 @@ class PlaybackStateMessage : public Message
 {
 public:
     PlaybackStateMessage(firebolt::rialto::PlaybackState state, GStreamerMSEMediaPlayerClient *player);
-    void handle();
+    void handle() override;
 
 private:
     firebolt::rialto::PlaybackState m_state;
@@ -125,7 +125,7 @@ class QosMessage : public Message
 {
 public:
     QosMessage(int sourceId, firebolt::rialto::QosInfo qosInfo, GStreamerMSEMediaPlayerClient *player);
-    void handle();
+    void handle() override;
 
 private:
     int m_sourceId;
@@ -137,7 +137,7 @@ class BufferUnderflowMessage : public Message
 {
 public:
     BufferUnderflowMessage(int sourceId, GStreamerMSEMediaPlayerClient *player);
-    void handle();
+    void handle() override;
 
 private:
     int m_sourceId;

@@ -41,7 +41,7 @@ public:
         : m_func(func), m_callInEventLoopMutex(callInEventLoopMutex), m_callInEventLoopCondVar(callInEventLoopCondVar)
     {
     }
-    void handle()
+    void handle() override
     {
         std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
         m_func();
@@ -174,7 +174,7 @@ public:
         : m_newPosition(newPosition), m_targetPosition(targetPosition)
     {
     }
-    void handle() { m_targetPosition = m_newPosition; }
+    void handle() override { m_targetPosition = m_newPosition; }
 
 private:
     int64_t m_newPosition;
@@ -188,7 +188,7 @@ public:
         : m_newDuration(newDuration), m_targetDuration(targetDuration)
     {
     }
-    void handle() { m_targetDuration = m_newDuration; }
+    void handle() override { m_targetDuration = m_newDuration; }
 
 private:
     int64_t m_newDuration;

@@ -223,11 +223,16 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
 static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
-    RialtoMSEVideoSinkPrivate *priv = sink->priv;
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!sink || !basePriv)
+    if (!sink)
     {
         GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+    RialtoMSEVideoSinkPrivate *priv = sink->priv;
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    if (!priv || !basePriv)
+    {
+        GST_ERROR_OBJECT(object, "Private Sink not initalised");
         return;
     }
 
@@ -269,11 +274,16 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
 static void rialto_mse_video_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(object);
-    RialtoMSEVideoSinkPrivate *priv = sink->priv;
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!sink || !basePriv)
+    if (!sink)
     {
         GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+    RialtoMSEVideoSinkPrivate *priv = sink->priv;
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    if (!priv || !basePriv)
+    {
+        GST_ERROR_OBJECT(object, "Private sink not initalised");
         return;
     }
 

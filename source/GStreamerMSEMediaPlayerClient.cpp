@@ -20,6 +20,7 @@
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -296,12 +297,10 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
                 return;
             }
 
-            for (const auto &source : m_attachedSources)
+            if (std::any_of(m_attachedSources.begin(), m_attachedSources.end(),
+                            [](const auto &source) { return source.second.m_seekingState != SeekingState::SEEKING; }))
             {
-                if (source.second.m_seekingState != SeekingState::SEEKING)
-                {
-                    return;
-                }
+                return;
             }
 
             GST_INFO("Server and all attached sourced finished seek");

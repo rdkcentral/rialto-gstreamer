@@ -4,6 +4,11 @@
         <id>missingInclude</id>
     </suppress>
     <suppress>
+        <!-- MATCHER_P , symbol name doesn't work -->
+        <id>syntaxError</id>
+    </suppress>
+    <!-- Unused function suppressions - try to remove them after writing unit test -->
+    <suppress>
         <id>unusedFunction</id>
         <symbolName>rialto_web_audio_sink_init</symbolName>
     </suppress>
