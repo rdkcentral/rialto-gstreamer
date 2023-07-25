@@ -1,7 +1,7 @@
 # rialto-gstreamer
 
 ## Project webpage:
-https://rdkcentral.github.io/rialto-ocdm/
+https://rdkcentral.github.io/rialto-gstreamer/
 
 ## Coding Guidelines:
 https://wiki.rdkcentral.com/display/ASP/Rialto+Coding+Guidelines
