@@ -38,9 +38,10 @@ typedef struct _RialtoWebAudioSinkPrivate RialtoWebAudioSinkPrivate;
 
 struct _RialtoWebAudioSinkPrivate
 {
-    std::shared_ptr<GStreamerWebAudioPlayerClient> mWebAudioClient;
-    std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> mRialtoControlClient;
-    bool mIsPlayingAsync = false;
+    std::shared_ptr<GStreamerWebAudioPlayerClient> m_webAudioClient;
+    std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
+    bool m_isPlayingDelayed{false};
+    std::atomic<bool> m_isStateCommitNeeded{false};
 };
 
 struct _RialtoWebAudioSink

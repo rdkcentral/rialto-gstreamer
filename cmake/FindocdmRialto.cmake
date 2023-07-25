@@ -21,7 +21,7 @@
 #  RIALTOOCDM_INCLUDE_DIRS
 #  RIALTOOCDM_LIBRARY_DIRS
 #  RIALTOOCDM_LIBRARIES
-find_path( RIALTOOCDM_INCLUDE_DIR NAMES open_cdm.h PATH_SUFFIXES opencdm)
+find_path( RIALTOOCDM_INCLUDE_DIR NAMES RialtoGStreamerEMEProtectionMetadata.h PATH_SUFFIXES rialto)
 if (NOT NATIVE_BUILD )
     find_library( RIALTOOCDM_LIBRARY NAMES libocdmRialto.so ocdmRialto )
 else()

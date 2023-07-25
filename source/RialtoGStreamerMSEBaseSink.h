@@ -72,8 +72,8 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element);
 firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(RialtoMSEBaseSink *sink,
                                                                               const GstStructure *s);
-std::shared_ptr<std::vector<std::uint8_t>> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
-                                                                               const GstStructure *structure);
+std::shared_ptr<firebolt::rialto::CodecData> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
+                                                                                 const GstStructure *structure);
 firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink,
                                                                       const GstStructure *structure);
 bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStructure *s, uint32_t &dvProfile);

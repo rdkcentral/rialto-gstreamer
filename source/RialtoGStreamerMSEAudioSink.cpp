@@ -79,9 +79,9 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         else
         {
-            std::lock_guard<std::mutex> lock(priv->mSinkMutex);
+            std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
             audioStreams = priv->m_numOfStreams;
-            isAudioOnly = priv->mIsSinglePathStream;
+            isAudioOnly = priv->m_isSinglePathStream;
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = priv->m_mediaPlayerManager.getMediaPlayerClient();
@@ -119,7 +119,7 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
 
     firebolt::rialto::AudioConfig audioConfig;
     firebolt::rialto::SegmentAlignment alignment = rialto_mse_base_sink_get_segment_alignment(sink, structure);
-    std::shared_ptr<std::vector<std::uint8_t>> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
+    std::shared_ptr<firebolt::rialto::CodecData> codecData = rialto_mse_base_sink_get_codec_data(sink, structure);
     firebolt::rialto::StreamFormat format = rialto_mse_base_sink_get_stream_format(sink, structure);
     std::string mimeType;
 
@@ -206,7 +206,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
-        if (basePriv->mSourceAttached)
+        if (basePriv->m_sourceAttached)
         {
             GST_INFO_OBJECT(sink, "Source already attached. Skip calling attachSource");
             break;
@@ -226,7 +226,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             }
             else
             {
-                basePriv->mSourceAttached = true;
+                basePriv->m_sourceAttached = true;
             }
         }
         else
@@ -346,11 +346,11 @@ static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)
         return;
     }
 
-    gst_pad_set_chain_function(priv->mSinkPad, rialto_mse_base_sink_chain);
-    gst_pad_set_event_function(priv->mSinkPad, rialto_mse_audio_sink_event);
+    gst_pad_set_chain_function(priv->m_sinkPad, rialto_mse_base_sink_chain);
+    gst_pad_set_event_function(priv->m_sinkPad, rialto_mse_audio_sink_event);
 
-    priv->mCallbacks.qosCallback = std::bind(rialto_mse_audio_sink_qos_handle, GST_ELEMENT_CAST(sink),
-                                             std::placeholders::_1, std::placeholders::_2);
+    priv->m_callbacks.qosCallback = std::bind(rialto_mse_audio_sink_qos_handle, GST_ELEMENT_CAST(sink),
+                                              std::placeholders::_1, std::placeholders::_2);
 }
 
 static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)

@@ -48,21 +48,21 @@ class ControlBackend final : public ControlBackendInterface
     };
 
 public:
-    ControlBackend() : mRialtoClientState{ApplicationState::UNKNOWN}
+    ControlBackend() : m_rialtoClientState{ApplicationState::UNKNOWN}
     {
-        mControlClient = std::make_shared<ControlClient>(*this);
-        if (!mControlClient)
+        m_controlClient = std::make_shared<ControlClient>(*this);
+        if (!m_controlClient)
         {
             GST_ERROR("Unable to create control client");
             return;
         }
-        mControl = IControlFactory::createFactory()->createControl();
-        if (!mControl)
+        m_control = IControlFactory::createFactory()->createControl();
+        if (!m_control)
         {
             GST_ERROR("Unable to create control");
             return;
         }
-        if (!mControl->registerClient(mControlClient, mRialtoClientState))
+        if (!m_control->registerClient(m_controlClient, m_rialtoClientState))
         {
             GST_ERROR("Unable to register client");
             return;
@@ -71,18 +71,18 @@ public:
 
     ~ControlBackend() final { removeControlBackend(); }
 
-    void removeControlBackend() override { mControl.reset(); }
+    void removeControlBackend() override { m_control.reset(); }
 
     bool waitForRunning() override
     {
-        std::unique_lock<std::mutex> lock{mMutex};
-        if (ApplicationState::RUNNING == mRialtoClientState)
+        std::unique_lock<std::mutex> lock{m_mutex};
+        if (ApplicationState::RUNNING == m_rialtoClientState)
         {
             return true;
         }
-        mStateCv.wait_for(lock, std::chrono::seconds{1},
-                          [&]() { return mRialtoClientState == ApplicationState::RUNNING; });
-        return ApplicationState::RUNNING == mRialtoClientState;
+        m_stateCv.wait_for(lock, std::chrono::seconds{1},
+                           [&]() { return m_rialtoClientState == ApplicationState::RUNNING; });
+        return ApplicationState::RUNNING == m_rialtoClientState;
     }
 
 private:
@@ -90,16 +90,16 @@ private:
     {
         GST_INFO("Rialto Client application state changed to: %s",
                  state == ApplicationState::RUNNING ? "Active" : "Inactive/Unknown");
-        std::unique_lock<std::mutex> lock{mMutex};
-        mRialtoClientState = state;
-        mStateCv.notify_one();
+        std::unique_lock<std::mutex> lock{m_mutex};
+        m_rialtoClientState = state;
+        m_stateCv.notify_one();
     }
 
 private:
-    ApplicationState mRialtoClientState;
-    std::shared_ptr<ControlClient> mControlClient;
-    std::shared_ptr<IControl> mControl;
-    std::mutex mMutex;
-    std::condition_variable mStateCv;
+    ApplicationState m_rialtoClientState;
+    std::shared_ptr<ControlClient> m_controlClient;
+    std::shared_ptr<IControl> m_control;
+    std::mutex m_mutex;
+    std::condition_variable m_stateCv;
 };
 } // namespace firebolt::rialto::client

@@ -21,68 +21,33 @@ project( gstrialtosinks LANGUAGES C CXX VERSION 1.0 )
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 add_compile_options(-Wall -Werror)
 
-# RIALTO-197: deprecated-declarations error in the latest stable2 for gstreamer.
-# Should be removed once the issue is fixed.
-add_compile_options(
-  "-Wno-deprecated-declarations"
-)
-
-find_package(Rialto 1.0 REQUIRED)
-find_package(ocdmRialto 1.0 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0 gstreamer-pbutils-1.0 gstreamer-audio-1.0)
 
-add_library(gstrialtosinks
+# Retrieve the commit ID
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
+    RESULT_VARIABLE RESULT 
+    OUTPUT_VARIABLE COMMIT_ID 
+    OUTPUT_STRIP_TRAILING_WHITESPACE 
+)
 
-        SHARED
-        source/RialtoGStreamerMSEVideoSink.cpp
-        source/RialtoGStreamerMSEAudioSink.cpp
-        source/RialtoGStreamerWebAudioSink.cpp
-        source/GStreamerUtils.cpp
-        source/GStreamerEMEUtils.cpp
-        source/GStreamerMSEUtils.cpp
-        source/GStreamerMSEMediaPlayerClient.cpp
-        source/GStreamerWebAudioPlayerClient.cpp
-        source/RialtoGSteamerPlugin.cpp
-        source/RialtoGStreamerMSEBaseSink.cpp
-        source/MediaPlayerManager.cpp
-        source/Timer.cpp
-        source/BufferParser.cpp
-        )
+if(RESULT)
+    message("Failed to get git commit ID: ${RESULT}")
+endif()
 
-target_include_directories(gstrialtosinks
-        PUBLIC
-        $<INSTALL_INTERFACE:include/rialto>
+# Preprocesser Variable
+add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
-        PRIVATE
-        ${RIALTO_INCLUDE_DIR}
-        ${RIALTOOCDM_INCLUDE_DIR}
-        ${GSTREAMER_APP_INCLUDE_DIRS}
-        )
+# Config and target for building the unit tests
+if( NOT CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
+    add_subdirectory(source)
+else() # UnitTests
+    include( cmake/googletest.cmake )
 
-target_link_libraries(gstrialtosinks
-        PUBLIC
-        ${GSTREAMER_APP_LIBRARIES}
-
-        PRIVATE
-	Rialto::ocdmRialto
-        Rialto::RialtoClient
-        Threads::Threads
-        )
-
-#needed by GST_PLUGIN_DEFINE
-target_compile_options(gstrialtosinks
-        PRIVATE
-        -DPACKAGE="gstrialtosinks"
-        -DVERSION="1.0"
-        )
-
-set_target_properties(gstrialtosinks
-        PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
-        )
-
-install(
-       TARGETS gstrialtosinks
-       DESTINATION lib/gstreamer-1.0
-       )
+    add_subdirectory( tests/third-party EXCLUDE_FROM_ALL )
+    add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
+    add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
+endif()
