@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<suppressions>
+    <suppress>
+        <id>missingInclude</id>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>rialto_web_audio_sink_init</symbolName>
+    </suppress>
+</suppressions>
