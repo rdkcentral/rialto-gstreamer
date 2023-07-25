@@ -76,6 +76,8 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         {
             audioStreams = n_audio;
             isAudioOnly = n_video == 0;
+            GST_INFO_OBJECT(element, "There are %u audio streams and isAudioOnly value is %s", n_audio,
+                            isAudioOnly ? "'true'" : "'false'");
         }
         else
         {

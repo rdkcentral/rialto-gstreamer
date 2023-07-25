@@ -82,6 +82,8 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         {
             videoStreams = n_video;
             isVideoOnly = n_audio == 0;
+            GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
+                            isVideoOnly ? "'true'" : "'false'");
         }
         else
         {
