@@ -1,0 +1,125 @@
+#
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2023 Sky UK
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This workflow builds and runs the rialto-gstreamer unittests with valgrind to check for memory leaks.
+# The workflow shall fail if leaks are detected and the results are summarized in github.
+# Logs are uploaded on failure.
+
+name: valgrind_ut
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "master" branch
+  push:
+    branches: [ "master", "rdkcentral:master" ]
+  pull_request:
+    branches: [ "master", "rdkcentral:master" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This job sets up the repo with the dependancies then runs the tests with valgrind
+  valgrind-test:
+    name: Build and test build_ut with valgrind
+    # Runs on ubuntu
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04 ]
+
+    # Timeout after
+    timeout-minutes: 60
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout repo
+        uses: actions/checkout@v3
+
+      # Apt update
+      - name: Apt update
+        run: |
+          sudo apt-get update
+
+      # Setup github for python 3.8
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      # Add misc package dependencies
+      - name: install dependencies
+        run: sudo apt-get install libc6-dbg
+
+      # Setup gstreamer 1.0
+      - name: Build gstreamer library
+        run: |
+          sudo apt-get install libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+
+      - name: Install valgrind library
+        run: |
+          sudo apt-get install valgrind
+
+      # Run the build script with valgrind
+      - name: Run unittests with valgrind
+        run: |
+              python build_ut.py -c -xml -f -val
+
+      # Process the valgrind results and create a csv
+      - name: Process valgrind results
+        id: create-valgrind-csv
+        if: success() || failure()
+        run: python scripts/valgrind/process_valgrind_results.py
+
+      # Read the valgrind results csv file
+      - name: Read the valgrind results csv
+        uses: juliangruber/read-file-action@v1
+        id: csv-memory
+        if: success() || failure()
+        with:
+          path: ./valgrind_report.csv
+
+      # Create results table for valgrind results
+      - name: Create results table
+        uses: petems/csv-to-md-table-action@master
+        id: results-table-output
+        if: success() || failure()
+        with:
+          csvinput: ${{ steps.csv-memory.outputs.content }}
+
+      # Add table to the summery
+      - name: Create results table
+        if: failure()
+        run: |
+          echo "Summary of the valgrind failures" >> $GITHUB_STEP_SUMMARY
+          echo "${{steps.results-table-output.outputs.markdown-table}}" >> $GITHUB_STEP_SUMMARY
+
+      # Upload logs on failure
+      - name: Upload logs
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: logs
+          path: |
+            gtest_result.log
+            build/*valgrind_report.xml
+

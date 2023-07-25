@@ -1,4 +1,10 @@
-/build*
+/build/*
 /cmake-build-*
 /clang-format_errors.log
 /clang-format_errors.xml
+/tests/third-party/include*
+/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp
+/gtest_result.log
+/valgrind_report.log
+/valgrind_report.csv
+/cppcheck_report.txt

@@ -33,6 +33,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <queue>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <thread>
@@ -137,15 +138,6 @@ private:
     void pushSamples();
 
     /**
-     * @brief Get the data from the new sample.
-     *
-     * @param[in] buf : The new buffer to be added.
-     *
-     * @retval true on success, false otherwise.
-     */
-    bool getNextBufferData(GstBuffer *buf);
-
-    /**
      * @brief Checks the config against that previously stored in the object.
      *
      * @retval true if this is a new config.
@@ -155,22 +147,22 @@ private:
     /**
      * @brief Backend message queue.
      */
-    MessageQueue mBackendQueue;
+    MessageQueue m_backendQueue;
 
     /**
      * @brief The web audio client backend interface.
      */
-    std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> mClientBackend;
+    std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> m_clientBackend;
 
     /**
      * @brief Whether the web audio backend is currently open.
      */
-    std::atomic<bool> mIsOpen;
+    std::atomic<bool> m_isOpen;
 
     /**
-     * @brief Vector to store the sample data.
+     * @brief Vector to store the gst sample buffers.
      */
-    std::vector<uint8_t> mSampleDataBuffer;
+    std::queue<GstBuffer *> m_dataBuffers;
 
     /**
      * @brief The push samples timer.
