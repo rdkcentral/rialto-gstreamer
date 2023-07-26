@@ -117,6 +117,10 @@
         <symbolName>setVideoStreamsInfo</symbolName>
     </suppress>
     <suppress>
+        <!-- unusedFunction causes some problems with gstreamer - sometimes wrong results -->
+        <id>unmatchedSuppression</id>
+    </suppress>
+    <suppress>
         <!-- Macro symbols do not work :( -->
         <id>unknownMacro</id>
     </suppress>
