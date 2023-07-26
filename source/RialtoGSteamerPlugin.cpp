@@ -34,7 +34,8 @@ static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
         GST_WARNING("Failed to get git commit ID.");
     }
 
-    guint sinkRank = 0;
+    const char *sinkRankStr = getenv("RIALTO_SOCKET_PATH");
+    guint sinkRank = sinkRankStr ? GST_RANK_PRIMARY + 100 : 0;
 
     const char *sinkRankStr = getenv("RIALTO_SINKS_RANK");
     if (sinkRankStr)
