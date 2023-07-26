@@ -62,38 +62,62 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>rialto_mse_audio_sink_class_init</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>rialto_mse_audio_sink_init</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>rialto_mse_base_sink_class_init</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>rialto_mse_base_sink_init</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>rialto_mse_protection_metadata_get_info</symbolName>
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>rialto_mse_video_sink_class_init</symbolName>
+        <symbolName>attachMediaPlayerClient</symbolName>
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>rialto_mse_video_sink_init</symbolName>
+        <symbolName>close</symbolName>
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>rialto_web_audio_sink_class_init</symbolName>
+        <symbolName>getMediaPlayerClient</symbolName>
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>rialto_web_audio_sink_init</symbolName>
+        <symbolName>getVideoRectangle</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>hasControl</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>isOpen</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>notifyNewSample</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>notifySourceStartedSeeking</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>open</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>rialto_mse_sink_setup_supported_caps</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>setAudioStreamsInfo</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>setVideoRectangle</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>setVideoStreamsInfo</symbolName>
+    </suppress>
+    <suppress>
+        <!-- Macro symbols do not work :( -->
+        <id>unknownMacro</id>
     </suppress>
 </suppressions>

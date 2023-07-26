@@ -432,7 +432,7 @@ void GStreamerMSEMediaPlayerClient::setVolume(double volume)
 
 double GStreamerMSEMediaPlayerClient::getVolume()
 {
-    double volume;
+    double volume{0.0};
     m_backendQueue.callInEventLoop(
         [&]()
         {
@@ -455,7 +455,7 @@ void GStreamerMSEMediaPlayerClient::setMute(bool mute)
 
 bool GStreamerMSEMediaPlayerClient::getMute()
 {
-    bool mute;
+    bool mute{false};
     m_backendQueue.callInEventLoop(
         [&]()
         {
