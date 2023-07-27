@@ -36,22 +36,25 @@ public:
 class CallInEventLoopMessage : public Message
 {
 public:
-    CallInEventLoopMessage(const std::function<void()> &func, std::mutex &callInEventLoopMutex,
-                           std::condition_variable &callInEventLoopCondVar)
-        : m_func(func), m_callInEventLoopMutex(callInEventLoopMutex), m_callInEventLoopCondVar(callInEventLoopCondVar)
-    {
-    }
-    void handle()
+    explicit CallInEventLoopMessage(const std::function<void()> &func) : m_func(func), m_done{false} {}
+    void handle() override
     {
         std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
         m_func();
+        m_done = true;
         m_callInEventLoopCondVar.notify_all();
+    }
+    void wait()
+    {
+        std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
+        m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
     }
 
 private:
     const std::function<void()> m_func;
-    std::mutex &m_callInEventLoopMutex;
-    std::condition_variable &m_callInEventLoopCondVar;
+    std::mutex m_callInEventLoopMutex;
+    std::condition_variable m_callInEventLoopCondVar;
+    bool m_done;
 };
 
 class MessageQueue
@@ -135,16 +138,12 @@ public:
     {
         if (std::this_thread::get_id() != m_workerThread.get_id())
         {
-            std::mutex callInEventLoopMutex;
-            std::unique_lock<std::mutex> lock(callInEventLoopMutex);
-            std::condition_variable callInEventLoopCondVar;
-
-            if (!postMessage(std::make_shared<CallInEventLoopMessage>(func, callInEventLoopMutex, callInEventLoopCondVar)))
+            auto message = std::make_shared<CallInEventLoopMessage>(func);
+            if (!postMessage(message))
             {
                 return false;
             }
-
-            callInEventLoopCondVar.wait(lock);
+            message->wait();
         }
         else
         {
@@ -174,7 +173,7 @@ public:
         : m_newPosition(newPosition), m_targetPosition(targetPosition)
     {
     }
-    void handle() { m_targetPosition = m_newPosition; }
+    void handle() override { m_targetPosition = m_newPosition; }
 
 private:
     int64_t m_newPosition;
@@ -188,7 +187,7 @@ public:
         : m_newDuration(newDuration), m_targetDuration(targetDuration)
     {
     }
-    void handle() { m_targetDuration = m_newDuration; }
+    void handle() override { m_targetDuration = m_newDuration; }
 
 private:
     int64_t m_newDuration;

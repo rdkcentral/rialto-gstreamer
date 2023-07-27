@@ -29,7 +29,7 @@ class WebAudioClientBackend final : public WebAudioClientBackendInterface
 {
 public:
     WebAudioClientBackend() : m_webAudioPlayerBackend(nullptr) {}
-    ~WebAudioClientBackend() final { destroyWebAudioBackend(); }
+    ~WebAudioClientBackend() final { m_webAudioPlayerBackend.reset(); }
 
     bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
                                const uint32_t priority, const WebAudioConfig *config) override
@@ -64,8 +64,8 @@ public:
     {
         return m_webAudioPlayerBackend->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay);
     }
-    bool setVolume(double volume) { return m_webAudioPlayerBackend->setVolume(volume); }
-    bool getVolume(double &volume) { return m_webAudioPlayerBackend->getVolume(volume); }
+    bool setVolume(double volume) override { return m_webAudioPlayerBackend->setVolume(volume); }
+    bool getVolume(double &volume) override { return m_webAudioPlayerBackend->getVolume(volume); }
 
 private:
     std::unique_ptr<IWebAudioPlayer> m_webAudioPlayerBackend;

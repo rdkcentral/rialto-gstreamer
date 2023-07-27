@@ -152,12 +152,12 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             guint32 sample_rate = 48000;
             guint8 number_of_channels, streams, stereo_streams, channel_mapping_family;
             guint8 channel_mapping[256];
-            GstBuffer *id_header;
             guint16 pre_skip = 0;
             gint16 gain = 0;
             if (gst_codec_utils_opus_parse_caps(caps, &sample_rate, &number_of_channels, &channel_mapping_family,
                                                 &streams, &stereo_streams, channel_mapping))
             {
+                GstBuffer *id_header;
                 id_header = gst_codec_utils_opus_create_header(sample_rate, number_of_channels, channel_mapping_family,
                                                                streams, stereo_streams, channel_mapping, pre_skip, gain);
                 std::vector<uint8_t> codec_specific_config;
@@ -245,10 +245,15 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
     RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!sink || !basePriv)
+    if (!sink)
     {
         GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    if (!basePriv)
+    {
+        GST_ERROR_OBJECT(object, "RialtoMSEBaseSinkPrivate not initalised");
         return;
     }
 
@@ -287,10 +292,15 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
 static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!sink || !basePriv)
+    if (!sink)
     {
         GST_ERROR_OBJECT(object, "Sink not initalised");
+        return;
+    }
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    if (!basePriv)
+    {
+        GST_ERROR_OBJECT(object, "RialtoMSEBaseSinkPrivate not initalised");
         return;
     }
 

@@ -35,7 +35,7 @@ class ControlBackend final : public ControlBackendInterface
     class ControlClient : public IControlClient
     {
     public:
-        ControlClient(ControlBackend &backend) : mBackend{backend} {}
+        explicit ControlClient(ControlBackend &backend) : mBackend{backend} {}
         ~ControlClient() override = default;
         void notifyApplicationState(ApplicationState state) override
         {
@@ -69,7 +69,7 @@ public:
         }
     }
 
-    ~ControlBackend() final { removeControlBackend(); }
+    ~ControlBackend() final { m_control.reset(); }
 
     void removeControlBackend() override { m_control.reset(); }
 

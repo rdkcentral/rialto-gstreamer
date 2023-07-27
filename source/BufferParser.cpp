@@ -60,12 +60,6 @@ void BufferParser::addProtectionMetadataToSegment(std::unique_ptr<IMediaPipeline
         encryptionFormat = EncryptionFormat::WEBM;
     }
 
-    if (encryptionFormat != EncryptionFormat::CLEAR)
-    {
-        const gchar *originalMediaType = gst_structure_get_string(structure, "original-media-type");
-        mediaType = (originalMediaType == nullptr) ? std::string() : std::string(originalMediaType);
-    }
-
     // For WEBM encrypted sample without partitioning: add subsample which contains only encrypted data.
     // More details: https://www.webmproject.org/docs/webm-encryption/#45-full-sample-encrypted-block-format
     // For CENC see CENC specification, section 9.2
