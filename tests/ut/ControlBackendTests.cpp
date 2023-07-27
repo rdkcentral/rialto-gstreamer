@@ -87,3 +87,12 @@ TEST_F(ControlBackendTests, ShouldFailToWaitForRunning)
     m_sut = std::make_unique<ControlBackend>();
     EXPECT_FALSE(m_sut->waitForRunning());
 }
+
+TEST_F(ControlBackendTests, ShouldRemoveControlBackend)
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    m_sut = std::make_unique<ControlBackend>();
+    m_sut->removeControlBackend();
+}
