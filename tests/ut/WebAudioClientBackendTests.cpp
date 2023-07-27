@@ -72,6 +72,12 @@ TEST_F(WebAudioClientBackendTests, ShouldCreateBackend)
     EXPECT_TRUE(createBackend());
 }
 
+TEST_F(WebAudioClientBackendTests, ShouldDestroyBackend)
+{
+    EXPECT_TRUE(createBackend());
+    m_sut.destroyWebAudioBackend();
+}
+
 TEST_F(WebAudioClientBackendTests, ShouldPlay)
 {
     EXPECT_CALL(*m_playerMock, play()).WillOnce(Return(true));
