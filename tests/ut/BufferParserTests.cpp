@@ -140,6 +140,18 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
     gst_buffer_unref(codecDataBuf);
 }
 
+TEST_F(BufferParserTests, ShouldParseAudioBufferInvalidBufferCodecData)
+{
+    AudioBufferParser parser;
+    GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
+                                        kChannels, "codec_data", GST_TYPE_BUFFER, kCodecDataStr.c_str(), nullptr);
+    buildSample(caps);
+    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    ASSERT_TRUE(segment);
+    EXPECT_FALSE(segment->getCodecData());
+    gst_caps_unref(caps);
+}
+
 TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
 {
     AudioBufferParser parser;
