@@ -58,3 +58,9 @@
    fun:_dl_init
    obj:*/ld-*
 }
+{
+   ignore_gtype_class_ref_leak
+   Memcheck:Leak
+   ...
+   fun:g_type_class_ref
+}
