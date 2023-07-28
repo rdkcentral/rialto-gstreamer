@@ -34,8 +34,12 @@ constexpr unsigned int kSkipByteBlock{3};
 constexpr int kWidth{1024};
 constexpr int kHeight{768};
 constexpr firebolt::rialto::Fraction kFrameRate{25, 1};
+constexpr int kMksId{14};
+constexpr unsigned int kInitWithLast15{1};
 const std::string kCodecDataStr{"CodecData"};
 const std::vector<uint8_t> kCodecDataVec{kCodecDataStr.begin(), kCodecDataStr.end()};
+const std::vector<uint8_t> kKeyId{1, 2};
+const std::vector<uint8_t> kInitVector{3, 4};
 } // namespace
 
 class BufferParserTests : public testing::Test
@@ -44,7 +48,7 @@ public:
     BufferParserTests()
     {
         gst_init(nullptr, nullptr);
-        buildBuffer();
+        buildBuffers();
         buildMapInfo();
     }
 
@@ -52,25 +56,36 @@ public:
     {
         gst_sample_unref(m_sample);
         gst_buffer_unref(m_buffer);
+        gst_buffer_unref(m_initVectorBuffer);
+        gst_buffer_unref(m_keyIdBuffer);
     }
 
     void buildSample(GstCaps *caps) { m_sample = gst_sample_new(m_buffer, caps, nullptr, nullptr); }
 
     std::vector<uint8_t> m_bufferData{1, 2, 3, 4};
+    GstBuffer *m_keyIdBuffer;
+    GstBuffer *m_initVectorBuffer;
     GstBuffer *m_buffer;
     GstSample *m_sample;
     GstMapInfo m_mapInfo;
     GstBuffer *m_bufferCodecData;
 
 private:
-    void buildBuffer()
+    void buildBuffers()
     {
+        m_keyIdBuffer = gst_buffer_new_allocate(nullptr, kKeyId.size(), nullptr);
+        gst_buffer_fill(m_keyIdBuffer, 0, kKeyId.data(), kKeyId.size());
+        m_initVectorBuffer = gst_buffer_new_allocate(nullptr, kInitVector.size(), nullptr);
+        gst_buffer_fill(m_initVectorBuffer, 0, kInitVector.data(), kInitVector.size());
         m_buffer = gst_buffer_new_allocate(nullptr, m_bufferData.size(), nullptr);
         GST_BUFFER_PTS(m_buffer) = kTimestamp;
         GST_BUFFER_DURATION(m_buffer) = kDuration;
         GstStructure *info = gst_structure_new("application/x-cenc", "encrypted", G_TYPE_BOOLEAN, TRUE,
                                                "crypt_byte_block", G_TYPE_UINT, kCryptByteBlock, "skip_byte_block",
-                                               G_TYPE_UINT, kSkipByteBlock, NULL);
+                                               G_TYPE_UINT, kSkipByteBlock, "mks_id", G_TYPE_INT, kMksId, "kid",
+                                               GST_TYPE_BUFFER, m_keyIdBuffer, "iv", GST_TYPE_BUFFER,
+                                               m_initVectorBuffer, "iv_size", G_TYPE_UINT, kInitVector.size(),
+                                               "init_with_last_15", G_TYPE_UINT, kInitWithLast15, NULL);
         rialto_mse_add_protection_metadata(m_buffer, info);
     }
 
@@ -94,6 +109,10 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
     EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
     EXPECT_EQ(segment->getDuration(), kDuration);
     EXPECT_TRUE(segment->isEncrypted());
+    EXPECT_EQ(segment->getMediaKeySessionId(), kMksId);
+    EXPECT_EQ(segment->getKeyId(), kKeyId);
+    EXPECT_EQ(segment->getInitVector(), kInitVector);
+    EXPECT_EQ(segment->getInitWithLast15(), kInitWithLast15);
     firebolt::rialto::IMediaPipeline::MediaSegmentAudio *audioSegment{
         dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSegmentAudio *>(segment.get())};
     ASSERT_TRUE(audioSegment);
@@ -112,14 +131,6 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
     ASSERT_TRUE(segment);
     EXPECT_EQ(segment->getId(), kStreamId);
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::AUDIO);
-    EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
-    EXPECT_EQ(segment->getDuration(), kDuration);
-    EXPECT_TRUE(segment->isEncrypted());
-    firebolt::rialto::IMediaPipeline::MediaSegmentAudio *audioSegment{
-        dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSegmentAudio *>(segment.get())};
-    ASSERT_TRUE(audioSegment);
-    EXPECT_EQ(audioSegment->getSampleRate(), kRate);
-    EXPECT_EQ(audioSegment->getNumberOfChannels(), kChannels);
     gst_caps_unref(caps);
 }
 

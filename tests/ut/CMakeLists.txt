@@ -71,6 +71,8 @@ add_gtests (
         # gtest code
         BufferParserTests.cpp
         ControlBackendTests.cpp
+        GStreamerEmeUtilsTests.cpp
+        GStreamerUtilsTests.cpp
         MediaPlayerClientBackendTests.cpp
         WebAudioClientBackendTests.cpp
         )
