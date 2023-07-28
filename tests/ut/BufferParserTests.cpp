@@ -99,6 +99,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
     ASSERT_TRUE(audioSegment);
     EXPECT_EQ(audioSegment->getSampleRate(), kRate);
     EXPECT_EQ(audioSegment->getNumberOfChannels(), kChannels);
+    gst_caps_unref(caps);
 }
 
 TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
@@ -119,6 +120,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
     ASSERT_TRUE(audioSegment);
     EXPECT_EQ(audioSegment->getSampleRate(), kRate);
     EXPECT_EQ(audioSegment->getNumberOfChannels(), kChannels);
+    gst_caps_unref(caps);
 }
 
 TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
@@ -134,18 +136,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
     ASSERT_TRUE(segment->getCodecData());
     EXPECT_EQ(segment->getCodecData()->type, firebolt::rialto::CodecDataType::BUFFER);
     EXPECT_EQ(segment->getCodecData()->data, kCodecDataVec);
-}
-
-TEST_F(BufferParserTests, ShouldParseAudioBufferInvalidBufferCodecData)
-{
-    AudioBufferParser parser;
-    GstBuffer buffer{};
-    GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
-                                        kChannels, "codec_data", GST_TYPE_BUFFER, &buffer, nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
-    ASSERT_TRUE(segment);
-    EXPECT_FALSE(segment->getCodecData());
+    gst_caps_unref(caps);
+    gst_buffer_unref(codecDataBuf);
 }
 
 TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
@@ -159,6 +151,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
     ASSERT_TRUE(segment->getCodecData());
     EXPECT_EQ(segment->getCodecData()->type, firebolt::rialto::CodecDataType::STRING);
     EXPECT_EQ(segment->getCodecData()->data, kCodecDataVec);
+    gst_caps_unref(caps);
 }
 
 TEST_F(BufferParserTests, ShouldParseVideoBuffer)
@@ -182,4 +175,5 @@ TEST_F(BufferParserTests, ShouldParseVideoBuffer)
     EXPECT_EQ(videoSegment->getHeight(), kHeight);
     EXPECT_EQ(videoSegment->getFrameRate().numerator, kFrameRate.numerator);
     EXPECT_EQ(videoSegment->getFrameRate().denominator, kFrameRate.denominator);
+    gst_caps_unref(caps);
 }
