@@ -116,7 +116,7 @@ void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position)
 {
-    if (m_clientBackend->getPosition(*position))
+    if (m_clientBackend && m_clientBackend->getPosition(*position))
     {
         m_position = *position;
     }
@@ -139,6 +139,12 @@ bool GStreamerMSEMediaPlayerClient::createBackend()
     m_backendQueue.callInEventLoop(
         [&]()
         {
+            if (!m_clientBackend)
+            {
+                GST_ERROR("Client backend is NULL");
+                result = false;
+                return;
+            }
             m_clientBackend->createMediaPlayerBackend(shared_from_this(), m_maxWidth, m_maxHeight);
 
             if (m_clientBackend->isMediaPlayerBackendCreated())

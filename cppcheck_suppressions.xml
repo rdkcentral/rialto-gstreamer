@@ -10,47 +10,7 @@
     <!-- Unused function suppressions - try to remove them after writing unit test -->
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>notifyAudioData</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyBufferUnderflow</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyDuration</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyNativeSize</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyNeedMediaData</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyNetworkState</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyPlaybackState</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyPosition</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyQos</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>notifyState</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyVideoData</symbolName>
     </suppress>
     <suppress>
         <id>unusedFunction</id>
