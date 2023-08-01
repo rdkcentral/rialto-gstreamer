@@ -54,10 +54,6 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>notifySourceStartedSeeking</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>open</symbolName>
     </suppress>
     <suppress>
