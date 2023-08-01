@@ -143,6 +143,28 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
+class SetPositionMessage : public Message
+{
+public:
+    SetPositionMessage(int64_t newPosition, int64_t &targetPosition);
+    void handle() override;
+
+private:
+    int64_t m_newPosition;
+    int64_t &m_targetPosition;
+};
+
+class SetDurationMessage : public Message
+{
+public:
+    SetDurationMessage(int64_t newDuration, int64_t &targetDuration);
+    void handle() override;
+
+private:
+    int64_t m_newDuration;
+    int64_t &m_targetDuration;
+};
+
 enum class SeekingState
 {
     IDLE,
@@ -181,6 +203,7 @@ class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineCli
 
 public:
     GStreamerMSEMediaPlayerClient(
+        std::unique_ptr<IMessageQueue> &&backendQueue,
         const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
         const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();
@@ -237,7 +260,7 @@ public:
 private:
     bool areAllStreamsAttached();
 
-    MessageQueue m_backendQueue;
+    std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
     int64_t m_position;
     int64_t m_duration;
