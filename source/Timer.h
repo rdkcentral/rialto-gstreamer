@@ -48,14 +48,14 @@ public:
      *
      * @param[in] message : The exception message.
      */
-    TimerException(std::string message) : exception(), m_message(message){};
+    explicit TimerException(const std::string &message) : exception(), m_message(message){};
 
     /**
      * @brief The copy constructor
      *
      * @param[in] other : The exception to copy.
      */
-    TimerException(const TimerException &other) : exception() { m_message = other.m_message; };
+    TimerException(const TimerException &other) : exception(), m_message(other.m_message){};
 
     /**
      * @brief The virtual destructor.

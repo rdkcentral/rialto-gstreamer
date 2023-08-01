@@ -228,11 +228,11 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
 
     if (result == GST_STATE_CHANGE_SUCCESS)
     {
-        GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
-        if (G_UNLIKELY(result == GST_STATE_CHANGE_FAILURE))
+        GstStateChangeReturn stateChangeRet = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
+        if (G_UNLIKELY(stateChangeRet == GST_STATE_CHANGE_FAILURE))
         {
             GST_WARNING_OBJECT(sink, "State change failed");
-            return result;
+            return stateChangeRet;
         }
     }
 

@@ -55,7 +55,7 @@ public:
      *
      * @param[in] callbacks : The callbacks for the sink.
      */
-    GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks);
+    explicit GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks);
 
     /**
      * @brief Destructor.

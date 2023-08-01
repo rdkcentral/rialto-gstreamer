@@ -69,7 +69,10 @@ add_gtests (
         GstRialtoUnitTests
 
         # gtest code
+        BufferParserTests.cpp
         ControlBackendTests.cpp
+        GStreamerEmeUtilsTests.cpp
+        GStreamerUtilsTests.cpp
         MediaPlayerClientBackendTests.cpp
         WebAudioClientBackendTests.cpp
         )

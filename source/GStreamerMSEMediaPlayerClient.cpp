@@ -20,6 +20,7 @@
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -130,18 +131,6 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition()
     int64_t position;
     m_backendQueue.callInEventLoop(&GStreamerMSEMediaPlayerClient::getPositionDo, this, &position);
     return position;
-}
-
-void GStreamerMSEMediaPlayerClient::getDurationDo(int64_t *duration)
-{
-    *duration = m_duration;
-}
-
-int64_t GStreamerMSEMediaPlayerClient::getDuration()
-{
-    int64_t duration;
-    m_backendQueue.callInEventLoop(&GStreamerMSEMediaPlayerClient::getDurationDo, this, &duration);
-    return duration;
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()
@@ -296,12 +285,10 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
                 return;
             }
 
-            for (const auto &source : m_attachedSources)
+            if (std::any_of(m_attachedSources.begin(), m_attachedSources.end(),
+                            [](const auto &source) { return source.second.m_seekingState != SeekingState::SEEKING; }))
             {
-                if (source.second.m_seekingState != SeekingState::SEEKING)
-                {
-                    return;
-                }
+                return;
             }
 
             GST_INFO("Server and all attached sourced finished seek");
@@ -445,7 +432,7 @@ void GStreamerMSEMediaPlayerClient::setVolume(double volume)
 
 double GStreamerMSEMediaPlayerClient::getVolume()
 {
-    double volume;
+    double volume{0.0};
     m_backendQueue.callInEventLoop(
         [&]()
         {
@@ -468,7 +455,7 @@ void GStreamerMSEMediaPlayerClient::setMute(bool mute)
 
 bool GStreamerMSEMediaPlayerClient::getMute()
 {
-    bool mute;
+    bool mute{false};
     m_backendQueue.callInEventLoop(
         [&]()
         {
@@ -632,11 +619,6 @@ bool BufferPuller::requestPullBuffer(int sourceId, size_t frameCount, unsigned i
 {
     return m_queue.postMessage(std::make_shared<PullBufferMessage>(sourceId, frameCount, needDataRequestId,
                                                                    m_rialtoSink, m_bufferParser, m_queue, player));
-}
-
-void BufferPuller::clearQueue()
-{
-    m_queue.clear();
 }
 
 HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId,

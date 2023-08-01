@@ -35,7 +35,7 @@ class ControlBackend final : public ControlBackendInterface
     class ControlClient : public IControlClient
     {
     public:
-        ControlClient(ControlBackend &backend) : mBackend{backend} {}
+        explicit ControlClient(ControlBackend &backend) : mBackend{backend} {}
         ~ControlClient() override = default;
         void notifyApplicationState(ApplicationState state) override
         {
@@ -51,25 +51,23 @@ public:
     ControlBackend() : m_rialtoClientState{ApplicationState::UNKNOWN}
     {
         m_controlClient = std::make_shared<ControlClient>(*this);
-        if (!m_controlClient)
+        if (m_controlClient)
         {
-            GST_ERROR("Unable to create control client");
-            return;
-        }
-        m_control = IControlFactory::createFactory()->createControl();
-        if (!m_control)
-        {
-            GST_ERROR("Unable to create control");
-            return;
-        }
-        if (!m_control->registerClient(m_controlClient, m_rialtoClientState))
-        {
-            GST_ERROR("Unable to register client");
-            return;
+            m_control = IControlFactory::createFactory()->createControl();
+            if (!m_control)
+            {
+                GST_ERROR("Unable to create control");
+                return;
+            }
+            if (!m_control->registerClient(m_controlClient, m_rialtoClientState))
+            {
+                GST_ERROR("Unable to register client");
+                return;
+            }
         }
     }
 
-    ~ControlBackend() final { removeControlBackend(); }
+    ~ControlBackend() final { m_control.reset(); }
 
     void removeControlBackend() override { m_control.reset(); }
 

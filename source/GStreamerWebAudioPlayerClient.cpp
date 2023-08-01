@@ -84,8 +84,10 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 } // namespace
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks)
-    : m_isOpen(false), m_pushSamplesTimer(notifyPushSamplesCallback, this, "notifyPushSamplesCallback"), m_isEos(false),
-      m_config({}), m_callbacks(callbacks)
+    : m_backendQueue{}, m_clientBackend{nullptr}, m_isOpen{false}, m_dataBuffers{},
+      m_pushSamplesTimer{notifyPushSamplesCallback, this, "notifyPushSamplesCallback"}, m_preferredFrames{0},
+      m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
+      m_callbacks{callbacks}
 {
     m_backendQueue.start();
     m_clientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
