@@ -19,19 +19,44 @@
 #include "GStreamerWebAudioPlayerClient.h"
 #include "MessageQueueMock.h"
 #include "WebAudioClientBackendMock.h"
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <vector>
 
 using firebolt::rialto::client::WebAudioClientBackendMock;
 using testing::_;
+using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
+using testing::SetArgReferee;
 using testing::StrictMock;
 
 namespace
 {
-void errorCallback(const char *message) {}
-void eosCallback(void) {}
-void stateChangedCallback(firebolt::rialto::WebAudioPlayerState) {}
+class CallbackMock
+{
+public:
+    static CallbackMock &instance()
+    {
+        static CallbackMock callbackMock;
+        return callbackMock;
+    }
+    MOCK_METHOD(void, errorCallback, (const char *message), (const));
+    MOCK_METHOD(void, eosCallback, (), (const));
+    MOCK_METHOD(void, stateChangedCallback, (firebolt::rialto::WebAudioPlayerState), (const));
+};
+void errorCallback(const char *message)
+{
+    CallbackMock::instance().errorCallback(message);
+}
+void eosCallback()
+{
+    CallbackMock::instance().eosCallback();
+}
+void stateChangedCallback(firebolt::rialto::WebAudioPlayerState state)
+{
+    CallbackMock::instance().stateChangedCallback(state);
+}
 constexpr int kRate{12};
 constexpr int kChannels{2};
 const std::string kMimeType{"audio/x-raw"};
@@ -45,6 +70,7 @@ const std::string kFloatFormat{"F12BE"};
 constexpr firebolt::rialto::WebAudioPcmConfig kFloatFormatConfig{kRate, kChannels, 12, true, false, true};
 const std::string kLittleEndian{"U12LE"};
 constexpr firebolt::rialto::WebAudioPcmConfig kLittleEndianFormatConfig{kRate, kChannels, 12, false, false, false};
+const std::vector<uint8_t> kBytes{1, 2, 3, 4, 5, 6, 7, 8};
 MATCHER_P(WebAudioConfigMatcher, config, "")
 {
     return arg && arg->pcm.rate == config.rate && arg->pcm.channels == config.channels &&
@@ -75,6 +101,19 @@ public:
                     f();
                     return true;
                 }));
+    }
+
+    void open()
+    {
+        expectCallInEventLoop();
+        EXPECT_CALL(m_webAudioClientBackendMock,
+                    createWebAudioBackend(_, kMimeType, kPriority, WebAudioConfigMatcher(kSignedFormatConfig)))
+            .WillOnce(Return(true));
+        EXPECT_CALL(m_webAudioClientBackendMock, getDeviceInfo(_, _, _)).WillOnce(Return(true));
+        GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
+                                            kChannels, "format", G_TYPE_STRING, kSignedFormat.c_str(), nullptr);
+        EXPECT_TRUE(m_sut->open(caps));
+        gst_caps_unref(caps);
     }
 
 protected:
@@ -162,14 +201,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithFailedGetDeviceInfo)
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithSignedFormat)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(m_webAudioClientBackendMock,
-                createWebAudioBackend(_, kMimeType, kPriority, WebAudioConfigMatcher(kSignedFormatConfig)))
-        .WillOnce(Return(true));
-    EXPECT_CALL(m_webAudioClientBackendMock, getDeviceInfo(_, _, _)).WillOnce(Return(true));
-    GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
-                                        "format", G_TYPE_STRING, kSignedFormat.c_str(), nullptr);
-    EXPECT_TRUE(m_sut->open(caps));
-    gst_caps_unref(caps);
+    open();
 }
 
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithUnsignedFormat)
@@ -214,28 +246,16 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithLittleEndianFormat)
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToOpenTheSameConfigTwice)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(m_webAudioClientBackendMock,
-                createWebAudioBackend(_, kMimeType, kPriority, WebAudioConfigMatcher(kSignedFormatConfig)))
-        .WillOnce(Return(true));
-    EXPECT_CALL(m_webAudioClientBackendMock, getDeviceInfo(_, _, _)).WillOnce(Return(true));
+    open();
     GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
                                         "format", G_TYPE_STRING, kSignedFormat.c_str(), nullptr);
-    EXPECT_TRUE(m_sut->open(caps));
     EXPECT_FALSE(m_sut->open(caps));
     gst_caps_unref(caps);
 }
 
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenMimeTypeChanged)
 {
-    expectCallInEventLoop();
-    EXPECT_CALL(m_webAudioClientBackendMock,
-                createWebAudioBackend(_, kMimeType, kPriority, WebAudioConfigMatcher(kSignedFormatConfig)))
-        .WillOnce(Return(true));
-    EXPECT_CALL(m_webAudioClientBackendMock, getDeviceInfo(_, _, _)).WillOnce(Return(true));
-    GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
-                                        "format", G_TYPE_STRING, kSignedFormat.c_str(), nullptr);
-    EXPECT_TRUE(m_sut->open(caps));
-    gst_caps_unref(caps);
+    open();
 
     GstCaps *newCaps = gst_caps_new_simple(kMp4MimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                            kChannels, "format", G_TYPE_STRING, kSignedFormat.c_str(), nullptr);
@@ -271,15 +291,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenMimeT
 
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenPcmIsChanged)
 {
-    expectCallInEventLoop();
-    EXPECT_CALL(m_webAudioClientBackendMock,
-                createWebAudioBackend(_, kMimeType, kPriority, WebAudioConfigMatcher(kSignedFormatConfig)))
-        .WillOnce(Return(true));
-    EXPECT_CALL(m_webAudioClientBackendMock, getDeviceInfo(_, _, _)).WillOnce(Return(true));
-    GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
-                                        "format", G_TYPE_STRING, kSignedFormat.c_str(), nullptr);
-    EXPECT_TRUE(m_sut->open(caps));
-    gst_caps_unref(caps);
+    open();
 
     GstCaps *newCaps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                            kChannels, "format", G_TYPE_STRING, kUnsignedFormat.c_str(), nullptr);
@@ -290,4 +302,227 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenPcmIs
     EXPECT_CALL(m_webAudioClientBackendMock, getDeviceInfo(_, _, _)).WillOnce(Return(true));
     EXPECT_TRUE(m_sut->open(newCaps));
     gst_caps_unref(newCaps);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenAgainAfterClose)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, destroyWebAudioBackend());
+    EXPECT_TRUE(m_sut->close());
+    open();
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPlayWhenNotOpened)
+{
+    expectCallInEventLoop();
+    EXPECT_FALSE(m_sut->play());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPlayWhenOperationFails)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, play()).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->play());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPlay)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, play()).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->play());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPauseWhenNotOpened)
+{
+    expectCallInEventLoop();
+    EXPECT_FALSE(m_sut->pause());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPauseWhenOperationFails)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, pause()).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->pause());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPause)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, pause()).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->pause());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToSetEosWhenNotOpened)
+{
+    expectCallInEventLoop();
+    EXPECT_FALSE(m_sut->setEos());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToSetEosWhenOperationFails)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, setEos()).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->setEos());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEos)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, setEos()).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setEos());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEosAndTryPushBuffer)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(false));
+    EXPECT_CALL(m_webAudioClientBackendMock, setEos()).WillRepeatedly(Return(true));
+    EXPECT_TRUE(m_sut->setEos());
+
+    gst_buffer_unref(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotSetEosTwice)
+{
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, setEos()).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setEos());
+    EXPECT_FALSE(m_sut->setEos());
+}
+
+// TODO dodac z push samples tutaj
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotBeOpened)
+{
+    expectCallInEventLoop();
+    EXPECT_FALSE(m_sut->isOpen());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldBeOpened)
+{
+    open();
+    EXPECT_TRUE(m_sut->isOpen());
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenNotOpened)
+{
+    expectCallInEventLoop();
+    m_sut->notifyPushSamplesTimerExpired();
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenGetAvailableBuffersFail)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(false));
+    m_sut->notifyNewSample(buffer);
+
+    gst_buffer_unref(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenThereIsNoBufferAvailable)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+
+    gst_buffer_unref(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldTryPushBufferTwiceWhenTimerExpires)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(false));
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
+
+    gst_buffer_unref(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPushBuffer)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kBytes.size()), Return(true)));
+    EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(2, _)).WillOnce(Return(false));
+    m_sut->notifyNewSample(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPushBuffer)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kBytes.size()), Return(true)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(2, _)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+
+    gst_buffer_unref(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
+        .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
+        .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
+    EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
+        .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
+        .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
+    EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyEos)
+{
+    EXPECT_CALL(CallbackMock::instance(), eosCallback());
+    m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::END_OF_STREAM);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyFailure)
+{
+    EXPECT_CALL(CallbackMock::instance(), errorCallback(_));
+    m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::FAILURE);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyStateChange)
+{
+    EXPECT_CALL(CallbackMock::instance(), stateChangedCallback(firebolt::rialto::WebAudioPlayerState::IDLE));
+    m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::IDLE);
+    EXPECT_CALL(CallbackMock::instance(), stateChangedCallback(firebolt::rialto::WebAudioPlayerState::PLAYING));
+    m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::PLAYING);
+    EXPECT_CALL(CallbackMock::instance(), stateChangedCallback(firebolt::rialto::WebAudioPlayerState::PAUSED));
+    m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::PAUSED);
+}
+
+TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotCallAnyCallbackWhenUnknownStateIsNotified)
+{
+    m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::UNKNOWN);
 }
