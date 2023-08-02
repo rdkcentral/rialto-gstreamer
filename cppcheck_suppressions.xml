@@ -38,10 +38,6 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>getVideoRectangle</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>hasControl</symbolName>
     </suppress>
     <suppress>
@@ -59,18 +55,6 @@
     <suppress>
         <id>unusedFunction</id>
         <symbolName>rialto_mse_sink_setup_supported_caps</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>setAudioStreamsInfo</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>setVideoRectangle</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>setVideoStreamsInfo</symbolName>
     </suppress>
     <suppress>
         <!-- unusedFunction causes some problems with gstreamer - sometimes wrong results -->

@@ -17,7 +17,6 @@
  */
 
 #include "GStreamerWebAudioPlayerClient.h"
-#include "WebAudioClientBackend.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -83,19 +82,20 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 }
 } // namespace
 
-GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks)
-    : m_backendQueue{}, m_clientBackend{nullptr}, m_isOpen{false}, m_dataBuffers{},
-      m_pushSamplesTimer{notifyPushSamplesCallback, this, "notifyPushSamplesCallback"}, m_preferredFrames{0},
-      m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
-      m_callbacks{callbacks}
+GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
+    std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
+    std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks)
+    : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
+      m_dataBuffers{}, m_pushSamplesTimer{notifyPushSamplesCallback, this, "notifyPushSamplesCallback"},
+      m_preferredFrames{0}, m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0},
+      m_mimeType{}, m_config{{}}, m_callbacks{callbacks}
 {
-    m_backendQueue.start();
-    m_clientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
+    m_backendQueue->start();
 }
 
 GStreamerWebAudioPlayerClient::~GStreamerWebAudioPlayerClient()
 {
-    m_backendQueue.stop();
+    m_backendQueue->stop();
 }
 
 bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
@@ -106,7 +106,8 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     std::string audioMimeType = gst_structure_get_name(structure);
     audioMimeType = audioMimeType.substr(0, audioMimeType.find(' '));
-    std::string format = gst_structure_get_string(structure, "format");
+    const gchar *formatCStr{gst_structure_get_string(structure, "format")};
+    std::string format{formatCStr ? formatCStr : ""};
     firebolt::rialto::WebAudioPcmConfig pcm;
     gint tmp;
 
@@ -136,7 +137,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
         return result;
     }
 
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             firebolt::rialto::WebAudioConfig config{pcm};
@@ -180,7 +181,7 @@ bool GStreamerWebAudioPlayerClient::close()
 {
     GST_DEBUG("entry:");
 
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             m_clientBackend->destroyWebAudioBackend();
@@ -196,7 +197,7 @@ bool GStreamerWebAudioPlayerClient::play()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_isOpen)
@@ -217,7 +218,7 @@ bool GStreamerWebAudioPlayerClient::pause()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_isOpen)
@@ -238,7 +239,7 @@ bool GStreamerWebAudioPlayerClient::setEos()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_isOpen && !m_isEos)
@@ -268,14 +269,14 @@ bool GStreamerWebAudioPlayerClient::isOpen()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop([&]() { result = m_isOpen; });
+    m_backendQueue->callInEventLoop([&]() { result = m_isOpen; });
 
     return result;
 }
 
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
-    m_backendQueue.callInEventLoop([&]() { pushSamples(); });
+    m_backendQueue->callInEventLoop([&]() { pushSamples(); });
 }
 
 bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
@@ -283,7 +284,7 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (buf)
