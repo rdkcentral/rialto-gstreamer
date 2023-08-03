@@ -65,6 +65,10 @@
         <symbolName>rialto_mse_sink_setup_supported_caps</symbolName>
     </suppress>
     <suppress>
+        <id>unusedFunction</id>
+        <fileName>source/GStreamerMSEMediaPlayerClient.cpp</fileName>
+    </suppress>
+    <suppress>
         <!-- unusedFunction causes some problems with gstreamer - sometimes wrong results -->
         <id>unmatchedSuppression</id>
     </suppress>
