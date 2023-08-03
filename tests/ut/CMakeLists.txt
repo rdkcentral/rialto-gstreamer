@@ -78,6 +78,7 @@ add_gtests (
         MediaPlayerClientBackendTests.cpp
         MediaPlayerManagerTests.cpp
         MessageQueueTests.cpp
+        TimerTests.cpp
         WebAudioClientBackendTests.cpp
         )
 
