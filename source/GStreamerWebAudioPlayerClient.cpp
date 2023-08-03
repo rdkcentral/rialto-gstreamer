@@ -25,17 +25,6 @@
 
 namespace
 {
-/**
- * @brief The callback called when push sampels timer expires
- *
- * @param[in] vSelf : private user data
- */
-void notifyPushSamplesCallback(void *vSelf)
-{
-    GStreamerWebAudioPlayerClient *self = static_cast<GStreamerWebAudioPlayerClient *>(vSelf);
-    self->notifyPushSamplesTimerExpired();
-}
-
 bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned,
                              bool &isFloat)
 {
@@ -86,9 +75,9 @@ GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
     std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks)
     : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
-      m_dataBuffers{}, m_pushSamplesTimer{notifyPushSamplesCallback, this, "notifyPushSamplesCallback"},
-      m_preferredFrames{0}, m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0},
-      m_mimeType{}, m_config{{}}, m_callbacks{callbacks}
+      m_dataBuffers{}, m_timerFactory{ITimerFactory::getFactory()}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0},
+      m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
+      m_callbacks{callbacks}
 {
     m_backendQueue->start();
 }
@@ -185,7 +174,11 @@ bool GStreamerWebAudioPlayerClient::close()
         [&]()
         {
             m_clientBackend->destroyWebAudioBackend();
-            m_pushSamplesTimer.cancel();
+            if (m_pushSamplesTimer)
+            {
+                m_pushSamplesTimer->cancel();
+                m_pushSamplesTimer.reset();
+            }
             m_isOpen = false;
         });
 
@@ -289,7 +282,11 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
         {
             if (buf)
             {
-                m_pushSamplesTimer.cancel();
+                if (m_pushSamplesTimer)
+                {
+                    m_pushSamplesTimer->cancel();
+                    m_pushSamplesTimer.reset();
+                }
                 m_dataBuffers.push(buf);
                 pushSamples();
                 result = true;
@@ -368,7 +365,8 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     // samples is slow.
     if (m_dataBuffers.size())
     {
-        m_pushSamplesTimer.arm(100);
+        m_pushSamplesTimer =
+            m_timerFactory->createTimer(std::chrono::milliseconds(100), [this]() { notifyPushSamplesTimerExpired(); });
     }
     else if (m_isEos)
     {

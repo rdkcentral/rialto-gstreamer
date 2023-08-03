@@ -167,9 +167,14 @@ private:
     std::queue<GstBuffer *> m_dataBuffers;
 
     /**
+     * @brief The timer factory.
+     */
+    std::shared_ptr<ITimerFactory> m_timerFactory;
+
+    /**
      * @brief The push samples timer.
      */
-    Timer m_pushSamplesTimer;
+    std::unique_ptr<ITimer> m_pushSamplesTimer;
 
     /**
      * @brief The preferred number of frames to be written.
