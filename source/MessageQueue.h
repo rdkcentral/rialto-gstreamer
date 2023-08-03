@@ -72,11 +72,7 @@ public:
 
     void stop() override { doStop(); }
 
-    void clear() override
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue.clear();
-    }
+    void clear() override { doClear(); }
 
     // Wait for a message to appear on the queue.
     std::shared_ptr<Message> waitForMessage() override
@@ -147,7 +143,13 @@ protected:
         if (m_workerThread.joinable())
             m_workerThread.join();
 
-        clear();
+        doClear();
+    }
+
+    void doClear()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_queue.clear();
     }
 
 protected:

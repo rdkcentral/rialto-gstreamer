@@ -73,10 +73,20 @@ Timer::Timer(const std::chrono::milliseconds &timeout, const std::function<void(
 
 Timer::~Timer()
 {
-    cancel();
+    doCancel();
 }
 
 void Timer::cancel()
+{
+    doCancel();
+}
+
+bool Timer::isActive() const
+{
+    return m_active;
+}
+
+void Timer::doCancel()
 {
     m_active = false;
 
@@ -85,9 +95,4 @@ void Timer::cancel()
         m_cv.notify_one();
         m_thread.join();
     }
-}
-
-bool Timer::isActive() const
-{
-    return m_active;
 }

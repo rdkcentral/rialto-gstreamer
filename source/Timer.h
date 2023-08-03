@@ -58,6 +58,9 @@ public:
     bool isActive() const override;
 
 private:
+    void doCancel();
+
+private:
     std::atomic<bool> m_active;
     std::chrono::milliseconds m_timeout;
     std::function<void()> m_callback;
