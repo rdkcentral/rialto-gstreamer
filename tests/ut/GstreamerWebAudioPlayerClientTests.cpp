@@ -18,6 +18,8 @@
 
 #include "GStreamerWebAudioPlayerClient.h"
 #include "MessageQueueMock.h"
+#include "TimerFactoryMock.h"
+#include "TimerMock.h"
 #include "WebAudioClientBackendMock.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -25,6 +27,7 @@
 
 using firebolt::rialto::client::WebAudioClientBackendMock;
 using testing::_;
+using testing::ByMove;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
@@ -71,6 +74,8 @@ constexpr firebolt::rialto::WebAudioPcmConfig kFloatFormatConfig{kRate, kChannel
 const std::string kLittleEndian{"U12LE"};
 constexpr firebolt::rialto::WebAudioPcmConfig kLittleEndianFormatConfig{kRate, kChannels, 12, false, false, false};
 const std::vector<uint8_t> kBytes{1, 2, 3, 4, 5, 6, 7, 8};
+constexpr std::chrono::milliseconds kTimeout{100};
+constexpr auto kTimerType{TimerType::ONE_SHOT};
 MATCHER_P(WebAudioConfigMatcher, config, "")
 {
     return arg && arg->pcm.rate == config.rate && arg->pcm.channels == config.channels &&
@@ -89,7 +94,7 @@ public:
         EXPECT_CALL(m_messageQueueMock, stop());
         WebAudioSinkCallbacks callbacks{errorCallback, eosCallback, stateChangedCallback};
         m_sut = std::make_shared<GStreamerWebAudioPlayerClient>(std::move(m_webAudioClientBackend),
-                                                                std::move(m_messageQueue), callbacks);
+                                                                std::move(m_messageQueue), callbacks, m_timerFactoryMock);
     }
 
     void expectCallInEventLoop()
@@ -122,6 +127,7 @@ protected:
     StrictMock<WebAudioClientBackendMock> &m_webAudioClientBackendMock{*m_webAudioClientBackend};
     std::unique_ptr<StrictMock<MessageQueueMock>> m_messageQueue{std::make_unique<StrictMock<MessageQueueMock>>()};
     StrictMock<MessageQueueMock> &m_messageQueueMock{*m_messageQueue};
+    std::shared_ptr<StrictMock<TimerFactoryMock>> m_timerFactoryMock{std::make_shared<StrictMock<TimerFactoryMock>>()};
     std::shared_ptr<GStreamerWebAudioPlayerClient> m_sut;
 };
 
@@ -379,6 +385,8 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEosAndTryPushBuffer)
 
     open();
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
+    std::unique_ptr<StrictMock<TimerMock>> timer{std::make_unique<StrictMock<TimerMock>>()};
+    EXPECT_CALL(*m_timerFactoryMock, createTimer(kTimeout, _, kTimerType)).WillOnce(Return(ByMove(std::move(timer))));
     m_sut->notifyNewSample(buffer);
 
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(false));
@@ -435,6 +443,8 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenThereIsNoBuff
 
     open();
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
+    std::unique_ptr<StrictMock<TimerMock>> timer{std::make_unique<StrictMock<TimerMock>>()};
+    EXPECT_CALL(*m_timerFactoryMock, createTimer(kTimeout, _, kTimerType)).WillOnce(Return(ByMove(std::move(timer))));
     m_sut->notifyNewSample(buffer);
 
     gst_buffer_unref(buffer);
@@ -447,10 +457,21 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldTryPushBufferTwiceWhenTimerExpi
 
     open();
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
+    std::function<void()> timerCallback;
+    std::unique_ptr<StrictMock<TimerMock>> timer{std::make_unique<StrictMock<TimerMock>>()};
+    EXPECT_CALL(*m_timerFactoryMock, createTimer(kTimeout, _, kTimerType))
+        .WillOnce(Invoke(
+            [&](const auto &, const auto &cb, auto)
+            {
+                timerCallback = cb;
+                return std::move(timer);
+            }));
     m_sut->notifyNewSample(buffer);
 
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(false));
-    std::this_thread::sleep_for(std::chrono::milliseconds(110));
+
+    ASSERT_TRUE(timerCallback);
+    timerCallback();
 
     gst_buffer_unref(buffer);
 }
@@ -494,11 +515,16 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
         .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
         .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
     EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
+    std::unique_ptr<StrictMock<TimerMock>> timer{std::make_unique<StrictMock<TimerMock>>()};
+    EXPECT_CALL(*timer, cancel());
+    EXPECT_CALL(*m_timerFactoryMock, createTimer(kTimeout, _, kTimerType)).WillOnce(Return(ByMove(std::move(timer))));
     m_sut->notifyNewSample(buffer);
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
         .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
         .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
     EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
+    std::unique_ptr<StrictMock<TimerMock>> secondTimer{std::make_unique<StrictMock<TimerMock>>()};
+    EXPECT_CALL(*m_timerFactoryMock, createTimer(kTimeout, _, kTimerType)).WillOnce(Return(ByMove(std::move(secondTimer))));
     m_sut->notifyNewSample(secondBuffer);
 }
 

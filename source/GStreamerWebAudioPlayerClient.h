@@ -19,7 +19,7 @@
 #pragma once
 
 #include "IMessageQueue.h"
-#include "Timer.h"
+#include "ITimer.h"
 #include "WebAudioClientBackendInterface.h"
 #include <MediaCommon.h>
 #include <condition_variable>
@@ -57,7 +57,8 @@ public:
      */
     GStreamerWebAudioPlayerClient(
         std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
-        std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks);
+        std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
+        std::shared_ptr<ITimerFactory> timerFactory);
 
     /**
      * @brief Destructor.
