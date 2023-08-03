@@ -482,23 +482,25 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPushBuffer)
     gst_buffer_unref(buffer);
 }
 
-// TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
-// {
-//     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
-//     gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
+    GstBuffer *secondBuffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
+    gst_buffer_fill(secondBuffer, 0, kBytes.data(), kBytes.size());
 
-//     open();
-//     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
-//         .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
-//         .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
-//     EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
-//     m_sut->notifyNewSample(buffer);
-//     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
-//         .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
-//         .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
-//     EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
-//     m_sut->notifyNewSample(buffer);
-// }
+    open();
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
+        .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
+        .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
+    EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
+    m_sut->notifyNewSample(buffer);
+    EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_))
+        .WillOnce(DoAll(SetArgReferee<0>(1), Return(true)))
+        .WillOnce(DoAll(SetArgReferee<0>(0), Return(true)));
+    EXPECT_CALL(m_webAudioClientBackendMock, writeBuffer(1, _)).WillOnce(Return(true));
+    m_sut->notifyNewSample(secondBuffer);
+}
 
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyEos)
 {
