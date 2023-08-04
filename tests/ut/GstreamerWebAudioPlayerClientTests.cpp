@@ -18,6 +18,7 @@
 
 #include "GStreamerWebAudioPlayerClient.h"
 #include "MessageQueueMock.h"
+#include "RialtoGstTest.h"
 #include "TimerFactoryMock.h"
 #include "TimerMock.h"
 #include "WebAudioClientBackendMock.h"
@@ -84,12 +85,11 @@ MATCHER_P(WebAudioConfigMatcher, config, "")
 }
 } // namespace
 
-class GstreamerWebAudioPlayerClientTests : public testing::Test
+class GstreamerWebAudioPlayerClientTests : public RialtoGstTest
 {
 public:
     GstreamerWebAudioPlayerClientTests()
     {
-        gst_init(nullptr, nullptr);
         EXPECT_CALL(m_messageQueueMock, start());
         EXPECT_CALL(m_messageQueueMock, stop());
         WebAudioSinkCallbacks callbacks{errorCallback, eosCallback, stateChangedCallback};

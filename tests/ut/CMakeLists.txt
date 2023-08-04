@@ -18,8 +18,6 @@ if ( COVERAGE_ENABLED )
     add_compile_options(-coverage)
 endif()
 
-add_compile_definitions(PACKAGE="GSTRIALTO_UT")
-
 add_library(
         gstRialtoTestLib
 
@@ -57,6 +55,17 @@ target_link_libraries(
         ${GStreamerApp_LIBRARIES}
 )
 
+#needed by GST_PLUGIN_DEFINE
+target_compile_options(gstRialtoTestLib
+        PUBLIC
+        -DPACKAGE="gstrialtosinks"
+        -DVERSION="1.0"
+        )
+
+set_target_properties(gstRialtoTestLib
+        PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
+        )
+
 if ( COVERAGE_ENABLED )
     target_link_libraries(
         gstRialtoTestLib
@@ -78,6 +87,7 @@ add_gtests (
         MediaPlayerClientBackendTests.cpp
         MediaPlayerManagerTests.cpp
         MessageQueueTests.cpp
+        RialtoGstTest.cpp
         TimerTests.cpp
         WebAudioClientBackendTests.cpp
         )

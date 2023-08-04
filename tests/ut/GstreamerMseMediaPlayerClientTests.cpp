@@ -19,6 +19,7 @@
 #include "GStreamerMSEMediaPlayerClient.h"
 #include "MediaPlayerClientBackendMock.h"
 #include "MessageQueueMock.h"
+#include "RialtoGstTest.h"
 #include <gtest/gtest.h>
 
 using firebolt::rialto::client::MediaPlayerClientBackendMock;
@@ -49,7 +50,7 @@ MATCHER_P(PtrMatcher, ptr, "")
 }
 } // namespace
 
-class GstreamerMseMediaPlayerClientTests : public testing::Test
+class GstreamerMseMediaPlayerClientTests : public RialtoGstTest
 {
 public:
     GstreamerMseMediaPlayerClientTests()

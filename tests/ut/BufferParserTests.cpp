@@ -18,6 +18,7 @@
 
 #include "BufferParser.h"
 #include "RialtoGStreamerEMEProtectionMetadata.h"
+#include "RialtoGstTest.h"
 #include <gst/gst.h>
 #include <gtest/gtest.h>
 
@@ -41,12 +42,11 @@ const std::vector<uint8_t> kKeyId{1, 2};
 const std::vector<uint8_t> kInitVector{3, 4};
 } // namespace
 
-class BufferParserTests : public testing::Test
+class BufferParserTests : public RialtoGstTest
 {
 public:
     BufferParserTests()
     {
-        gst_init(nullptr, nullptr);
         buildBuffers();
         buildMapInfo();
     }

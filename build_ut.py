@@ -76,6 +76,9 @@ def main ():
     # {Component Name : {Test Suite, Test Path}}
     suitesToRun = {"gst" : {"suite" : "GstRialtoUnitTests", "path" : "/tests/ut/"}}
 
+    # Set RIALTO_SINKS_RANK environment variable
+    os.environ["RIALTO_SINKS_RANK"] = "256"
+
     # Clean if required
     if args['clean'] == True:
         executeCmd = ["rm", "-rf", args['output'], resultOutput + ".log", valgrindOutput + ".log"]

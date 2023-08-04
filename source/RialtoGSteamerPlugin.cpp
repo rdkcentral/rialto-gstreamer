@@ -24,15 +24,7 @@
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
     const char commitID[] = COMMIT_ID;
-
-    if (std::strlen(commitID) > 0)
-    {
-        GST_INFO("Commit ID: %s", commitID);
-    }
-    else
-    {
-        GST_WARNING("Failed to get git commit ID.");
-    }
+    GST_INFO("Commit ID: %s", (std::strlen(commitID) > 0) ? commitID : "unknown");
 
     const char *socketPathStr = getenv("RIALTO_SOCKET_PATH");
     guint sinkRank = socketPathStr ? GST_RANK_PRIMARY + 100 : 0;
