@@ -19,6 +19,8 @@
 #include "RialtoGStreamerWebAudioSink.h"
 #include "ControlBackend.h"
 #include "GStreamerWebAudioPlayerClient.h"
+#include "MessageQueue.h"
+#include "WebAudioClientBackend.h"
 #include <gst/gst.h>
 
 using namespace firebolt::rialto::client;
@@ -376,7 +378,10 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     callbacks.errorCallback = std::bind(rialto_web_audio_sink_error_handler, sink, std::placeholders::_1);
 
     sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-    sink->priv->m_webAudioClient = std::make_shared<GStreamerWebAudioPlayerClient>(callbacks);
+    sink->priv->m_webAudioClient =
+        std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
+                                                        std::make_unique<MessageQueue>(), callbacks,
+                                                        ITimerFactory::getFactory());
 
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))
     {

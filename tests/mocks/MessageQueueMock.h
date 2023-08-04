@@ -16,15 +16,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "WebAudioPlayerMock.h"
+#include "IMessageQueue.h"
+#include <gmock/gmock.h>
 
-using testing::StrictMock;
-
-namespace firebolt::rialto
+class MessageQueueMock : public IMessageQueue
 {
-std::shared_ptr<IWebAudioPlayerFactory> IWebAudioPlayerFactory::createFactory()
-{
-    static auto webAudioPlayerFactory{std::make_shared<StrictMock<WebAudioPlayerFactoryMock>>()};
-    return webAudioPlayerFactory;
-}
-} // namespace firebolt::rialto
+public:
+    MOCK_METHOD(void, start, (), (override));
+    MOCK_METHOD(void, stop, (), (override));
+    MOCK_METHOD(void, clear, (), (override));
+    MOCK_METHOD(std::shared_ptr<Message>, waitForMessage, (), (override));
+    MOCK_METHOD(bool, postMessage, (const std::shared_ptr<Message> &msg), (override));
+    MOCK_METHOD(void, processMessages, (), (override));
+    MOCK_METHOD(bool, callInEventLoop, (const std::function<void()> &func), (override));
+};

@@ -7,50 +7,18 @@
         <!-- MATCHER_P , symbol name doesn't work -->
         <id>syntaxError</id>
     </suppress>
+    <suppress>
+        <id>localMutex</id>
+        <fileName>tests/ut/MessageQueueTests.cpp</fileName>
+    </suppress>
+    <suppress>
+        <id>localMutex</id>
+        <fileName>tests/ut/TimerTests.cpp</fileName>
+    </suppress>
     <!-- Unused function suppressions - try to remove them after writing unit test -->
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>notifyAudioData</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyBufferUnderflow</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyDuration</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyNativeSize</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyNeedMediaData</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyNetworkState</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyPlaybackState</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyPosition</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyQos</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>notifyState</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>notifyVideoData</symbolName>
     </suppress>
     <suppress>
         <id>unusedFunction</id>
@@ -78,10 +46,6 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>getVideoRectangle</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>hasControl</symbolName>
     </suppress>
     <suppress>
@@ -94,10 +58,6 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>notifySourceStartedSeeking</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
         <symbolName>open</symbolName>
     </suppress>
     <suppress>
@@ -106,15 +66,7 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
-        <symbolName>setAudioStreamsInfo</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>setVideoRectangle</symbolName>
-    </suppress>
-    <suppress>
-        <id>unusedFunction</id>
-        <symbolName>setVideoStreamsInfo</symbolName>
+        <fileName>source/GStreamerMSEMediaPlayerClient.cpp</fileName>
     </suppress>
     <suppress>
         <!-- unusedFunction causes some problems with gstreamer - sometimes wrong results -->

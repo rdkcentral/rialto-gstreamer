@@ -16,15 +16,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "WebAudioPlayerMock.h"
+#ifndef TIMER_FACTORY_MOCK_H_
+#define TIMER_FACTORY_MOCK_H_
 
-using testing::StrictMock;
+#include "ITimer.h"
+#include <gmock/gmock.h>
+#include <memory>
 
-namespace firebolt::rialto
+class TimerFactoryMock : public ITimerFactory
 {
-std::shared_ptr<IWebAudioPlayerFactory> IWebAudioPlayerFactory::createFactory()
-{
-    static auto webAudioPlayerFactory{std::make_shared<StrictMock<WebAudioPlayerFactoryMock>>()};
-    return webAudioPlayerFactory;
-}
-} // namespace firebolt::rialto
+public:
+    TimerFactoryMock() = default;
+    virtual ~TimerFactoryMock() = default;
+    MOCK_METHOD(std::unique_ptr<ITimer>, createTimer,
+                (const std::chrono::milliseconds &timeout, const std::function<void()> &callback, TimerType timerType),
+                (const, override));
+};
+
+#endif // TIMER_FACTORY_MOCK_H_

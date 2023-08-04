@@ -17,7 +17,6 @@
  */
 
 #include "GStreamerWebAudioPlayerClient.h"
-#include "WebAudioClientBackend.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -26,17 +25,6 @@
 
 namespace
 {
-/**
- * @brief The callback called when push sampels timer expires
- *
- * @param[in] vSelf : private user data
- */
-void notifyPushSamplesCallback(void *vSelf)
-{
-    GStreamerWebAudioPlayerClient *self = static_cast<GStreamerWebAudioPlayerClient *>(vSelf);
-    self->notifyPushSamplesTimerExpired();
-}
-
 bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned,
                              bool &isFloat)
 {
@@ -83,19 +71,20 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 }
 } // namespace
 
-GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks)
-    : m_backendQueue{}, m_clientBackend{nullptr}, m_isOpen{false}, m_dataBuffers{},
-      m_pushSamplesTimer{notifyPushSamplesCallback, this, "notifyPushSamplesCallback"}, m_preferredFrames{0},
-      m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
-      m_callbacks{callbacks}
+GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
+    std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
+    std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
+    std::shared_ptr<ITimerFactory> timerFactory)
+    : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
+      m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0}, m_maximumFrames{0},
+      m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}}, m_callbacks{callbacks}
 {
-    m_backendQueue.start();
-    m_clientBackend = std::make_unique<firebolt::rialto::client::WebAudioClientBackend>();
+    m_backendQueue->start();
 }
 
 GStreamerWebAudioPlayerClient::~GStreamerWebAudioPlayerClient()
 {
-    m_backendQueue.stop();
+    m_backendQueue->stop();
 }
 
 bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
@@ -106,7 +95,8 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     std::string audioMimeType = gst_structure_get_name(structure);
     audioMimeType = audioMimeType.substr(0, audioMimeType.find(' '));
-    std::string format = gst_structure_get_string(structure, "format");
+    const gchar *formatCStr{gst_structure_get_string(structure, "format")};
+    std::string format{formatCStr ? formatCStr : ""};
     firebolt::rialto::WebAudioPcmConfig pcm;
     gint tmp;
 
@@ -136,7 +126,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
         return result;
     }
 
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             firebolt::rialto::WebAudioConfig config{pcm};
@@ -180,11 +170,11 @@ bool GStreamerWebAudioPlayerClient::close()
 {
     GST_DEBUG("entry:");
 
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             m_clientBackend->destroyWebAudioBackend();
-            m_pushSamplesTimer.cancel();
+            m_pushSamplesTimer.reset();
             m_isOpen = false;
         });
 
@@ -196,7 +186,7 @@ bool GStreamerWebAudioPlayerClient::play()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_isOpen)
@@ -217,7 +207,7 @@ bool GStreamerWebAudioPlayerClient::pause()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_isOpen)
@@ -238,7 +228,7 @@ bool GStreamerWebAudioPlayerClient::setEos()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_isOpen && !m_isEos)
@@ -268,14 +258,14 @@ bool GStreamerWebAudioPlayerClient::isOpen()
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop([&]() { result = m_isOpen; });
+    m_backendQueue->callInEventLoop([&]() { result = m_isOpen; });
 
     return result;
 }
 
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
-    m_backendQueue.callInEventLoop([&]() { pushSamples(); });
+    m_backendQueue->callInEventLoop([&]() { pushSamples(); });
 }
 
 bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
@@ -283,12 +273,16 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
     GST_DEBUG("entry:");
 
     bool result = false;
-    m_backendQueue.callInEventLoop(
+    m_backendQueue->callInEventLoop(
         [&]()
         {
             if (buf)
             {
-                m_pushSamplesTimer.cancel();
+                if (m_pushSamplesTimer)
+                {
+                    m_pushSamplesTimer->cancel();
+                    m_pushSamplesTimer.reset();
+                }
                 m_dataBuffers.push(buf);
                 pushSamples();
                 result = true;
@@ -367,7 +361,8 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     // samples is slow.
     if (m_dataBuffers.size())
     {
-        m_pushSamplesTimer.arm(100);
+        m_pushSamplesTimer =
+            m_timerFactory->createTimer(std::chrono::milliseconds(100), [this]() { notifyPushSamplesTimerExpired(); });
     }
     else if (m_isEos)
     {
