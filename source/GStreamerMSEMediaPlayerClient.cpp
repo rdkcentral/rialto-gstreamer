@@ -37,9 +37,9 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
-    : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_clientBackend(MediaPlayerClientBackend),
-      m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+    : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
+      m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -240,12 +240,14 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                 if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
                 {
                     std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), audioBufferParser);
+                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
+                                                                  audioBufferParser);
                 }
                 else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
                 {
                     std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(GST_ELEMENT_CAST(rialtoSink), videoBufferParser);
+                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
+                                                                  videoBufferParser);
                 }
 
                 if (m_attachedSources.find(source->getId()) == m_attachedSources.end())
@@ -607,26 +609,27 @@ firebolt::rialto::AddSegmentStatus GStreamerMSEMediaPlayerClient::addSegment(
     return m_clientBackend->addSegment(needDataRequestId, mediaSegment);
 }
 
-BufferPuller::BufferPuller(GstElement *rialtoSink, const std::shared_ptr<BufferParser> &bufferParser)
-    : m_rialtoSink(rialtoSink), m_bufferParser(bufferParser)
+BufferPuller::BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
+                           const std::shared_ptr<BufferParser> &bufferParser)
+    : m_queue{messageQueueFactory->createMessageQueue()}, m_rialtoSink(rialtoSink), m_bufferParser(bufferParser)
 {
 }
 
 void BufferPuller::start()
 {
-    m_queue.start();
+    m_queue->start();
 }
 
 void BufferPuller::stop()
 {
-    m_queue.stop();
+    m_queue->stop();
 }
 
 bool BufferPuller::requestPullBuffer(int sourceId, size_t frameCount, unsigned int needDataRequestId,
                                      GStreamerMSEMediaPlayerClient *player)
 {
-    return m_queue.postMessage(std::make_shared<PullBufferMessage>(sourceId, frameCount, needDataRequestId,
-                                                                   m_rialtoSink, m_bufferParser, m_queue, player));
+    return m_queue->postMessage(std::make_shared<PullBufferMessage>(sourceId, frameCount, needDataRequestId,
+                                                                    m_rialtoSink, m_bufferParser, *m_queue, player));
 }
 
 HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId,
@@ -648,7 +651,7 @@ void HaveDataMessage::handle()
 
 PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
                                      GstElement *rialtoSink, const std::shared_ptr<BufferParser> &bufferParser,
-                                     MessageQueue &pullerQueue, GStreamerMSEMediaPlayerClient *player)
+                                     IMessageQueue &pullerQueue, GStreamerMSEMediaPlayerClient *player)
     : m_sourceId(sourceId), m_frameCount(frameCount), m_needDataRequestId(needDataRequestId), m_rialtoSink(rialtoSink),
       m_bufferParser(bufferParser), m_pullerQueue(pullerQueue), m_player(player)
 {

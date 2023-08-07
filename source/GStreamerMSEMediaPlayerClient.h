@@ -18,8 +18,8 @@
 
 #pragma once
 
+#include "IMessageQueue.h"
 #include "MediaPlayerClientBackendInterface.h"
-#include "MessageQueue.h"
 #include <IMediaPipeline.h>
 #include <MediaCommon.h>
 #include <condition_variable>
@@ -50,7 +50,8 @@ class GStreamerMSEMediaPlayerClient;
 class BufferPuller
 {
 public:
-    BufferPuller(GstElement *rialtoSink, const std::shared_ptr<BufferParser> &bufferParser);
+    BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
+                 const std::shared_ptr<BufferParser> &bufferParser);
 
     void start();
     void stop();
@@ -58,7 +59,7 @@ public:
                            GStreamerMSEMediaPlayerClient *player);
 
 private:
-    MessageQueue m_queue;
+    std::unique_ptr<IMessageQueue> m_queue;
     GstElement *m_rialtoSink;
     std::shared_ptr<BufferParser> m_bufferParser;
 };
@@ -81,7 +82,7 @@ class PullBufferMessage : public Message
 {
 public:
     PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId, GstElement *rialtoSink,
-                      const std::shared_ptr<BufferParser> &bufferParser, MessageQueue &pullerQueue,
+                      const std::shared_ptr<BufferParser> &bufferParser, IMessageQueue &pullerQueue,
                       GStreamerMSEMediaPlayerClient *player);
     void handle() override;
 
@@ -91,7 +92,7 @@ private:
     unsigned int m_needDataRequestId;
     GstElement *m_rialtoSink;
     std::shared_ptr<BufferParser> m_bufferParser;
-    MessageQueue &m_pullerQueue;
+    IMessageQueue &m_pullerQueue;
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
@@ -261,6 +262,7 @@ private:
     bool areAllStreamsAttached();
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
+    std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
     int64_t m_position;
     int64_t m_duration;
