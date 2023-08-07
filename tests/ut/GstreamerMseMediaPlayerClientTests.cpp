@@ -20,7 +20,9 @@
 #include "MediaPlayerClientBackendMock.h"
 #include "MediaSourceMock.h"
 #include "MessageQueueMock.h"
+#include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 using firebolt::rialto::MediaSourceMock;
@@ -50,6 +52,20 @@ constexpr bool kMute{true};
 MATCHER_P(PtrMatcher, ptr, "")
 {
     return ptr == arg.get();
+}
+class UnderflowSignalMock
+{
+public:
+    static UnderflowSignalMock &instance()
+    {
+        static UnderflowSignalMock instance;
+        return instance;
+    }
+    MOCK_METHOD(void, callbackCalled, (), (const));
+};
+void underflowSignalCallback()
+{
+    UnderflowSignalMock::instance().callbackCalled();
 }
 } // namespace
 
@@ -256,12 +272,192 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenSo
     m_sut->notifyNeedMediaData(kUnknownSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenBufferPullerFails)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_)).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, haveData(firebolt::rialto::MediaSourceStatus::ERROR, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSamplesAvailable)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &msg)
+            {
+                msg->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEos)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    audioSink->priv->m_isEos = true;
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &msg)
+            {
+                msg->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, haveData(firebolt::rialto::MediaSourceStatus::EOS, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEmptySample)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    audioSink->priv->m_samples.push(gst_sample_new(nullptr, nullptr, nullptr, nullptr));
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &msg)
+            {
+                msg->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
+    GstBuffer *buffer{gst_buffer_new()};
+    audioSink->priv->m_samples.push(gst_sample_new(buffer, caps, nullptr, nullptr));
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &msg)
+            {
+                msg->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, addSegment(kNeedDataRequestId, _))
+        .WillOnce(Return(firebolt::rialto::AddSegmentStatus::NO_SPACE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_caps_unref(caps);
+    gst_buffer_unref(buffer);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaData)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
+    GstBuffer *buffer{gst_buffer_new()};
+    audioSink->priv->m_samples.push(gst_sample_new(buffer, caps, nullptr, nullptr));
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &msg)
+            {
+                msg->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, addSegment(kNeedDataRequestId, _))
+        .WillOnce(Return(firebolt::rialto::AddSegmentStatus::OK));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_caps_unref(caps);
+    gst_buffer_unref(buffer);
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyQosWhenSourceIdIsNotKnown)
 {
     expectPostMessage();
     expectCallInEventLoop();
     const firebolt::rialto::QosInfo kQosInfo{1, 2};
     m_sut->notifyQos(kUnknownSourceId, kQosInfo);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyQos)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    const firebolt::rialto::QosInfo kQosInfo{1, 2};
+    m_sut->notifyQos(kSourceId, kQosInfo);
+
+    const auto kReceivedMessages{getMessages(pipeline)};
+    EXPECT_EQ(1, kReceivedMessages.size());
+    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_QOS));
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyBufferUnderflow)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    g_signal_connect(audioSink, "buffer-underflow-callback", underflowSignalCallback, nullptr);
+
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    // No mutex/cv needed, signal emission is synchronous
+    EXPECT_CALL(UnderflowSignalMock::instance(), callbackCalled());
+    m_sut->notifyBufferUnderflow(kSourceId);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhenSourceIdIsNotKnown)
@@ -465,6 +661,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVideoRectangle)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVideoWindow(kX, kY, kWidth, kHeight)).WillOnce(Return(true));
     m_sut->setVideoRectangle(kRectangleString);
     EXPECT_EQ(m_sut->getVideoRectangle(), kRectangleString);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->renderFrame(audioSink));
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->renderFrame(audioSink));
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
