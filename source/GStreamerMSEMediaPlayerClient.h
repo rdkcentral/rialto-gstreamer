@@ -203,7 +203,7 @@ class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineCli
 
 public:
     GStreamerMSEMediaPlayerClient(
-        std::unique_ptr<IMessageQueue> &&backendQueue,
+        const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
         const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
         const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();

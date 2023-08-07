@@ -16,23 +16,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "IMessageQueue.h"
-#include <gmock/gmock.h>
+#include "RialtoGstTest.h"
 
-class MessageQueueMock : public IMessageQueue
+class GstreamerMseAudioSinkTests : public RialtoGstTest
 {
 public:
-    MOCK_METHOD(void, start, (), (override));
-    MOCK_METHOD(void, stop, (), (override));
-    MOCK_METHOD(void, clear, (), (override));
-    MOCK_METHOD(std::shared_ptr<Message>, waitForMessage, (), (override));
-    MOCK_METHOD(bool, postMessage, (const std::shared_ptr<Message> &msg), (override));
-    MOCK_METHOD(void, processMessages, (), (override));
-    MOCK_METHOD(bool, callInEventLoop, (const std::function<void()> &func), (override));
+    GstreamerMseAudioSinkTests() = default;
+    ~GstreamerMseAudioSinkTests() override = default;
 };
 
-class MessageQueueFactoryMock : public IMessageQueueFactory
+TEST_F(GstreamerMseAudioSinkTests, ShouldNotifyPlaybackStateEndOfStream)
 {
-public:
-    MOCK_METHOD(std::unique_ptr<IMessageQueue>, createMessageQueue, (), (const, override));
-};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    setPlayingState(pipeline);
+
+    // expectPostMessage();
+    // m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::END_OF_STREAM);
+
+    const auto kReceivedMessages{getMessages(pipeline)};
+    EXPECT_EQ(2, kReceivedMessages.size());
+    // Tu powinien przyjsc eos
+    // EXPECT_EQ(GST_MESSAGE_ERROR, kMessage.type);
+
+    gst_object_unref(pipeline);
+}

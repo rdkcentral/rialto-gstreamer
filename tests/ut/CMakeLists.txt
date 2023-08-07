@@ -31,6 +31,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/GStreamerMSEUtils.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerMSEMediaPlayerClient.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerWebAudioPlayerClient.cpp
+        ${CMAKE_SOURCE_DIR}/source/MessageQueue.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGSteamerPlugin.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEBaseSink.cpp
         ${CMAKE_SOURCE_DIR}/source/MediaPlayerManager.cpp
@@ -81,6 +82,7 @@ add_gtests (
         BufferParserTests.cpp
         ControlBackendTests.cpp
         GStreamerEmeUtilsTests.cpp
+        GstreamerMseAudioSinkTests.cpp
         GstreamerMseMediaPlayerClientTests.cpp
         GStreamerUtilsTests.cpp
         GstreamerWebAudioPlayerClientTests.cpp

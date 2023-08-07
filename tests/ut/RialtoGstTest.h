@@ -18,15 +18,50 @@
 
 #pragma once
 
+#include "ControlMock.h"
+#include "MediaPipelineMock.h"
+#include "RialtoGStreamerMSEBaseSink.h"
 #include <gtest/gtest.h>
 
 class RialtoGstTest : public testing::Test
 {
 public:
     RialtoGstTest();
-    ~RialtoGstTest() override = default;
+    ~RialtoGstTest() override;
 
 protected:
+    class ReceivedMessages
+    {
+        friend class RialtoGstTest;
+
+    public:
+        std::size_t size() const;
+        bool empty() const;
+        bool contains(const GstMessageType &type) const;
+
+    private:
+        std::vector<GstMessageType> m_receivedMessages;
+    };
+
+    RialtoMSEBaseSink *createAudioSink() const;
+    RialtoMSEBaseSink *createVideoSink() const;
+    GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
+    ReceivedMessages getMessages(GstElement *pipeline) const;
+    void setPlayingState(GstElement *pipeline);
+
 private:
-    void expectSinksInitialisation();
+    void expectSinksInitialisation() const;
+
+protected:
+    std::shared_ptr<testing::StrictMock<firebolt::rialto::ControlFactoryMock>> m_controlFactoryMock{
+        std::dynamic_pointer_cast<testing::StrictMock<firebolt::rialto::ControlFactoryMock>>(
+            firebolt::rialto::IControlFactory::createFactory())};
+    std::shared_ptr<testing::StrictMock<firebolt::rialto::ControlMock>> m_controlMock{
+        std::make_shared<testing::StrictMock<firebolt::rialto::ControlMock>>()};
+    std::shared_ptr<testing::StrictMock<firebolt::rialto::MediaPipelineFactoryMock>> m_mediaPipelineFactoryMock{
+        std::dynamic_pointer_cast<testing::StrictMock<firebolt::rialto::MediaPipelineFactoryMock>>(
+            firebolt::rialto::IMediaPipelineFactory::createFactory())};
+    std::unique_ptr<testing::StrictMock<firebolt::rialto::MediaPipelineMock>> m_mediaPipeline{
+        std::make_unique<testing::StrictMock<firebolt::rialto::MediaPipelineMock>>()};
+    testing::StrictMock<firebolt::rialto::MediaPipelineMock> &m_mediaPipelineMock{*m_mediaPipeline};
 };

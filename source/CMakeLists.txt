@@ -34,6 +34,7 @@ add_library(gstrialtosinks
         GStreamerMSEUtils.cpp
         GStreamerMSEMediaPlayerClient.cpp
         GStreamerWebAudioPlayerClient.cpp
+        MessageQueue.cpp
         RialtoGSteamerPlugin.cpp
         RialtoGStreamerMSEBaseSink.cpp
         MediaPlayerManager.cpp

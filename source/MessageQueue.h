@@ -30,19 +30,9 @@
 class CallInEventLoopMessage : public Message
 {
 public:
-    explicit CallInEventLoopMessage(const std::function<void()> &func) : m_func(func), m_done{false} {}
-    void handle() override
-    {
-        std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
-        m_func();
-        m_done = true;
-        m_callInEventLoopCondVar.notify_all();
-    }
-    void wait()
-    {
-        std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
-        m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
-    }
+    explicit CallInEventLoopMessage(const std::function<void()> &func);
+    void handle() override;
+    void wait();
 
 private:
     const std::function<void()> m_func;
@@ -51,106 +41,31 @@ private:
     bool m_done;
 };
 
+class MessageQueueFactory : public IMessageQueueFactory
+{
+public:
+    std::unique_ptr<IMessageQueue> createMessageQueue() const;
+};
+
 class MessageQueue : public IMessageQueue
 {
 public:
-    MessageQueue() : m_running(false) {}
+    MessageQueue();
+    ~MessageQueue();
 
-    ~MessageQueue() override { doStop(); }
-
-    void start() override
-    {
-        if (m_running)
-        {
-            // queue is running
-            return;
-        }
-        m_running = true;
-        std::thread startThread(&MessageQueue::processMessages, this);
-        m_workerThread.swap(startThread);
-    }
-
-    void stop() override { doStop(); }
-
-    void clear() override { doClear(); }
-
+    void start() override;
+    void stop() override;
+    void clear() override;
     // Wait for a message to appear on the queue.
-    std::shared_ptr<Message> waitForMessage() override
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        while (m_queue.empty())
-        {
-            m_condVar.wait(lock);
-        }
-        std::shared_ptr<Message> message = m_queue.front();
-        m_queue.pop_front();
-        return message;
-    }
-
+    std::shared_ptr<Message> waitForMessage() override;
     // Posts a message to the queue.
-    bool postMessage(const std::shared_ptr<Message> &msg) override
-    {
-        const std::lock_guard<std::mutex> lock(m_mutex);
-        if (!m_running)
-        {
-            GST_ERROR("Message queue is not running");
-            return false;
-        }
-        m_queue.push_back(msg);
-        m_condVar.notify_all();
-
-        return true;
-    }
-
-    void processMessages() override
-    {
-        do
-        {
-            std::shared_ptr<Message> message = waitForMessage();
-            message->handle();
-        } while (m_running);
-    }
-
-    bool callInEventLoop(const std::function<void()> &func) override
-    {
-        if (std::this_thread::get_id() != m_workerThread.get_id())
-        {
-            auto message = std::make_shared<CallInEventLoopMessage>(func);
-            if (!postMessage(message))
-            {
-                return false;
-            }
-            message->wait();
-        }
-        else
-        {
-            func();
-        }
-
-        return true;
-    }
+    bool postMessage(const std::shared_ptr<Message> &msg) override;
+    void processMessages() override;
+    bool callInEventLoop(const std::function<void()> &func) override;
 
 protected:
-    void doStop()
-    {
-        if (!m_running)
-        {
-            // queue is not running
-            return;
-        }
-        callInEventLoop([this]() { m_running = false; });
-
-        if (m_workerThread.joinable())
-            m_workerThread.join();
-
-        doClear();
-    }
-
-    void doClear()
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue.clear();
-    }
+    void doStop();
+    void doClear();
 
 protected:
     std::condition_variable m_condVar;

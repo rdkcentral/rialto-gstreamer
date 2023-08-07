@@ -40,3 +40,11 @@ public:
     virtual void processMessages() = 0;
     virtual bool callInEventLoop(const std::function<void()> &func) = 0;
 };
+
+class IMessageQueueFactory
+{
+public:
+    virtual ~IMessageQueueFactory() = default;
+    static std::shared_ptr<IMessageQueueFactory> createFactory();
+    virtual std::unique_ptr<IMessageQueue> createMessageQueue() const = 0;
+};

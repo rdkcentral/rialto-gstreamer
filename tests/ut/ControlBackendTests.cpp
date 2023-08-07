@@ -41,6 +41,8 @@ public:
         std::dynamic_pointer_cast<StrictMock<ControlFactoryMock>>(IControlFactory::createFactory())};
     std::shared_ptr<StrictMock<ControlMock>> m_controlMock{std::make_shared<StrictMock<ControlMock>>()};
     std::unique_ptr<ControlBackend> m_sut{nullptr};
+
+    ~ControlBackendTests() override { testing::Mock::VerifyAndClearExpectations(&m_controlFactoryMock); }
 };
 
 TEST_F(ControlBackendTests, ShouldFailToStartWhenControlIsNull)

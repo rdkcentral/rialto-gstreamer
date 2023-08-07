@@ -16,23 +16,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "IMessageQueue.h"
+#ifndef FIREBOLT_RIALTO_MEDIA_SOURCE_MOCK_H_
+#define FIREBOLT_RIALTO_MEDIA_SOURCE_MOCK_H_
+
+#include "IMediaPipeline.h"
 #include <gmock/gmock.h>
 
-class MessageQueueMock : public IMessageQueue
+namespace firebolt::rialto
+{
+class MediaSourceMock : public IMediaPipeline::MediaSource
 {
 public:
-    MOCK_METHOD(void, start, (), (override));
-    MOCK_METHOD(void, stop, (), (override));
-    MOCK_METHOD(void, clear, (), (override));
-    MOCK_METHOD(std::shared_ptr<Message>, waitForMessage, (), (override));
-    MOCK_METHOD(bool, postMessage, (const std::shared_ptr<Message> &msg), (override));
-    MOCK_METHOD(void, processMessages, (), (override));
-    MOCK_METHOD(bool, callInEventLoop, (const std::function<void()> &func), (override));
+    MOCK_METHOD(std::unique_ptr<IMediaPipeline::MediaSource>, copy, (), (const, override));
+    MOCK_METHOD(MediaSourceType, getType, (), (const));
 };
+} // namespace firebolt::rialto
 
-class MessageQueueFactoryMock : public IMessageQueueFactory
-{
-public:
-    MOCK_METHOD(std::unique_ptr<IMessageQueue>, createMessageQueue, (), (const, override));
-};
+#endif // FIREBOLT_RIALTO_MEDIA_SOURCE_MOCK_H_

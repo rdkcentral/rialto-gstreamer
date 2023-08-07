@@ -19,15 +19,24 @@
 #include "RialtoGstTest.h"
 #include "MediaPipelineCapabilitiesMock.h"
 #include "RialtoGSteamerPlugin.cpp" // urgh... disgusting!
+#include <algorithm>
 #include <gst/gst.h>
 #include <string>
 #include <vector>
 
+// Remove
+#include <iostream>
+// End remove
+
+using firebolt::rialto::ApplicationState;
 using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
 using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
 using firebolt::rialto::MediaPipelineCapabilitiesMock;
+using testing::_;
 using testing::ByMove;
+using testing::DoAll;
 using testing::Return;
+using testing::SetArgReferee;
 using testing::StrictMock;
 
 namespace
@@ -53,7 +62,82 @@ RialtoGstTest::RialtoGstTest()
                    });
 }
 
-void RialtoGstTest::expectSinksInitialisation()
+RialtoGstTest::~RialtoGstTest()
+{
+    testing::Mock::VerifyAndClearExpectations(&m_controlFactoryMock);
+}
+
+std::size_t RialtoGstTest::ReceivedMessages::size() const
+{
+    return m_receivedMessages.size();
+}
+
+bool RialtoGstTest::ReceivedMessages::empty() const
+{
+    return m_receivedMessages.empty();
+}
+
+bool RialtoGstTest::ReceivedMessages::contains(const GstMessageType &type) const
+{
+    return std::find(m_receivedMessages.begin(), m_receivedMessages.end(), type) != m_receivedMessages.end();
+}
+
+RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    return RIALTO_MSE_BASE_SINK(audioSink);
+}
+
+RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
+    return RIALTO_MSE_BASE_SINK(videoSink);
+}
+
+GstElement *RialtoGstTest::createPipelineWithSink(RialtoMSEBaseSink *sink) const
+{
+    GstElement *pipeline = gst_pipeline_new("test-pipeline");
+    gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(sink));
+    return pipeline;
+}
+
+RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline) const
+{
+    RialtoGstTest::ReceivedMessages result;
+    GstBus *bus = gst_element_get_bus(pipeline);
+    if (!bus)
+    {
+        return result;
+    }
+    GstMessage *msg{gst_bus_pop(bus)};
+    while (msg)
+    {
+        // remove
+        std::cout << "Received: " << gst_message_type_get_name(GST_MESSAGE_TYPE(msg)) << std::endl;
+        // end remove
+        result.m_receivedMessages.push_back(GST_MESSAGE_TYPE(msg));
+        gst_message_unref(msg);
+        msg = gst_bus_pop(bus);
+    }
+    return result;
+}
+
+void RialtoGstTest::setPlayingState(GstElement *pipeline)
+{
+    EXPECT_CALL(m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PLAYING));
+    // Call callback here...
+}
+
+void RialtoGstTest::expectSinksInitialisation() const
 {
     // Media Pipeline Capabilities will be created two times during class_init of audio and video sink
     std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockAudio{

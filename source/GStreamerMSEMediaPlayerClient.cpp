@@ -34,12 +34,13 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
-    std::unique_ptr<IMessageQueue> &&backendQueue,
+    const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
-    : m_backendQueue{std::move(backendQueue)}, m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0),
-      m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080},
-      m_streamingStopped(false), m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
+    : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_clientBackend(MediaPlayerClientBackend),
+      m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
     m_backendQueue->start();
