@@ -125,6 +125,7 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
         gst_message_unref(msg);
         msg = gst_bus_pop(bus);
     }
+    gst_object_unref(bus);
     return result;
 }
 
@@ -135,6 +136,13 @@ void RialtoGstTest::setPlayingState(GstElement *pipeline)
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PLAYING));
     // Call callback here...
+}
+
+void RialtoGstTest::setNullState(GstElement *pipeline)
+{
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(_)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
+    gst_element_set_state(pipeline, GST_STATE_NULL);
 }
 
 void RialtoGstTest::expectSinksInitialisation() const

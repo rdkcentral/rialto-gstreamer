@@ -48,6 +48,7 @@ protected:
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
     ReceivedMessages getMessages(GstElement *pipeline) const;
     void setPlayingState(GstElement *pipeline);
+    void setNullState(GstElement *pipeline);
 
 private:
     void expectSinksInitialisation() const;

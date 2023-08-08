@@ -346,6 +346,7 @@ static void rialto_mse_audio_sink_qos_handle(GstElement *element, uint64_t proce
                                               GST_CLOCK_TIME_NONE, GST_CLOCK_TIME_NONE);
     gst_message_set_qos_stats(message, GST_FORMAT_DEFAULT, processed, dropped);
     gst_bus_post(bus, message);
+    gst_object_unref(bus);
 }
 
 static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)

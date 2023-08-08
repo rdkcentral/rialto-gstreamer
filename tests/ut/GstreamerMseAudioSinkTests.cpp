@@ -39,5 +39,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotifyPlaybackStateEndOfStream)
     // Tu powinien przyjsc eos
     // EXPECT_EQ(GST_MESSAGE_ERROR, kMessage.type);
 
+    setNullState(pipeline);
     gst_object_unref(pipeline);
 }

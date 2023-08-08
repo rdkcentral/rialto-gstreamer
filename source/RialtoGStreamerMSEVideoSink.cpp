@@ -339,6 +339,7 @@ static void rialto_mse_video_sink_qos_handle(GstElement *element, uint64_t proce
 
     gst_message_set_qos_stats(message, GST_FORMAT_BUFFERS, processed, dropped);
     gst_bus_post(bus, message);
+    gst_object_unref(bus);
 }
 
 static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
