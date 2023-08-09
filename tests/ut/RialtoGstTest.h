@@ -29,7 +29,6 @@ public:
     RialtoGstTest();
     ~RialtoGstTest() override;
 
-protected:
     class ReceivedMessages
     {
         friend class RialtoGstTest;
