@@ -61,6 +61,13 @@ enum
 
 static guint g_signals[SIGNAL_LAST] = {0};
 
+static unsigned rialto_mse_base_sink_get_gst_play_flag(const char *nick)
+{
+    GFlagsClass *flagsClass = static_cast<GFlagsClass *>(g_type_class_ref(g_type_from_name("GstPlayFlags")));
+    GFlagsValue *flag = g_flags_get_value_by_nick(flagsClass, nick);
+    return flag ? flag->value : 0;
+}
+
 static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
     sink->priv->m_isStateCommitNeeded = true;
@@ -847,8 +854,7 @@ GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
 std::shared_ptr<firebolt::rialto::CodecData> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
                                                                                  const GstStructure *structure)
 {
-    const GValue *codec_data;
-    codec_data = gst_structure_get_value(structure, "codec_data");
+    const GValue *codec_data = gst_structure_get_value(structure, "codec_data");
     if (codec_data)
     {
         GstBuffer *buf = gst_value_get_buffer(codec_data);
@@ -949,6 +955,14 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
     {
         g_object_get(parentObject, "n-video", &n_video, nullptr);
         g_object_get(parentObject, "n-audio", &n_audio, nullptr);
+
+        if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "flags"))
+        {
+            guint flags = 0;
+            g_object_get(parentObject, "flags", &flags, nullptr);
+            n_video = flags & rialto_mse_base_sink_get_gst_play_flag("video") ? n_video : 0;
+            n_audio = flags & rialto_mse_base_sink_get_gst_play_flag("audio") ? n_audio : 0;
+        }
 
         return true;
     }
