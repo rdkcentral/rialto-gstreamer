@@ -44,7 +44,7 @@ private:
 class MessageQueueFactory : public IMessageQueueFactory
 {
 public:
-    std::unique_ptr<IMessageQueue> createMessageQueue() const;
+    std::unique_ptr<IMessageQueue> createMessageQueue() const override;
 };
 
 class MessageQueue : public IMessageQueue

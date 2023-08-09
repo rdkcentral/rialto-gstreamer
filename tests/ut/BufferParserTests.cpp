@@ -62,12 +62,12 @@ public:
     void buildSample(GstCaps *caps) { m_sample = gst_sample_new(m_buffer, caps, nullptr, nullptr); }
 
     std::vector<uint8_t> m_bufferData{1, 2, 3, 4};
-    GstBuffer *m_keyIdBuffer;
-    GstBuffer *m_initVectorBuffer;
-    GstBuffer *m_buffer;
-    GstSample *m_sample;
-    GstMapInfo m_mapInfo;
-    GstBuffer *m_bufferCodecData;
+    GstBuffer *m_keyIdBuffer{nullptr};
+    GstBuffer *m_initVectorBuffer{nullptr};
+    GstBuffer *m_buffer{nullptr};
+    GstSample *m_sample{nullptr};
+    GstMapInfo m_mapInfo{};
+    GstBuffer *m_bufferCodecData{nullptr};
 
 private:
     void buildBuffers()
