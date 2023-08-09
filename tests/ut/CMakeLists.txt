@@ -56,7 +56,6 @@ target_link_libraries(
         ${GStreamerApp_LIBRARIES}
 )
 
-#needed by GST_PLUGIN_DEFINE
 target_compile_options(gstRialtoTestLib
         PUBLIC
         -DPACKAGE="gstrialtosinks"
