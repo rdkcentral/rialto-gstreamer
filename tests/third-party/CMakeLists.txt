@@ -21,49 +21,71 @@ set( CMAKE_CXX_STANDARD 17 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 include( CheckCXXCompilerFlag )
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipeline.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipeline.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipelineClient.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipelineClient.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/MediaCommon.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/MediaCommon.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipelineCapabilities.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipelineCapabilities.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/ControlCommon.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/ControlCommon.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IControlClient.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IControlClient.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IControl.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IControl.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IWebAudioPlayer.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IWebAudioPlayer.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IWebAudioPlayerClient.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IWebAudioPlayerClient.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/RialtoGStreamerEMEProtectionMetadata.h
-    ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/RialtoGStreamerEMEProtectionMetadata.h
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
+endif()
 
-file(DOWNLOAD
-    https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/RialtoGStreamerEMEProtectionMetadata.cpp
-    ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/RialtoGStreamerEMEProtectionMetadata.cpp
+        ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
+endif()
 
 add_library(
     gstRialtoThirdParty

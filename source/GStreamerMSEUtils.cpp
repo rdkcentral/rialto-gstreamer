@@ -26,7 +26,7 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     static const std::unordered_map<std::string, std::vector<std::string>> kMimeToCaps =
         {{"audio/mp4", {"audio/mpeg, mpegversion=1", "audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
          {"audio/aac", {"audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
-         {"audio/x-eac3", {"audio/x-ec3", "audio/x-eac3"}},
+         {"audio/x-eac3", {"audio/x-ac3", "audio/x-eac3"}},
          {"audio/x-opus", {"audio/x-opus"}},
          {"video/h264", {"video/x-h264"}},
          {"video/h265", {"video/x-h265"}},

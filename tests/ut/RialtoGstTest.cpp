@@ -123,9 +123,13 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
     return result;
 }
 
-void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
+void RialtoGstTest::sourceWillBeAttached() const
 {
     EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).WillOnce(Return(true));
+}
+
+void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
+{
     EXPECT_CALL(m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
@@ -150,6 +154,20 @@ void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,
     auto mediaPlayerClient{sink->priv->m_mediaPlayerManager.getMediaPlayerClient()};
     ASSERT_TRUE(mediaPlayerClient);
     mediaPlayerClient->handlePlaybackStateChange(state);
+}
+
+void RialtoGstTest::installAudioVideoStreamsProperty(GstElement *pipeline) const
+{
+    g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 123,
+                                    g_param_spec_int("n-video", "n-video", "num of video streams", 1, G_MAXINT, 1,
+                                                     GParamFlags(G_PARAM_READWRITE)));
+    g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
+                                    g_param_spec_int("n-audio", "n-audio", "num of audio streams", 1, G_MAXINT, 1,
+                                                     GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
+                                    g_param_spec_uint("flags", "flags", "flags", 1, G_MAXINT, 1,
+                                                      GParamFlags(G_PARAM_READWRITE)));
 }
 
 void RialtoGstTest::expectSinksInitialisation() const
