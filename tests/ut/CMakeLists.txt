@@ -72,8 +72,13 @@ add_gtests (
         BufferParserTests.cpp
         ControlBackendTests.cpp
         GStreamerEmeUtilsTests.cpp
+        GstreamerMseMediaPlayerClientTests.cpp
         GStreamerUtilsTests.cpp
+        GstreamerWebAudioPlayerClientTests.cpp
         MediaPlayerClientBackendTests.cpp
+        MediaPlayerManagerTests.cpp
+        MessageQueueTests.cpp
+        TimerTests.cpp
         WebAudioClientBackendTests.cpp
         )
 

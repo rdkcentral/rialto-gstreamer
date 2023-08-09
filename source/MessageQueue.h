@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "IMessageQueue.h"
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -25,13 +26,6 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-
-class Message
-{
-public:
-    virtual ~Message() {}
-    virtual void handle() = 0;
-};
 
 class CallInEventLoopMessage : public Message
 {
@@ -57,14 +51,14 @@ private:
     bool m_done;
 };
 
-class MessageQueue
+class MessageQueue : public IMessageQueue
 {
 public:
     MessageQueue() : m_running(false) {}
 
-    virtual ~MessageQueue() { stop(); }
+    ~MessageQueue() override { doStop(); }
 
-    void start()
+    void start() override
     {
         if (m_running)
         {
@@ -76,29 +70,12 @@ public:
         m_workerThread.swap(startThread);
     }
 
-    void stop()
-    {
-        if (!m_running)
-        {
-            // queue is not running
-            return;
-        }
-        callInEventLoop([this]() { m_running = false; });
+    void stop() override { doStop(); }
 
-        if (m_workerThread.joinable())
-            m_workerThread.join();
-
-        clear();
-    }
-
-    void clear()
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue.clear();
-    }
+    void clear() override { doClear(); }
 
     // Wait for a message to appear on the queue.
-    std::shared_ptr<Message> waitForMessage()
+    std::shared_ptr<Message> waitForMessage() override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         while (m_queue.empty())
@@ -111,7 +88,7 @@ public:
     }
 
     // Posts a message to the queue.
-    bool postMessage(const std::shared_ptr<Message> &msg)
+    bool postMessage(const std::shared_ptr<Message> &msg) override
     {
         const std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_running)
@@ -125,7 +102,7 @@ public:
         return true;
     }
 
-    void processMessages()
+    void processMessages() override
     {
         do
         {
@@ -134,7 +111,7 @@ public:
         } while (m_running);
     }
 
-    bool callInEventLoopImpl(const std::function<void()> &func)
+    bool callInEventLoop(const std::function<void()> &func) override
     {
         if (std::this_thread::get_id() != m_workerThread.get_id())
         {
@@ -153,9 +130,26 @@ public:
         return true;
     }
 
-    template <class Function, class... Args> bool callInEventLoop(Function &&f, Args &&...args)
+protected:
+    void doStop()
     {
-        return callInEventLoopImpl(std::bind(std::forward<Function>(f), std::forward<Args>(args)...));
+        if (!m_running)
+        {
+            // queue is not running
+            return;
+        }
+        callInEventLoop([this]() { m_running = false; });
+
+        if (m_workerThread.joinable())
+            m_workerThread.join();
+
+        doClear();
+    }
+
+    void doClear()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_queue.clear();
     }
 
 protected:
@@ -164,32 +158,4 @@ protected:
     std::deque<std::shared_ptr<Message>> m_queue;
     std::thread m_workerThread;
     bool m_running;
-};
-
-class SetPositionMessage : public Message
-{
-public:
-    SetPositionMessage(int64_t newPosition, int64_t &targetPosition)
-        : m_newPosition(newPosition), m_targetPosition(targetPosition)
-    {
-    }
-    void handle() override { m_targetPosition = m_newPosition; }
-
-private:
-    int64_t m_newPosition;
-    int64_t &m_targetPosition;
-};
-
-class SetDurationMessage : public Message
-{
-public:
-    SetDurationMessage(int64_t newDuration, int64_t &targetDuration)
-        : m_newDuration(newDuration), m_targetDuration(targetDuration)
-    {
-    }
-    void handle() override { m_targetDuration = m_newDuration; }
-
-private:
-    int64_t m_newDuration;
-    int64_t &m_targetDuration;
 };

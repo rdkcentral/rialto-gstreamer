@@ -16,15 +16,27 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "WebAudioPlayerMock.h"
+#pragma once
 
-using testing::StrictMock;
+#include <functional>
+#include <memory>
 
-namespace firebolt::rialto
+class Message
 {
-std::shared_ptr<IWebAudioPlayerFactory> IWebAudioPlayerFactory::createFactory()
+public:
+    virtual ~Message() {}
+    virtual void handle() = 0;
+};
+
+class IMessageQueue
 {
-    static auto webAudioPlayerFactory{std::make_shared<StrictMock<WebAudioPlayerFactoryMock>>()};
-    return webAudioPlayerFactory;
-}
-} // namespace firebolt::rialto
+public:
+    virtual ~IMessageQueue() = default;
+    virtual void start() = 0;
+    virtual void stop() = 0;
+    virtual void clear() = 0;
+    virtual std::shared_ptr<Message> waitForMessage() = 0;
+    virtual bool postMessage(const std::shared_ptr<Message> &msg) = 0;
+    virtual void processMessages() = 0;
+    virtual bool callInEventLoop(const std::function<void()> &func) = 0;
+};

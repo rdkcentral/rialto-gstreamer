@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "MessageQueue.h"
-#include "Timer.h"
+#include "IMessageQueue.h"
+#include "ITimer.h"
 #include "WebAudioClientBackendInterface.h"
 #include <MediaCommon.h>
 #include <condition_variable>
@@ -55,7 +55,10 @@ public:
      *
      * @param[in] callbacks : The callbacks for the sink.
      */
-    explicit GStreamerWebAudioPlayerClient(WebAudioSinkCallbacks callbacks);
+    GStreamerWebAudioPlayerClient(
+        std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
+        std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
+        std::shared_ptr<ITimerFactory> timerFactory);
 
     /**
      * @brief Destructor.
@@ -147,7 +150,7 @@ private:
     /**
      * @brief Backend message queue.
      */
-    MessageQueue m_backendQueue;
+    std::unique_ptr<IMessageQueue> m_backendQueue;
 
     /**
      * @brief The web audio client backend interface.
@@ -165,9 +168,14 @@ private:
     std::queue<GstBuffer *> m_dataBuffers;
 
     /**
+     * @brief The timer factory.
+     */
+    std::shared_ptr<ITimerFactory> m_timerFactory;
+
+    /**
      * @brief The push samples timer.
      */
-    Timer m_pushSamplesTimer;
+    std::unique_ptr<ITimer> m_pushSamplesTimer;
 
     /**
      * @brief The preferred number of frames to be written.
