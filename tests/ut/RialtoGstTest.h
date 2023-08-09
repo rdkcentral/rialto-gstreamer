@@ -47,8 +47,10 @@ protected:
     RialtoMSEBaseSink *createVideoSink() const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
     ReceivedMessages getMessages(GstElement *pipeline) const;
-    void setPlayingState(GstElement *pipeline);
+    void setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink);
     void setNullState(GstElement *pipeline);
+    void setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const;
+    void sendPlaybackStateNotification(RialtoMSEBaseSink *sink, const firebolt::rialto::PlaybackState &state) const;
 
 private:
     void expectSinksInitialisation() const;

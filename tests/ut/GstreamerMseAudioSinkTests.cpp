@@ -25,20 +25,24 @@ public:
     ~GstreamerMseAudioSinkTests() override = default;
 };
 
-TEST_F(GstreamerMseAudioSinkTests, ShouldNotifyPlaybackStateEndOfStream)
+TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
-    setPlayingState(pipeline);
 
-    // expectPostMessage();
-    // m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::END_OF_STREAM);
+    setPausedState(pipeline, audioSink);
+
+    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, nullptr)};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
 
     const auto kReceivedMessages{getMessages(pipeline)};
-    EXPECT_EQ(2, kReceivedMessages.size());
-    // Tu powinien przyjsc eos
-    // EXPECT_EQ(GST_MESSAGE_ERROR, kMessage.type);
+    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_STATE_CHANGED));
+    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_ASYNC_DONE));
 
     setNullState(pipeline);
+
+    gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }

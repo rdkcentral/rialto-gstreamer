@@ -19,14 +19,11 @@
 #include "RialtoGstTest.h"
 #include "MediaPipelineCapabilitiesMock.h"
 #include "RialtoGSteamerPlugin.cpp" // urgh... disgusting!
+#include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <algorithm>
 #include <gst/gst.h>
 #include <string>
 #include <vector>
-
-// Remove
-#include <iostream>
-// End remove
 
 using firebolt::rialto::ApplicationState;
 using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
@@ -118,9 +115,6 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
     GstMessage *msg{gst_bus_pop(bus)};
     while (msg)
     {
-        // remove
-        std::cout << "Received: " << gst_message_type_get_name(GST_MESSAGE_TYPE(msg)) << std::endl;
-        // end remove
         result.m_receivedMessages.push_back(GST_MESSAGE_TYPE(msg));
         gst_message_unref(msg);
         msg = gst_bus_pop(bus);
@@ -129,13 +123,13 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
     return result;
 }
 
-void RialtoGstTest::setPlayingState(GstElement *pipeline)
+void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
 {
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PLAYING));
-    // Call callback here...
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 }
 
 void RialtoGstTest::setNullState(GstElement *pipeline)
@@ -143,6 +137,19 @@ void RialtoGstTest::setNullState(GstElement *pipeline)
     EXPECT_CALL(m_mediaPipelineMock, removeSource(_)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
     gst_element_set_state(pipeline, GST_STATE_NULL);
+}
+
+void RialtoGstTest::setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const
+{
+    gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_caps(caps));
+}
+
+void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,
+                                                  const firebolt::rialto::PlaybackState &state) const
+{
+    auto mediaPlayerClient{sink->priv->m_mediaPlayerManager.getMediaPlayerClient()};
+    ASSERT_TRUE(mediaPlayerClient);
+    mediaPlayerClient->handlePlaybackStateChange(state);
 }
 
 void RialtoGstTest::expectSinksInitialisation() const
