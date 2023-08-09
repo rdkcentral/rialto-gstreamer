@@ -62,6 +62,10 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
+        <symbolName>createVideoSink</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
         <symbolName>rialto_mse_sink_setup_supported_caps</symbolName>
     </suppress>
     <suppress>
