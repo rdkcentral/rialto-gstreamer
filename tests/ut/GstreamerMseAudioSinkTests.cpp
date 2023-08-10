@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "Matchers.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
 
@@ -24,19 +25,40 @@ using testing::DoAll;
 using testing::Return;
 using testing::SetArgReferee;
 
+namespace
+{
+constexpr int32_t kUnknownSourceId{-1};
+constexpr bool kHasDrm{true};
+constexpr int kChannels{1};
+constexpr int kRate{48000};
+const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
+} // namespace
+
 class GstreamerMseAudioSinkTests : public RialtoGstTest
 {
 public:
     GstreamerMseAudioSinkTests() = default;
     ~GstreamerMseAudioSinkTests() override = default;
+
+    GstCaps *createDefaultCaps() const
+    {
+        return gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
+                                   "rate", G_TYPE_INT, kRate, nullptr);
+    }
+
+    firebolt::rialto::IMediaPipeline::MediaSourceAudio createDefaultMediaSource() const
+    {
+        return firebolt::rialto::IMediaPipeline::MediaSourceAudio{"audio/mp4", kHasDrm, kAudioConfig};
+    }
 };
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToReachPausedStateWhenMediaPipelineCantBeCreated)
 {
+    constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(nullptr));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements)).WillOnce(Return(nullptr));
     EXPECT_EQ(GST_STATE_CHANGE_FAILURE, gst_element_set_state(pipeline, GST_STATE_PAUSED));
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_NULL));
 
@@ -66,8 +88,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotAttachSourceWhenPipelineIsBelowPause
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_READY));
 
     gst_pad_set_active(audioSink->priv->m_sinkPad, TRUE);
-    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 1, nullptr)};
+    GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
 
     EXPECT_FALSE(audioSink->priv->m_sourceAttached);
@@ -84,16 +105,15 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotAttachSourceTwice)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
-    sourceWillBeAttached();
+    const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
 
-    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 1, nullptr)};
+    GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
     setCaps(audioSink, caps);
 
     EXPECT_TRUE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -105,15 +125,14 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithMpeg)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
-    sourceWillBeAttached();
+    const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
 
-    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 1, nullptr)};
+    GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
 
     EXPECT_TRUE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -125,15 +144,16 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithEac3)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
-    sourceWillBeAttached();
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-eac3", kHasDrm, kAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
 
-    GstCaps *caps{gst_caps_new_simple("audio/x-eac3", "mpegversion", G_TYPE_INT, 2, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 48000, nullptr)};
+    GstCaps *caps{gst_caps_new_simple("audio/x-eac3", "mpegversion", G_TYPE_INT, 2, "channels", G_TYPE_INT, kChannels,
+                                      "rate", G_TYPE_INT, kRate, nullptr)};
     setCaps(audioSink, caps);
 
     EXPECT_TRUE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -145,15 +165,16 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithAc3)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
-    sourceWillBeAttached();
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-eac3", kHasDrm, kAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
 
-    GstCaps *caps{gst_caps_new_simple("audio/x-ac3", "framed", G_TYPE_BOOLEAN, TRUE, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 48000, "alignment", G_TYPE_STRING, "frame", nullptr)};
+    GstCaps *caps{gst_caps_new_simple("audio/x-ac3", "framed", G_TYPE_BOOLEAN, TRUE, "channels", G_TYPE_INT, kChannels,
+                                      "rate", G_TYPE_INT, kRate, "alignment", G_TYPE_STRING, "frame", nullptr)};
     setCaps(audioSink, caps);
 
     EXPECT_TRUE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -166,12 +187,13 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToAttachSourceWithOpus)
 
     setPausedState(pipeline, audioSink);
 
-    GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, 1, "rate", G_TYPE_INT, 48000, nullptr)};
+    GstCaps *caps{
+        gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate, nullptr)};
     setCaps(audioSink, caps);
 
     EXPECT_FALSE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kUnknownSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -184,14 +206,15 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpus)
 
     setPausedState(pipeline, audioSink);
 
-    sourceWillBeAttached();
-    GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, 1, "rate", G_TYPE_INT, 48000,
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-opus", kHasDrm, kAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
                                       "channel-mapping-family", G_TYPE_INT, 0, nullptr)};
     setCaps(audioSink, caps);
 
     EXPECT_TRUE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -204,15 +227,14 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithAVStreamsProperty)
     installAudioVideoStreamsProperty(pipeline);
 
     setPausedState(pipeline, audioSink);
-    sourceWillBeAttached();
+    const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
 
-    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 1, nullptr)};
+    GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
 
     EXPECT_TRUE(audioSink->priv->m_sourceAttached);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -224,10 +246,9 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
-    sourceWillBeAttached();
+    const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
 
-    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, 1, "rate",
-                                      G_TYPE_INT, 1, nullptr)};
+    GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
 
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
@@ -236,7 +257,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
     EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_STATE_CHANGED));
     EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_ASYNC_DONE));
 
-    setNullState(pipeline);
+    setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
@@ -266,7 +287,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetVolumeProperty)
     g_object_get(audioSink, "volume", &volume, nullptr);
     EXPECT_EQ(kVolume, volume);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kUnknownSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -294,7 +315,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetMuteProperty)
     g_object_get(audioSink, "mute", &mute, nullptr);
     EXPECT_TRUE(mute);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kUnknownSourceId);
     gst_object_unref(pipeline);
 }
 
@@ -319,7 +340,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetVolume)
     EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
     g_object_set(audioSink, "volume", kVolume, nullptr);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kUnknownSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -345,7 +366,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetMute)
     EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
     g_object_set(audioSink, "mute", kMute, nullptr);
 
-    setNullState(pipeline);
+    setNullState(pipeline, kUnknownSourceId);
 
     gst_object_unref(pipeline);
 }

@@ -17,6 +17,7 @@
  */
 
 #include "RialtoGstTest.h"
+#include "Matchers.h"
 #include "MediaPipelineCapabilitiesMock.h"
 #include "RialtoGSteamerPlugin.cpp" // urgh... disgusting!
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
@@ -32,6 +33,7 @@ using firebolt::rialto::MediaPipelineCapabilitiesMock;
 using testing::_;
 using testing::ByMove;
 using testing::DoAll;
+using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
 using testing::StrictMock;
@@ -41,6 +43,31 @@ namespace
 const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4", "audio/aac", "audio/x-eac3", "audio/x-opus"};
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
+constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
+int32_t generateSourceId()
+{
+    static int32_t sourceId{0};
+    return sourceId++;
+}
+MATCHER_P(MediaSourceAudioMatcher, mediaSource, "")
+{
+    try
+    {
+        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceAudio &>(*arg)};
+        return matchedSource.getType() == mediaSource.getType() &&
+               matchedSource.getMimeType() == mediaSource.getMimeType() &&
+               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
+               matchedSource.getAudioConfig() == mediaSource.getAudioConfig() &&
+               matchedSource.getSegmentAlignment() == mediaSource.getSegmentAlignment() &&
+               matchedSource.getStreamFormat() == mediaSource.getStreamFormat() &&
+               matchedSource.getCodecData() == mediaSource.getCodecData() &&
+               matchedSource.getConfigType() == mediaSource.getConfigType();
+    }
+    catch (std::exception &)
+    {
+        return false;
+    }
+}
 } // namespace
 
 RialtoGstTest::RialtoGstTest()
@@ -123,22 +150,34 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
     return result;
 }
 
-void RialtoGstTest::sourceWillBeAttached() const
+int32_t RialtoGstTest::audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource)
 {
-    EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).WillOnce(Return(true));
+    const int32_t kSourceId{generateSourceId()};
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceAudioMatcher(mediaSource)))
+        .WillOnce(Invoke(
+            [=](auto &source)
+            {
+                source->setId(kSourceId);
+                return true;
+            }));
+    return kSourceId;
 }
 
 void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
 {
-    EXPECT_CALL(m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
+    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
+    const std::string kMimeType{};
+    const std::string kUrl{"mse://1"};
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
+        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 }
 
-void RialtoGstTest::setNullState(GstElement *pipeline)
+void RialtoGstTest::setNullState(GstElement *pipeline, int32_t sourceId)
 {
-    EXPECT_CALL(m_mediaPipelineMock, removeSource(_)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
     gst_element_set_state(pipeline, GST_STATE_NULL);
 }

@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "Matchers.h"
 #include "MediaPipelineClientMock.h"
 #include "MediaPipelineMock.h"
 #include "MediaPlayerClientBackend.h"
@@ -33,14 +34,6 @@ using testing::DoAll;
 using testing::Return;
 using testing::SetArgReferee;
 using testing::StrictMock;
-
-namespace firebolt::rialto
-{
-bool operator==(const VideoRequirements &lhs, const VideoRequirements &rhs)
-{
-    return lhs.maxWidth == rhs.maxWidth && lhs.maxHeight == rhs.maxHeight;
-}
-} // namespace firebolt::rialto
 
 namespace
 {
