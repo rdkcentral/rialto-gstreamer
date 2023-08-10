@@ -414,8 +414,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSendQosEvent)
     const firebolt::rialto::QosInfo kQosInfo{1, 2};
     mediaPlayerClient->notifyQos(kSourceId, kQosInfo);
 
-    const auto kReceivedMessages{getMessages(pipeline)};
-    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_QOS));
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_QOS));
 
     setNullState(pipeline, kSourceId);
 

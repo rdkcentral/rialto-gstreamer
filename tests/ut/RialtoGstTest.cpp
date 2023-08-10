@@ -191,6 +191,25 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
     return result;
 }
 
+bool RialtoGstTest::waitForMessage(GstElement *pipeline, const GstMessageType &messageType) const
+{
+    constexpr GstClockTime kTimeout{1000000000}; // 1 second
+    GstBus *bus = gst_element_get_bus(pipeline);
+    if (!bus)
+    {
+        return false;
+    }
+    bool result{false};
+    GstMessage *msg{gst_bus_timed_pop_filtered(bus, kTimeout, messageType)};
+    if (msg)
+    {
+        result = true;
+        gst_message_unref(msg);
+    }
+    gst_object_unref(bus);
+    return result;
+}
+
 int32_t RialtoGstTest::audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const
 {
     const int32_t kSourceId{generateSourceId()};
