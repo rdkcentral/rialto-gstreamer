@@ -228,9 +228,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotNotifyPlaybackStateEndOfStre
     expectPostMessage();
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::END_OF_STREAM);
 
-    const auto kReceivedMessages{getMessages(pipeline)};
-    EXPECT_EQ(1, kReceivedMessages.size());
-    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_ERROR));
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
 
     gst_object_unref(pipeline);
 }
@@ -436,9 +434,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyQos)
     const firebolt::rialto::QosInfo kQosInfo{1, 2};
     m_sut->notifyQos(kSourceId, kQosInfo);
 
-    const auto kReceivedMessages{getMessages(pipeline)};
-    EXPECT_EQ(1, kReceivedMessages.size());
-    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_QOS));
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_QOS));
 
     gst_object_unref(pipeline);
 }

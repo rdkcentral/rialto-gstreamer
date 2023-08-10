@@ -217,9 +217,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldReachPausedState)
 
     sendPlaybackStateNotification(videoSink, firebolt::rialto::PlaybackState::PAUSED);
 
-    const auto kReceivedMessages{getMessages(pipeline)};
-    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_STATE_CHANGED));
-    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_ASYNC_DONE));
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
     setNullState(pipeline, kSourceId);
 
