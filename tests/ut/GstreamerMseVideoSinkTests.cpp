@@ -395,3 +395,30 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetOrSetUnknownProperty)
 
     gst_object_unref(videoSink);
 }
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSendQosEvent)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createDefaultMediaSource())};
+
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(videoSink, caps);
+
+    sendPlaybackStateNotification(videoSink, firebolt::rialto::PlaybackState::PAUSED);
+
+    auto mediaPlayerClient{videoSink->priv->m_mediaPlayerManager.getMediaPlayerClient()};
+    ASSERT_TRUE(mediaPlayerClient);
+    const firebolt::rialto::QosInfo kQosInfo{1, 2};
+    mediaPlayerClient->notifyQos(kSourceId, kQosInfo);
+
+    const auto kReceivedMessages{getMessages(pipeline)};
+    EXPECT_TRUE(kReceivedMessages.contains(GST_MESSAGE_QOS));
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
