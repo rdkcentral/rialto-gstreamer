@@ -316,7 +316,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
     case PROP_FRAME_STEP_ON_PREROLL:
     {
         bool stepOnPrerollEnabled = g_value_get_boolean(value);
-        if (stepOnPrerollEnabled && !priv->stepOnPrerollEnabled)
+        if (client && stepOnPrerollEnabled && !priv->stepOnPrerollEnabled)
         {
             GST_INFO_OBJECT(object, "Frame stepping on preroll");
             client->renderFrame(RIALTO_MSE_BASE_SINK(sink));
@@ -372,7 +372,7 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 
     g_object_class_install_property(gobjectClass, PROP_WINDOW_SET,
                                     g_param_spec_string("rectangle", "rectangle", "Window Set Format: x,y,width,height",
-                                                        nullptr, GParamFlags(G_PARAM_WRITABLE)));
+                                                        nullptr, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH,
                                     g_param_spec_uint("maxVideoWidth",

@@ -68,6 +68,47 @@ MATCHER_P(MediaSourceAudioMatcher, mediaSource, "")
         return false;
     }
 }
+MATCHER_P(MediaSourceVideoMatcher, mediaSource, "")
+{
+    try
+    {
+        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceVideo &>(*arg)};
+        return matchedSource.getType() == mediaSource.getType() &&
+               matchedSource.getMimeType() == mediaSource.getMimeType() &&
+               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
+               matchedSource.getWidth() == mediaSource.getWidth() &&
+               matchedSource.getHeight() == mediaSource.getHeight() &&
+               matchedSource.getSegmentAlignment() == mediaSource.getSegmentAlignment() &&
+               matchedSource.getStreamFormat() == mediaSource.getStreamFormat() &&
+               matchedSource.getCodecData() == mediaSource.getCodecData() &&
+               matchedSource.getConfigType() == mediaSource.getConfigType();
+    }
+    catch (std::exception &)
+    {
+        return false;
+    }
+}
+MATCHER_P(MediaSourceDolbyVisionMatcher, mediaSource, "")
+{
+    try
+    {
+        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision &>(*arg)};
+        return matchedSource.getType() == mediaSource.getType() &&
+               matchedSource.getMimeType() == mediaSource.getMimeType() &&
+               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
+               matchedSource.getWidth() == mediaSource.getWidth() &&
+               matchedSource.getHeight() == mediaSource.getHeight() &&
+               matchedSource.getDolbyVisionProfile() == mediaSource.getDolbyVisionProfile() &&
+               matchedSource.getSegmentAlignment() == mediaSource.getSegmentAlignment() &&
+               matchedSource.getStreamFormat() == mediaSource.getStreamFormat() &&
+               matchedSource.getCodecData() == mediaSource.getCodecData() &&
+               matchedSource.getConfigType() == mediaSource.getConfigType();
+    }
+    catch (std::exception &)
+    {
+        return false;
+    }
+}
 } // namespace
 
 RialtoGstTest::RialtoGstTest()
@@ -150,10 +191,37 @@ RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline)
     return result;
 }
 
-int32_t RialtoGstTest::audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource)
+int32_t RialtoGstTest::audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const
 {
     const int32_t kSourceId{generateSourceId()};
     EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceAudioMatcher(mediaSource)))
+        .WillOnce(Invoke(
+            [=](auto &source)
+            {
+                source->setId(kSourceId);
+                return true;
+            }));
+    return kSourceId;
+}
+
+int32_t RialtoGstTest::videoSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceVideo &mediaSource) const
+{
+    const int32_t kSourceId{generateSourceId()};
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceVideoMatcher(mediaSource)))
+        .WillOnce(Invoke(
+            [=](auto &source)
+            {
+                source->setId(kSourceId);
+                return true;
+            }));
+    return kSourceId;
+}
+
+int32_t RialtoGstTest::dolbyVisionSourceWillBeAttached(
+    const firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision &mediaSource) const
+{
+    const int32_t kSourceId{generateSourceId()};
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceVideoMatcher(mediaSource)))
         .WillOnce(Invoke(
             [=](auto &source)
             {

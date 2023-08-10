@@ -83,6 +83,7 @@ add_gtests (
         GStreamerEmeUtilsTests.cpp
         GstreamerMseAudioSinkTests.cpp
         GstreamerMseMediaPlayerClientTests.cpp
+        GstreamerMseVideoSinkTests.cpp
         GStreamerUtilsTests.cpp
         GstreamerWebAudioPlayerClientTests.cpp
         Matchers.cpp
