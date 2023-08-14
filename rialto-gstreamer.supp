@@ -61,3 +61,18 @@
    ...
    fun:g_type_class_ref
 }
+{
+   ignore_thread_when_going_to_playing_state
+   Memcheck:Leak
+   ...
+   fun:start_thread
+   fun:clone
+}
+{
+   ignore_possibly_lost_bus_msg_when_going_to_playing_state
+   Memcheck:Leak
+   ...
+   fun:gst_element_call_async
+   ...
+   fun:gst_bus_post
+}

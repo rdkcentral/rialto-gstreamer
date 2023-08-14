@@ -82,6 +82,7 @@ add_gtests (
         ControlBackendTests.cpp
         GStreamerEmeUtilsTests.cpp
         GstreamerMseAudioSinkTests.cpp
+        GstreamerMseBaseSinkTests.cpp
         GstreamerMseMediaPlayerClientTests.cpp
         GstreamerMseVideoSinkTests.cpp
         GStreamerUtilsTests.cpp

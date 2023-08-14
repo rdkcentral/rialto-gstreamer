@@ -262,11 +262,28 @@ void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 }
 
-void RialtoGstTest::setNullState(GstElement *pipeline, int32_t sourceId)
+void RialtoGstTest::setPlayingState(GstElement *pipeline) const
+{
+    EXPECT_CALL(m_mediaPipelineMock, play()).WillOnce(Return(true));
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PLAYING));
+}
+
+void RialtoGstTest::setNullState(GstElement *pipeline, int32_t sourceId) const
 {
     EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
     gst_element_set_state(pipeline, GST_STATE_NULL);
+}
+
+void RialtoGstTest::pipelineWillGoToPausedState(RialtoMSEBaseSink *sink) const
+{
+    EXPECT_CALL(m_mediaPipelineMock, pause())
+        .WillOnce(Invoke(
+            [=]()
+            {
+                sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PLAYING);
+                return true;
+            }));
 }
 
 void RialtoGstTest::setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const
@@ -284,16 +301,21 @@ void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,
 
 void RialtoGstTest::installAudioVideoStreamsProperty(GstElement *pipeline) const
 {
-    g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 123,
-                                    g_param_spec_int("n-video", "n-video", "num of video streams", 1, G_MAXINT, 1,
-                                                     GParamFlags(G_PARAM_READWRITE)));
-    g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
-                                    g_param_spec_int("n-audio", "n-audio", "num of audio streams", 1, G_MAXINT, 1,
-                                                     GParamFlags(G_PARAM_READWRITE)));
+    static std::once_flag flag;
+    std::call_once(flag,
+                   [&]()
+                   {
+                       g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 123,
+                                                       g_param_spec_int("n-video", "n-video", "num of video streams", 1,
+                                                                        G_MAXINT, 1, GParamFlags(G_PARAM_READWRITE)));
+                       g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
+                                                       g_param_spec_int("n-audio", "n-audio", "num of audio streams", 1,
+                                                                        G_MAXINT, 1, GParamFlags(G_PARAM_READWRITE)));
 
-    g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
-                                    g_param_spec_uint("flags", "flags", "flags", 1, G_MAXINT, 1,
-                                                      GParamFlags(G_PARAM_READWRITE)));
+                       g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
+                                                       g_param_spec_uint("flags", "flags", "flags", 1, G_MAXINT, 1,
+                                                                         GParamFlags(G_PARAM_READWRITE)));
+                   });
 }
 
 void RialtoGstTest::expectSinksInitialisation() const
