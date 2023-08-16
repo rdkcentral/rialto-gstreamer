@@ -26,8 +26,6 @@
 #include <cstring>
 #include <gst/gst.h>
 
-#include <iostream>
-
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
 
@@ -383,7 +381,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
         {
             gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
 
-            std::cout << "EVENT\n";
             if (flags & GST_SEEK_FLAG_FLUSH)
             {
                 rialto_mse_base_sink_flush_start(sink);
@@ -391,7 +388,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 #if GST_CHECK_VERSION(1, 18, 0)
             else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
             {
-                std::cout << "JEST FLAGA\n";
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
                     sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
                 if ((client) && (sink->priv->m_mediaPlayerManager.hasControl()))
