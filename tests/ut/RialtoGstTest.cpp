@@ -179,7 +179,23 @@ RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
+RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
+    return RIALTO_WEB_AUDIO_SINK(webAudioSink);
+}
+
 GstElement *RialtoGstTest::createPipelineWithSink(RialtoMSEBaseSink *sink) const
+{
+    GstElement *pipeline = gst_pipeline_new("test-pipeline");
+    gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(sink));
+    return pipeline;
+}
+
+GstElement *RialtoGstTest::createPipelineWithSink(RialtoWebAudioSink *sink) const
 {
     GstElement *pipeline = gst_pipeline_new("test-pipeline");
     gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(sink));
@@ -303,6 +319,14 @@ void RialtoGstTest::pipelineWillGoToPausedState(RialtoMSEBaseSink *sink) const
 void RialtoGstTest::setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const
 {
     gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_caps(caps));
+}
+
+void RialtoGstTest::setCaps(RialtoWebAudioSink *sink, GstCaps *caps) const
+{
+    GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
+    ASSERT_TRUE(sinkPad);
+    gst_pad_send_event(sinkPad, gst_event_new_caps(caps));
+    gst_object_unref(sinkPad);
 }
 
 void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,

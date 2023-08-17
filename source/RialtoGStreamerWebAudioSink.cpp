@@ -382,7 +382,7 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
         std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
                                                         std::make_unique<MessageQueue>(), callbacks,
                                                         ITimerFactory::getFactory());
-
+    GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))
     {
         GST_ERROR_OBJECT(sink, "Failed to initialise AUDIO sink. Sink pad initialisation failed.");

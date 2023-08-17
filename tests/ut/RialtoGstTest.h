@@ -21,6 +21,7 @@
 #include "ControlMock.h"
 #include "MediaPipelineMock.h"
 #include "RialtoGStreamerMSEBaseSink.h"
+#include "RialtoGStreamerWebAudioSink.h"
 #include <gtest/gtest.h>
 
 class RialtoGstTest : public testing::Test
@@ -44,7 +45,9 @@ public:
 
     RialtoMSEBaseSink *createAudioSink() const;
     RialtoMSEBaseSink *createVideoSink() const;
+    RialtoWebAudioSink *createWebAudioSink() const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
+    GstElement *createPipelineWithSink(RialtoWebAudioSink *sink) const;
     ReceivedMessages getMessages(GstElement *pipeline) const;
     bool waitForMessage(GstElement *pipeline, const GstMessageType &messageType) const;
     int32_t audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const;
@@ -56,6 +59,7 @@ public:
     void setNullState(GstElement *pipeline, int32_t sourceId) const;
     void pipelineWillGoToPausedState(RialtoMSEBaseSink *sink) const;
     void setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const;
+    void setCaps(RialtoWebAudioSink *sink, GstCaps *caps) const;
     void sendPlaybackStateNotification(RialtoMSEBaseSink *sink, const firebolt::rialto::PlaybackState &state) const;
     void installAudioVideoStreamsProperty(GstElement *pipeline) const;
 
