@@ -382,6 +382,5 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldNotifyNewSample)
     willPerformPlayingToPausedTransition();
     setNull(pipeline);
     gst_object_unref(sinkPad);
-    gst_buffer_unref(buffer);
     gst_object_unref(pipeline);
 }
