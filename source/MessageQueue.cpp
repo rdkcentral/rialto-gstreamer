@@ -27,6 +27,14 @@ void CallInEventLoopMessage::handle()
     m_done = true;
     m_callInEventLoopCondVar.notify_all();
 }
+
+void CallInEventLoopMessage::skip()
+{
+    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
+    m_done = true;
+    m_callInEventLoopCondVar.notify_all();
+}
+
 void CallInEventLoopMessage::wait()
 {
     std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
@@ -144,5 +152,9 @@ void MessageQueue::doStop()
 void MessageQueue::doClear()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
-    m_queue.clear();
+    while (!m_queue.empty())
+    {
+        m_queue.front()->skip();
+        m_queue.pop_front();
+    }
 }

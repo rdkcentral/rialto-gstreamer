@@ -32,6 +32,7 @@ class CallInEventLoopMessage : public Message
 public:
     explicit CallInEventLoopMessage(const std::function<void()> &func);
     void handle() override;
+    void skip() override;
     void wait();
 
 private:

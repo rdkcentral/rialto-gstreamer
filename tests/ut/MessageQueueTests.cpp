@@ -17,6 +17,7 @@
  */
 
 #include "MessageQueue.h"
+#include <atomic>
 #include <condition_variable>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -123,4 +124,42 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
     EXPECT_TRUE(m_sut.callInEventLoop([&]() { m_sut.callInEventLoop(fun); }));
     cv.wait_for(lock, std::chrono::milliseconds(50), [&]() { return callFlag; });
     EXPECT_TRUE(callFlag);
+}
+
+TEST_F(MessageQueueTests, ShouldSkipTaskWhenCallInEventLoopIsCalledAfterStop)
+{
+    std::atomic_bool t1TaskExecuted{false};
+    std::atomic_bool t2TaskExecuted{false};
+    std::atomic_bool t3TaskExecuted{false};
+
+    m_sut.start();
+
+    // First thread queues very long task
+    std::thread t1{[&]()
+                   {
+                       EXPECT_TRUE(m_sut.callInEventLoop(
+                           [&]()
+                           {
+                               std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                               t1TaskExecuted = true;
+                           }));
+                   }};
+
+    // Second thread queues stop while first task is handled
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::thread t2{[&]()
+                   {
+                       m_sut.stop();
+                       t2TaskExecuted = true;
+                   }};
+
+    // Third thread queues a task after stop. This task should be skipped.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_TRUE(m_sut.callInEventLoop([&]() { t3TaskExecuted = true; }));
+    t1.join();
+    t2.join();
+
+    EXPECT_TRUE(t1TaskExecuted);
+    EXPECT_TRUE(t2TaskExecuted);
+    EXPECT_FALSE(t3TaskExecuted);
 }
