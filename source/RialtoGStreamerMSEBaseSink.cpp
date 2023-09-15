@@ -136,6 +136,13 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
 
         GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
 
+        {
+            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
+            if (sink->priv->m_seekTest)
+            {
+                sink->priv->m_seekTestCond.wait(lock);
+            }
+        }
         gst_element_post_message(GST_ELEMENT_CAST(sink),
                                  gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
         rialto_mse_base_async_done(sink);
@@ -328,10 +335,15 @@ static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetT
 static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
 {
     GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek");
+    {
+        std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
+        sink->priv->m_seekTest = true;
+    }
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
     if (!client)
     {
         GST_ERROR_OBJECT(sink, "Could not get the media player client");
+        sink->priv->m_seekTest = false;
         return;
     }
 
@@ -343,11 +355,21 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
         GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 3");
         GstState current = GST_STATE(sink);
 
-        // this will force sink's async transition to paused state and make that pipeline will need to
-        // wait for RialtoServer's preroll after seek
-        rialto_mse_base_sink_lost_state(sink);
-
         usleep(500000);
+
+        {
+            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
+            sink->priv->m_seekTestCond.notify_all();
+        }
+
+            // this will force sink's async transition to paused state and make that pipeline will need to
+            // wait for RialtoServer's preroll after seek
+            rialto_mse_base_sink_lost_state(sink);
+
+        {
+            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
+            sink->priv->m_seekTest = false;
+        }
 
         GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 4");
         // Pause rialto server so that the state of the sinks and server are syncronised.
