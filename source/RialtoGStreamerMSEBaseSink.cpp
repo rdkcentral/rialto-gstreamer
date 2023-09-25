@@ -70,17 +70,23 @@ static unsigned rialto_mse_base_sink_get_gst_play_flag(const char *nick)
 
 static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_async_start 1");
     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_async_start 2");
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_async_start 3");
 }
 
 static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 {
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_async_done 1");
     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_async_done 2");
     sink->priv->m_isStateCommitNeeded = false;
     gst_element_post_message(GST_ELEMENT_CAST(sink),
                              gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_async_done 3");
 }
 
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
@@ -988,9 +994,12 @@ bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStruc
 
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_lost_state 1");
     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_lost_state 2");
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
+    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_lost_state 3");
 }
 
 bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)
