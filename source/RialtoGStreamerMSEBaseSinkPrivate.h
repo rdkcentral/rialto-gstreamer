@@ -75,6 +75,8 @@ struct _RialtoMSEBaseSinkPrivate
     std::mutex m_seekTestMutex;
     bool m_seekTest = false;
 
+    std::mutex m_lostStateMutex;
+
     std::string m_uri;
     RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
 

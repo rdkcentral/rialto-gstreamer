@@ -70,12 +70,14 @@ static unsigned rialto_mse_base_sink_get_gst_play_flag(const char *nick)
 
 static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
+    std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
 }
 
 static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 {
+    std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
     sink->priv->m_isStateCommitNeeded = false;
     gst_element_post_message(GST_ELEMENT_CAST(sink),
                              gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
@@ -986,6 +988,7 @@ bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStruc
 
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
+    std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
