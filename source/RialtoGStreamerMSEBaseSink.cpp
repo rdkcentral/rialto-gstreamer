@@ -83,7 +83,6 @@ static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_eos_handler");
     GstState currentState = GST_STATE(sink);
     if ((currentState != GST_STATE_PAUSED) && (currentState != GST_STATE_PLAYING))
     {
@@ -104,7 +103,6 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const char *message)
 {
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_error_handler");
     GError *gError{g_error_new_literal(GST_STREAM_ERROR, 0, message)};
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_error(GST_OBJECT_CAST(sink), gError, message));
     g_error_free(gError);
@@ -113,17 +111,17 @@ static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const ch
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
                                                               firebolt::rialto::PlaybackState state)
 {
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_rialto_state_changed_handler 1");
+    // Wait for lost state to complete before handling a state notification,
+    // otherwise states can change while we are processing.
     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_rialto_state_changed_handler 2");
 
     GstState current = GST_STATE(sink);
     GstState next = GST_STATE_NEXT(sink);
     GstState pending = GST_STATE_PENDING(sink);
     GstState postNext = next == pending ? GST_STATE_VOID_PENDING : pending;
 
-    GST_ERROR_OBJECT(sink,
-                     "lukewill: Received server's state change to %u. Sink's states are: current state: %s next state: %s "
+    GST_DEBUG_OBJECT(sink,
+                     "Received server's state change to %u. Sink's states are: current state: %s next state: %s "
                      "pending state: %s, last return state %s",
                      static_cast<uint32_t>(state), gst_element_state_get_name(current),
                      gst_element_state_get_name(next), gst_element_state_get_name(pending),
@@ -133,7 +131,6 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
         ((state == firebolt::rialto::PlaybackState::PAUSED && next == GST_STATE_PAUSED) ||
          (state == firebolt::rialto::PlaybackState::PLAYING && next == GST_STATE_PLAYING)))
     {
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_rialto_state_changed_handler 3");
         GST_STATE(sink) = next;
         GST_STATE_NEXT(sink) = postNext;
         GST_STATE_PENDING(sink) = GST_STATE_VOID_PENDING;
@@ -141,25 +138,14 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
 
         GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
 
-        {
-            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
-            if (sink->priv->m_seekTest)
-            {
-                sink->priv->m_seekTestCond.wait(lock);
-            }
-        }
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_rialto_state_changed_handler 4");
         gst_element_post_message(GST_ELEMENT_CAST(sink),
                                  gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
         rialto_mse_base_async_done(sink);
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_rialto_state_changed_handler 5");
     }
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_rialto_state_changed_handler 6");
 }
 
 static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek_completed_handler");
     GST_INFO_OBJECT(sink, "Seek completed");
     std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
     sink->priv->m_seekCondVariable.notify_all();
@@ -259,7 +245,6 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
     case GST_QUERY_SEEKING:
     {
         GstFormat fmt;
-        GST_ERROR_OBJECT(sink, "lukewill: GST_QUERY_SEEKING");
         gst_query_parse_seeking(query, &fmt, NULL, NULL, NULL);
         gst_query_set_seeking(query, fmt, FALSE, 0, -1);
         return TRUE;
@@ -342,7 +327,6 @@ static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetT
 
 static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek");
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
     if (!client)
     {
@@ -350,65 +334,35 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
         return;
     }
 
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 2");
     client->notifySourceStartedSeeking(sink->priv->m_sourceId);
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 2.1");
 
     if (sink->priv->m_mediaPlayerManager.hasControl())
     {
-        {
-            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
-            sink->priv->m_seekTest = true;
-        }
-
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 3");
         GstState current = GST_STATE(sink);
-
-        usleep(500000);
-
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 3.1");
-        {
-            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
-            sink->priv->m_seekTestCond.notify_all();
-        }
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 3.2");
 
         // this will force sink's async transition to paused state and make that pipeline will need to
         // wait for RialtoServer's preroll after seek
         rialto_mse_base_sink_lost_state(sink);
 
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 3.3");
-        {
-            std::unique_lock<std::mutex> lock(sink->priv->m_seekTestMutex);
-            sink->priv->m_seekTest = false;
-        }
-
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 4");
         // Pause rialto server so that the state of the sinks and server are syncronised.
         // The pipeline will re-initiate the playing state on seek is complete.
         if (GST_STATE_PLAYING == current)
         {
-            GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 5");
             GST_INFO_OBJECT(sink, "The server is in the Playing state, pause the pipeline on seek");
             client->pause();
         }
 
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 6");
         std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
         GST_INFO_OBJECT(sink, "Seeking to position %" GST_TIME_FORMAT, GST_TIME_ARGS(sink->priv->m_lastSegment.start));
         client->seek(sink->priv->m_lastSegment.start);
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 7");
         if (sink->priv->m_sourceAttached)
         {
-            GST_ERROR_OBJECT(sink, "lukewill: wait seek");
             sink->priv->m_seekCondVariable.wait(lock);
-            GST_ERROR_OBJECT(sink, "lukewill: seek complete");
         }
         else
         {
             GST_DEBUG_OBJECT(sink, "Skip waiting for seek finish - source not attached yet.");
         }
-        GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_seek 8");
     }
 }
 
@@ -422,7 +376,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     {
     case GST_EVENT_SEEK:
     {
-        GST_ERROR_OBJECT(sink, "lukewill: GST_EVENT_SEEK");
         gdouble rate{1.0};
         GstFormat seekFormat;
         GstSeekFlags flags{GST_SEEK_FLAG_NONE};
@@ -490,7 +443,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                 }
             }
         }
-        GST_ERROR_OBJECT(sink, "lukewill: GST_EVENT_SEEK complete");
     }
     default:
         break;
@@ -729,7 +681,6 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
     GST_DEBUG_OBJECT(sink, "handling event %" GST_PTR_FORMAT, event);
-    GST_ERROR_OBJECT(sink, "lukewill: handling event %s", GST_EVENT_TYPE_NAME(event));
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_SEGMENT:
@@ -998,12 +949,9 @@ bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStruc
 
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_lost_state 1");
     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_lost_state 2");
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
-    GST_ERROR_OBJECT(sink, "lukewill: rialto_mse_base_sink_lost_state 3");
 }
 
 bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)

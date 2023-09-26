@@ -71,10 +71,6 @@ struct _RialtoMSEBaseSinkPrivate
     std::condition_variable m_seekCondVariable;
     std::mutex m_seekMutex;
 
-    std::condition_variable m_seekTestCond;
-    std::mutex m_seekTestMutex;
-    bool m_seekTest = false;
-
     std::mutex m_lostStateMutex;
 
     std::string m_uri;
