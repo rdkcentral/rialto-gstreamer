@@ -138,17 +138,10 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
         gst_element_post_message(GST_ELEMENT_CAST(sink),
                                  gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
 
-        if(sink->priv->m_isStateCommitNeeded)
-        {
-            GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
-            rialto_mse_base_async_done(sink);
-        }
-    else
-    {
+        GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
+        rialto_mse_base_async_done(sink);
         GST_INFO_OBJECT(sink, "Seek state transition to state %s done", gst_element_state_get_name(next));
-    }
-
-    sink->priv->m_prerollAfterSeekRequired = false;
+        sink->priv->m_prerollAfterSeekRequired = false;
     }
 
 }
