@@ -127,7 +127,7 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
                      gst_element_state_get_name(next), gst_element_state_get_name(pending),
                      gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
 
-    if (sink->priv->m_isStateCommitNeeded &&
+    if ((sink->priv->m_isStateCommitNeeded || sink->priv->m_prerollAfterSeekRequired) &&
         ((state == firebolt::rialto::PlaybackState::PAUSED && next == GST_STATE_PAUSED) ||
          (state == firebolt::rialto::PlaybackState::PLAYING && next == GST_STATE_PLAYING)))
     {
@@ -135,13 +135,22 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
         GST_STATE_NEXT(sink) = postNext;
         GST_STATE_PENDING(sink) = GST_STATE_VOID_PENDING;
         GST_STATE_RETURN(sink) = GST_STATE_CHANGE_SUCCESS;
-
-        GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
-
         gst_element_post_message(GST_ELEMENT_CAST(sink),
                                  gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
-        rialto_mse_base_async_done(sink);
+
+        if(sink->priv->m_isStateCommitNeeded)
+        {
+            GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
+            rialto_mse_base_async_done(sink);
+        }
+    else
+    {
+        GST_INFO_OBJECT(sink, "Seek state transition to state %s done", gst_element_state_get_name(next));
     }
+
+    sink->priv->m_prerollAfterSeekRequired = false;
+    }
+
 }
 
 static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)

@@ -34,7 +34,7 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
 {
-    _RialtoMSEBaseSinkPrivate() : m_sourceId(-1), m_isFlushOngoing(false), m_isStateCommitNeeded(false), m_hasDrm(true)
+    _RialtoMSEBaseSinkPrivate() : m_sourceId(-1), m_isFlushOngoing(false), m_isStateCommitNeeded(false),m_prerollAfterSeekRequired(false), m_hasDrm(true)
     {
     }
     ~_RialtoMSEBaseSinkPrivate()
@@ -65,6 +65,7 @@ struct _RialtoMSEBaseSinkPrivate
     bool m_isEos = false;
     std::atomic<bool> m_isFlushOngoing;
     std::atomic<bool> m_isStateCommitNeeded;
+    std::atomic<bool> m_prerollAfterSeekRequired;
     std::mutex m_sinkMutex;
 
     std::condition_variable m_needDataCondVariable;
