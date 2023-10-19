@@ -1,0 +1,74 @@
+ #
+ # Copyright (C) 2023 Sky UK
+ #
+ # This library is free software; you can redistribute it and/or
+ # modify it under the terms of the GNU Lesser General Public
+ # License as published by the Free Software Foundation;
+ # version 2.1 of the License.
+ #
+ # This library is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ # Lesser General Public License for more details.
+ #
+ # You should have received a copy of the GNU Lesser General Public
+ # License along with this library; if not, write to the Free Software
+ # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ #
+
+name: commit-message-format
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on a merge queue
+  merge_group:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This job checks the commit message of the merge
+  check-commit-message:
+    name: Check Commit Message
+
+    # Runs on ubuntu
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Get PR Commits
+        id: 'get-pr-commits'
+        uses: tim-actions/get-pr-commits@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check required Summery field
+        if: ${{ success() || failure() }}
+        uses: tim-actions/commit-message-checker-with-regex@v0.3.1
+        with:
+          commits: ${{ steps.get-pr-commits.outputs.commits }}
+          pattern: '\nSummery:\s*[\s\S]*?'
+          error: "Require a 'Summery:' field"
+      
+      - name: Check required Type field
+        if: ${{ success() || failure() }}
+        uses: tim-actions/commit-message-checker-with-regex@v0.3.1
+        with:
+          commits: ${{ steps.get-pr-commits.outputs.commits }}
+          pattern: '\nType:\s*Feature|Fix|Other'
+          error: "Require a 'Type: Feature/Fix/Other' field"
+
+      - name: Check required Test Plan field
+        if: ${{ success() || failure() }}
+        uses: tim-actions/commit-message-checker-with-regex@v0.3.1
+        with:
+          commits: ${{ steps.get-pr-commits.outputs.commits }}
+          pattern: '\nTest Plan:\s*[\s\S]*?'
+          error: "Require a 'Test Plan:' field"
+
+      - name: Check required Jira field
+        if: ${{ success() || failure() }}
+        uses: tim-actions/commit-message-checker-with-regex@v0.3.1
+        with:
+          commits: ${{ steps.get-pr-commits.outputs.commits }}
+          pattern: '\nTest Plan:\s*[\s\S]*?'
+          error: "Require a 'Jira:' field, if no jira put 'Jira: NO-JIRA'"
+
