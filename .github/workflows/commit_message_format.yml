@@ -36,4 +36,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Get PR Description
-        run: echo The body of your PR is ${{ github.event.pull_request.body }}
+        uses: actions-ecosystem/action-regex-match@v2
+        with:
+          text: ${{ github.event.pull_request.body }}
+          regex: '\nSummery:\s*[\s\S]*?'
