@@ -39,4 +39,4 @@ jobs:
         uses: actions-ecosystem/action-regex-match@v2
         with:
           text: ${{ github.event.pull_request.body }}
-          regex: '\nSummery:\s*[\s\S]*?'
+          regex: '\nSumry:\s*[\s\S]*?'
