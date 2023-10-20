@@ -22,6 +22,7 @@ name: commit-message-format
 on:
   # Triggers the workflow on a merge queue
   merge_group:
+    branches: [ "master", "rdkcentral:master" ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
