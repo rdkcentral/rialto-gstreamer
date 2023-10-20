@@ -42,7 +42,7 @@ jobs:
             Pull request must be merged with a description containing the required fields,
 
             Summery:
-            Type: Feature/Fix/Other
+            Type: Feature/Fix/Cleanup
             Test Plan:
             Jira:
 
