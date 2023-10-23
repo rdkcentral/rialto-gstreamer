@@ -48,4 +48,4 @@ jobs:
 
             If there is no jira releated to this change, please put 'Jira: NO-JIRA'.
 
-            Desciption can be changed by editing the top comment on your pull request.
+            Desciption can be changed by editing the top comment on your pull request and making a new commit.
