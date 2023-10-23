@@ -35,13 +35,13 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - name: Get PR Description
+      - name: Search for 'Summery:' 
         uses: actions-ecosystem/action-regex-match@v2
         if: failure() || success()
         with:
           text: ${{ github.event.pull_request.body }}
-          regex: '\nSumery:\s*[\s\S]*?'
+          regex: '\nSummery:\s*[\s\S]*?'
 
-      - name: Check regex match
+      - name: Check 'Summery:' 
         if: (failure() || success()) && ${{ steps.regex-match.outputs.match == '' }}
         run: exit 1
