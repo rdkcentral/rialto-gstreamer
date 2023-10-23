@@ -43,6 +43,5 @@ jobs:
           regex: '\nSumery:\s*[\s\S]*?'
 
       - name: Check regex match
-        if: failure() || success()
-        if: ${{ steps.regex-match.outputs.match == '' }}
+        if: (failure() || success()) && ${{ steps.regex-match.outputs.match == '' }}
         run: exit 1
