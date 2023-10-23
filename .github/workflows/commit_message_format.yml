@@ -41,8 +41,7 @@ jobs:
         id: summery-match
         if: failure() || success()
         with:
-          text: |
-            ${{ github.event.pull_request.body }}
+          text: '\n' + '${{ github.event.pull_request.body }}
           regex: '\nSummery:\s*[\s\S]*?'
           flags: gm
 
