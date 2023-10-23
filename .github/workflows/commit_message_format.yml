@@ -41,7 +41,8 @@ jobs:
         id: summery-match
         if: failure() || success()
         with:
-          text: \n${{ github.event.pull_request.body }}
+          text:
+            ${{ github.event.pull_request.body }}
           regex: '\nSummery:\s*[\s\S]*?'
           flags: gm
 
@@ -55,7 +56,8 @@ jobs:
         id: type-match
         if: failure() || success()
         with:
-          text: \n${{ github.event.pull_request.body }}
+          text:
+            ${{ github.event.pull_request.body }}
           regex: '\nType:\s*Feature|Fix|Cleanup'
           flags: gm
 
@@ -69,7 +71,8 @@ jobs:
         id: test-plan-match
         if: failure() || success()
         with:
-          text: \n${{ github.event.pull_request.body }}
+          text:
+            ${{ github.event.pull_request.body }}
           regex: '\nTest Plan:\s*[\s\S]*?'
           flags: gm
 
@@ -83,7 +86,8 @@ jobs:
         id: jira-match
         if: failure() || success()
         with:
-          text: \n${{ github.event.pull_request.body }}
+          text:
+            ${{ github.event.pull_request.body }}
           regex: '\nJira:\s*[\s\S]*?'
           flags: gm
 
@@ -94,4 +98,4 @@ jobs:
       # Print description.
       - name: Log string on failure
         if: failure()
-        run: echo \n${{ github.event.pull_request.body }}
+        run: echo -e \n${{ github.event.pull_request.body }}
