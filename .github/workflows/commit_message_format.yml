@@ -40,7 +40,7 @@ jobs:
         if: failure() || success()
         with:
           text: ${{ github.event.pull_request.body }}
-          regex: '\nSummery:\s*[\s\S]*?'
+          regex: 'Summery:\s*[\s\S]*?'
 
       - name: Check 'Summery:' 
         if: (failure() || success()) && ${{ steps.regex-match.outputs.match == '' }}
