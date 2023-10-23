@@ -44,6 +44,9 @@ jobs:
           regex: 'Summery:\s*[\s\S]*?'
           flags: gm
 
+      - run: echo ${{ steps.summery-match.outputs.group1 }}
+      - run: echo ${{ steps.summery-match.outputs.match }}
+
       - name: Check 'Summery:' 
         if: (failure() || success()) && ${{ steps.summery-match.outputs.match == '' }}
         run: exit 1
