@@ -41,7 +41,7 @@ jobs:
         id: summery-match
         if: failure() || success()
         with:
-          text:
+          text: |
             ${{ github.event.pull_request.body }}
           regex: '\nSummery:\s*[\s\S]*?'
           flags: gm
@@ -98,4 +98,4 @@ jobs:
       # Print description.
       - name: Log string on failure
         if: failure()
-        run: echo -e \n${{ github.event.pull_request.body }}
+        run: echo ${{ github.event.pull_request.body }}
