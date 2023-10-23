@@ -37,11 +37,12 @@ jobs:
     steps:
       - name: Search for 'Summery:' 
         uses: actions-ecosystem/action-regex-match@v2
+        id: summery-match
         if: failure() || success()
         with:
           text: ${{ github.event.pull_request.body }}
           regex: 'Summery:\s*[\s\S]*?'
 
       - name: Check 'Summery:' 
-        if: (failure() || success()) && ${{ steps.regex-match.outputs.match == '' }}
+        if: (failure() || success()) && ${{ steps.summery-match.outputs.match == '' }}
         run: exit 1
