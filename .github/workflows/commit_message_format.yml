@@ -55,10 +55,8 @@ jobs:
         id: type-match
         if: failure() || success()
         with:
-          text:
-            ${{ github.event.pull_request.body }}
-          regex: '\nType:\s*Feature|Fix|Cleanup'
-          flags: gm
+          text: ${{ github.event.pull_request.body }}
+          regex: 'Type:\s*Feature|Fix|Cleanup'
 
       - name: Check 'Type:' 
         if: (failure() || success()) && (steps.type-match.outputs.match == '')
@@ -70,10 +68,8 @@ jobs:
         id: test-plan-match
         if: failure() || success()
         with:
-          text:
-            ${{ github.event.pull_request.body }}
-          regex: '\nTest Plan:\s*[\s\S]*?'
-          flags: gm
+          text: ${{ github.event.pull_request.body }}
+          regex: 'Test Plan:\s*[\s\S]*?'
 
       - name: Check 'Test Plan:' 
         if: (failure() || success()) && (steps.test-plan-match.outputs.match == '')
@@ -85,10 +81,8 @@ jobs:
         id: jira-match
         if: failure() || success()
         with:
-          text:
-            ${{ github.event.pull_request.body }}
-          regex: '\nJira:\s*[\s\S]*?'
-          flags: gm
+          text: ${{ github.event.pull_request.body }}
+          regex: 'Jira:\s*[\s\S]*?'
 
       - name: Check 'Jira:' 
         if: (failure() || success()) && (steps.jira-match.outputs.match == '')
