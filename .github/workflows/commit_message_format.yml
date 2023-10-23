@@ -37,6 +37,12 @@ jobs:
     steps:
       - name: Get PR Description
         uses: actions-ecosystem/action-regex-match@v2
+        if: failure() || success()
         with:
           text: ${{ github.event.pull_request.body }}
-          regex: '\nSumry:\s*[\s\S]*?'
+          regex: '\nSumery:\s*[\s\S]*?'
+
+      - name: Check regex match
+        if: failure() || success()
+        if: ${{ steps.regex-match.outputs.match == '' }}
+        run: exit 1
