@@ -42,6 +42,7 @@ jobs:
         with:
           text: ${{ github.event.pull_request.body }}
           regex: 'Summery:\s*[\s\S]*?'
+          flags: gm
 
       - name: Check 'Summery:' 
         if: (failure() || success()) && ${{ steps.summery-match.outputs.match == '' }}
