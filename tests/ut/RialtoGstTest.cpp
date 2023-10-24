@@ -287,7 +287,7 @@ void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink
     const std::string kUrl{"mse://1"};
     EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 }

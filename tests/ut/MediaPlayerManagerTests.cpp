@@ -59,28 +59,28 @@ TEST_F(MediaPlayerManagerTests, ShouldNotHaveControlWhenClientIsNotAttached)
 TEST_F(MediaPlayerManagerTests, ShouldAttachMediaPlayerClient)
 {
     EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
 }
 
 TEST_F(MediaPlayerManagerTests, ShouldFailToAttachMediaPlayerClient)
 {
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(nullptr));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _)).WillOnce(Return(nullptr));
     EXPECT_FALSE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
 }
 
 TEST_F(MediaPlayerManagerTests, ShouldAttachMediaPlayerClientForAnotherGstObject)
 {
     EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
 
     m_mediaPipelineMock = std::make_unique<StrictMock<MediaPipelineMock>>();
     GstObject anotherObject{};
     EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&anotherObject, kMaxVideoWidth, kMaxVideoHeight));
 }
@@ -88,7 +88,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAttachMediaPlayerClientForAnotherGstObject
 TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
 {
     EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_TRUE(m_sut.hasControl());
@@ -97,7 +97,7 @@ TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachMediaPlayerClient)
 {
     EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
     MediaPlayerManager secondSut;
@@ -107,7 +107,7 @@ TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachMediaPlayerC
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldFailToAcquireControl)
 {
     EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_TRUE(m_sut.hasControl());
@@ -121,7 +121,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAcquireControl)
     {
         MediaPlayerManager secondSut;
         EXPECT_CALL(*m_mediaPipelineMock, load(_, _, _)).WillOnce(Return(true));
-        EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+        EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _, _, _))
             .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
         EXPECT_TRUE(secondSut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
         EXPECT_TRUE(secondSut.hasControl());
