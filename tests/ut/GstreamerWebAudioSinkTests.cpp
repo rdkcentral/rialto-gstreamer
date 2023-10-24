@@ -79,7 +79,7 @@ public:
         EXPECT_CALL(m_playerMock, getDeviceInfo(_, _, _))
             .WillOnce(DoAll(SetArgReferee<0>(kFrames), SetArgReferee<1>(kMaximumFrames),
                             SetArgReferee<2>(kSupportDeferredPlay), Return(true)));
-        EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kMimeType, kPriority, _))
+        EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kMimeType, kPriority, _, _, _))
             .WillOnce(Return(ByMove(std::move(m_player))));
         setCaps(sink, caps);
         gst_caps_unref(caps);

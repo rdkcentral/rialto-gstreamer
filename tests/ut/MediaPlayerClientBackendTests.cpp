@@ -58,7 +58,7 @@ public:
 
     void initializeMediaPipeline()
     {
-        EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kVideoRequirements))
+        EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kVideoRequirements, _, _))
             .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
         m_sut.createMediaPlayerBackend(m_mediaPipelineClientMock, kVideoRequirements.maxWidth,
                                        kVideoRequirements.maxHeight);
@@ -72,7 +72,7 @@ TEST_F(MediaPlayerClientBackendTests, MediaPlayerShouldNotBeCreated)
 
 TEST_F(MediaPlayerClientBackendTests, ShouldFailToCreateMediaPipeline)
 {
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kVideoRequirements)).WillOnce(Return(nullptr));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kVideoRequirements, _, _)).WillOnce(Return(nullptr));
     m_sut.createMediaPlayerBackend(m_mediaPipelineClientMock, kVideoRequirements.maxWidth, kVideoRequirements.maxHeight);
     EXPECT_FALSE(m_sut.isMediaPlayerBackendCreated());
 }
