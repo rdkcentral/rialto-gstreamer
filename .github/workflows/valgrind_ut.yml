@@ -103,7 +103,7 @@ jobs:
         with:
           csvinput: ${{ steps.csv-memory.outputs.content }}
 
-      # Add table to the summery
+      # Add table to the summary
       - name: Create results table
         if: failure()
         run: |
