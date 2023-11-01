@@ -129,7 +129,12 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            firebolt::rialto::WebAudioConfig config{pcm};
+            // "configWorkaround" is used because there doesn't seem to be an easy way to use
+            // make_shared in conjunction with an initalizer list, and adding a constructor to
+            // WebAudioConfig stops initalizer lists (used elsewhere in the code) from working...
+            firebolt::rialto::WebAudioConfig configWorkaround{pcm};
+            std::shared_ptr<firebolt::rialto::WebAudioConfig> config =
+                std::make_shared<firebolt::rialto::WebAudioConfig>(configWorkaround);
 
             // Only recreate player if the config has changed
             if (!m_isOpen || isNewConfig(audioMimeType, config))
@@ -141,7 +146,7 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
                 }
 
                 uint32_t priority = 1;
-                if (m_clientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, &config))
+                if (m_clientBackend->createWebAudioBackend(shared_from_this(), audioMimeType, priority, config))
                 {
                     if (!m_clientBackend->getDeviceInfo(m_preferredFrames, m_maximumFrames, m_supportDeferredPlay))
                     {
@@ -371,7 +376,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
 }
 
 bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType,
-                                                const firebolt::rialto::WebAudioConfig &config)
+                                                std::weak_ptr<const firebolt::rialto::WebAudioConfig> webAudioConfig)
 {
     if (audioMimeType != m_mimeType)
     {
@@ -384,7 +389,8 @@ bool GStreamerWebAudioPlayerClient::isNewConfig(const std::string &audioMimeType
         return true;
     }
 
-    if (config.pcm != m_config.pcm)
+    std::shared_ptr<const firebolt::rialto::WebAudioConfig> config = webAudioConfig.lock();
+    if (!config || config->pcm != m_config.pcm)
     {
         return true;
     }
