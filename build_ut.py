@@ -70,6 +70,9 @@ def main ():
                              + "Note: Valgrind can only write output to one source (log or xml). \n" \
                              + "Note: Requires version valgrind 3.17.0+ installed. \n")
     argParser.add_argument("-cov", "--coverage", action='store_true', help="Generates UT coverage report")
+    argParser.add_argument("-b", "--branch", default="",
+                    help="Git branch used in the build and test process.")
+
     args = vars(argParser.parse_args())
 
     # Rialto Component Tests & Paths
@@ -104,15 +107,15 @@ def main ():
 
     # Build the test executables
     if args['noBuild'] == False:
-        buildTargets(suitesToRun, args['output'], f, args['valgrind'], args['coverage'])
+        buildTargets(suitesToRun, args['output'], f, args['valgrind'], args['coverage'], args['branch'])
 
     # Run the tests with the optional settings
     if args['noTest'] == False:
         runTests(suitesToRun, args['listTests'], args['googletestFilter'], args['output'], f, xml, args['valgrind'],
-                 args['coverage'])
+                 args['coverage'], args['branch'])
 
 # Build the target executables
-def buildTargets (suites, outputDir, resultsFile, debug, coverage):
+def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     # Run cmake
     cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests"]
     # Coverage
@@ -125,6 +128,10 @@ def buildTargets (suites, outputDir, resultsFile, debug, coverage):
     makeCmd = ["make", jarg]
     for key in suites:
         makeCmd.append(suites[key]["suite"])
+    
+    # Append branch info
+    if branch:
+        makeCmd.extend(["-DBUILD_BRANCH=" + branch])
 
     print(f"+ {' '.join(makeCmd)}")
     if resultsFile != None:

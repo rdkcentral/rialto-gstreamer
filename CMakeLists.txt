@@ -44,6 +44,14 @@ endif()
 # Preprocesser Variable
 add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
+# Addr BUILD_BRANCH
+option(BUILD_BRANCH "Git branch" "")
+
+# Setting the BUILD_BRANCH
+if (BUILD_BRANCH)
+    add_compile_definitions(BUILD_BRANCH="${BUILD_BRANCH}")
+endif()
+
 # Config and target for building the unit tests
 if( NOT CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
     add_subdirectory(source)
