@@ -140,7 +140,7 @@ def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
         runcmd(makeCmd, cwd=os.getcwd() + '/' + outputDir )
 
 # Run the googletests
-def runTests (suites, doListTests, gtestFilter, outputDir, resultsFile, xmlFile, valgrind, coverage):
+def runTests (suites, doListTests, gtestFilter, outputDir, resultsFile, xmlFile, valgrind, coverage, branch):
     hasFailed = False
 
     for key in suites:
