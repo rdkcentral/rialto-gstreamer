@@ -146,6 +146,10 @@ def runTests (suites, doListTests, gtestFilter, outputDir, resultsFile, xmlFile,
     for key in suites:
         executeCmd = []
 
+        # Append branch info
+        if branch == True:
+            executeCmd.extend(["-DBUILD_BRANCH=" + branch])
+
         # Valgrind command must come before the test executable
         if valgrind == True:
             executeCmd.extend(AddValgrind(key, resultsFile != None, xmlFile != None))
