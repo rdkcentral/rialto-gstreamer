@@ -44,7 +44,7 @@ endif()
 # Preprocesser Variable
 add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
-# Addr BUILD_BRANCH
+# Add BUILD_BRANCH
 option(BUILD_BRANCH "Git branch" "")
 
 # Setting the BUILD_BRANCH
