@@ -70,7 +70,7 @@ def main ():
                              + "Note: Valgrind can only write output to one source (log or xml). \n" \
                              + "Note: Requires version valgrind 3.17.0+ installed. \n")
     argParser.add_argument("-cov", "--coverage", action='store_true', help="Generates UT coverage report")
-    argParser.add_argument("-b", "--branch", default="",
+    argParser.add_argument("-b", "--branch", action='store_true',
                     help="Git branch used in the build and test process.")
 
     args = vars(argParser.parse_args())
