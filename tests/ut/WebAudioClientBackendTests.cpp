@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "Matchers.h"
 #include "WebAudioClientBackend.h"
 #include "WebAudioPlayerClientMock.h"
 #include "WebAudioPlayerMock.h"

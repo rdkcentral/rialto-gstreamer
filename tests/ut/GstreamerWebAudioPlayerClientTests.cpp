@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerWebAudioPlayerClient.h"
+#include "Matchers.h"
 #include "MessageQueueMock.h"
 #include "RialtoGstTest.h"
 #include "TimerFactoryMock.h"
