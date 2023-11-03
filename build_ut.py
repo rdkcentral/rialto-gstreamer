@@ -70,8 +70,8 @@ def main ():
                              + "Note: Valgrind can only write output to one source (log or xml). \n" \
                              + "Note: Requires version valgrind 3.17.0+ installed. \n")
     argParser.add_argument("-cov", "--coverage", action='store_true', help="Generates UT coverage report")
-    argParser.add_argument("-b", "--branch", action='store_true',
-                    help="Git branch used in the build and test process.")
+    argParser.add_argument("-b", "--branch", default="",
+                        help="Git branch used in the build and test process.")
 
     args = vars(argParser.parse_args())
 
@@ -105,6 +105,10 @@ def main ():
     else:
         xml = None
 
+    if args['branch']:
+        executeCmd = ["git", "clone", "--branch", args['branch'], "https://github.com/rdkcentral/rialto.git"]
+        runcmd(executeCmd, cwd=os.getcwd())
+
     # Build the test executables
     if args['noBuild'] == False:
         buildTargets(suitesToRun, args['output'], f, args['valgrind'], args['coverage'], args['branch'])
@@ -131,7 +135,7 @@ def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     
     # Append branch info
     if branch:
-        makeCmd.extend(["-DBUILD_BRANCH=" + branch])
+        makeCmd.extend(["-DBUILD_BRANCH=" + str(branch)])
 
     print(f"+ {' '.join(makeCmd)}")
     if resultsFile != None:
