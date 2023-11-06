@@ -70,8 +70,7 @@ def main ():
                              + "Note: Valgrind can only write output to one source (log or xml). \n" \
                              + "Note: Requires version valgrind 3.17.0+ installed. \n")
     argParser.add_argument("-cov", "--coverage", action='store_true', help="Generates UT coverage report")
-    argParser.add_argument("-b", "--branch", default="",
-                        help="Git branch used in the build and test process.")
+    argParser.add_argument("-b", "--branch", default="master", help="Git branch used in the build and test process")
 
     args = vars(argParser.parse_args())
 
@@ -105,10 +104,6 @@ def main ():
     else:
         xml = None
 
-    if args['branch']:
-        executeCmd = ["git", "clone", "--branch", args['branch'], "https://github.com/rdkcentral/rialto.git"]
-        runcmd(executeCmd, cwd=os.getcwd())
-
     # Build the test executables
     if args['noBuild'] == False:
         buildTargets(suitesToRun, args['output'], f, args['valgrind'], args['coverage'], args['branch'])
@@ -121,7 +116,7 @@ def main ():
 # Build the target executables
 def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     # Run cmake
-    cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests"]
+    cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests", "-DBUILD_BRANCH=" + str(branch)]
     # Coverage
     if coverage:
         cmakeCmd.append("-DCOVERAGE_ENABLED=1")
@@ -132,10 +127,6 @@ def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     makeCmd = ["make", jarg]
     for key in suites:
         makeCmd.append(suites[key]["suite"])
-    
-    # Append branch info
-    if branch:
-        makeCmd.extend(["-DBUILD_BRANCH=" + str(branch)])
 
     print(f"+ {' '.join(makeCmd)}")
     if resultsFile != None:
@@ -144,15 +135,11 @@ def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
         runcmd(makeCmd, cwd=os.getcwd() + '/' + outputDir )
 
 # Run the googletests
-def runTests (suites, doListTests, gtestFilter, outputDir, resultsFile, xmlFile, valgrind, coverage, branch):
+def runTests (suites, doListTests, gtestFilter, outputDir, resultsFile, xmlFile, valgrind, coverage):
     hasFailed = False
 
     for key in suites:
         executeCmd = []
-
-        # Append branch info
-        if branch == True:
-            executeCmd.extend(["-DBUILD_BRANCH=" + branch])
 
         # Valgrind command must come before the test executable
         if valgrind == True:
