@@ -111,7 +111,7 @@ def main ():
     # Run the tests with the optional settings
     if args['noTest'] == False:
         runTests(suitesToRun, args['listTests'], args['googletestFilter'], args['output'], f, xml, args['valgrind'],
-                 args['coverage'], args['branch'])
+                 args['coverage'])
 
 # Build the target executables
 def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
