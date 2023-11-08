@@ -23,7 +23,7 @@ include( CheckCXXCompilerFlag )
 
 # Default to 'master' if branch is not specified
 if(BUILD_BRANCH)
-    message("======= Branch specified, using '${BUILD_BRANCH}' branch! =======")
+    message("======= Branch specified, using '${BUILD_BRANCH}' branch =======")
 else()
     set(BUILD_BRANCH "master")
     message("======= No branch specified, using 'master' branch as default =======")
