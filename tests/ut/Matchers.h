@@ -25,6 +25,7 @@ namespace firebolt::rialto
 {
 bool operator==(const VideoRequirements &lhs, const VideoRequirements &rhs);
 bool operator==(const AudioConfig &lhs, const AudioConfig &rhs);
+bool operator==(const WebAudioPcmConfig &lhs, const WebAudioPcmConfig &rhs);
 } // namespace firebolt::rialto
 
 #endif // MATCHERS_H

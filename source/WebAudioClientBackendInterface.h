@@ -27,7 +27,7 @@ class WebAudioClientBackendInterface
 public:
     virtual ~WebAudioClientBackendInterface() = default;
     virtual bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
-                                       const uint32_t priority, const WebAudioConfig *config) = 0;
+                                       const uint32_t priority, std::weak_ptr<const WebAudioConfig> config) = 0;
     virtual void destroyWebAudioBackend() = 0;
 
     virtual bool play() = 0;

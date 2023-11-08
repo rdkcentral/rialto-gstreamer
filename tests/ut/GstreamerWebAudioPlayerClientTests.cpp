@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerWebAudioPlayerClient.h"
+#include "Matchers.h"
 #include "MessageQueueMock.h"
 #include "RialtoGstTest.h"
 #include "TimerFactoryMock.h"
@@ -79,9 +80,8 @@ constexpr std::chrono::milliseconds kTimeout{100};
 constexpr auto kTimerType{TimerType::ONE_SHOT};
 MATCHER_P(WebAudioConfigMatcher, config, "")
 {
-    return arg && arg->pcm.rate == config.rate && arg->pcm.channels == config.channels &&
-           arg->pcm.sampleSize == config.sampleSize && arg->pcm.isBigEndian == config.isBigEndian &&
-           arg->pcm.isSigned == config.isSigned && arg->pcm.isFloat == config.isFloat;
+    std::shared_ptr<const firebolt::rialto::WebAudioConfig> argConfig = arg.lock();
+    return argConfig && argConfig->pcm == config;
 }
 } // namespace
 
