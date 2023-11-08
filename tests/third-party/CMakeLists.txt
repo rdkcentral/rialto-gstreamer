@@ -23,10 +23,14 @@ include( CheckCXXCompilerFlag )
 
 # Get the branch name from the build script (passed through -b option)
 set(BUILD_BRANCH "$ENV{BUILD_BRANCH}")
+if(BUILD_BRANCH)
+    message("======= Branch specified, using " ${BUILD_BRANCH} " branch =======")
+endif()
 
 # Default to "master" if the branch is not specified
 if(NOT BUILD_BRANCH)
     set(BUILD_BRANCH "master")
+    message("======= No branch specified, using master branch as default =======")
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
