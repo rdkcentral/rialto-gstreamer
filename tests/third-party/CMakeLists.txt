@@ -21,17 +21,14 @@ set( CMAKE_CXX_STANDARD 17 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 include( CheckCXXCompilerFlag )
 
-# Get the branch name from the build script (passed through -b option)
-set(BUILD_BRANCH "$ENV{BUILD_BRANCH}")
+# Default to 'master' if branch is not specified
 if(BUILD_BRANCH)
-    message("======= Branch specified, using " ${BUILD_BRANCH} " branch =======")
+    message("======= Branch specified, using '${BUILD_BRANCH}' branch! =======")
+else()
+    set(BUILD_BRANCH "master")
+    message("======= No branch specified, using 'master' branch as default =======")
 endif()
 
-# Default to "master" if the branch is not specified
-if(NOT BUILD_BRANCH)
-    set(BUILD_BRANCH "master")
-    message("======= No branch specified, using master branch as default =======")
-endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
     file(DOWNLOAD
