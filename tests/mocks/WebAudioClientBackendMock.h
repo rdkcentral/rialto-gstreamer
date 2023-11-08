@@ -29,7 +29,7 @@ class WebAudioClientBackendMock : public WebAudioClientBackendInterface
 public:
     MOCK_METHOD(bool, createWebAudioBackend,
                 (std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType, const uint32_t priority,
-                 const WebAudioConfig *config),
+                 std::weak_ptr<const WebAudioConfig> config),
                 (override));
     MOCK_METHOD(void, destroyWebAudioBackend, (), (override));
     MOCK_METHOD(bool, play, (), (override));

@@ -145,7 +145,7 @@ private:
      *
      * @retval true if this is a new config.
      */
-    bool isNewConfig(const std::string &audioMimeType, const firebolt::rialto::WebAudioConfig &config);
+    bool isNewConfig(const std::string &audioMimeType, std::weak_ptr<const firebolt::rialto::WebAudioConfig> config);
 
     /**
      * @brief Backend message queue.

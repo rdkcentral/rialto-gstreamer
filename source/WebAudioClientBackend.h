@@ -32,7 +32,7 @@ public:
     ~WebAudioClientBackend() final { m_webAudioPlayerBackend.reset(); }
 
     bool createWebAudioBackend(std::weak_ptr<IWebAudioPlayerClient> client, const std::string &audioMimeType,
-                               const uint32_t priority, const WebAudioConfig *config) override
+                               const uint32_t priority, std::weak_ptr<const WebAudioConfig> config) override
     {
         m_webAudioPlayerBackend =
             firebolt::rialto::IWebAudioPlayerFactory::createFactory()->createWebAudioPlayer(client, audioMimeType,

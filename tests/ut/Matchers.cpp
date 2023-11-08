@@ -30,4 +30,10 @@ bool operator==(const AudioConfig &lhs, const AudioConfig &rhs)
     // Skip checking codecSpecificConfig, as it is returned by gstreamer function
     return lhs.numberOfChannels == rhs.numberOfChannels && lhs.sampleRate == rhs.sampleRate;
 }
+
+bool operator==(const WebAudioPcmConfig &lhs, const WebAudioPcmConfig &rhs)
+{
+    return lhs.rate == rhs.rate && lhs.channels == rhs.channels && lhs.sampleSize == rhs.sampleSize &&
+           lhs.isBigEndian == rhs.isBigEndian && lhs.isSigned == rhs.isSigned && lhs.isFloat == rhs.isFloat;
+}
 } // namespace firebolt::rialto

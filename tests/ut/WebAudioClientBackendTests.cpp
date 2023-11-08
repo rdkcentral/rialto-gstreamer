@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "Matchers.h"
 #include "WebAudioClientBackend.h"
 #include "WebAudioPlayerClientMock.h"
 #include "WebAudioPlayerMock.h"
@@ -40,6 +41,12 @@ constexpr uint32_t kPriority{123};
 constexpr firebolt::rialto::WebAudioConfig kConfig{firebolt::rialto::WebAudioPcmConfig{1, 2, 3, false, true, false}};
 constexpr uint32_t kFrames{18};
 constexpr double kVolume{0.5};
+
+MATCHER_P(webAudioConfigMatcher, config, "")
+{
+    std::shared_ptr<const firebolt::rialto::WebAudioConfig> argConfig = arg.lock();
+    return argConfig && argConfig->pcm == config->pcm;
+}
 } // namespace
 
 class WebAudioClientBackendTests : public testing::Test
@@ -50,21 +57,25 @@ public:
     std::unique_ptr<StrictMock<WebAudioPlayerMock>> m_playerMock{std::make_unique<StrictMock<WebAudioPlayerMock>>()};
     std::shared_ptr<StrictMock<WebAudioPlayerClientMock>> m_clientMock{
         std::make_shared<StrictMock<WebAudioPlayerClientMock>>()};
+    std::shared_ptr<firebolt::rialto::WebAudioConfig> m_config =
+        std::make_shared<firebolt::rialto::WebAudioConfig>(kConfig);
     WebAudioClientBackend m_sut;
 
     bool createBackend()
     {
-        EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kAudioMimeType, kPriority, &kConfig, _, _))
+        EXPECT_CALL(*m_playerFactoryMock,
+                    createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config), _, _))
             .WillOnce(Return(ByMove(std::move(m_playerMock))));
-        return m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, &kConfig);
+        return m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, m_config);
     }
 };
 
 TEST_F(WebAudioClientBackendTests, ShouldFailToCreateBackend)
 {
-    EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kAudioMimeType, kPriority, &kConfig, _, _))
+    EXPECT_CALL(*m_playerFactoryMock,
+                createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config), _, _))
         .WillOnce(Return(nullptr));
-    EXPECT_FALSE(m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, &kConfig));
+    EXPECT_FALSE(m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, m_config));
 }
 
 TEST_F(WebAudioClientBackendTests, ShouldCreateBackend)
