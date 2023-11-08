@@ -74,8 +74,8 @@ def main ():
 
     args = vars(argParser.parse_args())
 
-    # Set the BUILD_BRANCH environment variable
-    os.environ["BUILD_BRANCH"] = args['branch']
+    # # Set the BUILD_BRANCH environment variable
+    # os.environ["BUILD_BRANCH"] = args['branch']
     
     # Rialto Component Tests & Paths
     # {Component Name : {Test Suite, Test Path}}
