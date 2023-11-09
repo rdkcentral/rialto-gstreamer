@@ -135,7 +135,6 @@ def main ():
         runTests(suitesToRun, args['listTests'], args['googletestFilter'], args['output'], f, xml, args['valgrind'],
                  args['coverage'])
 
-
 # Build the target executables
 def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     # Run cmake
