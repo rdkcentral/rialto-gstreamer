@@ -34,66 +34,165 @@ if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IMediaPipeline.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
+    message("Downloaded IMediaPipeline.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IMediaPipeline.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IMediaPipelineClient.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
+    message("Downloaded IMediaPipelineClient.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IMediaPipelineClient.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/MediaCommon.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
+    message("Downloaded MediaCommon.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded MediaCommon.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IMediaPipelineCapabilities.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
+    message("Downloaded IMediaPipelineCapabilities.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IMediaPipelineCapabilities.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/ControlCommon.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
+    message("Downloaded ControlCommon.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded ControlCommon.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IControlClient.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
+    message("Downloaded IControlClient.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IControlClient.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IControl.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
+    message("Downloaded IControl.h")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IControl.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IWebAudioPlayer.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
+    message("Downloaded IWebAudioPlayer.h")
+
+    # Check if file is empty or not
+    file(READ 
+    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IwebAudioPlayer.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/IWebAudioPlayerClient.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
+    message("Downloaded IWebAudioPlayerClient.h")
+
+    # Check if file is empty or not
+    file(READ 
+    ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded IWebAudioPlayerClient.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/RialtoGStreamerEMEProtectionMetadata.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
+    message("Downloaded RialtoGStreamerEMEProtectionMetadata.h")        
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded RialtoGStreamerEMEProtectionMetadata.h file is empty!")
+    endif()
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
     file(DOWNLOAD
         https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/RialtoGStreamerEMEProtectionMetadata.cpp
         ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
+    message("Downloaded RialtoGStreamerEMEProtectionMetadata.cpp")
+
+    # Check if file is empty or not
+    file(READ 
+        ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp
+        fileContents)
+    if("${fileContents}" STREQUAL "")
+        message(FATAL_ERROR "The downloaded RialtoGStreamerEMEProtectionMetadata.cpp file is empty!")
+    endif()
 endif()
 
 add_library(

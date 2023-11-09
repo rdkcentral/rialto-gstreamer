@@ -39,6 +39,25 @@ def runcmd(*args, **kwargs):
         args = ' '.join(status.args) if type(status.args) == list else status.args
         sys.exit(f'Command: "{args}" returned with {status.returncode} error code!')
 
+def checkAndRemoveFiles():
+    headerFiles = [
+        "tests/third-party/include/IMediaPipeline.h",
+        "tests/third-party/include/IMediaPipelineClient.h",
+        "tests/third-party/include/MediaCommon.h",
+        "tests/third-party/include/IMediaPipelineCapabilities.h",
+        "tests/third-party/include/ControlCommon.h",
+        "tests/third-party/include/IControlClient.h",
+        "tests/third-party/include/IControl.h",
+        "tests/third-party/include/IWebAudioPlayer.h",
+        "tests/third-party/include/IWebAudioPlayerClient.h",
+        "tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h",
+        "tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp"
+    ]
+
+    for filePath in headerFiles:
+        if os.path.exists(filePath):
+            print(f"Removing existing file: {filePath}")
+            os.remove(filePath)
 
 def main ():
     # Get arguments
@@ -74,9 +93,9 @@ def main ():
 
     args = vars(argParser.parse_args())
 
-    # # Set the BUILD_BRANCH environment variable
-    # os.environ["BUILD_BRANCH"] = args['branch']
-    
+    # Checks and removes the relevant header files in tests/third-party/include as well as tests/third-party/source
+    checkAndRemoveFiles()
+
     # Rialto Component Tests & Paths
     # {Component Name : {Test Suite, Test Path}}
     suitesToRun = {"gst" : {"suite" : "GstRialtoUnitTests", "path" : "/tests/ut/"}}
@@ -115,6 +134,7 @@ def main ():
     if args['noTest'] == False:
         runTests(suitesToRun, args['listTests'], args['googletestFilter'], args['output'], f, xml, args['valgrind'],
                  args['coverage'])
+
 
 # Build the target executables
 def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
