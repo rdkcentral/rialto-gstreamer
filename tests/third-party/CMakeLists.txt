@@ -86,13 +86,13 @@ endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
     file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/${BUILD_BRANCH}/library/include/RialtoGStreamerEMEProtectionMetadata.h
+        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/RialtoGStreamerEMEProtectionMetadata.h
         ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
 endif()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
     file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/${BUILD_BRANCH}/library/source/RialtoGStreamerEMEProtectionMetadata.cpp
+        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/RialtoGStreamerEMEProtectionMetadata.cpp
         ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
 endif()
 
