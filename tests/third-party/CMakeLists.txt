@@ -21,71 +21,61 @@ set( CMAKE_CXX_STANDARD 17 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 include( CheckCXXCompilerFlag )
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipeline.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipeline.h)
+# Default to 'master' if branch is not specified
+if(BUILD_BRANCH)
+    message("======= Branch specified, using '${BUILD_BRANCH}' branch =======")
+else()
+    set(BUILD_BRANCH "master")
+    message("======= No branch specified, using 'master' branch as default =======")
 endif()
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipelineClient.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineClient.h)
-endif()
+function(downloadAndCheck URL FILE)
+    if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for the source file
+        set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/source/${FILE})
+    else()
+        set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE})
+    endif()
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/MediaCommon.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/MediaCommon.h)
-endif()
+    if(NOT EXISTS ${FILE_PATH})
+        file(DOWNLOAD ${URL} ${FILE_PATH})
+        message("Downloaded ${FILE}")
+        
+        # If the file is empty
+        file(READ ${FILE_PATH} fileContents)
+        if("${fileContents}" STREQUAL "")
+            message(FATAL_ERROR "The downloaded ${FILE} file is empty!")
+        endif()
+    endif()
+endfunction()
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IMediaPipelineCapabilities.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IMediaPipelineCapabilities.h)
-endif()
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/ControlCommon.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/ControlCommon.h)
-endif()
+# List of files to download
+set(FILE_LIST
+    RialtoGStreamerEMEProtectionMetadata.h
+    RialtoGStreamerEMEProtectionMetadata.cpp
+    IMediaPipeline.h
+    IMediaPipelineClient.h
+    MediaCommon.h
+    IMediaPipelineCapabilities.h
+    ControlCommon.h
+    IControlClient.h
+    IControl.h
+    IWebAudioPlayer.h
+    IWebAudioPlayerClient.h
+)
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IControlClient.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControlClient.h)
-endif()
+# Loop through the list and call the function
+foreach(FILE_NAME ${FILE_LIST})
+    if(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.h") # Special case for header file as the path is different
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/)
+    elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for source file as the path is different
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/)
+    else()
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/)
+    endif()
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IControl.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IControl.h)
-endif()
-
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IWebAudioPlayer.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayer.h)
-endif()
-
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto/master/media/public/include/IWebAudioPlayerClient.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/IWebAudioPlayerClient.h)
-endif()
-
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/RialtoGStreamerEMEProtectionMetadata.h
-        ${CMAKE_SOURCE_DIR}/tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h)
-endif()
-
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
-    file(DOWNLOAD
-        https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/RialtoGStreamerEMEProtectionMetadata.cpp
-        ${CMAKE_SOURCE_DIR}/tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp)
-endif()
+    downloadAndCheck(${BASE_URL}${FILE_NAME} ${FILE_NAME})
+endforeach()
 
 add_library(
     gstRialtoThirdParty

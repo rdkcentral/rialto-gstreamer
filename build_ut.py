@@ -23,6 +23,7 @@ import os
 import argparse
 import multiprocessing
 import sys
+import shutil
 
 # Default variables
 resultOutput = "gtest_result"
@@ -39,7 +40,21 @@ def runcmd(*args, **kwargs):
         args = ' '.join(status.args) if type(status.args) == list else status.args
         sys.exit(f'Command: "{args}" returned with {status.returncode} error code!')
 
+def checkAndRemoveFiles():
+    includeDirs = "tests/third-party/include"
+    sourceFile = "tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp"
 
+    try:
+        if os.path.exists(includeDirs):
+            print(f"Removing files within: {includeDirs}")
+            shutil.rmtree(includeDirs)
+
+        if os.path.exists(sourceFile):
+            print(f"Removing file: {sourceFile}")
+            os.remove(sourceFile)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    
 def main ():
     # Get arguments
     argParser = argparse.ArgumentParser(description='Run the rialto unittests.', formatter_class=argparse.RawTextHelpFormatter)
@@ -70,6 +85,8 @@ def main ():
                              + "Note: Valgrind can only write output to one source (log or xml). \n" \
                              + "Note: Requires version valgrind 3.17.0+ installed. \n")
     argParser.add_argument("-cov", "--coverage", action='store_true', help="Generates UT coverage report")
+    argParser.add_argument("-b", "--branch", default="", help="Rialto branch used to pull the API header files during the build and test process")
+
     args = vars(argParser.parse_args())
 
     # Rialto Component Tests & Paths
@@ -81,6 +98,8 @@ def main ():
 
     # Clean if required
     if args['clean'] == True:
+        # Checks and removes the relevant header files in tests/third-party/include as well as tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp only on clean builds
+        checkAndRemoveFiles()
         executeCmd = ["rm", "-rf", args['output'], resultOutput + ".log", valgrindOutput + ".log"]
         runcmd(executeCmd, cwd=os.getcwd())
 
@@ -104,7 +123,7 @@ def main ():
 
     # Build the test executables
     if args['noBuild'] == False:
-        buildTargets(suitesToRun, args['output'], f, args['valgrind'], args['coverage'])
+        buildTargets(suitesToRun, args['output'], f, args['valgrind'], args['coverage'], args['branch'])
 
     # Run the tests with the optional settings
     if args['noTest'] == False:
@@ -112,9 +131,9 @@ def main ():
                  args['coverage'])
 
 # Build the target executables
-def buildTargets (suites, outputDir, resultsFile, debug, coverage):
+def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     # Run cmake
-    cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests"]
+    cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests", "-DBUILD_BRANCH=" + str(branch)]
     # Coverage
     if coverage:
         cmakeCmd.append("-DCOVERAGE_ENABLED=1")
