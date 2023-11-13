@@ -23,6 +23,7 @@ import os
 import argparse
 import multiprocessing
 import sys
+import shutil
 
 # Default variables
 resultOutput = "gtest_result"
@@ -40,25 +41,20 @@ def runcmd(*args, **kwargs):
         sys.exit(f'Command: "{args}" returned with {status.returncode} error code!')
 
 def checkAndRemoveFiles():
-    headerFiles = [
-        "tests/third-party/include/IMediaPipeline.h",
-        "tests/third-party/include/IMediaPipelineClient.h",
-        "tests/third-party/include/MediaCommon.h",
-        "tests/third-party/include/IMediaPipelineCapabilities.h",
-        "tests/third-party/include/ControlCommon.h",
-        "tests/third-party/include/IControlClient.h",
-        "tests/third-party/include/IControl.h",
-        "tests/third-party/include/IWebAudioPlayer.h",
-        "tests/third-party/include/IWebAudioPlayerClient.h",
-        "tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h",
-        "tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp"
-    ]
+    includeDirs = "tests/third-party/include"
+    sourceFile = "tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp"
 
-    for filePath in headerFiles:
-        if os.path.exists(filePath):
-            print(f"Removing existing file: {filePath}")
-            os.remove(filePath)
+    try:
+        if os.path.exists(includeDirs):
+            print(f"Removing files within: {includeDirs}")
+            shutil.rmtree(includeDirs)
 
+        if os.path.exists(sourceFile):
+            print(f"Removing file: {sourceFile}")
+            os.remove(sourceFile)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    
 def main ():
     # Get arguments
     argParser = argparse.ArgumentParser(description='Run the rialto unittests.', formatter_class=argparse.RawTextHelpFormatter)
@@ -89,12 +85,9 @@ def main ():
                              + "Note: Valgrind can only write output to one source (log or xml). \n" \
                              + "Note: Requires version valgrind 3.17.0+ installed. \n")
     argParser.add_argument("-cov", "--coverage", action='store_true', help="Generates UT coverage report")
-    argParser.add_argument("-b", "--branch", default="", help="Git branch used in the build and test process")
+    argParser.add_argument("-b", "--branch", default="", help="Rialto branch used to pull the API header files during the build and test process")
 
     args = vars(argParser.parse_args())
-
-    # Checks and removes the relevant header files in tests/third-party/include as well as tests/third-party/source
-    checkAndRemoveFiles()
 
     # Rialto Component Tests & Paths
     # {Component Name : {Test Suite, Test Path}}
@@ -105,6 +98,8 @@ def main ():
 
     # Clean if required
     if args['clean'] == True:
+        # Checks and removes the relevant header files in tests/third-party/include as well as tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp only on clean builds
+        checkAndRemoveFiles()
         executeCmd = ["rm", "-rf", args['output'], resultOutput + ".log", valgrindOutput + ".log"]
         runcmd(executeCmd, cwd=os.getcwd())
 
