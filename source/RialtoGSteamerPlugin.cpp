@@ -20,6 +20,7 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerWebAudioSink.h"
 #include <cstring>
+#include <limits>
 
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
@@ -27,7 +28,7 @@ static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
     GST_INFO("Commit ID: %s", (std::strlen(commitID) > 0) ? commitID : "unknown");
 
     const char *socketPathStr = getenv("RIALTO_SOCKET_PATH");
-    guint sinkRank = socketPathStr ? GST_RANK_PRIMARY + 100 : 0;
+    guint sinkRank = socketPathStr ? std::numeric_limits<int>::max() : 0;
 
     const char *sinkRankStr = getenv("RIALTO_SINKS_RANK");
     if (sinkRankStr)
