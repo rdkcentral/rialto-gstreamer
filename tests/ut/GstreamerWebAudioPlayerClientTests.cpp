@@ -108,6 +108,17 @@ public:
                 }));
     }
 
+    void expectScheduleInEventLoop()
+    {
+        EXPECT_CALL(m_messageQueueMock, scheduleInEventLoop(_))
+            .WillRepeatedly(Invoke(
+                [](const auto &f)
+                {
+                    f();
+                    return true;
+                }));
+    }
+
     void open()
     {
         expectCallInEventLoop();
@@ -420,7 +431,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldBeOpened)
 
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenNotOpened)
 {
-    expectCallInEventLoop();
+    expectScheduleInEventLoop();
     m_sut->notifyPushSamplesTimerExpired();
 }
 
@@ -455,6 +466,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldTryPushBufferTwiceWhenTimerExpi
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
     gst_buffer_fill(buffer, 0, kBytes.data(), kBytes.size());
 
+    expectScheduleInEventLoop();
     open();
     EXPECT_CALL(m_webAudioClientBackendMock, getBufferAvailable(_)).WillOnce(Return(true));
     std::function<void()> timerCallback;

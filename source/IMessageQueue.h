@@ -39,6 +39,7 @@ public:
     virtual std::shared_ptr<Message> waitForMessage() = 0;
     virtual bool postMessage(const std::shared_ptr<Message> &msg) = 0;
     virtual void processMessages() = 0;
+    virtual bool scheduleInEventLoop(const std::function<void()> &func) = 0;
     virtual bool callInEventLoop(const std::function<void()> &func) = 0;
 };
 
