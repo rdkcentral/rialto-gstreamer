@@ -42,6 +42,16 @@ private:
     bool m_done;
 };
 
+class ScheduleInEventLoopMessage : public Message
+{
+public:
+    explicit ScheduleInEventLoopMessage(const std::function<void()> &func);
+    void handle() override;
+
+private:
+    const std::function<void()> m_func;
+};
+
 class MessageQueueFactory : public IMessageQueueFactory
 {
 public:
@@ -62,6 +72,7 @@ public:
     // Posts a message to the queue.
     bool postMessage(const std::shared_ptr<Message> &msg) override;
     void processMessages() override;
+    bool scheduleInEventLoop(const std::function<void()> &func) override;
     bool callInEventLoop(const std::function<void()> &func) override;
 
 protected:

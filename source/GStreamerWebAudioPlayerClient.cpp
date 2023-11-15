@@ -270,7 +270,7 @@ bool GStreamerWebAudioPlayerClient::isOpen()
 
 void GStreamerWebAudioPlayerClient::notifyPushSamplesTimerExpired()
 {
-    m_backendQueue->callInEventLoop([&]() { pushSamples(); });
+    m_backendQueue->scheduleInEventLoop([&]() { pushSamples(); });
 }
 
 bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)

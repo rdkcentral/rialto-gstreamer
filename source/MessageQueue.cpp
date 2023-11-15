@@ -41,6 +41,13 @@ void CallInEventLoopMessage::wait()
     m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
 }
 
+ScheduleInEventLoopMessage::ScheduleInEventLoopMessage(const std::function<void()> &func) : m_func(func) {}
+
+void ScheduleInEventLoopMessage::handle()
+{
+    m_func();
+}
+
 std::shared_ptr<IMessageQueueFactory> IMessageQueueFactory::createFactory()
 {
     return std::make_shared<MessageQueueFactory>();
@@ -113,6 +120,17 @@ void MessageQueue::processMessages()
         std::shared_ptr<Message> message = waitForMessage();
         message->handle();
     } while (m_running);
+}
+
+bool MessageQueue::scheduleInEventLoop(const std::function<void()> &func)
+{
+    auto message = std::make_shared<ScheduleInEventLoopMessage>(func);
+    if (!postMessage(message))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 bool MessageQueue::callInEventLoop(const std::function<void()> &func)
