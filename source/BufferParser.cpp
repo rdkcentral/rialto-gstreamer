@@ -20,6 +20,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
 #include <cstring>
+#include <gst_svp_meta.h>
 #include <inttypes.h>
 
 using namespace firebolt::rialto;
@@ -33,7 +34,7 @@ std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(GstSampl
     GstStructure *structure = gst_caps_get_structure(caps, 0);
 
     std::unique_ptr<IMediaPipeline::MediaSegment> mseData =
-        parseSpecificPartOfBuffer(streamId, structure, timeStamp, duration);
+        parseSpecificPartOfBuffer(streamId, structure, timeStamp, duration, buffer);
 
     mseData->setData(map.size, map.data);
 
@@ -134,7 +135,8 @@ void BufferParser::addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMedi
 }
 
 std::unique_ptr<IMediaPipeline::MediaSegment>
-AudioBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration)
+AudioBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration,
+                                             GstBuffer *buffer)
 {
     gint sampleRate = 0;
     gint numberOfChannels = 0;
@@ -150,9 +152,57 @@ AudioBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structu
     return mseData;
 }
 
-std::unique_ptr<IMediaPipeline::MediaSegment>
-VideoBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration)
+struct token
 {
+    size_t ptr;
+    uint32_t type;
+    size_t size;
+    size_t token;
+};
+
+struct handle
+{
+    unsigned char *ptr;
+    uint32_t type;
+    size_t size;
+    void *token;
+};
+
+std::unique_ptr<IMediaPipeline::MediaSegment>
+VideoBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration,
+                                             GstBuffer *buffer)
+{
+    GstProtectionMeta *protectionMeta = reinterpret_cast<GstProtectionMeta *>(gst_buffer_get_protection_meta(buffer));
+
+    unsigned int subSampleCount = 0;
+
+    std::vector<uint8_t> secureToken;
+    token ptr = {};
+    if (!protectionMeta)
+    {
+    }
+    else
+    {
+        gst_structure_get_uint(protectionMeta->info, "ptr", &ptr.ptr);
+        gst_structure_get_uint(protectionMeta->info, "type", &ptr.type);
+        gst_structure_get_uint(protectionMeta->info, "size", &ptr.size);
+        gst_structure_get_uint(protectionMeta->info, "token", &ptr.token);
+
+        handle handle;
+        handle.ptr = (unsigned char *)ptr.ptr;
+        handle.type = ptr.type;
+        handle.size = ptr.size;
+        handle.token = (void *)ptr.token;
+        std::copy(reinterpret_cast<unsigned char *>(&handle),
+                  reinterpret_cast<unsigned char *>(&handle) + svp_token_size(), std::back_inserter(secureToken));
+
+        gst_structure_get_uint(protectionMeta->info, "subsample_count", &subSampleCount);
+    }
+
+    static void *svpCtx = nullptr;
+    if (!svpCtx)
+        gst_svp_ext_get_context(&svpCtx, Server, 0);
+
     gint width = 0;
     gint height = 0;
     firebolt::rialto::Fraction frameRate{firebolt::rialto::kUndefinedSize, firebolt::rialto::kUndefinedSize};
@@ -164,7 +214,41 @@ VideoBufferParser::parseSpecificPartOfBuffer(int streamId, GstStructure *structu
               duration, width, height, frameRate.numerator, frameRate.denominator);
 
     std::unique_ptr<IMediaPipeline::MediaSegmentVideo> mseData =
-        std::make_unique<IMediaPipeline::MediaSegmentVideo>(streamId, timeStamp, duration, width, height, frameRate);
+        std::make_unique<IMediaPipeline::MediaSegmentVideo>(streamId, timeStamp, duration, width, height, frameRate,
+                                                            secureToken);
+
+    if (subSampleCount)
+    {
+        const GValue *value = gst_structure_get_value(protectionMeta->info, "subsamples");
+        if (value)
+        {
+            GstBuffer *subSamplesBuffer = gst_value_get_buffer(value);
+            if (subSamplesBuffer)
+            {
+                GstMappedBuffer mappedSubSamples(subSamplesBuffer, GST_MAP_READ);
+                if (mappedSubSamples &&
+                    ((mappedSubSamples.size() / (sizeof(int16_t) + sizeof(int32_t))) == subSampleCount))
+                {
+                    std::vector<uint8_t> subSamples(mappedSubSamples.data(),
+                                                    mappedSubSamples.data() + mappedSubSamples.size());
+
+                    size_t subSampleOffset = 0;
+                    for (unsigned int subSampleIdx = 0; subSampleIdx < subSampleCount; ++subSampleIdx)
+                    {
+                        uint16_t bytesOfClearData = (uint16_t)subSamples[subSampleOffset] << 8 |
+                                                    (uint16_t)subSamples[subSampleOffset + 1];
+                        uint32_t bytesOfEncryptedData = (uint32_t)subSamples[subSampleOffset + 2] << 24 |
+                                                        (uint32_t)subSamples[subSampleOffset + 3] << 16 |
+                                                        (uint32_t)subSamples[subSampleOffset + 4] << 8 |
+                                                        (uint32_t)subSamples[subSampleOffset + 5];
+
+                        mseData->addSubSample(bytesOfClearData, bytesOfEncryptedData);
+                    }
+                }
+            }
+        }
+        gst_buffer_remove_meta(buffer, reinterpret_cast<GstMeta *>(protectionMeta));
+    }
 
     return mseData;
 }

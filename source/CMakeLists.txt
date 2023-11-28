@@ -57,6 +57,7 @@ target_link_libraries(gstrialtosinks
         ${GSTREAMER_APP_LIBRARIES}
 
         PRIVATE
+        gstsvpext
         Rialto::ocdmRialto
         Rialto::RialtoClient
         Threads::Threads

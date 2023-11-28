@@ -37,7 +37,7 @@ public:
 
 private:
     virtual std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
-    parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration) = 0;
+    parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration, GstBuffer *buffer) = 0;
 
     void addProtectionMetadataToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
                                         GstBuffer *buffer, const GstMapInfo &map, GstStructure *structure);
@@ -49,14 +49,14 @@ class AudioBufferParser : public BufferParser
 {
 private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
-    parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration) override;
+    parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration, GstBuffer *buffer) override;
 };
 
 class VideoBufferParser : public BufferParser
 {
 private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
-    parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration) override;
+    parseSpecificPartOfBuffer(int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration, GstBuffer *buffer) override;
 };
 
 #endif // BUFFERPARSER_H

@@ -626,6 +626,7 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
 {
     size_t MAX_INTERNAL_BUFFERS_QUEUE_SIZE = 24;
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
+
     GST_LOG_OBJECT(sink, "Handling buffer %p with PTS %" GST_TIME_FORMAT, buf, GST_TIME_ARGS(GST_BUFFER_PTS(buf)));
 
     std::unique_lock<std::mutex> lock(sink->priv->m_sinkMutex);
