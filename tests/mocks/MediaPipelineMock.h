@@ -28,9 +28,7 @@ class MediaPipelineFactoryMock : public IMediaPipelineFactory
 {
 public:
     MOCK_METHOD(std::unique_ptr<IMediaPipeline>, createMediaPipeline,
-                (std::weak_ptr<IMediaPipelineClient> client, const VideoRequirements &videoRequirements,
-                 std::weak_ptr<client::IMediaPipelineIpcFactory> mediaPipelineIpcFactory,
-                 std::weak_ptr<client::IClientController> clientController),
+                (std::weak_ptr<IMediaPipelineClient> client, const VideoRequirements &videoRequirements),
                 (const, override));
 };
 

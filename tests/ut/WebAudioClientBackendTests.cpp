@@ -64,7 +64,7 @@ public:
     bool createBackend()
     {
         EXPECT_CALL(*m_playerFactoryMock,
-                    createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config), _, _))
+                    createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config)))
             .WillOnce(Return(ByMove(std::move(m_playerMock))));
         return m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, m_config);
     }
@@ -72,8 +72,7 @@ public:
 
 TEST_F(WebAudioClientBackendTests, ShouldFailToCreateBackend)
 {
-    EXPECT_CALL(*m_playerFactoryMock,
-                createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config), _, _))
+    EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config)))
         .WillOnce(Return(nullptr));
     EXPECT_FALSE(m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, m_config));
 }
