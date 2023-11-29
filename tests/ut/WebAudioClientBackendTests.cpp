@@ -72,8 +72,7 @@ public:
 
 TEST_F(WebAudioClientBackendTests, ShouldFailToCreateBackend)
 {
-    EXPECT_CALL(*m_playerFactoryMock,
-                createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config)))
+    EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config)))
         .WillOnce(Return(nullptr));
     EXPECT_FALSE(m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, m_config));
 }
