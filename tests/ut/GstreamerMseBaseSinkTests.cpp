@@ -279,10 +279,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
     setNullState(pipeline, kUnknownSourceId);
-    
+
     gst_object_unref(pipeline);
 }
-
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid)
 {
