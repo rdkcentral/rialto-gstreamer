@@ -252,7 +252,7 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
     case GST_QUERY_POSITION:
     {
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-        if ((!client) || (!sink->priv->m_mediaPlayerManager.hasControl()))
+        if (!client)
         {
             return FALSE;
         }
@@ -263,7 +263,7 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
         {
         case GST_FORMAT_TIME:
         {
-            gint64 position = client->getPosition();
+            gint64 position = client->getPosition(sink->priv->m_sourceId);
             GST_DEBUG_OBJECT(sink, "Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
             if (position < 0)
             {

@@ -162,11 +162,16 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDuration)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     expectPostMessage();
     expectCallInEventLoop();
     m_sut->notifyPosition(kPosition);
     m_sut->destroyClientBackend();
-    EXPECT_EQ(m_sut->getPosition(), kPosition);
+    EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNativeSize)
@@ -243,12 +248,17 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveUnexpectedFlushedMessage
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     expectPostMessage();
     expectCallInEventLoop();
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FAILURE);
     // Position should be set to 0
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getPosition(_)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getPosition(), 0);
+    EXPECT_EQ(m_sut->getPosition(kSourceId), 0);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyVideoData)
@@ -465,9 +475,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhen
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kPosition), Return(true)));
     expectCallInEventLoop();
-    EXPECT_EQ(m_sut->getPosition(), kPosition);
+    EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToCreateBackend)
@@ -576,6 +591,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFinishSeekWhenFailureStateIsRec
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    bufferPullerWillBeCreated();
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, seek(kPosition)).WillOnce(Return(true));
     m_sut->seek(kPosition);
@@ -585,7 +602,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFinishSeekWhenFailureStateIsRec
 
     // Position should be reset to 0
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getPosition(_)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getPosition(), 0);
+    EXPECT_EQ(m_sut->getPosition(kSourceId), 0);
 
     gst_object_unref(audioSink);
 }
