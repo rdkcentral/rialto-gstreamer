@@ -268,6 +268,21 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPipelineIsBelowPa
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+
+    gint64 position{0};
+    EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid)
 {
     constexpr gint64 kInvalidPosition{-1};
@@ -275,12 +290,16 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
 
     gint64 position{0};
     EXPECT_CALL(m_mediaPipelineMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kInvalidPosition), Return(true)));
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
-    setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
 
@@ -291,13 +310,17 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryPosition)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
 
     gint64 position{0};
     EXPECT_CALL(m_mediaPipelineMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kPosition), Return(true)));
     EXPECT_TRUE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
     EXPECT_EQ(position, kPosition);
 
-    setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
 

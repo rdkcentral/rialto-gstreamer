@@ -47,6 +47,13 @@
 
 class GStreamerMSEMediaPlayerClient;
 
+enum class SeekingState
+{
+    IDLE,
+    SEEKING,
+    SEEK_DONE
+};
+
 class BufferPuller
 {
 public:
@@ -62,6 +69,29 @@ private:
     std::unique_ptr<IMessageQueue> m_queue;
     GstElement *m_rialtoSink;
     std::shared_ptr<BufferParser> m_bufferParser;
+};
+
+class AttachedSource
+{
+    friend class GStreamerMSEMediaPlayerClient;
+
+public:
+    AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
+                   firebolt::rialto::MediaSourceType type)
+        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type)
+    {
+    }
+
+    firebolt::rialto::MediaSourceType getType() { return m_type; }
+    void setPosition(int64_t position) { m_position = position; }
+
+private:
+    RialtoMSEBaseSink *m_rialtoSink;
+    std::shared_ptr<BufferPuller> m_bufferPuller;
+    SeekingState m_seekingState = SeekingState::IDLE;
+    std::unordered_set<uint32_t> m_ongoingNeedDataRequests;
+    firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
+    int64_t m_position = 0;
 };
 
 class HaveDataMessage : public Message
@@ -147,12 +177,12 @@ private:
 class SetPositionMessage : public Message
 {
 public:
-    SetPositionMessage(int64_t newPosition, int64_t &targetPosition);
+    SetPositionMessage(int64_t newPosition, std::unordered_map<int32_t, AttachedSource> &attachedSources);
     void handle() override;
 
 private:
     int64_t m_newPosition;
-    int64_t &m_targetPosition;
+    std::unordered_map<int32_t, AttachedSource> &m_attachedSources;
 };
 
 class SetDurationMessage : public Message
@@ -164,34 +194,6 @@ public:
 private:
     int64_t m_newDuration;
     int64_t &m_targetDuration;
-};
-
-enum class SeekingState
-{
-    IDLE,
-    SEEKING,
-    SEEK_DONE
-};
-
-class AttachedSource
-{
-    friend class GStreamerMSEMediaPlayerClient;
-
-public:
-    AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
-                   firebolt::rialto::MediaSourceType type)
-        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type)
-    {
-    }
-
-    firebolt::rialto::MediaSourceType getType() { return m_type; }
-
-private:
-    RialtoMSEBaseSink *m_rialtoSink;
-    std::shared_ptr<BufferPuller> m_bufferPuller;
-    SeekingState m_seekingState = SeekingState::IDLE;
-    std::unordered_set<uint32_t> m_ongoingNeedDataRequests;
-    firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
 };
 
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
@@ -222,8 +224,8 @@ public:
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
     void notifyBufferUnderflow(int32_t sourceId) override;
 
-    void getPositionDo(int64_t *position);
-    int64_t getPosition();
+    void getPositionDo(int64_t *position, int32_t sourceId);
+    int64_t getPosition(int32_t sourceId);
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
