@@ -19,6 +19,7 @@
 #include "MediaPlayerManager.h"
 #include "IMessageQueue.h"
 #include "MediaPlayerClientBackend.h"
+#include <iostream>
 
 std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
 std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
@@ -33,6 +34,7 @@ MediaPlayerManager::~MediaPlayerManager()
 bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
                                                  const uint32_t maxVideoHeight)
 {
+    std::cout<<"attachMediaPlayerClient"<<std::endl;
     if (!m_client.lock())
     {
         createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
@@ -93,6 +95,7 @@ bool MediaPlayerManager::hasControl()
 
 void MediaPlayerManager::releaseMediaPlayerClient()
 {
+    std::cout<<"releaseMediaPlayerClient"<<std::endl;
     if (m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
@@ -103,6 +106,7 @@ void MediaPlayerManager::releaseMediaPlayerClient()
             it->second.refCount--;
             if (it->second.refCount == 0)
             {
+                it->second.client->stop();
                 it->second.client->stopStreaming();
                 it->second.client->destroyClientBackend();
                 m_mediaPlayerClientsInfo.erase(it);
