@@ -34,7 +34,7 @@ MediaPlayerManager::~MediaPlayerManager()
 bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
                                                  const uint32_t maxVideoHeight)
 {
-    std::cout<<"attachMediaPlayerClient"<<std::endl;
+    std::cout << "attachMediaPlayerClient" << std::endl;
     if (!m_client.lock())
     {
         createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
@@ -95,7 +95,7 @@ bool MediaPlayerManager::hasControl()
 
 void MediaPlayerManager::releaseMediaPlayerClient()
 {
-    std::cout<<"releaseMediaPlayerClient"<<std::endl;
+    std::cout << "releaseMediaPlayerClient" << std::endl;
     if (m_client.lock())
     {
         std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);

@@ -43,7 +43,7 @@ public:
     std::shared_ptr<StrictMock<MediaPipelineFactoryMock>> m_mediaPipelineFactoryMock{
         std::dynamic_pointer_cast<StrictMock<MediaPipelineFactoryMock>>(IMediaPipelineFactory::createFactory())};
     std::unique_ptr<StrictMock<MediaPipelineMock>> m_mediaPipelineMock{std::make_unique<StrictMock<MediaPipelineMock>>()};
-    StrictMock<MediaPipelineMock>* m_mediaPipelineMockPtr{m_mediaPipelineMock.get()};
+    StrictMock<MediaPipelineMock> *m_mediaPipelineMockPtr{m_mediaPipelineMock.get()};
     MediaPlayerManager m_sut;
 };
 
@@ -84,7 +84,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClientForAnothe
 
     // Create second object
     m_mediaPipelineMock = std::make_unique<StrictMock<MediaPipelineMock>>();
-    StrictMock<MediaPipelineMock>* mediaPipelineMockPtr = m_mediaPipelineMock.get();
+    StrictMock<MediaPipelineMock> *mediaPipelineMockPtr = m_mediaPipelineMock.get();
     GstObject anotherObject{};
     EXPECT_CALL(*m_mediaPipelineMockPtr, stop()).WillOnce(Return(true));
     EXPECT_CALL(*mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
@@ -104,7 +104,7 @@ TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_TRUE(m_sut.hasControl());
-    
+
     EXPECT_CALL(*m_mediaPipelineMockPtr, stop()).WillOnce(Return(true));
     m_sut.releaseMediaPlayerClient();
 }
