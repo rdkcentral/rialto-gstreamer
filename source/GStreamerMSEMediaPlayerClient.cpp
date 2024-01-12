@@ -22,7 +22,6 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <thread>
 
 namespace
@@ -54,10 +53,8 @@ GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
 
 void GStreamerMSEMediaPlayerClient::stopStreaming()
 {
-    std::cout << "stopStreaming" << std::endl;
     if (!m_streamingStopped)
     {
-        std::cout << "stop" << std::endl;
         m_backendQueue->stop();
 
         for (auto &source : m_attachedSources)
