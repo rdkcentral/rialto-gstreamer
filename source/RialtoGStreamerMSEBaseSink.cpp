@@ -478,6 +478,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     switch (transition)
     {
     case GST_STATE_CHANGE_NULL_TO_READY:
+        GST_ERROR_OBJECT(sink, "GST_STATE_CHANGE_NULL_TO_READY");
         if (!priv->m_sinkPad)
         {
             GST_ERROR_OBJECT(sink, "Cannot start, because there's no sink pad");
@@ -492,6 +493,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
+        GST_ERROR_OBJECT(sink, "GST_STATE_CHANGE_READY_TO_PAUSED");
         if (!client)
         {
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
@@ -508,6 +510,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+        GST_ERROR_OBJECT(sink, "GST_STATE_CHANGE_PAUSED_TO_PLAYING");
         if (!client)
         {
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
@@ -522,6 +525,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
         break;
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+        GST_ERROR_OBJECT(sink, "GST_STATE_CHANGE_PLAYING_TO_PAUSED");
         if (!client)
         {
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
@@ -536,6 +540,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
+        GST_ERROR_OBJECT(sink, "GST_STATE_CHANGE_PAUSED_TO_READY");
         if (!client)
         {
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
@@ -556,6 +561,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
+        GST_ERROR_OBJECT(sink, "GST_STATE_CHANGE_READY_TO_NULL");
         // Playback will be stopped once all sources are finished and ref count
         // of the media pipeline object reaches 0
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
