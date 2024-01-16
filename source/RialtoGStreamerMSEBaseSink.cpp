@@ -18,13 +18,15 @@
 
 #define USE_GLIB 1
 
-#include "RialtoGStreamerMSEBaseSink.h"
-#include "ControlBackend.h"
-#include "GStreamerUtils.h"
-#include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include <IMediaPipeline.h>
 #include <cstring>
 #include <gst/gst.h>
+
+#include "ControlBackend.h"
+#include "GStreamerUtils.h"
+#include "IMediaPipeline.h"
+#include "RialtoGStreamerMSEBaseSink.h"
+#include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include "LogHandler.h"
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
@@ -158,6 +160,9 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
     sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+
+    std::shared_ptr<firebolt::rialto::IClientLogHandler> logHandler = std::make_shared<firebolt::rialto::LogHandler>();
+    sink->priv->m_rialtoControlClient->registerLogHandler(logHandler);
 
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);

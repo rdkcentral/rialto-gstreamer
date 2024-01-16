@@ -62,6 +62,7 @@ set(FILE_LIST
     IControl.h
     IWebAudioPlayer.h
     IWebAudioPlayerClient.h
+    IClientLogHandler.h
 )
 
 # Loop through the list and call the function

@@ -26,7 +26,6 @@
 #include <gst/gst.h>
 #include <mutex>
 
-#include <memory>
 
 namespace firebolt::rialto::client
 {
@@ -81,6 +80,11 @@ public:
         m_stateCv.wait_for(lock, std::chrono::seconds{1},
                            [&]() { return m_rialtoClientState == ApplicationState::RUNNING; });
         return ApplicationState::RUNNING == m_rialtoClientState;
+    }
+
+    void registerLogHandler(std::shared_ptr<IClientLogHandler> &handler) override
+    {
+        m_control->registerLogHandler(handler);
     }
 
 private:

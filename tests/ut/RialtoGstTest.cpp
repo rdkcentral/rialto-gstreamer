@@ -166,6 +166,7 @@ RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_));
     GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
     return RIALTO_MSE_BASE_SINK(audioSink);
 }
@@ -175,6 +176,7 @@ RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_));
     GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
@@ -184,6 +186,7 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_));
     GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
 }
