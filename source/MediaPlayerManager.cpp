@@ -103,6 +103,7 @@ void MediaPlayerManager::releaseMediaPlayerClient()
             it->second.refCount--;
             if (it->second.refCount == 0)
             {
+                it->second.client->stop();
                 it->second.client->stopStreaming();
                 it->second.client->destroyClientBackend();
                 m_mediaPlayerClientsInfo.erase(it);
