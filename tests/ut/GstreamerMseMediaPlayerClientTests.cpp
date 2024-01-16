@@ -63,7 +63,7 @@ public:
     }
     MOCK_METHOD(void, callbackCalled, (), (const));
 };
-void underflowSignalCallback()
+void underflowSignalCallback(GstElement*, gpointer, guint, gpointer)
 {
     UnderflowSignalMock::instance().callbackCalled();
 }
@@ -453,7 +453,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyBufferUnderflow)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
-    g_signal_connect(audioSink, "buffer-underflow-callback", underflowSignalCallback, nullptr);
+    g_signal_connect(audioSink, "buffer-underflow-callback", G_CALLBACK(underflowSignalCallback), nullptr);
 
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};

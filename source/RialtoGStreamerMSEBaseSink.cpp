@@ -596,9 +596,9 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     elementClass->send_event = rialto_mse_base_sink_send_event;
     elementClass->change_state = rialto_mse_base_sink_change_state;
 
-    g_signals[SIGNAL_UNDERFLOW] = g_signal_new("buffer-underflow-callback", G_TYPE_FROM_CLASS(klass),
-                                               (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
-                                               g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
+    g_signals[SIGNAL_UNDERFLOW] =
+        g_signal_new("buffer-underflow-callback", G_TYPE_FROM_CLASS(klass), (GSignalFlags)(G_SIGNAL_RUN_LAST), 0,
+                     nullptr, nullptr, g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT, G_TYPE_POINTER);
 
     g_object_class_install_property(gobjectClass, PROP_LOCATION,
                                     g_param_spec_string("location", "location", "Location to read from", nullptr,
@@ -837,7 +837,8 @@ void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink)
 {
     GST_WARNING_OBJECT(sink, "Sending underflow signal");
-    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0);
+    // we send 2 last parameters just to be compatible with westerossink's buffer-underflow-callback signal signature
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0, 0, nullptr);
 }
 
 GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element)
