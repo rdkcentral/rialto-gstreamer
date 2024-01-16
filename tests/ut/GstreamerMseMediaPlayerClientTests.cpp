@@ -63,7 +63,7 @@ public:
     }
     MOCK_METHOD(void, callbackCalled, (), (const));
 };
-void underflowSignalCallback(GstElement*, gpointer, guint, gpointer)
+void underflowSignalCallback(GstElement *, gpointer, guint, gpointer)
 {
     UnderflowSignalMock::instance().callbackCalled();
 }
