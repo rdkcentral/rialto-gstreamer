@@ -838,7 +838,7 @@ void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink)
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink)
 {
     GST_WARNING_OBJECT(sink, "Sending underflow signal");
-    // we send 2 last parameters just to be compatible with westerossink's buffer-underflow-callback signal signature
+    // send 2 last parameters just to be compatible with RDK's buffer-underflow-callback signal signature
     g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0, 0, nullptr);
 }
 
