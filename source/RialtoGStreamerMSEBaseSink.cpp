@@ -561,11 +561,8 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
         break;
     case GST_STATE_CHANGE_READY_TO_NULL:
-        if (priv->m_mediaPlayerManager.hasControl())
-        {
-            client->stop();
-        }
-
+        // Playback will be stopped once all sources are finished and ref count
+        // of the media pipeline object reaches 0
         priv->m_mediaPlayerManager.releaseMediaPlayerClient();
         priv->m_rialtoControlClient->removeControlBackend();
         break;
