@@ -20,15 +20,15 @@
 #include <string>
 #include <gst/gst.h>
 
-#include "LogHandler.h"
+#include "LogToGstHandler.h"
 
 using namespace firebolt::rialto;
 
-LogHandler::~LogHandler()
+LogToGstHandler::~LogToGstHandler()
 {
 }
 
-void LogHandler::log(Level level, const std::string &file, int line, const std::string &function,
+void LogToGstHandler::log(Level level, const std::string &file, int line, const std::string &function,
                      const std::string &message)
 {
 

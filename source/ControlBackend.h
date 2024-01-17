@@ -18,14 +18,13 @@
 
 #pragma once
 
-#include "ControlBackendInterface.h"
-
-#include <IControl.h>
-
 #include <condition_variable>
 #include <gst/gst.h>
 #include <mutex>
 
+#include "ControlBackendInterface.h"
+#include "IControl.h"
+#include "LogToGstHandler.h"
 
 namespace firebolt::rialto::client
 {
@@ -82,9 +81,13 @@ public:
         return ApplicationState::RUNNING == m_rialtoClientState;
     }
 
-    void registerLogHandler(std::shared_ptr<IClientLogHandler> &handler) override
+    void registerGstLogHandler() override
     {
-        m_control->registerLogHandler(handler);
+        if (!m_logToGstHandler)
+        {
+            m_logToGstHandler = std::make_shared<firebolt::rialto::LogToGstHandler>();
+            m_control->registerLogHandler(m_logToGstHandler);
+        }
     }
 
 private:
@@ -103,5 +106,6 @@ private:
     std::shared_ptr<IControl> m_control;
     std::mutex m_mutex;
     std::condition_variable m_stateCv;
+    std::shared_ptr<firebolt::rialto::IClientLogHandler> m_logToGstHandler;
 };
 } // namespace firebolt::rialto::client

@@ -32,6 +32,6 @@ public:
     virtual ~ControlBackendInterface() = default;
     virtual void removeControlBackend() = 0;
     virtual bool waitForRunning() = 0;
-    virtual void registerLogHandler(std::shared_ptr<IClientLogHandler> &handler) = 0;
+    virtual void registerGstLogHandler() = 0;
 };
 } // namespace firebolt::rialto::client

@@ -40,7 +40,7 @@ add_library(gstrialtosinks
         MediaPlayerManager.cpp
         Timer.cpp
         BufferParser.cpp
-        LogHandler.cpp
+        LogToGstHandler.cpp
         )
 
 target_include_directories(gstrialtosinks
