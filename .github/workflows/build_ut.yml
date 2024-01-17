@@ -152,7 +152,7 @@ jobs:
     timeout-minutes: 2
 
     # # Define the dependencies on the previous coverage jobs
-    # needs: [generate-coverage-report]
+    needs: [build-test]
     
     steps:
       - name: Checkout repo
