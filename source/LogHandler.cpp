@@ -2,7 +2,7 @@
  * If not stated otherwise in this file or this component's LICENSE file the
  * following copyright and licenses apply:
  *
- * Copyright 2022 Sky UK
+ * Copyright 2024 Sky UK
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,19 +47,19 @@ void LogHandler::log(Level level, const std::string &file, int line, const std::
     case Level::Warning:
         GST_WARNING("%s", toReport.c_str());
         break;
-        
+
     case Level::Milestone:
         GST_TRACE("%s", toReport.c_str());
         break;
-        
+
     case Level::Info:
         GST_INFO("%s", toReport.c_str());
         break;
-        
+
     case Level::Debug:
         GST_DEBUG("%s", toReport.c_str());
         break;
-        
+
     case Level::External:
         GST_LOG("%s", toReport.c_str());
         break;
