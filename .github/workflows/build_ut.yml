@@ -141,3 +141,60 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.get-comment-body.outputs.body }}
+
+  checks-the-cov-report:
+    name: Checks the Coverage Report
+
+    # Runs on ubuntu
+    runs-on: ubuntu-22.04
+
+    # Timeout after
+    timeout-minutes: 2
+
+    # # Define the dependencies on the previous coverage jobs
+    # needs: [generate-coverage-report]
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+    
+      # Download the current coverage statistics
+      - name: Download Current Coverage Statistics
+        uses: actions/download-artifact@v2
+        with:
+          name: coverage_report_stats
+          path: build
+        
+      # Download current master coverage statistics
+      - name: Download Master Coverage Statistics
+        uses: dawidd6/action-download-artifact@v2
+        if: ${{ success() && github.ref != 'refs/heads/master' }}
+        with:
+          workflow_conclusion: success
+          branch: master
+          name: coverage_report_stats
+          path: master_artifacts
+      
+      # Run the process_coverage_stats script
+      - name: Process Coverage Statistics
+        if: ${{ success() && github.ref != 'refs/heads/master' }}
+        run: python scripts/coverage/process_coverage_stats.py ./master_artifacts/coverage_statistics.txt build/coverage_statistics.txt
+      
+      # Get process_coverage_stats script output
+      - id: get-comment-body
+        if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
+        run: |
+          body="$(cat comparison_output.txt)"
+          body="${body//'%'/'%25'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo "::set-output name=body::$body"
+      
+      # Create comment with coverage info
+      - name: Create Coverage Comment
+        if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.get-comment-body.outputs.body }}
+  
