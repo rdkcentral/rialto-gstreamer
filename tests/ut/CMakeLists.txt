@@ -37,7 +37,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/MediaPlayerManager.cpp
         ${CMAKE_SOURCE_DIR}/source/Timer.cpp
         ${CMAKE_SOURCE_DIR}/source/BufferParser.cpp
-        ${CMAKE_SOURCE_DIR}/source/LogHandler.cpp
+        ${CMAKE_SOURCE_DIR}/source/LogToGstHandler.cpp
 )
 
 target_include_directories(

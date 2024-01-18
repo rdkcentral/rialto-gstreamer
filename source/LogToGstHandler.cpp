@@ -38,6 +38,8 @@ void LogToGstHandler::log(Level level, const std::string &file, int line, const 
     toReport += " L:" + std::to_string(line);
     toReport += " > " + message;
 
+    if (getenv("RIALTO_LOG_TO_GST_LEVEL_ERROR")) level = Level::Error;
+
     switch (level) {
     case Level::Fatal:
     case Level::Error:
