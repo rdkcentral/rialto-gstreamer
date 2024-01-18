@@ -78,10 +78,11 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
 
         gint n_video = 0;
         gint n_audio = 0;
-        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio))
+        gint n_text = 0;
+        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio, n_text))
         {
             videoStreams = n_video;
-            isVideoOnly = n_audio == 0;
+            isVideoOnly = n_audio == 0 && n_text == 0;
             GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
                             isVideoOnly ? "'true'" : "'false'");
         }

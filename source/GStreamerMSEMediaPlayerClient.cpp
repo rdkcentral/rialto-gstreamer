@@ -39,7 +39,7 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
       m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_textStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -505,9 +505,10 @@ void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bo
                 GST_INFO("Set audio streams number to %d", m_audioStreams);
             }
 
-            if (m_videoStreams == UNKNOWN_STREAMS_NUMBER && isAudioOnly)
+            if (isAudioOnly)
             {
                 m_videoStreams = 0;
+                m_textStreams = 0;
                 GST_INFO("Set audio only session");
             }
         });
@@ -524,10 +525,31 @@ void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bo
                 GST_INFO("Set video streams number to %d", m_videoStreams);
             }
 
-            if (m_audioStreams == UNKNOWN_STREAMS_NUMBER && isVideoOnly)
+            if (isVideoOnly)
             {
                 m_audioStreams = 0;
+                m_textStreams = 0;
                 GST_INFO("Set video only session");
+            }
+        });
+}
+
+void GStreamerMSEMediaPlayerClient::setTextStreamsInfo(int32_t textStreams, bool isTextOnly)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            if (textStreams == UNKNOWN_STREAMS_NUMBER)
+            {
+                m_textStreams = textStreams;
+                GST_INFO("Set text streams number to %d", m_textStreams);
+            }
+
+            if (isTextOnly)
+            {
+                m_audioStreams = 0;
+                m_videoStreams = 0;
+                GST_INFO("Set text only session");
             }
         });
 }

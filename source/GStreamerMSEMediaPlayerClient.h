@@ -259,6 +259,7 @@ public:
     bool getMute();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
+    void setTextStreamsInfo(int32_t textStreams, bool isTextOnly);
 
 private:
     bool areAllStreamsAttached();
@@ -275,6 +276,7 @@ private:
     bool m_wasAllSourcesAttachedSent = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
+    int32_t m_textStreams;
     SeekingState m_serverSeekingState = SeekingState::IDLE;
 
     struct Rectangle

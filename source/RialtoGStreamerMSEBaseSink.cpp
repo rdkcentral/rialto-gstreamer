@@ -954,13 +954,15 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
 
-bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)
+bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text)
 {
     if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-video") &&
-        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio"))
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio") &&
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-text"))
     {
         g_object_get(parentObject, "n-video", &n_video, nullptr);
         g_object_get(parentObject, "n-audio", &n_audio, nullptr);
+        g_object_get(parentObject, "n-text", &n_text, nullptr);
 
         if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "flags"))
         {
@@ -968,6 +970,7 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
             g_object_get(parentObject, "flags", &flags, nullptr);
             n_video = flags & rialto_mse_base_sink_get_gst_play_flag("video") ? n_video : 0;
             n_audio = flags & rialto_mse_base_sink_get_gst_play_flag("audio") ? n_audio : 0;
+            n_text = flags & rialto_mse_base_sink_get_gst_play_flag("text") ? n_text : 0;
         }
 
         return true;
@@ -975,3 +978,23 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
 
     return false;
 }
+
+// bool rialto_mse_base_sink_is_single_stream(RialtoMSEBaseSink *sink, GstObject *parentObject, MediaSourceType type)
+// {
+//     gint n_video = 0;
+//     gint n_audio = 0;
+//     gint n_text = 0;
+//     if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio, n_text))
+//     {
+//         audioStreams = n_audio;
+//         isAudioOnly = n_video == 0;
+//         GST_INFO_OBJECT(element, "There are %u audio streams and isAudioOnly value is %s", n_audio,
+//                         isAudioOnly ? "'true'" : "'false'");
+//     }
+//     else
+//     {
+//         std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
+//         audioStreams = priv->m_numOfStreams;
+//         isAudioOnly = priv->m_isSinglePathStream;
+//     }
+// }
