@@ -18,10 +18,9 @@
  */
 
 //
-// This allows, for example, passing the following environment variables
+// This allows, for example, passing the following environment variable
 // to the client app which will enable rialto logging via gstreamer...
-//   GST_DEBUG=7
-//   RIALTO_DEBUG=5
+//   GST_DEBUG=6
 //
 
 #include <string>
@@ -31,7 +30,6 @@
 
 namespace {
 GST_DEBUG_CATEGORY_STATIC(kGstRialtoCategory);
-#define GST_CAT_DEFAULT kGstRialtoCategory
 const char* kCategory = "rialto";
 };
 
@@ -58,27 +56,24 @@ void LogToGstHandler::log(Level level, const std::string &file, int line, const 
     switch (level) {
     case Level::Fatal:
     case Level::Error:
-        GST_ERROR("%s", toReport.c_str());
+        GST_CAT_ERROR(kGstRialtoCategory, "%s", toReport.c_str());
         break;
 
     case Level::Warning:
-        GST_WARNING("%s", toReport.c_str());
+        GST_CAT_WARNING(kGstRialtoCategory, "%s", toReport.c_str());
         break;
 
     case Level::Milestone:
-        GST_TRACE("%s", toReport.c_str());
-        break;
-
     case Level::Info:
-        GST_INFO("%s", toReport.c_str());
+        GST_CAT_INFO(kGstRialtoCategory, "%s", toReport.c_str());
         break;
 
     case Level::Debug:
-        GST_DEBUG("%s", toReport.c_str());
+        GST_CAT_DEBUG(kGstRialtoCategory, "%s", toReport.c_str());
         break;
 
     case Level::External:
-        GST_LOG("%s", toReport.c_str());
+        GST_CAT_LOG(kGstRialtoCategory, "%s", toReport.c_str());
         break;
     }
 }

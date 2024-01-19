@@ -86,7 +86,7 @@ public:
         if (!m_logToGstHandler)
         {
             m_logToGstHandler = std::make_shared<firebolt::rialto::LogToGstHandler>();
-            m_control->registerLogHandler(m_logToGstHandler);
+            m_control->registerLogHandler(m_logToGstHandler, true);
         }
     }
 
