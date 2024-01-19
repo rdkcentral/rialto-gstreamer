@@ -27,6 +27,7 @@ namespace firebolt::rialto
 class LogToGstHandler : public IClientLogHandler
 {
 public:
+    LogToGstHandler();
     ~LogToGstHandler();
 
     void log(Level level, const std::string &file, int line, const std::string &function,

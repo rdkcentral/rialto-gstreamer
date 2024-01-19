@@ -17,12 +17,30 @@
  * limitations under the License.
  */
 
+//
+// This allows, for example, passing the following environment variables
+// to the client app which will enable rialto logging via gstreamer...
+//   GST_DEBUG=7
+//   RIALTO_DEBUG=5
+//
+
 #include <string>
 #include <gst/gst.h>
 
 #include "LogToGstHandler.h"
 
+namespace {
+GST_DEBUG_CATEGORY_STATIC(kGstRialtoCategory);
+#define GST_CAT_DEFAULT kGstRialtoCategory
+const char* kCategory = "rialto";
+};
+
 using namespace firebolt::rialto;
+
+LogToGstHandler::LogToGstHandler()
+{
+    GST_DEBUG_CATEGORY_INIT (kGstRialtoCategory, kCategory, 0, "Messages from rialto client library");
+}
 
 LogToGstHandler::~LogToGstHandler()
 {
@@ -31,14 +49,11 @@ LogToGstHandler::~LogToGstHandler()
 void LogToGstHandler::log(Level level, const std::string &file, int line, const std::string &function,
                      const std::string &message)
 {
-
-    std::string toReport{"Rialto "};
-    toReport += " M:" + file;
+    std::string toReport;
+    toReport += "M:" + file;
     toReport += " F:" + function;
     toReport += " L:" + std::to_string(line);
     toReport += " > " + message;
-
-    if (getenv("RIALTO_LOG_TO_GST_LEVEL_ERROR")) level = Level::Error;
 
     switch (level) {
     case Level::Fatal:
