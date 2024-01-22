@@ -23,29 +23,28 @@
 //   GST_DEBUG=6
 //
 
-#include <string>
 #include <gst/gst.h>
+#include <string>
 
 #include "LogToGstHandler.h"
 
-namespace {
+namespace
+{
 GST_DEBUG_CATEGORY_STATIC(kGstRialtoCategory);
-const char* kCategory = "rialto";
-};
+const char *kCategory = "rialto";
+}; // namespace
 
 using namespace firebolt::rialto;
 
 LogToGstHandler::LogToGstHandler()
 {
-    GST_DEBUG_CATEGORY_INIT (kGstRialtoCategory, kCategory, 0, "Messages from rialto client library");
+    GST_DEBUG_CATEGORY_INIT(kGstRialtoCategory, kCategory, 0, "Messages from rialto client library");
 }
 
-LogToGstHandler::~LogToGstHandler()
-{
-}
+LogToGstHandler::~LogToGstHandler() {}
 
 void LogToGstHandler::log(Level level, const std::string &file, int line, const std::string &function,
-                     const std::string &message)
+                          const std::string &message)
 {
     std::string toReport;
     toReport += "M:" + file;
@@ -53,7 +52,8 @@ void LogToGstHandler::log(Level level, const std::string &file, int line, const 
     toReport += " L:" + std::to_string(line);
     toReport += " > " + message;
 
-    switch (level) {
+    switch (level)
+    {
     case Level::Fatal:
     case Level::Error:
         GST_CAT_ERROR(kGstRialtoCategory, "%s", toReport.c_str());

@@ -30,8 +30,7 @@ public:
     LogToGstHandler();
     ~LogToGstHandler();
 
-    void log(Level level, const std::string &file, int line, const std::string &function,
-             const std::string &message);
+    void log(Level level, const std::string &file, int line, const std::string &function, const std::string &message);
 };
-}
+} // namespace firebolt::rialto
 #endif // FIREBOLT_RIALTO_RIALTO_LOG_HANDLER_H_
