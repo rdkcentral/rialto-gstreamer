@@ -116,6 +116,10 @@ void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<BufferUnderflowMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, const PlaybackError& error)
+{
+}
+
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
 {
     auto sourceIt = m_attachedSources.find(sourceId);
