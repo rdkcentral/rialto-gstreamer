@@ -86,7 +86,11 @@ public:
         if (!m_logToGstHandler)
         {
             m_logToGstHandler = std::make_shared<firebolt::rialto::LogToGstHandler>();
-            m_control->registerLogHandler(m_logToGstHandler, true);
+            if (!m_control->registerLogHandler(m_logToGstHandler, true))
+            {
+                GST_ERROR("Unable to register log handler");
+                m_logToGstHandler = nullptr;
+            }
         }
     }
 
