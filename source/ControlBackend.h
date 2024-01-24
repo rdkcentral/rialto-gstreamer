@@ -62,6 +62,17 @@ public:
                 GST_ERROR("Unable to register client");
                 return;
             }
+
+            m_logToGstHandler = std::make_shared<firebolt::rialto::LogToGstHandler>();
+            if (!m_logToGstHandler || !m_control->registerLogHandler(m_logToGstHandler, true))
+            {
+                GST_ERROR("Unable to register log handler");
+                m_logToGstHandler = nullptr;
+            }
+        }
+        else
+        {
+            GST_ERROR("Unable to create controlClient");
         }
     }
 
@@ -79,19 +90,6 @@ public:
         m_stateCv.wait_for(lock, std::chrono::seconds{1},
                            [&]() { return m_rialtoClientState == ApplicationState::RUNNING; });
         return ApplicationState::RUNNING == m_rialtoClientState;
-    }
-
-    void registerGstLogHandler() override
-    {
-        if (!m_logToGstHandler)
-        {
-            m_logToGstHandler = std::make_shared<firebolt::rialto::LogToGstHandler>();
-            if (!m_control->registerLogHandler(m_logToGstHandler, true))
-            {
-                GST_ERROR("Unable to register log handler");
-                m_logToGstHandler = nullptr;
-            }
-        }
     }
 
 private:

@@ -18,11 +18,7 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include "ControlCommon.h"
-#include "IClientLogHandler.h"
 
 namespace firebolt::rialto::client
 {
@@ -32,6 +28,5 @@ public:
     virtual ~ControlBackendInterface() = default;
     virtual void removeControlBackend() = 0;
     virtual bool waitForRunning() = 0;
-    virtual void registerGstLogHandler() = 0;
 };
 } // namespace firebolt::rialto::client

@@ -61,6 +61,7 @@ TEST_F(ControlBackendTests, ShouldFailToStartWhenRegisterClientFails)
 TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetDuringInitialisation)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     m_sut = std::make_unique<ControlBackend>();
@@ -71,6 +72,7 @@ TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetEar
 {
     std::weak_ptr<IControlClient> weakClient;
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SaveArg<0>(&weakClient), SetArgReferee<1>(ApplicationState::INACTIVE), Return(true)));
     m_sut = std::make_unique<ControlBackend>();
@@ -83,6 +85,7 @@ TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetEar
 TEST_F(ControlBackendTests, ShouldFailToWaitForRunning)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::INACTIVE), Return(true)));
     m_sut = std::make_unique<ControlBackend>();
@@ -92,6 +95,7 @@ TEST_F(ControlBackendTests, ShouldFailToWaitForRunning)
 TEST_F(ControlBackendTests, ShouldRemoveControlBackend)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerLogHandler(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     m_sut = std::make_unique<ControlBackend>();
