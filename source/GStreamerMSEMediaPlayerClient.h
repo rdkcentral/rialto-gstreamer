@@ -174,6 +174,18 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
+class PlaybackErrorMessage : public Message
+{
+public:
+    PlaybackErrorMessage(int sourceId, firebolt::rialto::PlaybackError error, GStreamerMSEMediaPlayerClient *player);
+    void handle() override;
+
+private:
+    int m_sourceId;
+    firebolt::rialto::PlaybackError m_error;
+    GStreamerMSEMediaPlayerClient *m_player;
+};
+
 class SetPositionMessage : public Message
 {
 public:
@@ -223,7 +235,7 @@ public:
     void notifyCancelNeedMediaData(int32_t sourceId) override;
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
     void notifyBufferUnderflow(int32_t sourceId) override;
-    void notifyPlaybackError(int32_t sourceId, const PlaybackError& error) override;
+    void notifyPlaybackError(int32_t sourceId, const firebolt::rialto::PlaybackError& error) override;
 
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
@@ -249,6 +261,7 @@ public:
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     bool handleBufferUnderflow(int sourceId);
+    bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
     void notifySourceStartedSeeking(int32_t sourceId);
     void startPullingDataIfSeekFinished();
     void stopStreaming();
