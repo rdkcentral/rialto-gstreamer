@@ -633,7 +633,7 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 return;
             }
 
-            rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, firebolt::rialto::PlaybackError::UNKNOWN);
+            rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, error);
 
             result = true;
         });
