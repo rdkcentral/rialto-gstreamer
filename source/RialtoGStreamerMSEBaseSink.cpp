@@ -116,7 +116,7 @@ static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt
         default:
         {
             message = "Rialto server playback failed";
-            gError = g_error_new_literal(GST_STREAM_ERROR, 0, message.c_str())
+            gError = g_error_new_literal(GST_STREAM_ERROR, 0, message.c_str());
             break;
         }
     }
