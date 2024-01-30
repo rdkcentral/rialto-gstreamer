@@ -23,7 +23,9 @@
 
 #include "ControlBackend.h"
 #include "GStreamerUtils.h"
+#include "IControl.h"
 #include "IMediaPipeline.h"
+#include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
@@ -159,6 +161,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
     sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
     callbacks.seekCompletedCallback = std::bind(rialto_mse_base_sink_seek_completed_handler, sink);
@@ -581,6 +584,14 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
 static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 {
+    std::shared_ptr<firebolt::rialto::IClientLogHandler> logToGstHandler =
+        std::make_shared<firebolt::rialto::LogToGstHandler>();
+    auto controlFactory = firebolt::rialto::IControlFactory::createFactory();
+    if (!logToGstHandler || !controlFactory->preRegisterLogHandler(logToGstHandler, true))
+    {
+        GST_ERROR("Unable to preRegister log handler");
+    }
+
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 

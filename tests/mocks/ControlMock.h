@@ -29,6 +29,8 @@ class ControlFactoryMock : public IControlFactory
 {
 public:
     MOCK_METHOD(std::shared_ptr<IControl>, createControl, (), (const, override));
+    MOCK_METHOD(bool, preRegisterLogHandler, (std::shared_ptr<IClientLogHandler> & handler, bool ignoreLogLevels),
+                (override));
 };
 
 class ControlMock : public IControl

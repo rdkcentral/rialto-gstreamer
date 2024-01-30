@@ -16,11 +16,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <gst/gst.h>
+#include <gtest/gtest.h>
+
 #include "BufferParser.h"
 #include "RialtoGStreamerEMEProtectionMetadata.h"
 #include "RialtoGstTest.h"
-#include <gst/gst.h>
-#include <gtest/gtest.h>
+
+using testing::_;
+using testing::Return;
 
 namespace
 {

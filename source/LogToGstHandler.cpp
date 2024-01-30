@@ -23,8 +23,9 @@
 //   GST_DEBUG=6
 //
 
-#include <gst/gst.h>
 #include <string>
+
+#include <gst/gst.h>
 
 #include "LogToGstHandler.h"
 
@@ -73,6 +74,7 @@ void LogToGstHandler::log(Level level, const std::string &file, int line, const 
         break;
 
     case Level::External:
+    default:
         GST_CAT_LOG(kGstRialtoCategory, "%s", toReport.c_str());
         break;
     }

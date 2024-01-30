@@ -24,7 +24,6 @@
 
 #include "ControlBackendInterface.h"
 #include "IControl.h"
-#include "LogToGstHandler.h"
 
 namespace firebolt::rialto::client
 {
@@ -61,13 +60,6 @@ public:
             {
                 GST_ERROR("Unable to register client");
                 return;
-            }
-
-            m_logToGstHandler = std::make_shared<firebolt::rialto::LogToGstHandler>();
-            if (!m_logToGstHandler || !m_control->registerLogHandler(m_logToGstHandler, true))
-            {
-                GST_ERROR("Unable to register log handler");
-                m_logToGstHandler = nullptr;
             }
         }
         else
@@ -108,6 +100,5 @@ private:
     std::shared_ptr<IControl> m_control;
     std::mutex m_mutex;
     std::condition_variable m_stateCv;
-    std::shared_ptr<firebolt::rialto::IClientLogHandler> m_logToGstHandler;
 };
 } // namespace firebolt::rialto::client

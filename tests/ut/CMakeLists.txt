@@ -96,6 +96,7 @@ add_gtests (
         RialtoGstTest.cpp
         TimerTests.cpp
         WebAudioClientBackendTests.cpp
+        LogToGstHandlerTests.cpp
         )
 
 target_include_directories(

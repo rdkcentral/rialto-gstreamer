@@ -16,15 +16,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "RialtoGStreamerMSEVideoSink.h"
-#include "GStreamerEMEUtils.h"
-#include "GStreamerMSEUtils.h"
-#include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include "RialtoGStreamerMSEVideoSinkPrivate.h"
-#include <IMediaPipelineCapabilities.h>
 #include <gst/gst.h>
 #include <inttypes.h>
 #include <stdint.h>
+
+#include "GStreamerEMEUtils.h"
+#include "GStreamerMSEUtils.h"
+#include "IMediaPipelineCapabilities.h"
+#include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include "RialtoGStreamerMSEVideoSink.h"
+#include "RialtoGStreamerMSEVideoSinkPrivate.h"
 
 using namespace firebolt::rialto::client;
 
