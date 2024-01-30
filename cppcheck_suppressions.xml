@@ -73,10 +73,6 @@
         <fileName>source/GStreamerMSEMediaPlayerClient.cpp</fileName>
     </suppress>
     <suppress>
-        <id>unusedFunction</id>
-        <fileName>source/LogToGstHandler.cpp</fileName>
-    </suppress>
-    <suppress>
         <!-- unusedFunction causes some problems with gstreamer - sometimes wrong results -->
         <id>unmatchedSuppression</id>
     </suppress>
