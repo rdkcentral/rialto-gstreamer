@@ -199,6 +199,7 @@ void GStreamerMSEMediaPlayerClient::notifySourceStartedSeeking(int32_t sourceId)
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
+                m_ongoingSeekOnUnattachedSourceIds.emplace(sourceId);
                 return;
             }
 
@@ -265,6 +266,12 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
                     rialtoSink->priv->m_sourceId = source->getId();
+                    if (m_ongoingSeekOnUnattachedSourceIds.find(source->getId()) !=
+                        m_ongoingSeekOnUnattachedSourceIds.end())
+                    {
+                        m_ongoingSeekOnUnattachedSourceIds.erase(source->getId());
+                        m_attachedSources.at(source->getId()).m_seekingState = SeekingState::SEEKING;
+                    }
                     bufferPuller->start();
                 }
             }
@@ -304,9 +311,9 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
             {
                 return;
             }
-
             if (std::any_of(m_attachedSources.begin(), m_attachedSources.end(),
                             [](const auto &source) { return source.second.m_seekingState != SeekingState::SEEKING; }))
+
             {
                 return;
             }
@@ -319,6 +326,7 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
                 source.second.m_bufferPuller->start();
                 source.second.m_seekingState = SeekingState::IDLE;
             }
+            m_ongoingSeekOnUnattachedSourceIds.clear();
         });
 }
 

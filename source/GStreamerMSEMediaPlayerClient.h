@@ -82,7 +82,7 @@ public:
     {
     }
 
-    firebolt::rialto::MediaSourceType getType() { return m_type; }
+    firebolt::rialto::MediaSourceType getType() const { return m_type; }
     void setPosition(int64_t position) { m_position = position; }
 
 private:
@@ -276,6 +276,7 @@ private:
     int32_t m_audioStreams;
     int32_t m_videoStreams;
     SeekingState m_serverSeekingState = SeekingState::IDLE;
+    std::unordered_set<int32_t> m_ongoingSeekOnUnattachedSourceIds;
 
     struct Rectangle
     {
