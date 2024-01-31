@@ -309,6 +309,7 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
             {
                 return;
             }
+
             if (std::any_of(m_attachedSources.begin(), m_attachedSources.end(),
                             [](const auto &source) { return source.second.m_seekingState != SeekingState::SEEKING; }))
             {
