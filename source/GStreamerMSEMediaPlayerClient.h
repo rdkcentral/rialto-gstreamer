@@ -276,7 +276,7 @@ private:
     int32_t m_audioStreams;
     int32_t m_videoStreams;
     SeekingState m_serverSeekingState = SeekingState::IDLE;
-    std::unordered_set<int32_t> m_ongoingSeekOnUnattachedSourceIds;
+    bool m_seekOngoing = false;
 
     struct Rectangle
     {

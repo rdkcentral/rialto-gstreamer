@@ -199,7 +199,7 @@ void GStreamerMSEMediaPlayerClient::notifySourceStartedSeeking(int32_t sourceId)
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                m_ongoingSeekOnUnattachedSourceIds.emplace(sourceId);
+                m_seekOngoing = true;
                 return;
             }
 
@@ -266,10 +266,8 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
                     rialtoSink->priv->m_sourceId = source->getId();
-                    if (m_ongoingSeekOnUnattachedSourceIds.find(source->getId()) !=
-                        m_ongoingSeekOnUnattachedSourceIds.end())
+                    if (m_seekOngoing)
                     {
-                        m_ongoingSeekOnUnattachedSourceIds.erase(source->getId());
                         m_attachedSources.at(source->getId()).m_seekingState = SeekingState::SEEKING;
                     }
                     bufferPuller->start();
@@ -326,7 +324,7 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
                 source.second.m_bufferPuller->start();
                 source.second.m_seekingState = SeekingState::IDLE;
             }
-            m_ongoingSeekOnUnattachedSourceIds.clear();
+            m_seekOngoing = false;
         });
 }
 
