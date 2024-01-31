@@ -36,4 +36,21 @@ private:
     GstMapInfo m_info;
     bool m_isMapped;
 };
+
+class GstRefSample
+{
+public:
+    explicit GstRefSample(GstSample *sample = nullptr);
+    GstRefSample(const GstRefSample &) = delete;
+    GstRefSample(GstRefSample &&) = delete;
+    GstRefSample &operator=(const GstRefSample &) = delete;
+    GstRefSample &operator=(GstRefSample &&) = delete;
+    ~GstRefSample();
+    explicit operator bool() const;
+    GstBuffer *getBuffer() const;
+    GstCaps *getCaps() const;
+
+private:
+    GstSample *m_sample;
+};
 #endif // GSTREAMERUTILS_H

@@ -677,7 +677,7 @@ void PullBufferMessage::handle()
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
     {
-        GstSample *sample = rialto_mse_base_sink_get_front_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
+        GstRefSample sample = rialto_mse_base_sink_get_front_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
         if (!sample)
         {
             if (rialto_mse_base_sink_is_eos(RIALTO_MSE_BASE_SINK(m_rialtoSink)))
@@ -694,7 +694,7 @@ void PullBufferMessage::handle()
 
         // we pass GstMapInfo's pointers on data buffers to RialtoClient
         // so we need to hold it until RialtoClient copies them to shm
-        GstBuffer *buffer = gst_sample_get_buffer(sample);
+        GstBuffer *buffer = sample.getBuffer();
         GstMapInfo map;
         if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
         {
