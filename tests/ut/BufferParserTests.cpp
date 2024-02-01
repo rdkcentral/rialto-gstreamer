@@ -59,7 +59,11 @@ public:
         gst_buffer_unref(m_keyIdBuffer);
     }
 
-    void buildSample(GstCaps *caps) { m_sample = gst_sample_new(m_buffer, caps, nullptr, nullptr); }
+    GstRefSample buildSample(GstCaps *caps)
+    {
+        m_sample = gst_sample_new(m_buffer, caps, nullptr, nullptr);
+        return GstRefSample{m_sample};
+    }
 
     std::vector<uint8_t> m_bufferData{1, 2, 3, 4};
     GstBuffer *m_keyIdBuffer{nullptr};
@@ -100,8 +104,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
     AudioBufferParser parser;
     GstCaps *caps = gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                         kChannels, nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     EXPECT_EQ(segment->getId(), kStreamId);
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::AUDIO);
@@ -125,8 +129,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
     AudioBufferParser parser;
     GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                         kChannels, nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     EXPECT_EQ(segment->getId(), kStreamId);
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::AUDIO);
@@ -140,8 +144,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
     gst_buffer_fill(codecDataBuf, 0, kCodecDataVec.data(), kCodecDataVec.size());
     GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                         kChannels, "codec_data", GST_TYPE_BUFFER, codecDataBuf, nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     ASSERT_TRUE(segment->getCodecData());
     EXPECT_EQ(segment->getCodecData()->type, firebolt::rialto::CodecDataType::BUFFER);
@@ -155,8 +159,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferInvalidBufferCodecData)
     AudioBufferParser parser;
     GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                         kChannels, "codec_data", GST_TYPE_BUFFER, kCodecDataStr.c_str(), nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     EXPECT_FALSE(segment->getCodecData());
     gst_caps_unref(caps);
@@ -167,8 +171,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
     AudioBufferParser parser;
     GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                         kChannels, "codec_data", G_TYPE_STRING, kCodecDataStr.c_str(), nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     ASSERT_TRUE(segment->getCodecData());
     EXPECT_EQ(segment->getCodecData()->type, firebolt::rialto::CodecDataType::STRING);
@@ -182,8 +186,8 @@ TEST_F(BufferParserTests, ShouldParseVideoBuffer)
     GstCaps *caps = gst_caps_new_simple("application/x-cenc", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT,
                                         kHeight, "framerate", GST_TYPE_FRACTION, kFrameRate.numerator,
                                         kFrameRate.denominator, nullptr);
-    buildSample(caps);
-    auto segment = parser.parseBuffer(m_sample, m_buffer, m_mapInfo, kStreamId);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     EXPECT_EQ(segment->getId(), kStreamId);
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::VIDEO);

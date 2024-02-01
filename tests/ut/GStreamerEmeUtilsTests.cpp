@@ -18,12 +18,13 @@
 
 #include "GStreamerEMEUtils.h"
 #include "RialtoGStreamerEMEProtectionMetadata.h"
+#include "RialtoGstTest.h"
 #include <gst/base/gstbytewriter.h>
 #include <gst/gst.h>
 #include <gtest/gtest.h>
 
 // Most of functionality tested in BufferParser Tests. Mostly corner cases here.
-class GStreamerEmeUtilsTests : public testing::Test
+class GStreamerEmeUtilsTests : public RialtoGstTest
 {
 public:
     BufferProtectionMetadata m_metadata;
