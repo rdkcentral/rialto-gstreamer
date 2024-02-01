@@ -24,12 +24,12 @@
 
 using namespace firebolt::rialto;
 
-std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(GstSample *sample, GstBuffer *buffer,
+std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(const GstRefSample &sample, GstBuffer *buffer,
                                                                         GstMapInfo map, int streamId)
 {
     int64_t timeStamp = static_cast<int64_t>(GST_BUFFER_PTS(buffer));
     int64_t duration = static_cast<int64_t>(GST_BUFFER_DURATION(buffer));
-    GstCaps *caps = gst_sample_get_caps(sample);
+    GstCaps *caps = sample.getCaps();
     GstStructure *structure = gst_caps_get_structure(caps, 0);
 
     std::unique_ptr<IMediaPipeline::MediaSegment> mseData =
