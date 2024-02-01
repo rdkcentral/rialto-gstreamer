@@ -626,6 +626,25 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFinishSeek)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSeekBeforeAttachSource)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, seek(kPosition)).WillOnce(Return(true));
+    m_sut->seek(kPosition);
+    m_sut->notifySourceStartedSeeking(kUnknownSourceId);
+
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, start());
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FLUSHED);
+
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFinishSeekWhenFailureStateIsReceived)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

@@ -59,3 +59,28 @@ GstMappedBuffer::operator bool() const
 {
     return m_isMapped;
 }
+
+GstRefSample::GstRefSample(GstSample *sample) : m_sample{sample ? gst_sample_ref(sample) : nullptr} {}
+
+GstRefSample::~GstRefSample()
+{
+    if (m_sample)
+    {
+        gst_sample_unref(m_sample);
+    }
+}
+
+GstRefSample::operator bool() const
+{
+    return m_sample;
+}
+
+GstBuffer *GstRefSample::getBuffer() const
+{
+    return gst_sample_get_buffer(m_sample);
+}
+
+GstCaps *GstRefSample::getCaps() const
+{
+    return gst_sample_get_caps(m_sample);
+}

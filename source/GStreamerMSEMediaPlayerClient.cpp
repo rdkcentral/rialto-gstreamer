@@ -226,6 +226,7 @@ void GStreamerMSEMediaPlayerClient::notifySourceStartedSeeking(int32_t sourceId)
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            m_seekOngoing = true;
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
@@ -295,6 +296,10 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
                     rialtoSink->priv->m_sourceId = source->getId();
+                    if (m_seekOngoing)
+                    {
+                        m_attachedSources.at(source->getId()).m_seekingState = SeekingState::SEEKING;
+                    }
                     bufferPuller->start();
                 }
             }
@@ -349,6 +354,7 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
                 source.second.m_bufferPuller->start();
                 source.second.m_seekingState = SeekingState::IDLE;
             }
+            m_seekOngoing = false;
         });
 }
 
@@ -732,7 +738,7 @@ void PullBufferMessage::handle()
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
     {
-        GstSample *sample = rialto_mse_base_sink_get_front_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
+        GstRefSample sample = rialto_mse_base_sink_get_front_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
         if (!sample)
         {
             if (rialto_mse_base_sink_is_eos(RIALTO_MSE_BASE_SINK(m_rialtoSink)))
@@ -749,7 +755,7 @@ void PullBufferMessage::handle()
 
         // we pass GstMapInfo's pointers on data buffers to RialtoClient
         // so we need to hold it until RialtoClient copies them to shm
-        GstBuffer *buffer = gst_sample_get_buffer(sample);
+        GstBuffer *buffer = sample.getBuffer();
         GstMapInfo map;
         if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
         {
