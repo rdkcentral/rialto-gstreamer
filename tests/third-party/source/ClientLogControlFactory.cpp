@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Sky UK
+ * Copyright (C) 2024 Sky UK
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,26 +16,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef FIREBOLT_RIALTO_CONTROL_MOCK_H_
-#define FIREBOLT_RIALTO_CONTROL_MOCK_H_
+#include "ClientLogControlMock.h"
 
-#include "IControl.h"
-#include <gmock/gmock.h>
-#include <memory>
+using testing::StrictMock;
 
 namespace firebolt::rialto
 {
-class ControlFactoryMock : public IControlFactory
+std::shared_ptr<IClientLogControlFactory> IClientLogControlFactory::createFactory()
 {
-public:
-    MOCK_METHOD(std::shared_ptr<IControl>, createControl, (), (const, override));
-};
-
-class ControlMock : public IControl
-{
-public:
-    MOCK_METHOD(bool, registerClient, (std::weak_ptr<IControlClient> client, ApplicationState &appState), (override));
-};
+    static auto controlFactory{std::make_shared<StrictMock<ClientLogControlFactoryMock>>()};
+    return controlFactory;
+}
 } // namespace firebolt::rialto
-
-#endif // FIREBOLT_RIALTO_CONTROL_MOCK_H_

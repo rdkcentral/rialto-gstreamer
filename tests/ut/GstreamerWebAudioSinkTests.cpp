@@ -103,7 +103,6 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldNotReachReadyStateWhenAppStateIsInactiv
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(firebolt::rialto::ApplicationState::INACTIVE), Return(true)));
-
     GstElement *sink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     GstElement *pipeline = createPipelineWithSink(RIALTO_WEB_AUDIO_SINK(sink));
 

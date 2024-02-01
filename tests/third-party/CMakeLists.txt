@@ -63,6 +63,7 @@ set(FILE_LIST
     IWebAudioPlayer.h
     IWebAudioPlayerClient.h
     IClientLogHandler.h
+    IClientLogControl.h
 )
 
 # Loop through the list and call the function
@@ -84,6 +85,7 @@ add_library(
     STATIC
 
     source/ControlFactory.cpp
+    source/ClientLogControlFactory.cpp
     source/MediaPipelineCapabilitiesFactory.cpp
     source/MediaPipelineFactory.cpp
     source/RialtoGStreamerEMEProtectionMetadata.cpp

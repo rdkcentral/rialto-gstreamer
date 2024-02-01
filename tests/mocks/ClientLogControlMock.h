@@ -16,26 +16,27 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef FIREBOLT_RIALTO_CONTROL_MOCK_H_
-#define FIREBOLT_RIALTO_CONTROL_MOCK_H_
+#ifndef FIREBOLT_RIALTO_CLIENT_CONTROL_LOG_MOCK_H_
+#define FIREBOLT_RIALTO_CLIENT_CONTROL_LOG_MOCK_H_
 
-#include "IControl.h"
+#include "IClientLogControl.h"
 #include <gmock/gmock.h>
 #include <memory>
 
 namespace firebolt::rialto
 {
-class ControlFactoryMock : public IControlFactory
+class ClientLogControlFactoryMock : public IClientLogControlFactory
 {
 public:
-    MOCK_METHOD(std::shared_ptr<IControl>, createControl, (), (const, override));
+    MOCK_METHOD(std::shared_ptr<IClientLogControl>, createClientLogControl, (), (override));
 };
 
-class ControlMock : public IControl
+class ClientLogControlMock : public IClientLogControl
 {
 public:
-    MOCK_METHOD(bool, registerClient, (std::weak_ptr<IControlClient> client, ApplicationState &appState), (override));
+    MOCK_METHOD(bool, registerLogHandler, (std::shared_ptr<IClientLogHandler> & handler, bool ignoreLogLevels),
+                (override));
 };
 } // namespace firebolt::rialto
 
-#endif // FIREBOLT_RIALTO_CONTROL_MOCK_H_
+#endif // FIREBOLT_RIALTO_CLIENT_CONTROL_LOG_MOCK_H_

@@ -131,7 +131,9 @@ RialtoGstTest::RialtoGstTest()
     std::call_once(onceFlag,
                    [this]()
                    {
-                       EXPECT_CALL(*m_controlFactoryMock, preRegisterLogHandler(_, _)).WillOnce(Return(true));
+                       EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl())
+                           .WillOnce(Return(m_clientLogControlMock));
+                       EXPECT_CALL(*m_clientLogControlMock, registerLogHandler(_, _)).WillOnce(Return(true));
                        expectSinksInitialisation();
                        gst_init(nullptr, nullptr);
                        const auto registerResult =
