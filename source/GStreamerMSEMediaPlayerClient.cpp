@@ -196,10 +196,10 @@ void GStreamerMSEMediaPlayerClient::notifySourceStartedSeeking(int32_t sourceId)
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            m_seekOngoing = true;
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                m_seekOngoing = true;
                 return;
             }
 
