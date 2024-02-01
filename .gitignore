@@ -8,3 +8,4 @@
 /valgrind_report.log
 /valgrind_report.csv
 /cppcheck_report.txt
+/.vscode/*
