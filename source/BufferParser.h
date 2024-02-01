@@ -19,6 +19,7 @@
 #ifndef BUFFERPARSER_H
 #define BUFFERPARSER_H
 
+#include "GStreamerUtils.h"
 #include <IMediaPipeline.h>
 #include <gst/gst.h>
 
@@ -32,8 +33,8 @@ class BufferParser
     };
 
 public:
-    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> parseBuffer(GstSample *sample, GstBuffer *buffer,
-                                                                                GstMapInfo map, int streamId);
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
+    parseBuffer(const GstRefSample &sample, GstBuffer *buffer, GstMapInfo map, int streamId);
 
 private:
     virtual std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>

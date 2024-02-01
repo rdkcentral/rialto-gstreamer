@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "GStreamerUtils.h"
 #include <IMediaPipeline.h>
 #include <MediaCommon.h>
 #include <gst/gst.h>
@@ -55,7 +56,7 @@ class MediaPlayerBackend;
 
 GType rialto_mse_base_sink_get_type(void);
 
-GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink);
+GstRefSample rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink);
 void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink);
 bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink);
 

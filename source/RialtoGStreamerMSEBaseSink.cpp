@@ -773,7 +773,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     return TRUE;
 }
 
-GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
+GstRefSample rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
 {
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     if (!sink->priv->m_samples.empty())
@@ -783,10 +783,10 @@ GstSample *rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
         GST_LOG_OBJECT(sink, "Pulling buffer %p with PTS %" GST_TIME_FORMAT, buffer,
                        GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
 
-        return sample;
+        return GstRefSample{sample};
     }
 
-    return nullptr;
+    return GstRefSample{};
 }
 
 void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink)
