@@ -243,6 +243,19 @@ bool RialtoGstTest::waitForMessage(GstElement *pipeline, const GstMessageType &m
     return result;
 }
 
+GstMessage *RialtoGstTest::getMessage(GstElement *pipeline, const GstMessageType &messageType) const
+{
+    constexpr GstClockTime kTimeout{1000000000}; // 1 second
+    GstBus *bus = gst_element_get_bus(pipeline);
+    if (!bus)
+    {
+        return nullptr;
+    }
+    GstMessage *msg{gst_bus_timed_pop_filtered(bus, kTimeout, messageType)};
+    gst_object_unref(bus);
+    return msg;
+}
+
 int32_t RialtoGstTest::audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const
 {
     const int32_t kSourceId{generateSourceId()};

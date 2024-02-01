@@ -52,6 +52,7 @@ public:
     GstElement *createPipelineWithSink(RialtoWebAudioSink *sink) const;
     ReceivedMessages getMessages(GstElement *pipeline) const;
     bool waitForMessage(GstElement *pipeline, const GstMessageType &messageType) const;
+    GstMessage *getMessage(GstElement *pipeline, const GstMessageType &messageType) const;
     int32_t audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const;
     int32_t videoSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceVideo &mediaSource) const;
     int32_t dolbyVisionSourceWillBeAttached(
