@@ -31,6 +31,31 @@ namespace
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
+
+const char *toString(const firebolt::rialto::PlaybackError &error)
+{
+    switch (error)
+    {
+    case firebolt::rialto::PlaybackError::DECRYPTION:
+        return "DECRYPTION";
+    case firebolt::rialto::PlaybackError::UNKNOWN:
+        return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
+const char *toString(const firebolt::rialto::MediaSourceType &src)
+{
+    switch (src)
+    {
+    case firebolt::rialto::MediaSourceType::AUDIO:
+        return "AUDIO";
+    case firebolt::rialto::MediaSourceType::VIDEO:
+        return "VIDEO";
+    case firebolt::rialto::MediaSourceType::UNKNOWN:
+        return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
@@ -114,6 +139,11 @@ void GStreamerMSEMediaPlayerClient::notifyQos(int32_t sourceId, const firebolt::
 void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
 {
     m_backendQueue->postMessage(std::make_shared<BufferUnderflowMessage>(sourceId, this));
+}
+
+void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error)
+{
+    m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
 }
 
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
@@ -379,7 +409,8 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     {
                         rialto_mse_base_handle_rialto_server_completed_seek(source.second.m_rialtoSink);
                     }
-                    rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink);
+                    rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
+                                                               firebolt::rialto::PlaybackError::UNKNOWN);
                 }
                 m_serverSeekingState = SeekingState::IDLE;
                 for (auto &source : m_attachedSources)
@@ -621,6 +652,30 @@ bool GStreamerMSEMediaPlayerClient::handleBufferUnderflow(int sourceId)
     return result;
 }
 
+bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error)
+{
+    bool result = false;
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                result = false;
+                return;
+            }
+
+            // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
+            GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
+                      toString(sourceIt->second.getType()));
+            rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, error);
+
+            result = true;
+        });
+
+    return result;
+}
+
 firebolt::rialto::AddSegmentStatus GStreamerMSEMediaPlayerClient::addSegment(
     unsigned int needDataRequestId, const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment)
 {
@@ -796,6 +851,20 @@ void BufferUnderflowMessage::handle()
     if (!m_player->handleBufferUnderflow(m_sourceId))
     {
         GST_ERROR("Failed to handle buffer underflow for sourceId=%d", m_sourceId);
+    }
+}
+
+PlaybackErrorMessage::PlaybackErrorMessage(int sourceId, firebolt::rialto::PlaybackError error,
+                                           GStreamerMSEMediaPlayerClient *player)
+    : m_sourceId(sourceId), m_error(error), m_player(player)
+{
+}
+
+void PlaybackErrorMessage::handle()
+{
+    if (!m_player->handlePlaybackError(m_sourceId, m_error))
+    {
+        GST_ERROR("Failed to handle playback error for sourceId=%d, error %s", m_sourceId, toString(m_error));
     }
 }
 

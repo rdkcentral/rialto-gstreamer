@@ -67,6 +67,20 @@ void underflowSignalCallback(GstElement *, gpointer, guint, gpointer)
 {
     UnderflowSignalMock::instance().callbackCalled();
 }
+class PlaybackErrorMock
+{
+public:
+    static PlaybackErrorMock &instance()
+    {
+        static PlaybackErrorMock instance;
+        return instance;
+    }
+    MOCK_METHOD(void, callbackCalled, (), (const));
+};
+void playbackErrorCallback(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
+{
+    PlaybackErrorMock::instance().callbackCalled();
+}
 } // namespace
 
 class GstreamerMseMediaPlayerClientTests : public RialtoGstTest
@@ -471,6 +485,31 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhen
     expectCallInEventLoop();
     expectPostMessage();
     m_sut->notifyBufferUnderflow(kUnknownSourceId);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackError)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    RialtoGStreamerMSEBaseSinkCallbacks callbacks;
+    callbacks.errorCallback = std::bind(playbackErrorCallback, audioSink, std::placeholders::_1);
+    audioSink->priv->m_callbacks = callbacks;
+
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    EXPECT_CALL(PlaybackErrorMock::instance(), callbackCalled());
+    m_sut->notifyPlaybackError(kSourceId, firebolt::rialto::PlaybackError::DECRYPTION);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackErrorWhenSourceIdIsNotKnown)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->notifyPlaybackError(kUnknownSourceId, firebolt::rialto::PlaybackError::DECRYPTION);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
