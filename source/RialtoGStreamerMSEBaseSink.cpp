@@ -105,24 +105,25 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
 static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
 {
     GError *gError = nullptr;
-    std::string message; 
+    std::string message;
     switch (error)
     {
-        case firebolt::rialto::PlaybackError::DECRYPTION:
-        {
-            message = "Rialto dropped a frame that failed to decrypt";
-            gError = g_error_new_literal(GST_STREAM_ERROR, GST_STREAM_ERROR_DECRYPT, message.c_str());
-            break;
-        }
-        case firebolt::rialto::PlaybackError::UNKNOWN:
-        default:
-        {
-            message = "Rialto server playback failed";
-            gError = g_error_new_literal(GST_STREAM_ERROR, 0, message.c_str());
-            break;
-        }
+    case firebolt::rialto::PlaybackError::DECRYPTION:
+    {
+        message = "Rialto dropped a frame that failed to decrypt";
+        gError = g_error_new_literal(GST_STREAM_ERROR, GST_STREAM_ERROR_DECRYPT, message.c_str());
+        break;
     }
-    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_error(GST_OBJECT_CAST(sink), gError, message.c_str()));
+    case firebolt::rialto::PlaybackError::UNKNOWN:
+    default:
+    {
+        message = "Rialto server playback failed";
+        gError = g_error_new_literal(GST_STREAM_ERROR, 0, message.c_str());
+        break;
+    }
+    }
+    gst_element_post_message(GST_ELEMENT_CAST(sink),
+                             gst_message_new_error(GST_OBJECT_CAST(sink), gError, message.c_str()));
     g_error_free(gError);
 }
 

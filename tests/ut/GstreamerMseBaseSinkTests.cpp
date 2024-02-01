@@ -906,9 +906,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
 
     audioSink->priv->m_callbacks.errorCallback(firebolt::rialto::PlaybackError::DECRYPTION);
 
-    GstMessage* receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
     ASSERT_NE(receivedMessage, nullptr);
-    
+
     GError *err = nullptr;
     gchar *debug = nullptr;
     gst_message_parse_error(receivedMessage, &err, &debug);
@@ -930,9 +930,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
 
     audioSink->priv->m_callbacks.errorCallback(firebolt::rialto::PlaybackError::UNKNOWN);
 
-    GstMessage* receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
     ASSERT_NE(receivedMessage, nullptr);
-    
+
     GError *err = nullptr;
     gchar *debug = nullptr;
     gst_message_parse_error(receivedMessage, &err, &debug);

@@ -22,8 +22,8 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 #include <algorithm>
 #include <chrono>
-#include <thread>
 #include <iostream>
+#include <thread>
 
 namespace
 {
@@ -404,7 +404,8 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     {
                         rialto_mse_base_handle_rialto_server_completed_seek(source.second.m_rialtoSink);
                     }
-                    rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink, firebolt::rialto::PlaybackError::UNKNOWN);
+                    rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
+                                                               firebolt::rialto::PlaybackError::UNKNOWN);
                 }
                 m_serverSeekingState = SeekingState::IDLE;
                 for (auto &source : m_attachedSources)
@@ -660,7 +661,8 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             }
 
             // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
-            GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error), toString(sourceIt->second.getType()));
+            GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
+                      toString(sourceIt->second.getType()));
             rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, error);
 
             result = true;
@@ -847,7 +849,8 @@ void BufferUnderflowMessage::handle()
     }
 }
 
-PlaybackErrorMessage::PlaybackErrorMessage(int sourceId, firebolt::rialto::PlaybackError error, GStreamerMSEMediaPlayerClient *player)
+PlaybackErrorMessage::PlaybackErrorMessage(int sourceId, firebolt::rialto::PlaybackError error,
+                                           GStreamerMSEMediaPlayerClient *player)
     : m_sourceId(sourceId), m_error(error), m_player(player)
 {
 }

@@ -240,7 +240,7 @@ bool RialtoGstTest::waitForMessage(GstElement *pipeline, const GstMessageType &m
     return result;
 }
 
-GstMessage* RialtoGstTest::getMessage(GstElement *pipeline, const GstMessageType &messageType) const
+GstMessage *RialtoGstTest::getMessage(GstElement *pipeline, const GstMessageType &messageType) const
 {
     constexpr GstClockTime kTimeout{1000000000}; // 1 second
     GstBus *bus = gst_element_get_bus(pipeline);
