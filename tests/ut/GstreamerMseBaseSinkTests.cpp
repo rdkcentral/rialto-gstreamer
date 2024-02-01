@@ -898,3 +898,51 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithNalSegmentAlignment)
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    audioSink->priv->m_callbacks.errorCallback(firebolt::rialto::PlaybackError::DECRYPTION);
+
+    GstMessage* receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    ASSERT_NE(receivedMessage, nullptr);
+    
+    GError *err = nullptr;
+    gchar *debug = nullptr;
+    gst_message_parse_error(receivedMessage, &err, &debug);
+    EXPECT_EQ(err->domain, GST_STREAM_ERROR);
+    EXPECT_EQ(err->code, GST_STREAM_ERROR_DECRYPT);
+    EXPECT_NE(err->message, nullptr);
+    EXPECT_NE(debug, nullptr);
+
+    g_free(debug);
+    g_error_free(err);
+    gst_message_unref(receivedMessage);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    audioSink->priv->m_callbacks.errorCallback(firebolt::rialto::PlaybackError::UNKNOWN);
+
+    GstMessage* receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    ASSERT_NE(receivedMessage, nullptr);
+    
+    GError *err = nullptr;
+    gchar *debug = nullptr;
+    gst_message_parse_error(receivedMessage, &err, &debug);
+    EXPECT_EQ(err->domain, GST_STREAM_ERROR);
+    EXPECT_EQ(err->code, 0);
+    EXPECT_NE(err->message, nullptr);
+    EXPECT_NE(debug, nullptr);
+
+    g_free(debug);
+    g_error_free(err);
+    gst_message_unref(receivedMessage);
+    gst_object_unref(pipeline);
+}
