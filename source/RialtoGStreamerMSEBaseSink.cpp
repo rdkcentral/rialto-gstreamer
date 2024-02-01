@@ -25,7 +25,6 @@
 #include <IMediaPipeline.h>
 #include <cstring>
 #include <gst/gst.h>
-#include <iostream>
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
@@ -172,7 +171,6 @@ static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)
 
 static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 {
-    std::cout << "here" << std::endl;
     GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();

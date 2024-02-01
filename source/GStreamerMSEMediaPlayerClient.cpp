@@ -22,7 +22,6 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <thread>
 
 namespace
@@ -859,7 +858,7 @@ void PlaybackErrorMessage::handle()
 {
     if (!m_player->handlePlaybackError(m_sourceId, m_error))
     {
-        GST_ERROR("Failed to handle playback error for sourceId=%d, error TODO", m_sourceId);
+        GST_ERROR("Failed to handle playback error for sourceId=%d, error %s", m_sourceId, toString(m_error));
     }
 }
 
