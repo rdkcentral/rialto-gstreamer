@@ -31,6 +31,31 @@ namespace
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
+
+const char *toString(const firebolt::rialto::PlaybackError &error)
+{
+    switch (error)
+    {
+    case firebolt::rialto::PlaybackError::DECRYPTION:
+        return "DECRYPTION";
+    case firebolt::rialto::PlaybackError::UNKNOWN:
+        return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
+const char *toString(const firebolt::rialto::MediaSourceType &src)
+{
+    switch (src)
+    {
+    case firebolt::rialto::MediaSourceType::AUDIO:
+        return "AUDIO";
+    case firebolt::rialto::MediaSourceType::VIDEO:
+        return "VIDEO";
+    case firebolt::rialto::MediaSourceType::UNKNOWN:
+        return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
 } // namespace
 
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
@@ -116,7 +141,7 @@ void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<BufferUnderflowMessage>(sourceId, this));
 }
 
-void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, const firebolt::rialto::PlaybackError& error)
+void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error)
 {
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
 }
@@ -633,6 +658,8 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 return;
             }
 
+            // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
+            GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error), toString(sourceIt->second.getType()));
             rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, error);
 
             result = true;
