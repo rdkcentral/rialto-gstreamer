@@ -605,9 +605,8 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     std::shared_ptr<firebolt::rialto::IClientLogHandler> logToGstHandler =
         std::make_shared<firebolt::rialto::LogToGstHandler>();
 
-    if (!firebolt::rialto::IClientLogControlFactory::createFactory()
-             ->createClientLogControl()
-             ->registerLogHandler(logToGstHandler, true))
+    if (!firebolt::rialto::IClientLogControlFactory::createFactory()->createClientLogControl().registerLogHandler(logToGstHandler,
+                                                                                                                  true))
     {
         GST_ERROR("Unable to preRegister log handler");
     }

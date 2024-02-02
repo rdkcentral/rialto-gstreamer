@@ -28,7 +28,7 @@ namespace firebolt::rialto
 class ClientLogControlFactoryMock : public IClientLogControlFactory
 {
 public:
-    MOCK_METHOD(std::shared_ptr<IClientLogControl>, createClientLogControl, (), (override));
+    MOCK_METHOD(IClientLogControl &, createClientLogControl, (), (override));
 };
 
 class ClientLogControlMock : public IClientLogControl
