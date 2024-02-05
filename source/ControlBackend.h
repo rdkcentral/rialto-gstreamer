@@ -18,15 +18,12 @@
 
 #pragma once
 
-#include "ControlBackendInterface.h"
-
-#include <IControl.h>
-
 #include <condition_variable>
 #include <gst/gst.h>
 #include <mutex>
 
-#include <memory>
+#include "ControlBackendInterface.h"
+#include "IControl.h"
 
 namespace firebolt::rialto::client
 {
@@ -64,6 +61,10 @@ public:
                 GST_ERROR("Unable to register client");
                 return;
             }
+        }
+        else
+        {
+            GST_ERROR("Unable to create controlClient");
         }
     }
 

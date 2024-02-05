@@ -15,17 +15,17 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-#include "RialtoGStreamerMSEAudioSink.h"
-#include "GStreamerEMEUtils.h"
-#include "GStreamerMSEUtils.h"
-#include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include <IMediaPipelineCapabilities.h>
 #include <gst/audio/audio.h>
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 #include <inttypes.h>
 #include <stdint.h>
+
+#include "GStreamerEMEUtils.h"
+#include "GStreamerMSEUtils.h"
+#include "IMediaPipelineCapabilities.h"
+#include "RialtoGStreamerMSEAudioSink.h"
+#include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
 using namespace firebolt::rialto::client;
 

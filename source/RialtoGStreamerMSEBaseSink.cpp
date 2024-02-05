@@ -18,13 +18,16 @@
 
 #define USE_GLIB 1
 
-#include "RialtoGStreamerMSEBaseSink.h"
-#include "ControlBackend.h"
-#include "GStreamerUtils.h"
-#include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include <IMediaPipeline.h>
 #include <cstring>
 #include <gst/gst.h>
+
+#include "ControlBackend.h"
+#include "GStreamerUtils.h"
+#include "IClientLogControl.h"
+#include "IMediaPipeline.h"
+#include "LogToGstHandler.h"
+#include "RialtoGStreamerMSEBaseSink.h"
+#include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
@@ -599,6 +602,15 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
 static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 {
+    std::shared_ptr<firebolt::rialto::IClientLogHandler> logToGstHandler =
+        std::make_shared<firebolt::rialto::LogToGstHandler>();
+
+    if (!firebolt::rialto::IClientLogControlFactory::createFactory()->createClientLogControl().registerLogHandler(logToGstHandler,
+                                                                                                                  true))
+    {
+        GST_ERROR("Unable to preRegister log handler");
+    }
+
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Sky UK
+ * Copyright (C) 2024 Sky UK
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,17 +16,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#pragma once
+#include "ClientLogControlMock.h"
 
-#include "ControlCommon.h"
+using testing::StrictMock;
 
-namespace firebolt::rialto::client
+namespace firebolt::rialto
 {
-class ControlBackendInterface
+std::shared_ptr<IClientLogControlFactory> IClientLogControlFactory::createFactory()
 {
-public:
-    virtual ~ControlBackendInterface() = default;
-    virtual void removeControlBackend() = 0;
-    virtual bool waitForRunning() = 0;
-};
-} // namespace firebolt::rialto::client
+    static auto controlFactory{std::make_shared<StrictMock<ClientLogControlFactoryMock>>()};
+    return controlFactory;
+}
+} // namespace firebolt::rialto

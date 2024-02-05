@@ -16,12 +16,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "RialtoGStreamerWebAudioSink.h"
+#include <gst/gst.h>
+
 #include "ControlBackend.h"
 #include "GStreamerWebAudioPlayerClient.h"
 #include "MessageQueue.h"
+#include "RialtoGStreamerWebAudioSink.h"
 #include "WebAudioClientBackend.h"
-#include <gst/gst.h>
 
 using namespace firebolt::rialto::client;
 
