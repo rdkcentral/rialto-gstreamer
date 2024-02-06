@@ -38,7 +38,6 @@ jobs:
         with:
           repository: rdkcentral/rialto
           path: ./rialto
-          ref: create_github_license_check_workflow
           sparse-checkout: |
             scripts/license.py
             scripts/license.sh
@@ -55,7 +54,6 @@ jobs:
 
       - name: Scan source files
         run: |
-          find rialto -print
           cd rialto-gstreamer
           ../rialto/scripts/license.sh ../rialto/scripts/license.py Lesser_GPL_2_1
           if [ $? -ne 0 ]
