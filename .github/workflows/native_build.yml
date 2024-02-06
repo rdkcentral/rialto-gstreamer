@@ -1,0 +1,94 @@
+#
+# Copyright (C) 2024 Sky UK
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation;
+# version 2.1 of the License.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+
+name: Native Build
+
+on:
+  pull_request:
+    branches: [ "master", "rdkcentral:master" ]
+  push:
+    branches: [ "master", "rdkcentral:master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: rialto-gstreamer
+
+      - name: Check out rialto
+        uses: actions/checkout@v3
+        with:
+          repository: rdkcentral/rialto
+          path: ./rialto
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential
+          sudo apt-get install cmake
+          sudo apt-get install libunwind-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev libgstreamer1.0-dev
+
+      - name: Install protobuf
+        run: |
+          sudo apt-get install protobuf-compiler
+
+      - name: Switch branch
+        continue-on-error: true
+        run: |
+          BRANCH=${GITHUB_HEAD_REF##*/}
+          cd rialto
+          # This will fail if there's no corresponding branch in rialto
+          git checkout $BRANCH
+
+      - name: Native build Rialto
+        run: |
+          BASE_DIR=$(pwd)
+          NATIVE_DIR=$BASE_DIR/native
+          echo "NATIVE_DIR=$NATIVE_DIR" &> $BASE_DIR/output_file.txt
+          ls  &>> $BASE_DIR/output_file.txt
+          cd rialto
+          cmake . -B build  -DCMAKE_INSTALL_PREFIX=$NATIVE_DIR -DNATIVE_BUILD=ON -DRIALTO_BUILD_TYPE="Debug" &>> $BASE_DIR/output_file.txt
+          make -C build install &>> $BASE_DIR/output_file.txt
+
+      - name: Native build gstreamer
+        run: |
+          BASE_DIR=$(pwd)
+          NATIVE_DIR=$BASE_DIR/native
+          cd rialto-gstreamer
+          echo "@@@ GSTREAMER BUILD"  &>> $BASE_DIR/output_file.txt
+          cmake . -B build -DCMAKE_INCLUDE_PATH="${NATIVE_DIR}/include"  -DCMAKE_LIBRARY_PATH="${NATIVE_DIR}/lib" -DNATIVE_BUILD=ON -DRIALTO_BUILD_TYPE="Debug" &>> $BASE_DIR/output_file.txt
+          make -C build &>> $BASE_DIR/output_file.txt
+
+      - name: Report Build Status Success
+        if: success()
+        run: |
+          echo "Build Succeeded!"
+          exit 0
+
+      - name: Upload Logs on Failure
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: Output Logs
+          path: |
+            output_file.txt
