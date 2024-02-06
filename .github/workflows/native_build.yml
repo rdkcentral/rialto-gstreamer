@@ -40,6 +40,7 @@ jobs:
         with:
           repository: rdkcentral/rialto
           path: ./rialto
+          fetch-depth: 0
 
       - name: Install Dependencies
         run: |
