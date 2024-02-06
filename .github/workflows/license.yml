@@ -33,7 +33,7 @@ jobs:
         with:
           path: rialto-gstreamer
 
-      - name: Check out rialto
+      - name: Check out test scripts from rialto
         uses: actions/checkout@v3
         with:
           repository: rdkcentral/rialto
