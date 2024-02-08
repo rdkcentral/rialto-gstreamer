@@ -34,7 +34,7 @@ public:
 class ClientLogControlMock : public IClientLogControl
 {
 public:
-    MOCK_METHOD(bool, registerLogHandler, (const std::shared_ptr<IClientLogHandler> & handler, bool ignoreLogLevels),
+    MOCK_METHOD(bool, registerLogHandler, (const std::shared_ptr<IClientLogHandler> &handler, bool ignoreLogLevels),
                 (override));
 };
 } // namespace firebolt::rialto
