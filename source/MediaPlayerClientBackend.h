@@ -96,6 +96,8 @@ public:
 
     bool getMute(bool &mute) override { return m_mediaPlayerBackend->getMute(mute); }
 
+    bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
+
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };

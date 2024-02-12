@@ -92,6 +92,7 @@ private:
     std::unordered_set<uint32_t> m_ongoingNeedDataRequests;
     firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
     int64_t m_position = 0;
+    bool m_isFlushing = false;
 };
 
 class HaveDataMessage : public Message
@@ -208,6 +209,17 @@ private:
     int64_t &m_targetDuration;
 };
 
+class SourceFlushedMessage : public Message
+{
+public:
+    SourceFlushedMessage(int32_t sourceId, GStreamerMSEMediaPlayerClient *player);
+    void handle() override;
+
+private:
+    int32_t m_sourceId;
+    GStreamerMSEMediaPlayerClient *m_player;
+};
+
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
                                       public std::enable_shared_from_this<GStreamerMSEMediaPlayerClient>
 {
@@ -250,11 +262,13 @@ public:
     void stop();
     void seek(int64_t seekPosition);
     void setPlaybackRate(double rate);
+    void flush(int32_t sourceId, bool resetTime);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                       RialtoMSEBaseSink *rialtoSink);
     void removeSource(int32_t sourceId);
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
+    void handleSourceFlushed(int32_t sourceId);
 
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
