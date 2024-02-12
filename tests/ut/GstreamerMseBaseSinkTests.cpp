@@ -478,31 +478,25 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAddBufferInChainFunction)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
 {
-    std::cout << "46" << std::endl;
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstBuffer *buffer = gst_buffer_new();
 
-    std::cout << "47" << std::endl;
     for (int i = 0; i < 24; ++i)
     {
         audioSink->priv->m_samples.push(
             gst_sample_new(buffer, audioSink->priv->m_caps, &audioSink->priv->m_lastSegment, nullptr));
     }
 
-    std::cout << "48" << std::endl;
     std::thread t{
         [&]() {
             EXPECT_EQ(GST_FLOW_OK,
                       rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
         }};
-    std::cout << "49" << std::endl;
     EXPECT_TRUE(t.joinable());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     rialto_mse_base_sink_pop_sample(audioSink);
-    std::cout << "50" << std::endl;
     t.join();
 
-    std::cout << "51" << std::endl;
     gst_object_unref(audioSink);
 }
 
@@ -533,27 +527,22 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleEos)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCapsEvent)
 {
-    std::cout << "16" << std::endl;
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-    std::cout << "17" << std::endl;
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
 
-    std::cout << "18" << std::endl;
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
     EXPECT_TRUE(gst_caps_is_equal(caps, audioSink->priv->m_caps));
 
-    std::cout << "19" << std::endl;
     GstCaps *newCaps{gst_caps_new_simple("audio/x-eac3", "mpegversion", G_TYPE_INT, 2, "channels", G_TYPE_INT,
                                          kChannels, "rate", G_TYPE_INT, kRate, nullptr)};
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_caps(newCaps)));
     EXPECT_TRUE(gst_caps_is_equal(newCaps, audioSink->priv->m_caps));
 
-    std::cout << "20" << std::endl;
     setNullState(pipeline, kSourceId);
     gst_caps_unref(newCaps);
     gst_caps_unref(caps);
@@ -562,31 +551,25 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCapsEvent)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSinkMessage)
 {
-    std::cout << "210" << std::endl;
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
     GError *gError{g_error_new_literal(GST_STREAM_ERROR, 0, "Test error")};
     GstMessage *message{gst_message_new_error(GST_OBJECT_CAST(audioSink), gError, "test error")};
 
-    std::cout << "22" << std::endl;
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
 
-    std::cout << "23" << std::endl;
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
 
-    std::cout << "24" << std::endl;
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    std::cout << "25" << std::endl;
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_sink_message("test_eos", message)));
 
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
 
-    std::cout << "26" << std::endl;
     setNullState(pipeline, kSourceId);
     g_error_free(gError);
     gst_message_unref(message);
