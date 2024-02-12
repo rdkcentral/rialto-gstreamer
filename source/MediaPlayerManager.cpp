@@ -19,11 +19,14 @@
 #include "MediaPlayerManager.h"
 #include "IMessageQueue.h"
 #include "MediaPlayerClientBackend.h"
+#include <iostream>
 
 std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
 std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
 
-MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr) {}
+MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr) 
+{
+}
 
 MediaPlayerManager::~MediaPlayerManager()
 {

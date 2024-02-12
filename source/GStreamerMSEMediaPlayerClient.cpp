@@ -20,6 +20,7 @@
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
+#include <iostream>
 #include <algorithm>
 #include <chrono>
 #include <thread>

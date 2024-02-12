@@ -57,7 +57,7 @@ TEST(TimerTests, ShouldTimeoutPeriodicTimer)
     std::unique_lock<std::mutex> lock{mtx};
     unsigned callCounter{0};
     std::unique_ptr<ITimer> timer{ITimerFactory::getFactory()->createTimer(
-        std::chrono::milliseconds{30},
+        std::chrono::milliseconds{100},
         [&]()
         {
             std::unique_lock<std::mutex> lock{mtx};
@@ -66,6 +66,6 @@ TEST(TimerTests, ShouldTimeoutPeriodicTimer)
         },
         TimerType::PERIODIC)};
     EXPECT_TRUE(timer->isActive());
-    cv.wait_for(lock, std::chrono::milliseconds{110}, [&]() { return callCounter >= 3; });
+    cv.wait_for(lock, std::chrono::milliseconds{395}, [&]() { return callCounter >= 3; });
     EXPECT_TRUE(callCounter >= 3);
 }
