@@ -146,6 +146,8 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebo
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId) {}
+
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
 {
     auto sourceIt = m_attachedSources.find(sourceId);
@@ -383,7 +385,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 }
             }
             break;
-            case firebolt::rialto::PlaybackState::FLUSHED:
+            case firebolt::rialto::PlaybackState::SEEK_DONE:
             {
                 if (m_serverSeekingState == SeekingState::SEEKING)
                 {
@@ -397,7 +399,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 }
                 else
                 {
-                    GST_WARNING("Received unexpected FLUSHED state change");
+                    GST_WARNING("Received unexpected SEEK_DONE state change");
                 }
                 break;
             }

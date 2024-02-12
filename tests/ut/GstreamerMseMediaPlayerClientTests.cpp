@@ -253,11 +253,11 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotNotifyPlaybackStateEndOfStre
 }
 // EoS OK case tested in sink tests.
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveUnexpectedFlushedMessage)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveUnexpectedSeekDoneMessage)
 {
     expectPostMessage();
     expectCallInEventLoop();
-    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FLUSHED);
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::SEEK_DONE);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
@@ -603,7 +603,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFinishSeekWithoutPullingData)
     m_sut->seek(kPosition);
 
     expectPostMessage();
-    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FLUSHED);
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::SEEK_DONE);
 
     gst_object_unref(audioSink);
 }
@@ -621,7 +621,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFinishSeek)
     expectPostMessage();
     EXPECT_CALL(bufferPullerMsgQueueMock, start());
     EXPECT_CALL(bufferPullerMsgQueueMock, stop());
-    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FLUSHED);
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::SEEK_DONE);
 
     gst_object_unref(audioSink);
 }
@@ -640,7 +640,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSeekBeforeAttachSource)
 
     expectPostMessage();
     EXPECT_CALL(bufferPullerMsgQueueMock, start());
-    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FLUSHED);
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::SEEK_DONE);
 
     gst_object_unref(audioSink);
 }

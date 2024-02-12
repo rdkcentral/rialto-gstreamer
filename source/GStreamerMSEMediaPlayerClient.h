@@ -236,6 +236,7 @@ public:
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
     void notifyBufferUnderflow(int32_t sourceId) override;
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
+    void notifySourceFlushed(int32_t sourceId) override;
 
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
