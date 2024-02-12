@@ -647,15 +647,25 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopInPausedState)
 
     EXPECT_CALL(m_mediaPipelineMock, setPosition(0)).WillOnce(Return(true));
 
+    std::mutex seekMutex;
+    std::condition_variable seekCond;
+    bool seekFlag{false};
     std::thread t{[&]()
                   {
-                      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                      std::unique_lock<std::mutex> lock{seekMutex};
+                      seekCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return seekFlag; });
                       rialto_mse_base_handle_rialto_server_completed_seek(audioSink);
                   }};
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_stop(kResetTime)));
     EXPECT_FALSE(audioSink->priv->m_isFlushOngoing);
+
+    {
+        std::unique_lock<std::mutex> lock{seekMutex};
+        seekFlag = true;
+        seekCond.notify_one();
+    }
 
     t.join();
 
@@ -688,15 +698,25 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopInPlayingState)
     pipelineWillGoToPausedState(audioSink);
     EXPECT_CALL(m_mediaPipelineMock, play()).WillOnce(Return(true));
 
+    std::mutex seekMutex;
+    std::condition_variable seekCond;
+    bool seekFlag{false};
     std::thread t{[&]()
                   {
-                      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                      std::unique_lock<std::mutex> lock{seekMutex};
+                      seekCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return seekFlag; });
                       rialto_mse_base_handle_rialto_server_completed_seek(audioSink);
                   }};
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_stop(kResetTime)));
     EXPECT_FALSE(audioSink->priv->m_isFlushOngoing);
+
+    {
+        std::unique_lock<std::mutex> lock{seekMutex};
+        seekFlag = true;
+        seekCond.notify_one();
+    }
 
     t.join();
 
