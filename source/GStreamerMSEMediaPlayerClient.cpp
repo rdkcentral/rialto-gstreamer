@@ -481,6 +481,7 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
             {
                 GST_WARNING("Cannot start buffer puller after flush. Source is seeking");
             }
+            rialto_mse_base_handle_rialto_server_completed_flush(sourceIt->second.m_rialtoSink);
         });
 }
 
