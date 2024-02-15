@@ -418,6 +418,13 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
     }
 }
 
+static void rialto_mse_base_sink_init_segment_after_seek(RialtoMSEBaseSink *sink, gint64 seekPosition)
+{
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
+    sink->priv->m_lastSegment.start = seekPosition;
+}
+
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
@@ -489,9 +496,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
                 if (seekPosition != -1)
                 {
-                    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
-                    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
-                    sink->priv->m_lastSegment.start = seekPosition;
+                    rialto_mse_base_sink_init_segment_after_seek(sink, seekPosition);
                     rialto_mse_base_sink_seek(sink);
                 }
             }
