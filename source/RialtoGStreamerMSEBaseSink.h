@@ -63,6 +63,7 @@ bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_state_changed(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state);
 void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_completed_seek(RialtoMSEBaseSink *sink);
+void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped);
 void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error);
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);

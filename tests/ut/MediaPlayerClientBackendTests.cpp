@@ -252,3 +252,13 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetMute)
     EXPECT_TRUE(m_sut.getMute(mute));
     EXPECT_EQ(kMute, mute);
 }
+
+TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
+{
+    constexpr int32_t kSourceId{12};
+    constexpr bool kResetTime{false};
+    EXPECT_CALL(*m_mediaPipelineMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime));
+}

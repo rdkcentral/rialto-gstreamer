@@ -172,6 +172,13 @@ static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)
     sink->priv->m_seekCondVariable.notify_all();
 }
 
+static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink)
+{
+    GST_INFO_OBJECT(sink, "Flush completed");
+    std::unique_lock<std::mutex> lock(sink->priv->m_flushMutex);
+    sink->priv->m_flushCondVariable.notify_all();
+}
+
 static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 {
     GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
@@ -183,6 +190,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
     callbacks.seekCompletedCallback = std::bind(rialto_mse_base_sink_seek_completed_handler, sink);
+    callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
     callbacks.stateChangedCallback =
         std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
     callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
@@ -321,6 +329,28 @@ static void rialto_mse_base_sink_change_playback_rate(RialtoMSEBaseSink *sink, G
     }
 }
 
+static void rialto_mse_base_sink_flush_server(RialtoMSEBaseSink *sink, bool resetTime)
+{
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+    if (!client)
+    {
+        GST_ERROR_OBJECT(sink, "Could not get the media player client");
+        return;
+    }
+
+    std::unique_lock<std::mutex> lock(sink->priv->m_flushMutex);
+    GST_INFO_OBJECT(sink, "Flushing sink with sourceId %d", sink->priv->m_sourceId.load());
+    client->flush(sink->priv->m_sourceId, resetTime);
+    if (sink->priv->m_sourceAttached)
+    {
+        sink->priv->m_flushCondVariable.wait(lock);
+    }
+    else
+    {
+        GST_DEBUG_OBJECT(sink, "Skip waiting for flush finish - source not attached yet.");
+    }
+}
+
 static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 {
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
@@ -336,6 +366,8 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetTime)
 {
     GST_INFO_OBJECT(sink, "Stopping flushing");
+    rialto_mse_base_sink_lost_state(sink);
+    rialto_mse_base_sink_flush_server(sink, resetTime);
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     sink->priv->m_isFlushOngoing = false;
 
@@ -385,6 +417,13 @@ static void rialto_mse_base_sink_seek(RialtoMSEBaseSink *sink)
             GST_DEBUG_OBJECT(sink, "Skip waiting for seek finish - source not attached yet.");
         }
     }
+}
+
+static void rialto_mse_base_sink_init_segment_for_seek(RialtoMSEBaseSink *sink, gint64 seekPosition)
+{
+    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
+    sink->priv->m_lastSegment.start = seekPosition;
 }
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
@@ -458,9 +497,8 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
                 if (seekPosition != -1)
                 {
-                    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
-                    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
-                    sink->priv->m_lastSegment.start = seekPosition;
+                    rialto_mse_base_sink_init_segment_for_seek(sink, seekPosition);
+                    rialto_mse_base_sink_seek(sink);
                 }
             }
         }
@@ -776,7 +814,6 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
         gboolean reset_time;
         gst_event_parse_flush_stop(event, &reset_time);
 
-        rialto_mse_base_sink_seek(sink);
         rialto_mse_base_sink_flush_stop(sink, reset_time);
         break;
     }
@@ -843,6 +880,14 @@ void rialto_mse_base_handle_rialto_server_completed_seek(RialtoMSEBaseSink *sink
     if (sink->priv->m_callbacks.seekCompletedCallback)
     {
         sink->priv->m_callbacks.seekCompletedCallback();
+    }
+}
+
+void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sink)
+{
+    if (sink->priv->m_callbacks.flushCompletedCallback)
+    {
+        sink->priv->m_callbacks.flushCompletedCallback();
     }
 }
 
