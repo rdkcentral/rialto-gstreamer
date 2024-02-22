@@ -146,6 +146,11 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebo
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
+{
+    m_backendQueue->postMessage(std::make_shared<SourceFlushedMessage>(sourceId, this));
+}
+
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
 {
     auto sourceIt = m_attachedSources.find(sourceId);
@@ -259,6 +264,27 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setPlaybackRate(rate); });
 }
 
+void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot flush - there's no attached source with id %d", sourceId);
+                return;
+            }
+            if (!m_clientBackend->flush(sourceId, resetTime))
+            {
+                GST_ERROR("Flush operation failed for source with id %d", sourceId);
+                return;
+            }
+            sourceIt->second.m_isFlushing = true;
+            sourceIt->second.m_bufferPuller->stop();
+        });
+}
+
 bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                                                  RialtoMSEBaseSink *rialtoSink)
 {
@@ -351,7 +377,10 @@ void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
             m_serverSeekingState = SeekingState::IDLE;
             for (auto &source : m_attachedSources)
             {
-                source.second.m_bufferPuller->start();
+                if (!source.second.m_isFlushing)
+                {
+                    source.second.m_bufferPuller->start();
+                }
                 source.second.m_seekingState = SeekingState::IDLE;
             }
             m_seekOngoing = false;
@@ -383,7 +412,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 }
             }
             break;
-            case firebolt::rialto::PlaybackState::FLUSHED:
+            case firebolt::rialto::PlaybackState::SEEK_DONE:
             {
                 if (m_serverSeekingState == SeekingState::SEEKING)
                 {
@@ -397,7 +426,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 }
                 else
                 {
-                    GST_WARNING("Received unexpected FLUSHED state change");
+                    GST_WARNING("Received unexpected SEEK_DONE state change");
                 }
                 break;
             }
@@ -424,6 +453,35 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             default:
                 break;
             }
+        });
+}
+
+void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot finish flush - there's no attached source with id %d", sourceId);
+                return;
+            }
+            if (!sourceIt->second.m_isFlushing)
+            {
+                GST_ERROR("Cannot finish flush - source with id %d is not flushing!", sourceId);
+                return;
+            }
+            sourceIt->second.m_isFlushing = false;
+            if (sourceIt->second.m_seekingState == SeekingState::IDLE)
+            {
+                sourceIt->second.m_bufferPuller->start();
+            }
+            else
+            {
+                GST_WARNING("Cannot start buffer puller after flush. Source is seeking");
+            }
+            rialto_mse_base_handle_rialto_server_completed_flush(sourceIt->second.m_rialtoSink);
         });
 }
 
@@ -889,4 +947,14 @@ SetDurationMessage::SetDurationMessage(int64_t newDuration, int64_t &targetDurat
 void SetDurationMessage::handle()
 {
     m_targetDuration = m_newDuration;
+}
+
+SourceFlushedMessage::SourceFlushedMessage(int32_t sourceId, GStreamerMSEMediaPlayerClient *player)
+    : m_sourceId{sourceId}, m_player{player}
+{
+}
+
+void SourceFlushedMessage::handle()
+{
+    m_player->handleSourceFlushed(m_sourceId);
 }

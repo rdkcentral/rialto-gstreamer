@@ -51,5 +51,6 @@ public:
     virtual bool getVolume(double &volume) = 0;
     virtual bool setMute(bool mute) = 0;
     virtual bool getMute(bool &mute) = 0;
+    virtual bool flush(int32_t sourceId, bool resetTime) = 0;
 };
 } // namespace firebolt::rialto::client
