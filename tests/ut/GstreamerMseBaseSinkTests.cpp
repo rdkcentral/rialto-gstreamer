@@ -746,7 +746,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopWithoutAttachedSource)
     EXPECT_FALSE(audioSink->priv->m_isFlushOngoing);
 
     setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(audioSink);
+    gst_object_unref(pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
