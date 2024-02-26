@@ -1,0 +1,63 @@
+#
+# Copyright (C) 2024 Sky UK
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation;
+# version 2.1 of the License.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+
+name: Licence Notice Check
+
+on:
+  pull_request:
+    branches: [ "master", "rdkcentral:master" ]
+  workflow_dispatch:
+
+jobs:
+  check:
+      runs-on: ubuntu-22.04
+
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: rialto-gstreamer
+
+      - name: Check out test scripts from rialto
+        uses: actions/checkout@v3
+        with:
+          repository: rdkcentral/rialto
+          path: ./rialto
+          sparse-checkout: |
+            scripts/license.py
+            scripts/license.sh
+
+      # Setup github for python 3.8
+      - name: setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+
+      - name: Scan source files
+        run: |
+          cd rialto-gstreamer
+          ../rialto/scripts/license.sh ../rialto/scripts/license.py Lesser_GPL_2_1
+          if [ $? -ne 0 ]
+          then
+            echo "The above files have an incorrect format or licence"
+            exit 1
+          fi
