@@ -263,6 +263,7 @@ public:
     void seek(int64_t seekPosition);
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
+    void setSourcePosition(int32_t sourceId, int64_t position);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                       RialtoMSEBaseSink *rialtoSink);

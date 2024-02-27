@@ -286,6 +286,25 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
         });
 }
 
+void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot Set Source Position - there's no attached source with id %d", sourceId);
+                return;
+            }
+            if (!m_clientBackend->setSourcePosition(sourceId, position))
+            {
+                GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
+                return;
+            }
+        });
+}
+
 bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                                                  RialtoMSEBaseSink *rialtoSink)
 {
