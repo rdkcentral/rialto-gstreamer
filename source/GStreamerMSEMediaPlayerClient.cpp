@@ -58,6 +58,9 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
 }
 } // namespace
 
+GST_DEBUG_CATEGORY_STATIC(GStreamerMSEMediaPlayerClient);
+#define GST_CAT_DEFAULT GStreamerMSEMediaPlayerClient
+
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
@@ -69,11 +72,8 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
     m_backendQueue->start();
-}
-
-GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()
-{
-    stopStreaming();
+    GST_DEBUG_CATEGORY_INIT(GStreamerMSEMediaPlayerClientDebug, "gstreamermsemediaplayerclient", 0,
+                                                    "gstreamer mse media player client")
 }
 
 void GStreamerMSEMediaPlayerClient::stopStreaming()
