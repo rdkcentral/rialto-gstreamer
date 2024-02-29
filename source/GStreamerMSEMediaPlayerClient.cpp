@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerMSEMediaPlayerClient.h"
+#include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"

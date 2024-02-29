@@ -17,6 +17,7 @@
  */
 
 #include "MessageQueue.h"
+#include "GstreamerCatLog.h"
 
 CallInEventLoopMessage::CallInEventLoopMessage(const std::function<void()> &func) : m_func(func), m_done{false} {}
 

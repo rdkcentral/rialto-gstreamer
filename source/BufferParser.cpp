@@ -19,6 +19,7 @@
 #include "BufferParser.h"
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
+#include "GstreamerCatLog.h"
 #include <cstring>
 #include <inttypes.h>
 

@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerWebAudioPlayerClient.h"
+#include "GstreamerCatLog.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>

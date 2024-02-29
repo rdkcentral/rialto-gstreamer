@@ -17,6 +17,7 @@
  */
 
 #include "MediaPlayerManager.h"
+#include "GstreamerCatLog.h"
 #include "IMessageQueue.h"
 #include "MediaPlayerClientBackend.h"
 

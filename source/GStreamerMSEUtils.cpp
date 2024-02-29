@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerMSEUtils.h"
+#include "GstreamerCatLog.h"
 #include <unordered_map>
 #include <unordered_set>
 
