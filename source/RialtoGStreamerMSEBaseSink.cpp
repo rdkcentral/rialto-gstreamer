@@ -399,13 +399,6 @@ static void rialto_mse_base_sink_set_segment(RialtoMSEBaseSink *sink)
     client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start);
 }
 
-static void rialto_mse_base_sink_init_segment_for_seek(RialtoMSEBaseSink *sink, gint64 seekPosition)
-{
-    std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
-    gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
-    sink->priv->m_lastSegment.start = seekPosition;
-}
-
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
@@ -427,27 +420,11 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
             if (flags & GST_SEEK_FLAG_FLUSH)
             {
-                if (seekFormat == GST_FORMAT_TIME)
+                if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
                 {
-                    gint64 seekPosition = -1;
-                    switch (startType)
-                    {
-                    case GST_SEEK_TYPE_SET:
-                        seekPosition = start;
-                        break;
-                    case GST_SEEK_TYPE_END:
-                        GST_ERROR_OBJECT(sink, "GST_SEEK_TYPE_END seek is not supported");
-                        gst_event_unref(event);
-                        return FALSE;
-                    default:
-                        break;
-                    }
-
-                    if (seekPosition != -1)
-                    {
-                        // Maybe we can remove this?
-                        rialto_mse_base_sink_init_segment_for_seek(sink, seekPosition);
-                    }
+                    GST_ERROR_OBJECT(sink, "GST_SEEK_TYPE_END seek is not supported");
+                    gst_event_unref(event);
+                    return FALSE;
                 }
             }
 #if GST_CHECK_VERSION(1, 18, 0)
