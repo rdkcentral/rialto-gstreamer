@@ -227,39 +227,6 @@ void GStreamerMSEMediaPlayerClient::stop()
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->stop(); });
 }
 
-void GStreamerMSEMediaPlayerClient::notifySourceStartedSeeking(int32_t sourceId)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            m_seekOngoing = true;
-            auto sourceIt = m_attachedSources.find(sourceId);
-            if (sourceIt == m_attachedSources.end())
-            {
-                return;
-            }
-
-            sourceIt->second.m_seekingState = SeekingState::SEEKING;
-            sourceIt->second.m_bufferPuller->stop();
-
-            startPullingDataIfSeekFinished();
-        });
-}
-
-void GStreamerMSEMediaPlayerClient::seek(int64_t seekPosition)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            m_serverSeekingState = SeekingState::SEEKING;
-            m_clientBackend->seek(seekPosition);
-            for (auto &source : m_attachedSources)
-            {
-                source.second.m_position = seekPosition;
-            }
-        });
-}
-
 void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
 {
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setPlaybackRate(rate); });
@@ -302,6 +269,7 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
                 GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
                 return;
             }
+            sourceIt->second.m_position = position;
         });
 }
 
@@ -342,10 +310,6 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
                     rialtoSink->priv->m_sourceId = source->getId();
-                    if (m_seekOngoing)
-                    {
-                        m_attachedSources.at(source->getId()).m_seekingState = SeekingState::SEEKING;
-                    }
                     bufferPuller->start();
                 }
             }
@@ -376,37 +340,6 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
         });
 }
 
-void GStreamerMSEMediaPlayerClient::startPullingDataIfSeekFinished()
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_serverSeekingState != SeekingState::SEEK_DONE)
-            {
-                return;
-            }
-
-            if (std::any_of(m_attachedSources.begin(), m_attachedSources.end(),
-                            [](const auto &source) { return source.second.m_seekingState != SeekingState::SEEKING; }))
-            {
-                return;
-            }
-
-            GST_INFO("Server and all attached sourced finished seek");
-
-            m_serverSeekingState = SeekingState::IDLE;
-            for (auto &source : m_attachedSources)
-            {
-                if (!source.second.m_isFlushing)
-                {
-                    source.second.m_bufferPuller->start();
-                }
-                source.second.m_seekingState = SeekingState::IDLE;
-            }
-            m_seekOngoing = false;
-        });
-}
-
 void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::PlaybackState state)
 {
     GST_DEBUG("Received state change to state %u", static_cast<uint32_t>(state));
@@ -434,34 +367,16 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             break;
             case firebolt::rialto::PlaybackState::SEEK_DONE:
             {
-                if (m_serverSeekingState == SeekingState::SEEKING)
-                {
-                    m_serverSeekingState = SeekingState::SEEK_DONE;
-                    startPullingDataIfSeekFinished();
-
-                    for (auto &source : m_attachedSources)
-                    {
-                        rialto_mse_base_handle_rialto_server_completed_seek(source.second.m_rialtoSink);
-                    }
-                }
-                else
-                {
-                    GST_WARNING("Received unexpected SEEK_DONE state change");
-                }
+                GST_WARNING("firebolt::rialto::PlaybackState::SEEK_DONE notification not supported");
                 break;
             }
             case firebolt::rialto::PlaybackState::FAILURE:
             {
                 for (auto &source : m_attachedSources)
                 {
-                    if (m_serverSeekingState == SeekingState::SEEKING)
-                    {
-                        rialto_mse_base_handle_rialto_server_completed_seek(source.second.m_rialtoSink);
-                    }
                     rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
                                                                firebolt::rialto::PlaybackError::UNKNOWN);
                 }
-                m_serverSeekingState = SeekingState::IDLE;
                 for (auto &source : m_attachedSources)
                 {
                     source.second.m_position = 0;
@@ -493,14 +408,7 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
                 return;
             }
             sourceIt->second.m_isFlushing = false;
-            if (sourceIt->second.m_seekingState == SeekingState::IDLE)
-            {
-                sourceIt->second.m_bufferPuller->start();
-            }
-            else
-            {
-                GST_WARNING("Cannot start buffer puller after flush. Source is seeking");
-            }
+            sourceIt->second.m_bufferPuller->start();
             rialto_mse_base_handle_rialto_server_completed_flush(sourceIt->second.m_rialtoSink);
         });
 }
@@ -673,10 +581,9 @@ bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frame
         [&]()
         {
             auto sourceIt = m_attachedSources.find(streamId);
-            if (sourceIt == m_attachedSources.end() || m_serverSeekingState != SeekingState::IDLE)
+            if (sourceIt == m_attachedSources.end())
             {
-                GST_ERROR("There's no attached source with id %d or seek is not finished %u", streamId,
-                          static_cast<uint32_t>(m_serverSeekingState));
+                GST_ERROR("There's no attached source with id %d", streamId);
 
                 result = false;
                 return;

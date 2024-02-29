@@ -68,8 +68,6 @@ struct _RialtoMSEBaseSinkPrivate
     std::mutex m_sinkMutex;
 
     std::condition_variable m_needDataCondVariable;
-    std::condition_variable m_seekCondVariable;
-    std::mutex m_seekMutex;
     std::condition_variable m_flushCondVariable;
     std::mutex m_flushMutex;
 

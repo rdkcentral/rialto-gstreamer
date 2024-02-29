@@ -46,14 +46,6 @@
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
 
 class GStreamerMSEMediaPlayerClient;
-
-enum class SeekingState
-{
-    IDLE,
-    SEEKING,
-    SEEK_DONE
-};
-
 class BufferPuller
 {
 public:
@@ -88,7 +80,6 @@ public:
 private:
     RialtoMSEBaseSink *m_rialtoSink;
     std::shared_ptr<BufferPuller> m_bufferPuller;
-    SeekingState m_seekingState = SeekingState::IDLE;
     std::unordered_set<uint32_t> m_ongoingNeedDataRequests;
     firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
     int64_t m_position = 0;
@@ -260,7 +251,6 @@ public:
     void play();
     void pause();
     void stop();
-    void seek(int64_t seekPosition);
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
     void setSourcePosition(int32_t sourceId, int64_t position);
@@ -278,8 +268,6 @@ public:
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     bool handleBufferUnderflow(int sourceId);
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
-    void notifySourceStartedSeeking(int32_t sourceId);
-    void startPullingDataIfSeekFinished();
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(RialtoMSEBaseSink *sink);
@@ -305,8 +293,6 @@ private:
     bool m_wasAllSourcesAttachedSent = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
-    SeekingState m_serverSeekingState = SeekingState::IDLE;
-    bool m_seekOngoing = false;
 
     struct Rectangle
     {

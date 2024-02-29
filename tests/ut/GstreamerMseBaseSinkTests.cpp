@@ -476,7 +476,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
     EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(audioSink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
                                   GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
 
-    // pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
+    pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);

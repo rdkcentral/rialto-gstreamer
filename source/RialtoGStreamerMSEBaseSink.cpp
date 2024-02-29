@@ -183,13 +183,6 @@ static bool rialto_mse_base_sink_is_state_change_required(RialtoMSEBaseSink *sin
     return sink->priv->m_serverPlaybackState != state;
 }
 
-static void rialto_mse_base_sink_seek_completed_handler(RialtoMSEBaseSink *sink)
-{
-    GST_INFO_OBJECT(sink, "Seek completed");
-    std::unique_lock<std::mutex> lock(sink->priv->m_seekMutex);
-    sink->priv->m_seekCondVariable.notify_all();
-}
-
 static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink)
 {
     GST_INFO_OBJECT(sink, "Flush completed");
@@ -207,7 +200,6 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
-    callbacks.seekCompletedCallback = std::bind(rialto_mse_base_sink_seek_completed_handler, sink);
     callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
     callbacks.stateChangedCallback =
         std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
@@ -435,7 +427,28 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 
             if (flags & GST_SEEK_FLAG_FLUSH)
             {
-                rialto_mse_base_sink_flush_start(sink);
+                if (seekFormat == GST_FORMAT_TIME)
+                {
+                    gint64 seekPosition = -1;
+                    switch (startType)
+                    {
+                    case GST_SEEK_TYPE_SET:
+                        seekPosition = start;
+                        break;
+                    case GST_SEEK_TYPE_END:
+                        GST_ERROR_OBJECT(sink, "GST_SEEK_TYPE_END seek is not supported");
+                        gst_event_unref(event);
+                        return FALSE;
+                    default:
+                        break;
+                    }
+
+                    if (seekPosition != -1)
+                    {
+                        // Maybe we can remove this?
+                        rialto_mse_base_sink_init_segment_for_seek(sink, seekPosition);
+                    }
+                }
             }
 #if GST_CHECK_VERSION(1, 18, 0)
             else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
@@ -465,28 +478,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                 GST_WARNING_OBJECT(sink, "Seek with flags 0x%X is not supported", flags);
                 gst_event_unref(event);
                 return FALSE;
-            }
-
-            if (seekFormat == GST_FORMAT_TIME)
-            {
-                gint64 seekPosition = -1;
-                switch (startType)
-                {
-                case GST_SEEK_TYPE_SET:
-                    seekPosition = start;
-                    break;
-                case GST_SEEK_TYPE_END:
-                    GST_ERROR_OBJECT(sink, "GST_SEEK_TYPE_END seek is not supported");
-                    gst_event_unref(event);
-                    return FALSE;
-                default:
-                    break;
-                }
-
-                if (seekPosition != -1)
-                {
-                    rialto_mse_base_sink_init_segment_for_seek(sink, seekPosition);
-                }
             }
         }
     }
@@ -868,14 +859,6 @@ void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink)
     if (sink->priv->m_callbacks.eosCallback)
     {
         sink->priv->m_callbacks.eosCallback();
-    }
-}
-
-void rialto_mse_base_handle_rialto_server_completed_seek(RialtoMSEBaseSink *sink)
-{
-    if (sink->priv->m_callbacks.seekCompletedCallback)
-    {
-        sink->priv->m_callbacks.seekCompletedCallback();
     }
 }
 
