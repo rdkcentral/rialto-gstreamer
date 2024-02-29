@@ -26,9 +26,6 @@
 
 namespace
 {
-GST_DEBUG_CATEGORY_STATIC(GStreamerMSEMediaPlayerClientDebug);
-#define GST_CAT_DEFAULT GStreamerMSEMediaPlayerClientDebug
-const char *kConst = "GStreamerMSEMediaPlayerClientDebug";
 // The start time of segment might differ from the first sample which is injected.
 // That difference should not be bigger than 1 video / audio frame.
 // 1 second is probably erring on the side of caution, but should not have side effect.
@@ -60,7 +57,6 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
     return "UNKNOWN";
 }
 } // namespace
-
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
@@ -72,7 +68,6 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
     m_backendQueue->start();
-    GST_DEBUG_CATEGORY_INIT(GStreamerMSEMediaPlayerClientDebug, kConst, 0, "gstreamer mse media player client debug");
 }
 
 GStreamerMSEMediaPlayerClient::~GStreamerMSEMediaPlayerClient()

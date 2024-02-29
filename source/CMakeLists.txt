@@ -26,6 +26,7 @@ find_package(ocdmRialto 1.0 REQUIRED)
 add_library(gstrialtosinks
 
         SHARED
+        GstreamerCatLog.cpp
         RialtoGStreamerMSEVideoSink.cpp
         RialtoGStreamerMSEAudioSink.cpp
         RialtoGStreamerWebAudioSink.cpp

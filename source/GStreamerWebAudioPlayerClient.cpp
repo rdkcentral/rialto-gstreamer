@@ -70,7 +70,6 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
            lac.isBigEndian != rac.isBigEndian || lac.isSigned != rac.isSigned || lac.isFloat != rac.isFloat;
 }
 } // namespace
-
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
     std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,

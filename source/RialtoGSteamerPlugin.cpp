@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerWebAudioSink.h"
@@ -24,6 +25,7 @@
 
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
+    INIT_GST_DEBUG_CATEGORY();
     const char commitID[] = COMMIT_ID;
     GST_INFO("Commit ID: %s", (std::strlen(commitID) > 0) ? commitID : "unknown");
 

@@ -33,6 +33,11 @@ class BufferParser
     };
 
 public:
+    // BufferParser()
+    // {
+    //     INIT_GST_DEBUG_CATEGORY();
+    // }
+
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
     parseBuffer(const GstRefSample &sample, GstBuffer *buffer, GstMapInfo map, int streamId);
 
