@@ -28,7 +28,7 @@
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
 using namespace firebolt::rialto::client;
-#define GST_CAT_DEFAULT rialtoGStreamerCat
+
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEAudioSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEAudioSinkDebug
 
