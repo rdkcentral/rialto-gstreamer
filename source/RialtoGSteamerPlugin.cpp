@@ -22,7 +22,7 @@
 #include "RialtoGStreamerWebAudioSink.h"
 #include <cstring>
 #include <limits>
-#define GST_CAT_DEFAULT rialtoGStreamerCats
+
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
     INIT_GST_DEBUG_CATEGORY();
