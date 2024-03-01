@@ -23,7 +23,9 @@
 
 GST_DEBUG_CATEGORY_EXTERN(rialtoGStreamerCat);
 
-#define INIT_GST_DEBUG_CATEGORY()                                                                                      \
+inline void init_gst_debug_category()
+{
     GST_DEBUG_CATEGORY_INIT(rialtoGStreamerCat, "rialtogstreamer", 0, "Messages from non-gstreamer objects");
+}
 
 #endif // GSTREAMER_CAT_LOG_H

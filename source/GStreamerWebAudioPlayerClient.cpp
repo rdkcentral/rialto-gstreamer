@@ -24,6 +24,8 @@
 #include <string.h>
 #include <thread>
 
+#define GST_CAT_DEFAULT rialtoGStreamerCat
+
 namespace
 {
 bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned,
@@ -71,7 +73,7 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
            lac.isBigEndian != rac.isBigEndian || lac.isSigned != rac.isSigned || lac.isFloat != rac.isFloat;
 }
 } // namespace
-#define GST_CAT_DEFAULT rialtoGStreamerCat
+
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
     std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,

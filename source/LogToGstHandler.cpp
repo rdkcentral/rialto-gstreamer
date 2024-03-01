@@ -35,7 +35,7 @@ const char *kCategory = "rialto";
 }; // namespace
 
 using namespace firebolt::rialto;
-#define GST_CAT_DEFAULT rialtoGStreamerCat
+
 LogToGstHandler::LogToGstHandler()
 {
     GST_DEBUG_CATEGORY_INIT(kGstRialtoCategory, kCategory, 0, "Messages from rialto client library");
