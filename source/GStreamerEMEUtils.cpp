@@ -18,10 +18,12 @@
 
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
+#include "GstreamerCatLog.h"
 #include <RialtoGStreamerEMEProtectionMetadata.h>
 #include <cstdint>
 #include <stdio.h>
 
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 void getEncryptedFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta, BufferProtectionMetadata &metadata)
 {
     gboolean encrypted = FALSE;

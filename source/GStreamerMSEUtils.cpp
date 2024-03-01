@@ -17,9 +17,11 @@
  */
 
 #include "GStreamerMSEUtils.h"
+#include "GstreamerCatLog.h"
 #include <unordered_map>
 #include <unordered_set>
 
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                                           const std::vector<std::string> &supportedMimeTypes)
 {

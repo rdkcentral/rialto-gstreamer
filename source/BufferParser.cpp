@@ -19,10 +19,12 @@
 #include "BufferParser.h"
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
+#include "GstreamerCatLog.h"
 #include <cstring>
 #include <inttypes.h>
 
 using namespace firebolt::rialto;
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 
 std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(const GstRefSample &sample, GstBuffer *buffer,
                                                                         GstMapInfo map, int streamId)

@@ -18,6 +18,8 @@
 
 #include "GStreamerUtils.h"
 
+#define GST_CAT_DEFAULT rialtoGStreamerCat
+
 GstMappedBuffer::GstMappedBuffer(GstBuffer *buffer, GstMapFlags flags)
     : m_buffer(buffer), m_isMapped(gst_buffer_map(m_buffer, &m_info, flags))
 {

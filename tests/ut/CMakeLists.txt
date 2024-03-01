@@ -38,6 +38,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/Timer.cpp
         ${CMAKE_SOURCE_DIR}/source/BufferParser.cpp
         ${CMAKE_SOURCE_DIR}/source/LogToGstHandler.cpp
+        ${CMAKE_SOURCE_DIR}/source/GstreamerCatLog.cpp
 )
 
 target_include_directories(

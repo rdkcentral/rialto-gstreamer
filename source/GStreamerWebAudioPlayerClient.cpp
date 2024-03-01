@@ -17,11 +17,14 @@
  */
 
 #include "GStreamerWebAudioPlayerClient.h"
+#include "GstreamerCatLog.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <string.h>
 #include <thread>
+
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 
 namespace
 {
