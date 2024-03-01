@@ -24,8 +24,6 @@
 GST_DEBUG_CATEGORY_EXTERN(rialtoGStreamerCat);
 
 #define INIT_GST_DEBUG_CATEGORY()                                                                                      \
-    GST_DEBUG_CATEGORY_INIT(rialtoGStreamerCat, "rialtogstreamer", 0, "Messages from non-gstreamer objects");          \
-    GST_DEBUG_CATEGORY_GET(rialtoGStreamerCat, "rialtogstreamer");                                                      \
-    GST_CAT_DEFAULT = rialtoGStreamerCat;
+    GST_DEBUG_CATEGORY_INIT(rialtoGStreamerCat, "rialtogstreamer", 0, "Messages from non-gstreamer objects");
 
 #endif // GSTREAMER_CAT_LOG_H

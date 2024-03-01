@@ -58,6 +58,7 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
     return "UNKNOWN";
 }
 } // namespace
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,

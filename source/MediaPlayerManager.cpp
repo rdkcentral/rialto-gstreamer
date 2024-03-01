@@ -23,7 +23,7 @@
 
 std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
 std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
-
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 MediaPlayerManager::MediaPlayerManager() : m_currentGstBinParent(nullptr) {}
 
 MediaPlayerManager::~MediaPlayerManager()

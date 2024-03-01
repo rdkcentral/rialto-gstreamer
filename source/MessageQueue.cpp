@@ -18,7 +18,7 @@
 
 #include "MessageQueue.h"
 #include "GstreamerCatLog.h"
-
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 CallInEventLoopMessage::CallInEventLoopMessage(const std::function<void()> &func) : m_func(func), m_done{false} {}
 
 void CallInEventLoopMessage::handle()
