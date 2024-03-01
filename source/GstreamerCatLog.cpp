@@ -19,4 +19,5 @@
 #include "GstreamerCatLog.h"
 #include <gst/gst.h>
 
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 GST_DEBUG_CATEGORY(rialtoGStreamerCat);

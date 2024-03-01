@@ -22,7 +22,6 @@
 #include <gst/gst.h>
 
 GST_DEBUG_CATEGORY_EXTERN(rialtoGStreamerCat);
-#define GST_CAT_DEFAULT rialtoGStreamerCat
 
 #define INIT_GST_DEBUG_CATEGORY()                                                                                      \
     GST_DEBUG_CATEGORY_INIT(rialtoGStreamerCat, "rialtogstreamer", 0, "Messages from non-gstreamer objects");

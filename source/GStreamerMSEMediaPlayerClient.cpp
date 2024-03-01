@@ -807,6 +807,7 @@ void PullBufferMessage::handle()
             {
                 // it's not a critical issue. It might be caused by receiving too many need data requests.
                 GST_INFO_OBJECT(m_rialtoSink, "Could not get a sample");
+                GST_INFO_OBJECT(m_rialtoSink, "HELLOOO");
             }
             break;
         }
