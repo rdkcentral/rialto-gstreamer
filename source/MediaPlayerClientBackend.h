@@ -98,7 +98,7 @@ public:
 
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 
-    bool setSourcePosition(int32_t sourceId, int64_t position)
+    bool setSourcePosition(int32_t sourceId, int64_t position) override
     {
         return m_mediaPlayerBackend->setSourcePosition(sourceId, position);
     }
