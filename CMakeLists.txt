@@ -41,7 +41,7 @@ if(RESULT)
     message("Failed to get git commit ID: ${RESULT}")
 endif()
 
-# Retrieve release tag
+# Retrieve release tag(s)
 execute_process(
     COMMAND bash -c "git tag --list --contains ${SRCREV} | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$'"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}  
