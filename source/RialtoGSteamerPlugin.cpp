@@ -26,8 +26,6 @@
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
     init_gst_debug_category();
-    // const char commitID[] = COMMIT_ID;
-    // GST_INFO("Commit ID: %s", (std::strlen(commitID) > 0) ? commitID : "unknown");
 
     const char kSrcRev[] = SRCREV;
     const char kTags[] = TAGS;

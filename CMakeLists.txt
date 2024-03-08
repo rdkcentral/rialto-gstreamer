@@ -58,9 +58,6 @@ endif()
 add_compile_definitions(SRCREV="${SRCREV}")
 add_compile_definitions(TAGS="${TAGS}")
 
-message("Tags: ${TAGS}")
-message("SRCREV: ${SRCREV}")
-
 # Preprocesser Variable
 add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
