@@ -262,3 +262,13 @@ TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime));
 }
+
+TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
+{
+    constexpr int32_t kSourceId{12};
+    constexpr int64_t kPosition{34};
+    EXPECT_CALL(*m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition));
+}
