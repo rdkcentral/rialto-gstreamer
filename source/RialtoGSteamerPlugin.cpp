@@ -26,8 +26,25 @@
 static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 {
     init_gst_debug_category();
-    const char commitID[] = COMMIT_ID;
-    GST_INFO("Commit ID: %s", (std::strlen(commitID) > 0) ? commitID : "unknown");
+
+    const char kSrcRev[] = SRCREV;
+    const char kTags[] = TAGS;
+
+    if (std::strlen(kSrcRev) > 0)
+    {
+        if (std::strlen(kTags) > 0)
+        {
+            GST_INFO("Release Tag(s): %s (Commit ID: %s)", kTags, kSrcRev);
+        }
+        else
+        {
+            GST_INFO("Release Tag(s): No Release Tags! (Commit ID: %s)", kSrcRev);
+        }
+    }
+    else
+    {
+        GST_WARNING("Failed to get git commit ID!");
+    }
 
     const char *socketPathStr = getenv("RIALTO_SOCKET_PATH");
     guint sinkRank = socketPathStr ? std::numeric_limits<int>::max() : 0;
