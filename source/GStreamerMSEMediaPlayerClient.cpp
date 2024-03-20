@@ -53,7 +53,7 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
     case firebolt::rialto::MediaSourceType::VIDEO:
         return "VIDEO";
     case firebolt::rialto::MediaSourceType::SUBTITLE:
-        return "SUBTITLE";
+        return "SUBTITLE"; 
     case firebolt::rialto::MediaSourceType::UNKNOWN:
         return "UNKNOWN";
     }
