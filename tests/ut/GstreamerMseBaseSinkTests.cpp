@@ -930,6 +930,66 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithByteStreamStreamFormat)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHvcStreamFormat)
+{
+    const std::string kStreamFormat{"hvc1"};
+    constexpr int32_t kWidth{1920};
+    constexpr int32_t kHeight{1080};
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+
+    const firebolt::rialto::IMediaPipeline::MediaSourceVideo kExpectedSource{"video/h265",
+                                                                             kHasDrm,
+                                                                             kWidth,
+                                                                             kHeight,
+                                                                             firebolt::rialto::SegmentAlignment::UNDEFINED,
+                                                                             firebolt::rialto::StreamFormat::HVC1};
+    const int32_t kSourceId{videoSourceWillBeAttached(kExpectedSource)};
+    GstCaps *caps{gst_caps_new_simple("video/x-h265", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight,
+                                      "stream-format", G_TYPE_STRING, kStreamFormat.c_str(), nullptr)};
+    setCaps(videoSink, caps);
+
+    EXPECT_TRUE(videoSink->priv->m_sourceAttached);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHevStreamFormat)
+{
+    const std::string kStreamFormat{"hev1"};
+    constexpr int32_t kWidth{1920};
+    constexpr int32_t kHeight{1080};
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+
+    const firebolt::rialto::IMediaPipeline::MediaSourceVideo kExpectedSource{"video/h265",
+                                                                             kHasDrm,
+                                                                             kWidth,
+                                                                             kHeight,
+                                                                             firebolt::rialto::SegmentAlignment::UNDEFINED,
+                                                                             firebolt::rialto::StreamFormat::HEV1};
+    const int32_t kSourceId{videoSourceWillBeAttached(kExpectedSource)};
+    GstCaps *caps{gst_caps_new_simple("video/x-h265", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight,
+                                      "stream-format", G_TYPE_STRING, kStreamFormat.c_str(), nullptr)};
+    setCaps(videoSink, caps);
+
+    EXPECT_TRUE(videoSink->priv->m_sourceAttached);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAuSegmentAlignment)
 {
     const std::string kAlignment{"au"};
