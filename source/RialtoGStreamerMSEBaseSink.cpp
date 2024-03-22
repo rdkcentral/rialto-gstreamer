@@ -932,7 +932,9 @@ firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEB
         static const std::unordered_map<std::string, firebolt::rialto::StreamFormat> stringToStreamFormatMap =
             {{"raw", firebolt::rialto::StreamFormat::RAW},
              {"avc", firebolt::rialto::StreamFormat::AVC},
-             {"byte-stream", firebolt::rialto::StreamFormat::BYTE_STREAM}};
+             {"byte-stream", firebolt::rialto::StreamFormat::BYTE_STREAM},
+             {"hvc1", firebolt::rialto::StreamFormat::HVC1},
+             {"hev1", firebolt::rialto::StreamFormat::HEV1}};
 
         auto strToStreamFormatIt = stringToStreamFormatMap.find(streamFormat);
         if (strToStreamFormatIt != stringToStreamFormatMap.end())
