@@ -145,6 +145,7 @@ AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
     guint64 clippingEnd = 0;
     gst_structure_get_int(structure, "rate", &sampleRate);
     gst_structure_get_int(structure, "channels", &numberOfChannels);
+
     GstAudioClippingMeta *clippingMeta = gst_buffer_get_audio_clipping_meta(buffer);
     if (clippingMeta)
     {
@@ -156,7 +157,7 @@ AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
               duration, sampleRate, numberOfChannels, clippingStart, clippingEnd);
 
     std::unique_ptr<IMediaPipeline::MediaSegmentAudio> mseData =
-        std::make_unique<IMediaPipeline::MediaSegmentAudio>(streamId, timeStamp, duration, sampleRate, numberOfChannels);
+        std::make_unique<IMediaPipeline::MediaSegmentAudio>(streamId, timeStamp, duration, sampleRate, numberOfChannels, clippingStart, clippingEnd);
 
     return mseData;
 }
