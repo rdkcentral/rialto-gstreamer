@@ -21,8 +21,8 @@
 #include "GStreamerUtils.h"
 #include "GstreamerCatLog.h"
 #include <cstring>
-#include <inttypes.h>
 #include <gst/audio/audio.h>
+#include <inttypes.h>
 
 using namespace firebolt::rialto;
 #define GST_CAT_DEFAULT rialtoGStreamerCat
@@ -137,7 +137,8 @@ void BufferParser::addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMedi
 }
 
 std::unique_ptr<IMediaPipeline::MediaSegment>
-AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration)
+AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure,
+                                             int64_t timeStamp, int64_t duration)
 {
     gint sampleRate = 0;
     gint numberOfChannels = 0;
@@ -153,17 +154,20 @@ AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
         clippingEnd = clippingMeta->end;
     }
 
-    GST_DEBUG("New audio frame pts=%" PRId64 " duration=%" PRId64 " sampleRate=%d numberOfChannels=%d, clippingStart=%" PRIu64 ", clippingEnd=%" PRIu64, timeStamp,
-              duration, sampleRate, numberOfChannels, clippingStart, clippingEnd);
+    GST_DEBUG("New audio frame; buffer %p, pts=%" PRId64 " duration=%" PRId64
+              " sampleRate=%d numberOfChannels=%d, clippingStart=%" PRIu64 ", clippingEnd=%" PRIu64,
+              buffer, timeStamp, duration, sampleRate, numberOfChannels, clippingStart, clippingEnd);
 
     std::unique_ptr<IMediaPipeline::MediaSegmentAudio> mseData =
-        std::make_unique<IMediaPipeline::MediaSegmentAudio>(streamId, timeStamp, duration, sampleRate, numberOfChannels, clippingStart, clippingEnd);
+        std::make_unique<IMediaPipeline::MediaSegmentAudio>(streamId, timeStamp, duration, sampleRate, numberOfChannels,
+                                                            clippingStart, clippingEnd);
 
     return mseData;
 }
 
 std::unique_ptr<IMediaPipeline::MediaSegment>
-VideoBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure, int64_t timeStamp, int64_t duration)
+VideoBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure,
+                                             int64_t timeStamp, int64_t duration)
 {
     gint width = 0;
     gint height = 0;
@@ -172,8 +176,8 @@ VideoBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
     gst_structure_get_int(structure, "height", &height);
     gst_structure_get_fraction(structure, "framerate", &frameRate.numerator, &frameRate.denominator);
 
-    GST_DEBUG("New video frame pts=%" PRId64 " duration=%" PRId64 " width=%d height=%d framerate=%d/%d", timeStamp,
-              duration, width, height, frameRate.numerator, frameRate.denominator);
+    GST_DEBUG("New video frame; buffer %p, pts=%" PRId64 " duration=%" PRId64 " width=%d height=%d framerate=%d/%d",
+              buffer, timeStamp, duration, width, height, frameRate.numerator, frameRate.denominator);
 
     std::unique_ptr<IMediaPipeline::MediaSegmentVideo> mseData =
         std::make_unique<IMediaPipeline::MediaSegmentVideo>(streamId, timeStamp, duration, width, height, frameRate);
