@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <gst/audio/audio.h>
 #include <gst/gst.h>
 #include <gtest/gtest.h>
 
@@ -125,6 +126,8 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
     ASSERT_TRUE(audioSegment);
     EXPECT_EQ(audioSegment->getSampleRate(), kRate);
     EXPECT_EQ(audioSegment->getNumberOfChannels(), kChannels);
+    EXPECT_EQ(audioSegment->getClippingStart(), 0);
+    EXPECT_EQ(audioSegment->getClippingEnd(), 0);
     gst_caps_unref(caps);
 }
 
@@ -170,12 +173,32 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferInvalidBufferCodecData)
     gst_caps_unref(caps);
 }
 
+TEST_F(BufferParserTests, ShouldParseAudioBuffeWithClippingMeta)
+{
+    uint64_t start{1024};
+    uint64_t end{2048};
+    AudioBufferParser parser;
+    GstCaps *caps =
+        gst_caps_new_simple("audio/x-opus", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels, nullptr);
+    gst_buffer_add_audio_clipping_meta(m_buffer, GST_FORMAT_TIME, start, end);
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+    ASSERT_TRUE(segment);
+    firebolt::rialto::IMediaPipeline::MediaSegmentAudio *audioSegment{
+        dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSegmentAudio *>(segment.get())};
+    EXPECT_EQ(audioSegment->getClippingStart(), start);
+    EXPECT_EQ(audioSegment->getClippingEnd(), end);
+
+    gst_caps_unref(caps);
+}
+
 TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
 {
     AudioBufferParser parser;
     GstCaps *caps = gst_caps_new_simple("application/x-webm-enc", "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT,
                                         kChannels, "codec_data", G_TYPE_STRING, kCodecDataStr.c_str(), nullptr);
     GstRefSample sample = buildSample(caps);
+
     auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
     ASSERT_TRUE(segment);
     ASSERT_TRUE(segment->getCodecData());
