@@ -214,14 +214,56 @@ bool GStreamerMSEMediaPlayerClient::createBackend()
     return result;
 }
 
-void GStreamerMSEMediaPlayerClient::play()
+void GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->play(); });
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot play - there's no attached source with id %d", sourceId);
+                return;
+            }
+            sourceIt->second.m_state = ClientState::AWAITING_PLAYING;
+
+            bool allSourcesPlaying = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
+                                                 [](const auto &source)
+                                                 { return source.second.m_state == ClientState::AWAITING_PLAYING; });
+
+            if (m_clientState == ClientState::PAUSED && allSourcesPlaying)
+            {
+                m_clientBackend->play();
+                m_clientState = ClientState::AWAITING_PLAYING;
+            }
+        });
 }
 
-void GStreamerMSEMediaPlayerClient::pause()
+void GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->pause(); });
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot pause - there's no attached source with id %d", sourceId);
+                return;
+            }
+
+            
+            sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+            bool allSourcesPaused = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
+                                                 [](const auto &source)
+                                                 { return source.second.m_state == ClientState::AWAITING_PAUSED; });
+            fprintf(stderr, "KLOPS %d, m_clientState %u, allstates %u\n", sourceId, (unsigned)m_clientState, allSourcesPaused);
+            if ((m_clientState == ClientState::READY && allSourcesPaused) ||
+                (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING))
+            {
+                m_clientBackend->pause();
+                m_clientState = ClientState::AWAITING_PAUSED;
+            }
+        });
 }
 
 void GStreamerMSEMediaPlayerClient::stop()
@@ -311,6 +353,7 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                 {
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
+                    fprintf(stderr, "KLOPS: attached source %d\n", source->getId());
                     rialtoSink->priv->m_sourceId = source->getId();
                     bufferPuller->start();
                 }
@@ -323,6 +366,8 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                 GST_INFO("All sources attached");
                 m_clientBackend->allSourcesAttached();
                 m_wasAllSourcesAttachedSent = true;
+                m_clientState = ClientState::READY;
+                //todo-klops: change also sinksState to READY
             }
         });
 
@@ -357,6 +402,17 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 {
                     rialto_mse_base_handle_rialto_server_state_changed(source.second.m_rialtoSink, state);
                 }
+
+                if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
+                {
+                    m_clientState = ClientState::PAUSED;
+                }
+                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
+                         m_clientState == ClientState::AWAITING_PLAYING)
+                {
+                    m_clientState = ClientState::PLAYING;
+                }
+
                 break;
             }
             case firebolt::rialto::PlaybackState::END_OF_STREAM:

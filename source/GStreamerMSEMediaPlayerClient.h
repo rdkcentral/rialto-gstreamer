@@ -46,6 +46,17 @@
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
 
 class GStreamerMSEMediaPlayerClient;
+
+enum class ClientState
+{
+    IDLE,
+    READY, // todo: maybe change to not confuse with gst state READ (this one includes both attached and async paused [after lost state])
+    AWAITING_PAUSED,
+    PAUSED,
+    AWAITING_PLAYING,
+    PLAYING
+};
+
 class BufferPuller
 {
 public:
@@ -84,6 +95,7 @@ private:
     firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
     int64_t m_position = 0;
     bool m_isFlushing = false;
+    ClientState m_state = ClientState::IDLE;
 };
 
 class HaveDataMessage : public Message
@@ -248,8 +260,8 @@ public:
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
 
     bool createBackend();
-    void play();
-    void pause();
+    void play(int32_t sourceId);
+    void pause(int32_t sourceId);
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
@@ -299,6 +311,7 @@ private:
         unsigned int x, y, width, height;
     } m_videoRectangle;
 
+    ClientState m_clientState = ClientState::IDLE;
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
     bool m_streamingStopped;
 

@@ -167,21 +167,21 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
     }
 }
 
-static bool rialto_mse_base_sink_is_state_change_required(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state)
-{
-    std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
+// static bool rialto_mse_base_sink_is_state_change_required(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state)
+// {
+//     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
 
-    GST_LOG_OBJECT(sink, "State change required check. Server state: %u, requested state: %u state commit needed: %u",
-                   static_cast<uint32_t>(sink->priv->m_serverPlaybackState), static_cast<uint32_t>(state),
-                   static_cast<uint32_t>(sink->priv->m_isStateCommitNeeded));
+//     GST_LOG_OBJECT(sink, "State change required check. Server state: %u, requested state: %u state commit needed: %u",
+//                    static_cast<uint32_t>(sink->priv->m_serverPlaybackState), static_cast<uint32_t>(state),
+//                    static_cast<uint32_t>(sink->priv->m_isStateCommitNeeded));
 
-    // Another async state change is currently ongoing, so we need to send request to rialto server
-    if (sink->priv->m_isStateCommitNeeded)
-    {
-        return true;
-    }
-    return sink->priv->m_serverPlaybackState != state;
-}
+//     // Another async state change is currently ongoing, so we need to send request to rialto server
+//     if (sink->priv->m_isStateCommitNeeded)
+//     {
+//         return true;
+//     }
+//     return sink->priv->m_serverPlaybackState != state;
+// }
 
 static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink)
 {
@@ -513,13 +513,13 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
 
         priv->m_isFlushOngoing = false;
-        if (priv->m_mediaPlayerManager.hasControl() &&
-            rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PAUSED))
-        {
+        // if (priv->m_mediaPlayerManager.hasControl() &&
+        //     rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PAUSED))
+        // {
             rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
-            client->pause();
-        }
+            //client->pause(priv->m_sourceId);
+    //    }
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
@@ -529,13 +529,13 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        if (priv->m_mediaPlayerManager.hasControl() &&
-            rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PLAYING))
-        {
+        // if (priv->m_mediaPlayerManager.hasControl() &&
+        //     rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PLAYING))
+        // {
             rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
-            client->play();
-        }
+            client->play(priv->m_sourceId);
+//        }
         break;
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
         if (!client)
@@ -544,13 +544,13 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        if (priv->m_mediaPlayerManager.hasControl() &&
-            rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PAUSED))
-        {
+        // if (priv->m_mediaPlayerManager.hasControl() &&
+        //     rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PAUSED))
+        // {
             rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
-            client->pause();
-        }
+            client->pause(priv->m_sourceId);
+//        }
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
         if (!client)
@@ -744,6 +744,8 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
                 sink->priv->m_caps = gst_caps_copy(caps);
             }
         }
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        client->pause(sink->priv->m_sourceId);
         break;
     }
     case GST_EVENT_SINK_MESSAGE:
@@ -984,6 +986,8 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+    client->pause(sink->priv->m_sourceId);
 }
 
 bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)
