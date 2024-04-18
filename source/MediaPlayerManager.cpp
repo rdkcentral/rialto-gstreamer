@@ -104,9 +104,15 @@ void MediaPlayerManager::releaseMediaPlayerClient()
             it->second.refCount--;
             if (it->second.refCount == 0)
             {
-                it->second.client->stop();
-                it->second.client->stopStreaming();
-                it->second.client->destroyClientBackend();
+                auto client = it->second.client;
+                client->stop();
+
+                // destroyClientBackend() unsubscribes from messages, call this before
+                // calling stopStreaming() otherwise received messages can't be sent
+                // and an ERROR might be generated
+                client->destroyClientBackend();
+
+                client->stopStreaming();
                 m_mediaPlayerClientsInfo.erase(it);
             }
             else
