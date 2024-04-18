@@ -107,9 +107,9 @@ void MediaPlayerManager::releaseMediaPlayerClient()
                 auto client = it->second.client;
                 client->stop();
 
-                // destroyClientBackend() unsubscribes from messages, call this before
+                // destroyClientBackend() unsubscribes from messages. Call this before
                 // calling stopStreaming() otherwise received messages can't be sent
-                // and an ERROR might be generated
+                // and this results in an ERROR message in the log
                 client->destroyClientBackend();
 
                 client->stopStreaming();
