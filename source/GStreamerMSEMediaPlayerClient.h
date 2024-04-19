@@ -80,8 +80,8 @@ class AttachedSource
 
 public:
     AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
-                   firebolt::rialto::MediaSourceType type)
-        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type)
+                   firebolt::rialto::MediaSourceType type, ClientState state = ClientState::READY)
+        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type), m_state(state)
     {
     }
 

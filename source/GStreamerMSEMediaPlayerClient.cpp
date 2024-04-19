@@ -227,14 +227,27 @@ void GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
             sourceIt->second.m_state = ClientState::AWAITING_PLAYING;
 
-            bool allSourcesPlaying = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                                 [](const auto &source)
-                                                 { return source.second.m_state == ClientState::AWAITING_PLAYING; });
-
-            if (m_clientState == ClientState::PAUSED && allSourcesPlaying)
+            if (m_clientState == ClientState::PAUSED)
             {
-                m_clientBackend->play();
-                m_clientState = ClientState::AWAITING_PLAYING;
+                bool allSourcesAwaitingPlaying =
+                    std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
+                                [](const auto &source)
+                                { return source.second.m_state == ClientState::AWAITING_PLAYING; });
+
+                if (allSourcesAwaitingPlaying)
+                {
+                    GST_INFO("Sending play command");
+                    m_clientBackend->play();
+                    m_clientState = ClientState::AWAITING_PLAYING;
+                }
+                else
+                {
+                    GST_DEBUG("Not all sources are ready to play");
+                }
+            }
+            else
+            {
+                GST_WARNING("Not in PAUSED state");
             }
         });
 }
@@ -251,15 +264,37 @@ void GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 return;
             }
 
-            
             sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+
             bool allSourcesPaused = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
                                                  [](const auto &source)
                                                  { return source.second.m_state == ClientState::AWAITING_PAUSED; });
-            fprintf(stderr, "KLOPS %d, m_clientState %u, allstates %u\n", sourceId, (unsigned)m_clientState, allSourcesPaused);
-            if ((m_clientState == ClientState::READY && allSourcesPaused) ||
-                (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING))
+
+            bool shouldPause = false;
+            if (m_clientState == ClientState::READY)
             {
+                if (allSourcesPaused)
+                {
+                    shouldPause = true;
+                }
+                else
+                {
+                    GST_DEBUG("Not all sources are ready to pause");
+                }
+            }
+            else if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
+            {
+                GST_DEBUG("Sending pause command");
+                shouldPause = true;
+            }
+            else
+            {
+                GST_WARNING("Not in PLAYING state");
+            }
+
+            if (shouldPause)
+            {
+                GST_INFO("Sending pause command");
                 m_clientBackend->pause();
                 m_clientState = ClientState::AWAITING_PAUSED;
             }
