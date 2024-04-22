@@ -513,13 +513,12 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
 
         priv->m_isFlushOngoing = false;
-        // if (priv->m_mediaPlayerManager.hasControl() &&
-        //     rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PAUSED))
-        // {
-            rialto_mse_base_async_start(sink);
-            status = GST_STATE_CHANGE_ASYNC;
-            //client->pause(priv->m_sourceId);
-    //    }
+        rialto_mse_base_async_start(sink);
+        status = GST_STATE_CHANGE_ASYNC;
+        if (priv->m_sourceAttached)
+        {
+            client->pause(priv->m_sourceId);
+        }
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
@@ -529,13 +528,10 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        // if (priv->m_mediaPlayerManager.hasControl() &&
-        //     rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PLAYING))
-        // {
-            rialto_mse_base_async_start(sink);
-            status = GST_STATE_CHANGE_ASYNC;
-            client->play(priv->m_sourceId);
-//        }
+        rialto_mse_base_async_start(sink);
+        status = GST_STATE_CHANGE_ASYNC;
+        client->play(priv->m_sourceId);
+
         break;
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
         if (!client)
@@ -544,13 +540,10 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        // if (priv->m_mediaPlayerManager.hasControl() &&
-        //     rialto_mse_base_sink_is_state_change_required(sink, firebolt::rialto::PlaybackState::PAUSED))
-        // {
-            rialto_mse_base_async_start(sink);
-            status = GST_STATE_CHANGE_ASYNC;
-            client->pause(priv->m_sourceId);
-//        }
+        rialto_mse_base_async_start(sink);
+        status = GST_STATE_CHANGE_ASYNC;
+        client->pause(priv->m_sourceId);
+
         break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
         if (!client)
@@ -744,8 +737,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
                 sink->priv->m_caps = gst_caps_copy(caps);
             }
         }
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-        client->pause(sink->priv->m_sourceId);
+
         break;
     }
     case GST_EVENT_SINK_MESSAGE:

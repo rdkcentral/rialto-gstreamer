@@ -50,7 +50,7 @@ class GStreamerMSEMediaPlayerClient;
 enum class ClientState
 {
     IDLE,
-    READY, // todo: maybe change to not confuse with gst state READ (this one includes both attached and async paused [after lost state])
+    READY,
     AWAITING_PAUSED,
     PAUSED,
     AWAITING_PLAYING,
