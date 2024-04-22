@@ -267,8 +267,8 @@ void GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
             sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
 
             bool allSourcesPaused = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                                 [](const auto &source)
-                                                 { return source.second.m_state == ClientState::AWAITING_PAUSED; });
+                                                [](const auto &source)
+                                                { return source.second.m_state == ClientState::AWAITING_PAUSED; });
 
             bool shouldPause = false;
             if (m_clientState == ClientState::READY)
