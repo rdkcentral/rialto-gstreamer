@@ -166,19 +166,23 @@ bool RialtoGstTest::ReceivedMessages::contains(const GstMessageType &type) const
 
 RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
 {
+    //static int i = 0;
+   // std::string name = "rialtomseaudiosink" + std::to_string(i++);
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
-    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink"/*name.c_str()*/);
     return RIALTO_MSE_BASE_SINK(audioSink);
 }
 
 RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
 {
+    static int i = 0;
+    std::string name = "rialtomsevideosink" + std::to_string(i++);
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
-    GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
+    GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", name.c_str());
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
@@ -193,7 +197,11 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
 
 GstElement *RialtoGstTest::createPipelineWithSink(RialtoMSEBaseSink *sink) const
 {
-    GstElement *pipeline = gst_pipeline_new("test-pipeline");
+    static int i = 0;
+    std::string name = "test-pipeline" + std::to_string(i++);
+    GstElement *pipeline = gst_pipeline_new(name.c_str());
+    g_object_set(sink, "single-path-stream", true, nullptr);
+    g_object_set(sink, "streams-number", 1, nullptr);
     gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(sink));
     return pipeline;
 }
@@ -254,6 +262,11 @@ GstMessage *RialtoGstTest::getMessage(GstElement *pipeline, const GstMessageType
     GstMessage *msg{gst_bus_timed_pop_filtered(bus, kTimeout, messageType)};
     gst_object_unref(bus);
     return msg;
+}
+
+void RialtoGstTest::allSourcesWillBeAttached() const
+{
+    EXPECT_CALL(m_mediaPipelineMock, allSourcesAttached()).WillRepeatedly(Return(true));
 }
 
 int32_t RialtoGstTest::audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const

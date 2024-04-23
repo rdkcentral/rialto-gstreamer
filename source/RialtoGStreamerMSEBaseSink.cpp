@@ -979,7 +979,14 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-    client->pause(sink->priv->m_sourceId);
+    if (client)
+    {
+        client->pause(sink->priv->m_sourceId);
+    }
+    else
+    {
+        GST_ERROR_OBJECT(sink, "Could not get the media player client");
+    }
 }
 
 bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)

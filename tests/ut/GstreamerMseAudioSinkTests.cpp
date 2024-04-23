@@ -106,6 +106,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotAttachSourceTwice)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
@@ -126,6 +127,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithMpeg)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
@@ -146,6 +148,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithEac3)
     setPausedState(pipeline, audioSink);
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-eac3", kHasDrm, kAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("audio/x-eac3", "mpegversion", G_TYPE_INT, 2, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, nullptr)};
@@ -167,6 +170,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithAc3)
     setPausedState(pipeline, audioSink);
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-eac3", kHasDrm, kAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("audio/x-ac3", "framed", G_TYPE_BOOLEAN, TRUE, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "alignment", G_TYPE_STRING, "frame", nullptr)};
@@ -208,6 +212,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpus)
 
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-opus", kHasDrm, kAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
     GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
                                       "channel-mapping-family", G_TYPE_INT, 0, nullptr)};
     setCaps(audioSink, caps);
@@ -227,6 +233,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);

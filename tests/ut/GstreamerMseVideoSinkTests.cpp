@@ -107,6 +107,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH264)
 
     setPausedState(pipeline, videoSink);
     const int32_t kSourceId{videoSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(videoSink, caps);
@@ -126,6 +127,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
 
     setPausedState(pipeline, videoSink);
     const int32_t kSourceId{videoSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(videoSink, caps);
@@ -147,6 +149,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithVp9)
     setPausedState(pipeline, videoSink);
     const int32_t kSourceId{videoSourceWillBeAttached(
         firebolt::rialto::IMediaPipeline::MediaSourceVideo{"video/x-vp9", kHasDrm, kWidth, kHeight})};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("video/x-vp9", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight, nullptr)};
     setCaps(videoSink, caps);
@@ -167,6 +170,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH265)
     setPausedState(pipeline, videoSink);
     const int32_t kSourceId{videoSourceWillBeAttached(
         firebolt::rialto::IMediaPipeline::MediaSourceVideo{"video/h265", kHasDrm, kWidth, kHeight})};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{
         gst_caps_new_simple("video/x-h265", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight, nullptr)};
@@ -211,6 +215,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldReachPausedState)
 
     setPausedState(pipeline, videoSink);
     const int32_t kSourceId{videoSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(videoSink, caps);
@@ -401,6 +406,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSendQosEvent)
 
     setPausedState(pipeline, videoSink);
     const int32_t kSourceId{videoSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(videoSink, caps);

@@ -85,7 +85,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchAudioSinkToPausedWithAVStreamsProp
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-    installAudioVideoStreamsProperty(pipeline);
+    //installAudioVideoStreamsProperty(pipeline);
 
     setPausedState(pipeline, audioSink);
 
@@ -98,7 +98,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchVideoSinkToPausedWithAVStreamsProp
     RialtoMSEBaseSink *videoSink = createVideoSink();
     GstElement *pipeline = createPipelineWithSink(videoSink);
 
-    installAudioVideoStreamsProperty(pipeline);
+    //installAudioVideoStreamsProperty(pipeline);
 
     setPausedState(pipeline, videoSink);
 
@@ -113,6 +113,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldReachPlayingState)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -138,6 +139,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -291,6 +293,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
 
@@ -311,6 +314,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryPosition)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
 
@@ -440,6 +444,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -462,6 +467,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -584,6 +590,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -627,6 +634,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCapsEvent)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -653,6 +661,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSinkMessage)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -749,6 +758,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -807,6 +817,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithBufferCodecData)
                                                                              firebolt::rialto::StreamFormat::UNDEFINED,
                                                                              codecDataPtr};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "codec_data", GST_TYPE_BUFFER, codecDataBuf, nullptr)};
     setCaps(audioSink, caps);
@@ -839,6 +850,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithCodecDataString)
                                                                              firebolt::rialto::StreamFormat::UNDEFINED,
                                                                              codecDataPtr};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "codec_data", G_TYPE_STRING, kCodecDataStr.c_str(),
                                       nullptr)};
@@ -865,6 +877,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithRawStreamFormat)
                                                                              firebolt::rialto::SegmentAlignment::UNDEFINED,
                                                                              firebolt::rialto::StreamFormat::RAW};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "stream-format", G_TYPE_STRING, kStreamFormat.c_str(),
                                       nullptr)};
@@ -891,6 +904,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAvcStreamFormat)
                                                                              firebolt::rialto::SegmentAlignment::UNDEFINED,
                                                                              firebolt::rialto::StreamFormat::AVC};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "stream-format", G_TYPE_STRING, kStreamFormat.c_str(),
                                       nullptr)};
@@ -917,6 +931,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithByteStreamStreamFormat)
                                                                              firebolt::rialto::SegmentAlignment::UNDEFINED,
                                                                              firebolt::rialto::StreamFormat::BYTE_STREAM};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "stream-format", G_TYPE_STRING, kStreamFormat.c_str(),
                                       nullptr)};
@@ -932,6 +947,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithByteStreamStreamFormat)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHvcStreamFormat)
 {
+    //todo: klops, dodac testcase gdzie najpierw capsy, a pozniej paused
     const std::string kStreamFormat{"hvc1"};
     constexpr int32_t kWidth{1920};
     constexpr int32_t kHeight{1080};
@@ -948,6 +964,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHvcStreamFormat)
                                                                              firebolt::rialto::SegmentAlignment::UNDEFINED,
                                                                              firebolt::rialto::StreamFormat::HVC1};
     const int32_t kSourceId{videoSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("video/x-h265", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight,
                                       "stream-format", G_TYPE_STRING, kStreamFormat.c_str(), nullptr)};
     setCaps(videoSink, caps);
@@ -978,6 +995,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHevStreamFormat)
                                                                              firebolt::rialto::SegmentAlignment::UNDEFINED,
                                                                              firebolt::rialto::StreamFormat::HEV1};
     const int32_t kSourceId{videoSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("video/x-h265", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight,
                                       "stream-format", G_TYPE_STRING, kStreamFormat.c_str(), nullptr)};
     setCaps(videoSink, caps);
@@ -1002,6 +1020,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAuSegmentAlignment)
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/mp4", kHasDrm, kAudioConfig,
                                                                              firebolt::rialto::SegmentAlignment::AU};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "alignment", G_TYPE_STRING, kAlignment.c_str(), nullptr)};
     setCaps(audioSink, caps);
@@ -1026,6 +1045,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithNalSegmentAlignment)
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/mp4", kHasDrm, kAudioConfig,
                                                                              firebolt::rialto::SegmentAlignment::NAL};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "alignment", G_TYPE_STRING, kAlignment.c_str(), nullptr)};
     setCaps(audioSink, caps);

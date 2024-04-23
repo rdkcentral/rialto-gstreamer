@@ -247,7 +247,7 @@ void GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
             else
             {
-                GST_WARNING("KLOPS Not in PAUSED state in %u state", static_cast<uint32_t>(m_clientState));
+                GST_WARNING("Not in PAUSED state in %u state", static_cast<uint32_t>(m_clientState));
             }
         });
 }
@@ -289,7 +289,7 @@ void GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
             }
             else if (m_clientState != ClientState::AWAITING_PAUSED && m_clientState != ClientState::PAUSED)
             {
-                GST_WARNING("KLOPS Not in PLAYING state in %u state", static_cast<uint32_t>(m_clientState));
+                GST_WARNING("Not in PLAYING state in %u state", static_cast<uint32_t>(m_clientState));
             }
 
             if (shouldPause)
@@ -388,7 +388,7 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                 {
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
-                    fprintf(stderr, "KLOPS: attached source %d\n", source->getId());
+
                     rialtoSink->priv->m_sourceId = source->getId();
                     bufferPuller->start();
                 }

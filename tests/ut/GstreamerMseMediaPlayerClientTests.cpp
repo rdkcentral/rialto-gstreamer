@@ -551,19 +551,232 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCreateBackend)
     EXPECT_TRUE(m_sut->createBackend());
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlay)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlayWhenAllAttachedPlaying)
 {
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
-    m_sut->play();
-}
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPause)
-{
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
-    m_sut->pause();
+    m_sut->pause(kAudioSourceId);
+    m_sut->pause(kVideoSourceId);
+
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
+    m_sut->play(kAudioSourceId);
+    m_sut->play(kVideoSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
 }
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlaying)
+{
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
+    expectCallInEventLoop();
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kAudioSourceId);
+    m_sut->pause(kVideoSourceId);
+
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
+
+    m_sut->play(kVideoSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenClientNotInPaused)
+{
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
+    expectCallInEventLoop();
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+
+    m_sut->play(kAudioSourceId);
+    m_sut->play(kVideoSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenWaitingForPlaying)
+{
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
+    expectCallInEventLoop();
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kAudioSourceId);
+    m_sut->pause(kVideoSourceId);
+
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
+    m_sut->play(kAudioSourceId);
+    m_sut->play(kVideoSourceId);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kAudioSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenPlaying)
+{
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
+    expectCallInEventLoop();
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kAudioSourceId);
+    m_sut->pause(kVideoSourceId);
+
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
+    m_sut->play(kAudioSourceId);
+    m_sut->play(kVideoSourceId);
+
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kAudioSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenAllAttachedPaused)
+{
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
+    expectCallInEventLoop();
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kAudioSourceId);
+    m_sut->pause(kVideoSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAllAttachedPaused)
+{
+    constexpr int32_t kVideoStreams{1};
+    constexpr int32_t kAudioStreams{1};
+    constexpr bool kIsSingleStream{false};
+    expectCallInEventLoop();
+    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    m_sut->pause(kAudioSourceId);
+
+    gst_object_unref(audioSink);
+    gst_object_unref(videoSink);
+}
+
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStop)
 {
@@ -756,11 +969,25 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
+    constexpr int32_t kVideoStreams{1};
+    constexpr bool kIsSingleStream{true};
+
     expectCallInEventLoop();
+    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const auto kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(kVideoSourceId);
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(true));
-    EXPECT_TRUE(m_sut->renderFrame(audioSink));
-    gst_object_unref(audioSink);
+    EXPECT_TRUE(m_sut->renderFrame(videoSink));
+
+    gst_object_unref(videoSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
