@@ -996,7 +996,7 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
     {
         g_object_get(parentObject, "n-video", &n_video, nullptr);
         g_object_get(parentObject, "n-audio", &n_audio, nullptr);
-
+        fprintf(stderr, "KLOPS %d %d\n", n_video, n_audio);
         if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "flags"))
         {
             guint flags = 0;

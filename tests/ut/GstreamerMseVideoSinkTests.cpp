@@ -194,6 +194,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithDolbyVision)
     const int32_t kSourceId{dolbyVisionSourceWillBeAttached(
         firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision{"video/h265", kDvProfile, kHasDrm, kWidth,
                                                                       kHeight})};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("video/x-h265", "width", G_TYPE_INT, kWidth, "height", G_TYPE_INT, kHeight,
                                       "dovi-stream", G_TYPE_BOOLEAN, TRUE, "dv_profile", G_TYPE_UINT, kDvProfile,
@@ -243,19 +244,16 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetRectanglePropertyWhenPipelineI
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetRectangleProperty)
 {
-    RialtoMSEBaseSink *videoSink = createVideoSink();
-    GstElement *pipeline = createPipelineWithSink(videoSink);
-
-    setPausedState(pipeline, videoSink);
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
 
     gchar *rectangle{nullptr};
-    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    g_object_get(textContext.m_sink, "rectangle", &rectangle, nullptr);
     ASSERT_TRUE(rectangle);
     EXPECT_EQ(std::string(rectangle), kDefaultWindowSet);
 
     g_free(rectangle);
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetMaxVideoWidthProperty)
@@ -305,22 +303,19 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenPipelineI
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetRectangleProperty)
 {
-    RialtoMSEBaseSink *videoSink = createVideoSink();
-    GstElement *pipeline = createPipelineWithSink(videoSink);
-
-    setPausedState(pipeline, videoSink);
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
 
     EXPECT_CALL(m_mediaPipelineMock, setVideoWindow(20, 40, 640, 480)).WillOnce(Return(true));
-    g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
+    g_object_set(textContext.m_sink, "rectangle", kCustomWindowSet.c_str(), nullptr);
 
     gchar *rectangle{nullptr};
-    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    g_object_get(textContext.m_sink, "rectangle", &rectangle, nullptr);
     ASSERT_TRUE(rectangle);
     EXPECT_EQ(std::string(rectangle), kCustomWindowSet);
 
     g_free(rectangle);
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetMaxVideoWidthProperty)
@@ -354,31 +349,25 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetFrameStepOnPrerollPropertyWhen
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetFrameStepOnPrerollProperty)
 {
-    RialtoMSEBaseSink *videoSink = createVideoSink();
-    GstElement *pipeline = createPipelineWithSink(videoSink);
-
-    setPausedState(pipeline, videoSink);
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
 
     EXPECT_CALL(m_mediaPipelineMock, renderFrame()).WillOnce(Return(true));
-    g_object_set(videoSink, "frame-step-on-preroll", kFrameStepOnPreroll, nullptr);
+    g_object_set(textContext.m_sink, "frame-step-on-preroll", kFrameStepOnPreroll, nullptr);
 
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotRenderFrameTwice)
 {
-    RialtoMSEBaseSink *videoSink = createVideoSink();
-    GstElement *pipeline = createPipelineWithSink(videoSink);
-
-    setPausedState(pipeline, videoSink);
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
 
     EXPECT_CALL(m_mediaPipelineMock, renderFrame()).WillOnce(Return(true));
-    g_object_set(videoSink, "frame-step-on-preroll", kFrameStepOnPreroll, nullptr);
-    g_object_set(videoSink, "frame-step-on-preroll", kFrameStepOnPreroll, nullptr);
+    g_object_set(textContext.m_sink, "frame-step-on-preroll", kFrameStepOnPreroll, nullptr);
+    g_object_set(textContext.m_sink, "frame-step-on-preroll", kFrameStepOnPreroll, nullptr);
 
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetOrSetUnknownProperty)

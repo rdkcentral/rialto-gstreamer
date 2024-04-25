@@ -26,6 +26,13 @@
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerWebAudioSink.h"
 
+struct TestContext
+{
+    GstElement *m_pipeline;
+    RialtoMSEBaseSink *m_sink;
+    int32_t m_sourceId;
+};
+
 class RialtoGstTest : public testing::Test
 {
 public:
@@ -45,11 +52,17 @@ public:
         std::vector<GstMessageType> m_receivedMessages;
     };
 
+    GstCaps *createAudioCaps() const;
+    GstCaps *createVideoCaps() const;
     RialtoMSEBaseSink *createAudioSink() const;
     RialtoMSEBaseSink *createVideoSink() const;
     RialtoWebAudioSink *createWebAudioSink() const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoWebAudioSink *sink) const;
+    TestContext createPipelineWithAudioSinkAndSetToPaused();
+    TestContext createPipelineWithVideoSinkAndSetToPaused();
+    firebolt::rialto::IMediaPipeline::MediaSourceAudio createAudioMediaSource() const;
+    firebolt::rialto::IMediaPipeline::MediaSourceVideo createVideoMediaSource() const;
     ReceivedMessages getMessages(GstElement *pipeline) const;
     bool waitForMessage(GstElement *pipeline, const GstMessageType &messageType) const;
     GstMessage *getMessage(GstElement *pipeline, const GstMessageType &messageType) const;

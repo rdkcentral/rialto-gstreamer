@@ -40,6 +40,10 @@ using testing::StrictMock;
 
 namespace
 {
+constexpr bool kHasDrm{true};
+constexpr int kChannels{1};
+constexpr int kRate{48000};
+const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
 const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4", "audio/aac", "audio/x-eac3", "audio/x-opus"};
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
@@ -164,14 +168,24 @@ bool RialtoGstTest::ReceivedMessages::contains(const GstMessageType &type) const
     return std::find(m_receivedMessages.begin(), m_receivedMessages.end(), type) != m_receivedMessages.end();
 }
 
+GstCaps *RialtoGstTest::createAudioCaps() const
+{
+    return gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 4, "channels", G_TYPE_INT, kChannels, "rate",
+                               G_TYPE_INT, kRate, nullptr);
+}
+
+GstCaps *RialtoGstTest::createVideoCaps() const
+{
+    return gst_caps_new_empty_simple("video/x-h264");
+}
+
+
 RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
 {
-    //static int i = 0;
-   // std::string name = "rialtomseaudiosink" + std::to_string(i++);
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
-    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink"/*name.c_str()*/);
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
     return RIALTO_MSE_BASE_SINK(audioSink);
 }
 
@@ -197,9 +211,7 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
 
 GstElement *RialtoGstTest::createPipelineWithSink(RialtoMSEBaseSink *sink) const
 {
-    static int i = 0;
-    std::string name = "test-pipeline" + std::to_string(i++);
-    GstElement *pipeline = gst_pipeline_new(name.c_str());
+    GstElement *pipeline = gst_pipeline_new("test-pipeline");
     g_object_set(sink, "single-path-stream", true, nullptr);
     g_object_set(sink, "streams-number", 1, nullptr);
     gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(sink));
@@ -211,6 +223,48 @@ GstElement *RialtoGstTest::createPipelineWithSink(RialtoWebAudioSink *sink) cons
     GstElement *pipeline = gst_pipeline_new("test-pipeline");
     gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(sink));
     return pipeline;
+}
+
+TestContext RialtoGstTest::createPipelineWithAudioSinkAndSetToPaused()
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    return TestContext{pipeline, audioSink, kSourceId};
+}
+
+TestContext RialtoGstTest::createPipelineWithVideoSinkAndSetToPaused()
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    return TestContext{pipeline, videoSink, kSourceId};
+}
+
+firebolt::rialto::IMediaPipeline::MediaSourceAudio RialtoGstTest::createAudioMediaSource() const
+{
+    return firebolt::rialto::IMediaPipeline::MediaSourceAudio{"audio/mp4", kHasDrm, kAudioConfig};
+}
+
+firebolt::rialto::IMediaPipeline::MediaSourceVideo RialtoGstTest::createVideoMediaSource() const
+{
+    return firebolt::rialto::IMediaPipeline::MediaSourceVideo{"video/h264"};
 }
 
 RialtoGstTest::ReceivedMessages RialtoGstTest::getMessages(GstElement *pipeline) const
