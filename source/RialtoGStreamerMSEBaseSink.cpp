@@ -217,6 +217,12 @@ static void rialto_mse_base_sink_finalize(GObject *object)
 
     priv->~RialtoMSEBaseSinkPrivate();
     GST_CALL_PARENT(G_OBJECT_CLASS, finalize, (object));
+
+    if (!firebolt::rialto::IClientLogControlFactory::createFactory()->createClientLogControl().registerLogHandler(nullptr,
+                                                                                                                  true))
+    {
+        GST_ERROR("Unable to cancel rialto log handler");
+    }
 }
 
 static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
