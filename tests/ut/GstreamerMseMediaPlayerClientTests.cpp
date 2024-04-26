@@ -777,7 +777,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAllAttachedPause
     gst_object_unref(videoSink);
 }
 
-
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStop)
 {
     expectCallInEventLoop();

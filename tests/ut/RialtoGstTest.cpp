@@ -179,7 +179,6 @@ GstCaps *RialtoGstTest::createVideoCaps() const
     return gst_caps_new_empty_simple("video/x-h264");
 }
 
-
 RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));

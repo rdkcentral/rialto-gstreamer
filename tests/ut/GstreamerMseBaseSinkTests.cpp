@@ -307,6 +307,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSkipQueryingPositionWithInvalidFormat)
     EXPECT_TRUE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_DEFAULT, &position));
 
     setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
 
@@ -314,8 +315,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenFlagIsWrong)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE,
-                                  GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -325,8 +326,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongFormat)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_DEFAULT, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_DEFAULT,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -336,8 +337,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongSeekType)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -347,8 +348,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithSeekTypeEnd)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_END, kStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_END, kStart, GST_SEEK_TYPE_NONE, kStop));
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -359,8 +360,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongPosition)
     constexpr gint64 kWrongStart{-1};
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_SET, kWrongStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kWrongStart, GST_SEEK_TYPE_NONE, kStop));
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -379,8 +380,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFails)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -393,9 +394,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
     sendPlaybackStateNotification(textContext.m_sink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(textContext.m_pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
-    
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
+
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
 }
@@ -412,8 +413,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
 
     EXPECT_TRUE(waitForMessage(textContext.m_pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-                                  GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
 
     pipelineWillGoToPausedState(textContext.m_sink); // PLAYING -> PAUSED
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
