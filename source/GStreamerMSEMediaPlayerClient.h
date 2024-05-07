@@ -260,6 +260,7 @@ public:
     void removeSource(int32_t sourceId);
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
+    void sendAllSourcesAttachedIfPossible();
 
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
@@ -277,9 +278,11 @@ public:
     bool getMute();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
+    void handleStreamCollection(int32_t audioStreams, int32_t videoStreams);
 
 private:
     bool areAllStreamsAttached();
+    void sendAllSourcesAttachedIfPossibleInternal();
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;

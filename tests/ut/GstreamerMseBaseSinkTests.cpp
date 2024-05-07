@@ -1085,3 +1085,35 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
     gst_message_unref(receivedMessage);
     gst_object_unref(pipeline);
 }
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleStreamCollectionEvent)
+{
+    GstStreamCollection *streamCollection{gst_stream_collection_new("test_stream")};
+
+    RialtoMSEBaseSink *audioSink{createAudioSink()};
+
+    EXPECT_FALSE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                            gst_event_new_stream_collection(streamCollection)));
+    gst_object_unref(audioSink);
+    gst_object_unref(streamCollection);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEvent)
+{
+    GstStreamCollection *streamCollection{gst_stream_collection_new("test_stream")};
+    gst_stream_collection_add_stream(streamCollection,
+                                     gst_stream_new("s_audio", nullptr, GST_STREAM_TYPE_AUDIO, GST_STREAM_FLAG_NONE));
+    gst_stream_collection_add_stream(streamCollection,
+                                     gst_stream_new("s_video", nullptr, GST_STREAM_TYPE_VIDEO, GST_STREAM_FLAG_NONE));
+
+    RialtoMSEBaseSink *audioSink{createAudioSink()};
+    GstElement *pipeline{createPipelineWithSink(audioSink)};
+
+    setPausedState(pipeline, audioSink);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_stream_collection(streamCollection)));
+    setNullState(pipeline, kUnknownSourceId);
+    gst_object_unref(pipeline);
+    gst_object_unref(streamCollection);
+}
