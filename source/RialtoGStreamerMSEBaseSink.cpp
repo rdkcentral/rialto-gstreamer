@@ -786,6 +786,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
+            gst_event_unref(event);
             return FALSE;
         }
         int32_t videoStreams{0}, audioStreams{0};
