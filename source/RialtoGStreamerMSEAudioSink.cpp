@@ -324,7 +324,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         priv->volume = g_value_get_double(value);
         if (!client)
         {
-            GST_DEBUG_OBJECT(object, "Queue volume setting");
+            GST_DEBUG_OBJECT(object, "Enqueue volume setting");
             priv->isVolumeQueued = true;
             return;
         }
@@ -336,7 +336,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         priv->mute = g_value_get_boolean(value);
         if (!client)
         {
-            GST_DEBUG_OBJECT(object, "Queue mute setting");
+            GST_DEBUG_OBJECT(object, "Enqueue mute setting");
             priv->isMuteQueued = true;
             return;
         }

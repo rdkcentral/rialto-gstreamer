@@ -310,7 +310,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         priv->videoRectangle = std::string(rectangle);
         if (!client)
         {
-            GST_DEBUG_OBJECT(object, "Rectangle setting queued");
+            GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
             priv->rectangleSettingQueued = true;
         }
         else
