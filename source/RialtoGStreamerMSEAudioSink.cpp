@@ -25,6 +25,7 @@
 #include "GStreamerMSEUtils.h"
 #include "IMediaPipelineCapabilities.h"
 #include "RialtoGStreamerMSEAudioSink.h"
+#include "RialtoGStreamerMSEAudioSinkPrivate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
 using namespace firebolt::rialto::client;
@@ -34,7 +35,7 @@ GST_DEBUG_CATEGORY_STATIC(RialtoMSEAudioSinkDebug);
 
 #define rialto_mse_audio_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoMSEAudioSink, rialto_mse_audio_sink, RIALTO_TYPE_MSE_BASE_SINK,
-                        G_IMPLEMENT_INTERFACE(GST_TYPE_STREAM_VOLUME, NULL)
+                        G_ADD_PRIVATE(RialtoMSEAudioSink) G_IMPLEMENT_INTERFACE(GST_TYPE_STREAM_VOLUME, NULL)
                             GST_DEBUG_CATEGORY_INIT(RialtoMSEAudioSinkDebug, "rialtomseaudiosink", 0,
                                                     "rialto mse audio sink"));
 
@@ -48,8 +49,9 @@ enum
 
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
-    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
-    RialtoMSEBaseSinkPrivate *priv = sink->priv;
+    RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(element);
+    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
+    RialtoMSEAudioSinkPrivate *priv = sink->priv;
 
     switch (transition)
     {
@@ -57,7 +59,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     {
         // Attach the media player client to media player manager
         GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
-        if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject))
+        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject))
         {
             GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
@@ -81,20 +83,25 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         else
         {
-            std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
-            audioStreams = priv->m_numOfStreams;
-            isAudioOnly = priv->m_isSinglePathStream;
+            std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
+            audioStreams = basePriv->m_numOfStreams;
+            isAudioOnly = basePriv->m_isSinglePathStream;
         }
 
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = priv->m_mediaPlayerManager.getMediaPlayerClient();
-        if (client)
-        {
-            client->setAudioStreamsInfo(audioStreams, isAudioOnly);
-        }
-        else
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
         {
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
+        }
+        client->setAudioStreamsInfo(audioStreams, isAudioOnly);
+        if (priv->isVolumeQueued)
+        {
+            client->setVolume(priv->volume);
+        }
+        if (priv->isMuteQueued)
+        {
+            client->setMute(priv->mute);
         }
 
         break;
@@ -253,9 +260,10 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         return;
     }
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!basePriv)
+    RialtoMSEAudioSinkPrivate *priv = sink->priv;
+    if (!basePriv || !priv)
     {
-        GST_ERROR_OBJECT(object, "RialtoMSEBaseSinkPrivate not initalised");
+        GST_ERROR_OBJECT(object, "Private Sink not initalised");
         return;
     }
 
@@ -267,7 +275,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            GST_WARNING_OBJECT(object, "missing media player client");
+            g_value_set_double(value, priv->volume);
             return;
         }
         g_value_set_double(value, client->getVolume());
@@ -277,7 +285,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            GST_WARNING_OBJECT(object, "missing media player client");
+            g_value_set_boolean(value, priv->mute);
             return;
         }
         g_value_set_boolean(value, client->getMute());
@@ -300,9 +308,10 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         return;
     }
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!basePriv)
+    RialtoMSEAudioSinkPrivate *priv = sink->priv;
+    if (!basePriv || !priv)
     {
-        GST_ERROR_OBJECT(object, "RialtoMSEBaseSinkPrivate not initalised");
+        GST_ERROR_OBJECT(object, "Private Sink not initalised");
         return;
     }
 
@@ -312,22 +321,26 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     {
     case PROP_VOLUME:
     {
+        priv->volume = g_value_get_double(value);
         if (!client)
         {
-            GST_WARNING_OBJECT(object, "missing media player client");
+            GST_DEBUG_OBJECT(object, "Queue volume setting");
+            priv->isVolumeQueued = true;
             return;
         }
-        client->setVolume(g_value_get_double(value));
+        client->setVolume(priv->volume);
         break;
     }
     case PROP_MUTE:
     {
+        priv->mute = g_value_get_boolean(value);
         if (!client)
         {
-            GST_WARNING_OBJECT(object, "missing media player client");
+            GST_DEBUG_OBJECT(object, "Queue mute setting");
+            priv->isMuteQueued = true;
             return;
         }
-        client->setMute(g_value_get_boolean(value));
+        client->setMute(priv->mute);
         break;
     }
     default:
@@ -352,6 +365,9 @@ static void rialto_mse_audio_sink_qos_handle(GstElement *element, uint64_t proce
 static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)
 {
     RialtoMSEBaseSinkPrivate *priv = sink->parent.priv;
+
+    sink->priv = static_cast<RialtoMSEAudioSinkPrivate *>(rialto_mse_audio_sink_get_instance_private(sink));
+    new (sink->priv) RialtoMSEAudioSinkPrivate();
 
     if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
     {

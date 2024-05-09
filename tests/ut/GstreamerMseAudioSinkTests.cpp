@@ -241,13 +241,13 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseAudioSinkTests, ShouldNotGetVolumePropertyWhenPipelineIsBelowPausedState)
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultVolumeValueWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
     gdouble volume{-1.0};
     g_object_get(audioSink, "volume", &volume, nullptr);
-    EXPECT_EQ(0, volume); // Default value should be returned
+    EXPECT_EQ(1.0, volume); // Default value should be returned
 
     gst_object_unref(audioSink);
 }
@@ -270,7 +270,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetVolumeProperty)
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseAudioSinkTests, ShouldNotGetMutePropertyWhenPipelineIsBelowPausedState)
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultMuteValueWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
@@ -304,6 +304,11 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBe
     constexpr gdouble kVolume{0.8};
     g_object_set(audioSink, "volume", kVolume, nullptr);
 
+    // Sink should return cached value, when get is called
+    gdouble volume{-1.0};
+    g_object_get(audioSink, "volume", &volume, nullptr);
+    EXPECT_EQ(kVolume, volume);
+
     gst_object_unref(audioSink);
 }
 
@@ -323,12 +328,33 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetVolume)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedVolume)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gdouble kVolume{0.8};
+    g_object_set(audioSink, "volume", kVolume, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
+    setPausedState(pipeline, audioSink);
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetMutePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
     constexpr gboolean kMute{TRUE};
     g_object_set(audioSink, "mute", kMute, nullptr);
+
+    // Sink should return cached value, when get is called
+    gboolean mute{FALSE};
+    g_object_get(audioSink, "mute", &mute, nullptr);
+    EXPECT_EQ(kMute, mute);
 
     gst_object_unref(audioSink);
 }
@@ -343,6 +369,22 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetMute)
     constexpr gboolean kMute{TRUE};
     EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
     g_object_set(audioSink, "mute", kMute, nullptr);
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedMute)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kMute{TRUE};
+    g_object_set(audioSink, "mute", kMute, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
+    setPausedState(pipeline, audioSink);
 
     setNullState(pipeline, kUnknownSourceId);
 
