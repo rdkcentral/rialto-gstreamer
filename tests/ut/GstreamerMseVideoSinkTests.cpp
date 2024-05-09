@@ -295,6 +295,13 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenPipelineI
 
     g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
 
+    // Sink should return cached value
+    gchar *rectangle{nullptr};
+    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    ASSERT_TRUE(rectangle);
+    EXPECT_EQ(std::string(rectangle), kCustomWindowSet);
+    g_free(rectangle);
+
     gst_object_unref(videoSink);
 }
 

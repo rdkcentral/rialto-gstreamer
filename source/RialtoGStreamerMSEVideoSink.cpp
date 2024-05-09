@@ -100,6 +100,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             return GST_STATE_CHANGE_FAILURE;
         }
         client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+        std::unique_lock lock{priv->rectangleMutex};
         if (priv->rectangleSettingQueued)
         {
             GST_DEBUG_OBJECT(sink, "Set queued video rectangle");
@@ -248,6 +249,7 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     case PROP_WINDOW_SET:
         if (!client)
         {
+            std::unique_lock lock{priv->rectangleMutex};
             g_value_set_string(value, priv->videoRectangle.c_str());
         }
         else
@@ -304,6 +306,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
             GST_WARNING_OBJECT(object, "Rectangle string not valid");
             break;
         }
+        std::unique_lock lock{priv->rectangleMutex};
         priv->videoRectangle = std::string(rectangle);
         if (!client)
         {

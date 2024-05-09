@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <atomic>
 #include <gst/gst.h>
+#include <mutex>
 #include <string>
 
 G_BEGIN_DECLS
@@ -29,8 +29,9 @@ struct _RialtoMSEVideoSinkPrivate
     uint32_t maxWidth = 0;
     uint32_t maxHeight = 0;
     bool stepOnPrerollEnabled = false;
+    std::mutex rectangleMutex;
     std::string videoRectangle = "0,0,1920,1080";
-    std::atomic_bool rectangleSettingQueued = false;
+    bool rectangleSettingQueued = false;
 };
 
 G_END_DECLS
