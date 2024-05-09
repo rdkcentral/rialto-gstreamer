@@ -94,16 +94,18 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-        if (client)
-        {
-            client->setVideoStreamsInfo(videoStreams, isVideoOnly);
-        }
-        else
+        if (!client)
         {
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-
+        client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+        if (priv->rectangleSettingQueued)
+        {
+            GST_DEBUG_OBJECT(sink, "Set queued video rectangle");
+            client->setVideoRectangle(priv->videoRectangle);
+            priv->rectangleSettingQueued = false;
+        }
         break;
     }
     default:
@@ -246,7 +248,7 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     case PROP_WINDOW_SET:
         if (!client)
         {
-            GST_WARNING_OBJECT(object, "missing media player client");
+            g_value_set_string(value, priv->videoRectangle.c_str());
         }
         else
         {
@@ -295,19 +297,25 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
     switch (propId)
     {
     case PROP_WINDOW_SET:
+    {
+        const gchar *rectangle = g_value_get_string(value);
+        if (!rectangle)
+        {
+            GST_WARNING_OBJECT(object, "Rectangle string not valid");
+            break;
+        }
+        priv->videoRectangle = std::string(rectangle);
         if (!client)
         {
-            GST_WARNING_OBJECT(object, "missing media player client");
+            GST_DEBUG_OBJECT(object, "Rectangle setting queued");
+            priv->rectangleSettingQueued = true;
         }
         else
         {
-            const gchar *rectangle = g_value_get_string(value);
-            if (rectangle)
-            {
-                client->setVideoRectangle(std::string(rectangle));
-            }
+            client->setVideoRectangle(priv->videoRectangle);
         }
         break;
+    }
     case PROP_MAX_VIDEO_WIDTH:
         priv->maxWidth = g_value_get_uint(value);
         break;
