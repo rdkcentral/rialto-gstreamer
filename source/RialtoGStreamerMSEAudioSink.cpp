@@ -21,6 +21,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 
+#include "Constants.h"
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
 #include "IMediaPipelineCapabilities.h"
@@ -98,10 +99,12 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         if (priv->isVolumeQueued)
         {
             client->setVolume(priv->volume);
+            priv->isVolumeQueued = false;
         }
         if (priv->isMuteQueued)
         {
             client->setMute(priv->mute);
+            priv->isMuteQueued = false;
         }
 
         break;
@@ -391,11 +394,12 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
     elementClass->change_state = rialto_mse_audio_sink_change_state;
 
     g_object_class_install_property(gobjectClass, PROP_VOLUME,
-                                    g_param_spec_double("volume", "Volume", "Volume of this stream", 0, 1.0, 1.0,
+                                    g_param_spec_double("volume", "Volume", "Volume of this stream", 0, 1.0,
+                                                        kDefaultVolume,
                                                         GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(gobjectClass, PROP_MUTE,
-                                    g_param_spec_boolean("mute", "Mute", "Mute status of this stream", FALSE,
+                                    g_param_spec_boolean("mute", "Mute", "Mute status of this stream", kDefaultMute,
                                                          GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =

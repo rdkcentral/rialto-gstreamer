@@ -18,18 +18,5 @@
 
 #pragma once
 
-#include "Constants.h"
-#include <atomic>
-#include <gst/gst.h>
-
-G_BEGIN_DECLS
-
-struct _RialtoMSEAudioSinkPrivate
-{
-    std::atomic<double> volume = kDefaultVolume;
-    std::atomic_bool mute = kDefaultMute;
-    std::atomic_bool isVolumeQueued = false;
-    std::atomic_bool isMuteQueued = false;
-};
-
-G_END_DECLS
+constexpr double kDefaultVolume{1.0};
+constexpr bool kDefaultMute{false};
