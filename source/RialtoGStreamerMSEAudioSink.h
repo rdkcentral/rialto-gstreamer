@@ -39,6 +39,7 @@ typedef struct _RialtoMSEAudioSinkPrivate RialtoMSEAudioSinkPrivate;
 struct _RialtoMSEAudioSink
 {
     RialtoMSEBaseSink parent;
+    RialtoMSEAudioSinkPrivate *priv;
 };
 
 struct _RialtoMSEAudioSinkClass

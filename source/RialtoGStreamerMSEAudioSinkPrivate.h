@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Sky UK
+ * Copyright (C) 2024 Sky UK
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,20 +18,18 @@
 
 #pragma once
 
+#include "Constants.h"
+#include <atomic>
 #include <gst/gst.h>
-#include <mutex>
-#include <string>
 
 G_BEGIN_DECLS
 
-struct _RialtoMSEVideoSinkPrivate
+struct _RialtoMSEAudioSinkPrivate
 {
-    uint32_t maxWidth = 0;
-    uint32_t maxHeight = 0;
-    bool stepOnPrerollEnabled = false;
-    std::mutex rectangleMutex;
-    std::string videoRectangle = "0,0,1920,1080";
-    bool rectangleSettingQueued = false;
+    std::atomic<double> volume = kDefaultVolume;
+    std::atomic_bool mute = kDefaultMute;
+    std::atomic_bool isVolumeQueued = false;
+    std::atomic_bool isMuteQueued = false;
 };
 
 G_END_DECLS
