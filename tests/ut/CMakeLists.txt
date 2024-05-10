@@ -14,10 +14,6 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-if ( COVERAGE_ENABLED )
-    add_compile_options(-coverage)
-endif()
-
 add_library(
         gstRialtoTestLib
 
@@ -68,14 +64,6 @@ set_target_properties(gstRialtoTestLib
         PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
         )
 
-if ( COVERAGE_ENABLED )
-    target_link_libraries(
-        gstRialtoTestLib
-
-        gcov
-        )
-endif()
-
 add_gtests (
         GstRialtoUnitTests
 
@@ -114,11 +102,3 @@ target_link_libraries(
         gstRialtoThirdParty
         gstRialtoTestLib
 )
-
-if ( COVERAGE_ENABLED )
-    target_link_libraries(
-        GstRialtoUnitTests
-
-        gcov
-        )
-endif()

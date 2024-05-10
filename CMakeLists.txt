@@ -71,3 +71,7 @@ else() # UnitTests
     add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
     add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
 endif()
+
+if( NATIVE_BUILD )
+    add_compile_options(-O0 -ggdb)
+endif()
