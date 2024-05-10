@@ -316,17 +316,27 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                 }
             }
 
-            if (!m_wasAllSourcesAttachedSent && areAllStreamsAttached())
-            {
-                // RialtoServer doesn't support dynamic source attachment.
-                // It means that when we notify that all sources were attached, we cannot add any more sources in the current session
-                GST_INFO("All sources attached");
-                m_clientBackend->allSourcesAttached();
-                m_wasAllSourcesAttachedSent = true;
-            }
+            sendAllSourcesAttachedIfPossibleInternal();
         });
 
     return result;
+}
+
+void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossible()
+{
+    m_backendQueue->callInEventLoop([&]() { sendAllSourcesAttachedIfPossibleInternal(); });
+}
+
+void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
+{
+    if (!m_wasAllSourcesAttachedSent && areAllStreamsAttached())
+    {
+        // RialtoServer doesn't support dynamic source attachment.
+        // It means that when we notify that all sources were attached, we cannot add any more sources in the current session
+        GST_INFO("All sources attached");
+        m_clientBackend->allSourcesAttached();
+        m_wasAllSourcesAttachedSent = true;
+    }
 }
 
 void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
@@ -554,6 +564,16 @@ void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bo
                 m_audioStreams = 0;
                 GST_INFO("Set video only session");
             }
+        });
+}
+
+void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams, int32_t videoStreams)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            m_audioStreams = audioStreams;
+            m_videoStreams = videoStreams;
         });
 }
 
