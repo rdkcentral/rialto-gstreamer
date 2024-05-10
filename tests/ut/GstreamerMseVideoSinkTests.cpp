@@ -295,6 +295,22 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenPipelineI
 
     g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
 
+    // Sink should return cached value
+    gchar *rectangle{nullptr};
+    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    ASSERT_TRUE(rectangle);
+    EXPECT_EQ(std::string(rectangle), kCustomWindowSet);
+    g_free(rectangle);
+
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenStringIsNotValid)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    g_object_set(videoSink, "rectangle", nullptr, nullptr);
+
     gst_object_unref(videoSink);
 }
 
@@ -307,6 +323,26 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetRectangleProperty)
 
     EXPECT_CALL(m_mediaPipelineMock, setVideoWindow(20, 40, 640, 480)).WillOnce(Return(true));
     g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
+
+    gchar *rectangle{nullptr};
+    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    ASSERT_TRUE(rectangle);
+    EXPECT_EQ(std::string(rectangle), kCustomWindowSet);
+
+    g_free(rectangle);
+    setNullState(pipeline, kUnknownSourceId);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedRectangleProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setVideoWindow(20, 40, 640, 480)).WillOnce(Return(true));
+    setPausedState(pipeline, videoSink);
 
     gchar *rectangle{nullptr};
     g_object_get(videoSink, "rectangle", &rectangle, nullptr);

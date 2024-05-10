@@ -37,6 +37,7 @@
 #include <unistd.h>
 
 #include "BufferParser.h"
+#include "Constants.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
@@ -289,8 +290,8 @@ private:
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
     int64_t m_position;
     int64_t m_duration;
-    double m_volume = 1.0;
-    bool m_mute = false;
+    double m_volume = kDefaultVolume;
+    bool m_mute = kDefaultMute;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
