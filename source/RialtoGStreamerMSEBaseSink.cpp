@@ -132,10 +132,6 @@ static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
                                                               firebolt::rialto::PlaybackState state)
 {
-    // Wait for lost state to complete before handling a state notification,
-    // otherwise states can change while we are processing.
-    std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
-
     sink->priv->m_serverPlaybackState = state;
 
     GstState current = GST_STATE(sink);
@@ -166,22 +162,6 @@ static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink 
         rialto_mse_base_async_done(sink);
     }
 }
-
-// static bool rialto_mse_base_sink_is_state_change_required(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state)
-// {
-//     std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
-
-//     GST_LOG_OBJECT(sink, "State change required check. Server state: %u, requested state: %u state commit needed: %u",
-//                    static_cast<uint32_t>(sink->priv->m_serverPlaybackState), static_cast<uint32_t>(state),
-//                    static_cast<uint32_t>(sink->priv->m_isStateCommitNeeded));
-
-//     // Another async state change is currently ongoing, so we need to send request to rialto server
-//     if (sink->priv->m_isStateCommitNeeded)
-//     {
-//         return true;
-//     }
-//     return sink->priv->m_serverPlaybackState != state;
-// }
 
 static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink)
 {
@@ -367,7 +347,16 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
     if (!sink->priv->m_isFlushOngoing)
     {
         GST_INFO_OBJECT(sink, "Starting flushing");
-        rialto_mse_base_sink_lost_state(sink);
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (client)
+        {
+            client->notifyLostState(sink->priv->m_sourceId);
+        }
+        else
+        {
+            GST_ERROR_OBJECT(sink, "Could not get the media player client");
+        }
+
         sink->priv->m_isEos = false;
         sink->priv->m_isFlushOngoing = true;
         sink->priv->clearBuffersUnlocked();
@@ -513,27 +502,41 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         }
 
         priv->m_isFlushOngoing = false;
-        rialto_mse_base_async_start(sink);
-        status = GST_STATE_CHANGE_ASYNC;
-        if (priv->m_sourceAttached)
+
+        StateChangeResult result = client->pause(priv->m_sourceId);
+        if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
         {
-            client->pause(priv->m_sourceId);
+            // NOT_ATTACHED is not a problem here, because source will be attached later when GST_EVENT_CAPS is received
+            rialto_mse_base_async_start(sink);
+            status = GST_STATE_CHANGE_ASYNC;
         }
+
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+    {
         if (!client)
         {
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        rialto_mse_base_async_start(sink);
-        status = GST_STATE_CHANGE_ASYNC;
-        client->play(priv->m_sourceId);
+        StateChangeResult result = client->play(priv->m_sourceId);
+        if (result == StateChangeResult::SUCCESS_ASYNC)
+        {
+            rialto_mse_base_async_start(sink);
+            status = GST_STATE_CHANGE_ASYNC;
+        }
+        else if (result == StateChangeResult::NOT_ATTACHED)
+        {
+            GST_ERROR_OBJECT(sink, "Failed to change state to playing");
+            return GST_STATE_CHANGE_FAILURE;
+        }
 
         break;
+    }
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+    {
         if (!client)
         {
             GST_ERROR_OBJECT(sink, "Cannot get the media player client object");
@@ -545,6 +548,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         client->pause(priv->m_sourceId);
 
         break;
+    }
     case GST_STATE_CHANGE_PAUSED_TO_READY:
         if (!client)
         {
@@ -1005,13 +1009,12 @@ bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStruc
 
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
-    std::unique_lock<std::mutex> lock(sink->priv->m_lostStateMutex);
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
     if (client)
     {
-        client->pause(sink->priv->m_sourceId);
+        client->pause(sink->priv->m_sourceId, true);
     }
     else
     {
@@ -1026,7 +1029,7 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
     {
         g_object_get(parentObject, "n-video", &n_video, nullptr);
         g_object_get(parentObject, "n-audio", &n_audio, nullptr);
-        fprintf(stderr, "KLOPS %d %d\n", n_video, n_audio);
+
         if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "flags"))
         {
             guint flags = 0;

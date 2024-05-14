@@ -242,9 +242,21 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
+
+    /* todo-klops: clean*/
+    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
+    const std::string kMimeType{};
+    const std::string kUrl{"mse://1"};
+    constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
+        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
     gint64 position{0};
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
+    setNullState(pipeline, kUnknownSourceId); //todo:klops clean
     gst_object_unref(pipeline);
 }
 
@@ -666,10 +678,21 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopWithoutAttachedSource)
     GstElement *pipeline = createPipelineWithSink(audioSink);
     audioSink->priv->m_isFlushOngoing = true;
 
+    constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
+    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
+    const std::string kMimeType{};
+    const std::string kUrl{"mse://1"};
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    //EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
+        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_stop(kResetTime)));
     EXPECT_FALSE(audioSink->priv->m_isFlushOngoing);
 
+    setNullState(pipeline, kUnknownSourceId);
     gst_object_unref(pipeline);
 }
 

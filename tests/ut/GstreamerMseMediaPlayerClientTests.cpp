@@ -551,6 +551,20 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCreateBackend)
     EXPECT_TRUE(m_sut->createBackend());
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAttached)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).Times(0);
+    m_sut->pause(0);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAttached)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).Times(0);
+    m_sut->play(0);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlayWhenAllAttachedPlaying)
 {
     constexpr int32_t kVideoStreams{1};
@@ -834,6 +848,13 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     m_sut->flush(kSourceId, kResetTime);
 
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(_, _)).Times(0);
+    m_sut->flush(0, kResetTime);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifySourceFlushedWhenSourceIsNotFlushing)

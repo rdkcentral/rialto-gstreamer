@@ -189,12 +189,22 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToAttachSourceWithOpus)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
+constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
+    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
+    const std::string kMimeType{};
+    const std::string kUrl{"mse://1"};
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    //EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
+        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
     GstCaps *caps{
         gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate, nullptr)};
     setCaps(audioSink, caps);
 
     EXPECT_FALSE(audioSink->priv->m_sourceAttached);
-
+setNullState(pipeline, kUnknownSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }

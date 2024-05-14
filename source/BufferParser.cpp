@@ -154,7 +154,7 @@ AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
         clippingEnd = clippingMeta->end;
     }
 
-    GST_DEBUG("New audio frame; buffer %p, pts=%" PRId64 " duration=%" PRId64
+    GST_LOG("New audio frame; buffer %p, pts=%" PRId64 " duration=%" PRId64
               " sampleRate=%d numberOfChannels=%d, clippingStart=%" PRIu64 ", clippingEnd=%" PRIu64,
               buffer, timeStamp, duration, sampleRate, numberOfChannels, clippingStart, clippingEnd);
 
@@ -176,7 +176,7 @@ VideoBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
     gst_structure_get_int(structure, "height", &height);
     gst_structure_get_fraction(structure, "framerate", &frameRate.numerator, &frameRate.denominator);
 
-    GST_DEBUG("New video frame; buffer %p, pts=%" PRId64 " duration=%" PRId64 " width=%d height=%d framerate=%d/%d",
+    GST_LOG("New video frame; buffer %p, pts=%" PRId64 " duration=%" PRId64 " width=%d height=%d framerate=%d/%d",
               buffer, timeStamp, duration, width, height, frameRate.numerator, frameRate.denominator);
 
     std::unique_ptr<IMediaPipeline::MediaSegmentVideo> mseData =

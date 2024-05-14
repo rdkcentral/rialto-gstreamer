@@ -224,6 +224,13 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
+enum class StateChangeResult
+{
+    SUCCESS_ASYNC,
+    SUCCESS_SYNC,
+    NOT_ATTACHED
+};
+
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
                                       public std::enable_shared_from_this<GStreamerMSEMediaPlayerClient>
 {
@@ -261,8 +268,9 @@ public:
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
 
     bool createBackend();
-    void play(int32_t sourceId);
-    void pause(int32_t sourceId);
+    StateChangeResult play(int32_t sourceId);
+    StateChangeResult pause(int32_t sourceId, bool forcePause = false);
+    void notifyLostState(int32_t sourceId);
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
@@ -315,6 +323,7 @@ private:
         unsigned int x, y, width, height;
     } m_videoRectangle;
 
+    firebolt::rialto::PlaybackState m_serverPlaybackState = firebolt::rialto::PlaybackState::IDLE;
     ClientState m_clientState = ClientState::IDLE;
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
     bool m_streamingStopped;
