@@ -503,6 +503,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         priv->m_isFlushOngoing = false;
 
+GST_WARNING("KLOPS13");
         StateChangeResult result = client->pause(priv->m_sourceId);
         if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
         {
@@ -543,9 +544,18 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        rialto_mse_base_async_start(sink);
-        status = GST_STATE_CHANGE_ASYNC;
-        client->pause(priv->m_sourceId);
+GST_WARNING("KLOPS14");
+        StateChangeResult result = client->pause(priv->m_sourceId);
+        if (result == StateChangeResult::SUCCESS_ASYNC)
+        {
+            rialto_mse_base_async_start(sink);
+            status = GST_STATE_CHANGE_ASYNC;
+        }
+        else if (result == StateChangeResult::NOT_ATTACHED)
+        {
+            GST_ERROR_OBJECT(sink, "Failed to change state to paused");
+            return GST_STATE_CHANGE_FAILURE;
+        }
 
         break;
     }
@@ -1011,15 +1021,6 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
 {
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-    if (client)
-    {
-        client->pause(sink->priv->m_sourceId, true);
-    }
-    else
-    {
-        GST_ERROR_OBJECT(sink, "Could not get the media player client");
-    }
 }
 
 bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)

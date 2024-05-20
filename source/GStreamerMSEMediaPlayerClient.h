@@ -304,6 +304,7 @@ public:
 private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
+    bool checkIfAllAttachedSourcesInState(ClientState state);
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;

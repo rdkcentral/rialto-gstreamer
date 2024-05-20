@@ -243,6 +243,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
                 {
+                    GST_WARNING("KLOPS12");
                     client->pause(sink->priv->m_sourceId);
                 }
             }

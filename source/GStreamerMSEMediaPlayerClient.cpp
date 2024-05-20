@@ -233,10 +233,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
 
-                bool allSourcesPlaying = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                                    [](const auto &source)
-                                                    { return source.second.m_state == ClientState::PLAYING; });
-                if (allSourcesPlaying)
+                if (checkIfAllAttachedSourcesInState(ClientState::PLAYING))
                 {
                     m_clientState = ClientState::PLAYING;
                 }
@@ -249,12 +246,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
 
             if (m_clientState == ClientState::PAUSED)
             {
-                bool allSourcesAwaitingPlaying =
-                    std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                [](const auto &source)
-                                { return source.second.m_state == ClientState::AWAITING_PLAYING; });
-
-                if (allSourcesAwaitingPlaying)
+                if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PLAYING))
                 {
                     GST_INFO("Sending play command");
                     m_clientBackend->play();
@@ -285,67 +277,63 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId, bool fo
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                GST_ERROR("Cannot pause - there's no attached source with id %d", sourceId);
+                GST_ERROR("KLOPS Cannot pause - there's no attached source with id %d", sourceId);
 
                 result = StateChangeResult::NOT_ATTACHED;
                 return;
             }
 
-            if (!forcePause && m_serverPlaybackState == firebolt::rialto::PlaybackState::PAUSED)
+            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PAUSED &&
+                m_clientState != ClientState::AWAITING_PLAYING &&
+                m_clientState != ClientState::AWAITING_PAUSED)
             {
-                if (m_clientState != ClientState::AWAITING_PLAYING)
+                // if the server is already paused and we are not in async, we don't need to send pause command
+                GST_INFO("Server is already paused");
+                sourceIt->second.m_state = ClientState::PAUSED;
+
+                if (checkIfAllAttachedSourcesInState(ClientState::PAUSED))
                 {
-                    GST_INFO("Server is already paused");
-                    sourceIt->second.m_state = ClientState::PAUSED;
-
-                    bool allSourcesPaused = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                                        [](const auto &source)
-                                                        { return source.second.m_state == ClientState::PAUSED; });
-                    if (allSourcesPaused)
-                    {
-                        m_clientState = ClientState::PAUSED;
-                    }
-
-                    result = StateChangeResult::SUCCESS_SYNC;
-                    return;
+                    m_clientState = ClientState::PAUSED;
                 }
+
+                result = StateChangeResult::SUCCESS_SYNC;
             }
-
-            sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
-
-            bool shouldPause = false;
-            if (m_clientState == ClientState::READY)
+            else
             {
-                bool allSourcesAwaitingPaused = std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                                    [](const auto &source)
-                                                    { return source.second.m_state == ClientState::AWAITING_PAUSED; });
-                if (allSourcesAwaitingPaused)
+                sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+
+                bool shouldPause = false;
+                if (m_clientState == ClientState::READY)
+                {
+                    if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
+                    {
+                        shouldPause = true;
+                    }
+                    else
+                    {
+                        GST_DEBUG("Not all attached sources are ready to pause");
+                    }
+                }
+                else if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
                 {
                     shouldPause = true;
                 }
+                //m_clientState == ClientState::ILDE git, bo moze se czkac na zattachowanie wszystkich sourcow
+                // m_clientState == ClientState::AWAITING_PAUSED, jest git gdy przechodzi drugi z playing
                 else
                 {
-                    GST_DEBUG("Not all sources are ready to pause");
+                    GST_WARNING("KLOPS Cannot pause in %u state", static_cast<uint32_t>(m_clientState));
                 }
-            }
-            else if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
-            {
-                GST_DEBUG("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
-                shouldPause = true;
-            }
-            else if (m_clientState != ClientState::AWAITING_PAUSED && m_clientState != ClientState::PAUSED)
-            {
-                GST_WARNING("Not in PLAYING state in %u state", static_cast<uint32_t>(m_clientState));
-            }
 
-            if (shouldPause)
-            {
-                GST_INFO("Sending pause command");
-                m_clientBackend->pause();
-                m_clientState = ClientState::AWAITING_PAUSED;
-            }
+                if (shouldPause)
+                {
+                    GST_DEBUG("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
+                    m_clientBackend->pause();
+                    m_clientState = ClientState::AWAITING_PAUSED;
+                }
 
-            result = StateChangeResult::SUCCESS_ASYNC;
+                result = StateChangeResult::SUCCESS_ASYNC;
+            }
         });
 
     return result;
@@ -359,12 +347,25 @@ void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                GST_ERROR("Cannot pause - there's no attached source with id %d", sourceId);
-
+                GST_ERROR("There's no attached source with id %d", sourceId);
                 return;
             }
 
             rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
+
+            sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+            if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
+            {
+                GST_DEBUG("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
+                m_clientBackend->pause();
+                m_clientState = ClientState::AWAITING_PAUSED;
+            }
+            else if (m_clientState == ClientState::PAUSED)
+            {
+                GST_WARNING("KLOPS2");
+                m_clientState = ClientState::AWAITING_PAUSED;
+            }
+
         });
 }
 
@@ -743,6 +744,13 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
             m_audioStreams = audioStreams;
             m_videoStreams = videoStreams;
         });
+}
+
+bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState state)
+{
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
+                                                    [state](const auto &source)
+                                                    { return source.second.m_state == state; });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
