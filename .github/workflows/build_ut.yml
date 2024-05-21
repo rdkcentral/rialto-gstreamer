@@ -46,11 +46,11 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Setup github for python 3.8
       - name: setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
 
@@ -99,7 +99,7 @@ jobs:
 
       # Upload logs on failure
       - name: Upload logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: logs
@@ -109,7 +109,7 @@ jobs:
 
       # Upload coverage report on success
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success()
         with:
           name: coverage_report
@@ -117,7 +117,7 @@ jobs:
 
       # Upload coverage statistics on success
       - name: Upload Coverage Statistics
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success()
         with:
           name: coverage_report_stats
@@ -137,18 +137,18 @@ jobs:
     
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
     
       # Download the current coverage statistics
       - name: Download Current Coverage Statistics
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: coverage_report_stats
           path: build
         
       # Download current master coverage statistics
       - name: Download Master Coverage Statistics
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         if: ${{ success() && github.ref != 'refs/heads/master' }}
         with:
           workflow_conclusion: success
@@ -174,7 +174,7 @@ jobs:
       # Create comment with coverage info
       - name: Create Coverage Comment
         if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
-        uses: peter-evans/create-or-update-comment@v2
+        uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.get-comment-body.outputs.body }}

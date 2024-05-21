@@ -775,6 +775,36 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
         rialto_mse_base_sink_flush_stop(sink, reset_time);
         break;
     }
+    case GST_EVENT_STREAM_COLLECTION:
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            gst_event_unref(event);
+            return FALSE;
+        }
+        int32_t videoStreams{0}, audioStreams{0};
+        GstStreamCollection *streamCollection;
+        gst_event_parse_stream_collection(event, &streamCollection);
+        guint streamsSize = gst_stream_collection_get_size(streamCollection);
+        for (guint i = 0; i < streamsSize; ++i)
+        {
+            auto *stream = gst_stream_collection_get_stream(streamCollection, i);
+            auto type = gst_stream_get_stream_type(stream);
+            if (type & GST_STREAM_TYPE_AUDIO)
+            {
+                ++audioStreams;
+            }
+            else if (type & GST_STREAM_TYPE_VIDEO)
+            {
+                ++videoStreams;
+            }
+        }
+        gst_object_unref(streamCollection);
+        client->handleStreamCollection(audioStreams, videoStreams);
+        client->sendAllSourcesAttachedIfPossible();
+        break;
+    }
     default:
         break;
     }

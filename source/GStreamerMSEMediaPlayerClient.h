@@ -37,6 +37,7 @@
 #include <unistd.h>
 
 #include "BufferParser.h"
+#include "Constants.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
@@ -272,6 +273,7 @@ public:
     void removeSource(int32_t sourceId);
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
+    void sendAllSourcesAttachedIfPossible();
 
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
@@ -289,17 +291,19 @@ public:
     bool getMute();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
+    void handleStreamCollection(int32_t audioStreams, int32_t videoStreams);
 
 private:
     bool areAllStreamsAttached();
+    void sendAllSourcesAttachedIfPossibleInternal();
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
     int64_t m_position;
     int64_t m_duration;
-    double m_volume = 1.0;
-    bool m_mute = false;
+    double m_volume = kDefaultVolume;
+    bool m_mute = kDefaultMute;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;

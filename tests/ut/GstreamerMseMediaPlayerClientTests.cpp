@@ -1136,3 +1136,32 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
     gst_object_unref(audioSink);
     gst_object_unref(videoSink);
 }
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttached)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectPostMessage();
+    m_sut->sendAllSourcesAttachedIfPossible();
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
+{
+    constexpr int kAudioStreams{1}, kVideoStreams{0};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectPostMessage();
+    m_sut->handleStreamCollection(kAudioStreams, kVideoStreams);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    expectPostMessage();
+    m_sut->sendAllSourcesAttachedIfPossible();
+
+    gst_object_unref(audioSink);
+}
