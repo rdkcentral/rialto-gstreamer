@@ -479,6 +479,7 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
         GST_INFO("All sources attached");
         m_clientBackend->allSourcesAttached();
         m_wasAllSourcesAttachedSent = true;
+        m_clientState = ClientState::READY;
     }
 }
 
@@ -512,7 +513,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     if (state == firebolt::rialto::PlaybackState::PAUSED &&
                         source.second.m_state == ClientState::AWAITING_PAUSED)
                     {
-                        source.second.m_state = ClientState::READY;
+                        source.second.m_state = ClientState::PAUSED;
                     }
                     else if (state == firebolt::rialto::PlaybackState::PLAYING &&
                              source.second.m_state == ClientState::AWAITING_PLAYING)

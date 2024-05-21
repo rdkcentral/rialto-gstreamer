@@ -96,7 +96,7 @@ private:
     firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
     int64_t m_position = 0;
     bool m_isFlushing = false;
-    ClientState m_state = ClientState::IDLE;
+    ClientState m_state = ClientState::READY;
 };
 
 class HaveDataMessage : public Message

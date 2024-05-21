@@ -1070,7 +1070,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEvent)
     RialtoMSEBaseSink *audioSink{createAudioSink()};
     GstElement *pipeline{createPipelineWithSink(audioSink)};
 
-    setPausedState(pipeline, audioSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_stream_collection(streamCollection)));

@@ -189,14 +189,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToAttachSourceWithOpus)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
-    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
-    const std::string kMimeType{};
-    const std::string kUrl{"mse://1"};
-    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
-    //EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
-        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     GstCaps *caps{
@@ -339,7 +332,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedVolume)
     g_object_set(audioSink, "volume", kVolume, nullptr);
 
     EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
-    setPausedState(pipeline, audioSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     setNullState(pipeline, kUnknownSourceId);
 
@@ -382,7 +376,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedMute)
     g_object_set(audioSink, "mute", kMute, nullptr);
 
     EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
-    setPausedState(pipeline, audioSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     setNullState(pipeline, kUnknownSourceId);
 

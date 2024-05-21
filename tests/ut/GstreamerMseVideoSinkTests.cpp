@@ -342,7 +342,8 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedRectangleProperty)
     g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
 
     EXPECT_CALL(m_mediaPipelineMock, setVideoWindow(20, 40, 640, 480)).WillOnce(Return(true));
-    setPausedState(pipeline, videoSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     gchar *rectangle{nullptr};
     g_object_get(videoSink, "rectangle", &rectangle, nullptr);
