@@ -71,6 +71,7 @@ public:
     int32_t videoSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceVideo &mediaSource) const;
     int32_t dolbyVisionSourceWillBeAttached(
         const firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision &mediaSource) const;
+    void load(GstElement *pipeline);
     void setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink);
     void setPlayingState(GstElement *pipeline) const;
     void setNullState(GstElement *pipeline, int32_t sourceId) const;

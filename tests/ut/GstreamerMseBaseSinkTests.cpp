@@ -47,6 +47,7 @@ public:
     ~GstreamerMseBaseSinkTests() override = default;
 };
 
+// TODO(RIALTO-568): Tests shouldn't install global gst class properties, because they remain in following testcase
 TEST_F(GstreamerMseBaseSinkTests, DISABLED_ShouldSwitchAudioSinkToPausedWithAVStreamsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -60,6 +61,7 @@ TEST_F(GstreamerMseBaseSinkTests, DISABLED_ShouldSwitchAudioSinkToPausedWithAVSt
     gst_object_unref(pipeline);
 }
 
+// TODO(RIALTO-568): Tests shouldn't install global gst class properties, because they remain in following testcase
 TEST_F(GstreamerMseBaseSinkTests, DISABLED_ShouldSwitchVideoSinkToPausedWithAVStreamsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -242,21 +244,13 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-
-    /* todo-klops: clean*/
-    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
-    const std::string kMimeType{};
-    const std::string kUrl{"mse://1"};
-    constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
-    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
-        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     gint64 position{0};
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
-    setNullState(pipeline, kUnknownSourceId); //todo:klops clean
+    setNullState(pipeline, kUnknownSourceId);
     gst_object_unref(pipeline);
 }
 
@@ -651,12 +645,21 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCustomDownstreamMessageWithoutChan
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
 
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    //EXPECT_CALL(m_mediaPipelineMock, notifyLostState(kSourceId));
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_start()));
     EXPECT_TRUE(audioSink->priv->m_isFlushOngoing);
     EXPECT_FALSE(audioSink->priv->m_isEos);
 
+    setNullState(pipeline, kSourceId);
     gst_object_unref(audioSink);
 }
 
@@ -678,14 +681,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopWithoutAttachedSource)
     GstElement *pipeline = createPipelineWithSink(audioSink);
     audioSink->priv->m_isFlushOngoing = true;
 
-    constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
-    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
-    const std::string kMimeType{};
-    const std::string kUrl{"mse://1"};
-    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
-    //EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
-        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+    load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),

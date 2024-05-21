@@ -277,7 +277,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId, bool fo
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                GST_ERROR("KLOPS Cannot pause - there's no attached source with id %d", sourceId);
+                GST_ERROR("Cannot pause - there's no attached source with id %d", sourceId);
 
                 result = StateChangeResult::NOT_ATTACHED;
                 return;
@@ -318,11 +318,9 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId, bool fo
                 {
                     shouldPause = true;
                 }
-                //m_clientState == ClientState::ILDE git, bo moze se czkac na zattachowanie wszystkich sourcow
-                // m_clientState == ClientState::AWAITING_PAUSED, jest git gdy przechodzi drugi z playing
                 else
                 {
-                    GST_WARNING("KLOPS Cannot pause in %u state", static_cast<uint32_t>(m_clientState));
+                    GST_DEBUG("Cannot pause in %u state", static_cast<uint32_t>(m_clientState));
                 }
 
                 if (shouldPause)
@@ -362,7 +360,6 @@ void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
             }
             else if (m_clientState == ClientState::PAUSED)
             {
-                GST_WARNING("KLOPS2");
                 m_clientState = ClientState::AWAITING_PAUSED;
             }
 
@@ -696,6 +693,13 @@ bool GStreamerMSEMediaPlayerClient::getMute()
             }
         });
     return mute;
+}
+
+ClientState GStreamerMSEMediaPlayerClient::getClientState()
+{
+    ClientState state{ClientState::IDLE};
+    m_backendQueue->callInEventLoop([&]() { state = m_clientState; });
+    return state;
 }
 
 void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly)

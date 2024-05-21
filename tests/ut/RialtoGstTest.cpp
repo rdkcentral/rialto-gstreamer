@@ -362,15 +362,20 @@ int32_t RialtoGstTest::dolbyVisionSourceWillBeAttached(
     return kSourceId;
 }
 
-void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
+void RialtoGstTest::load(GstElement *pipeline)
 {
     constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
     const std::string kMimeType{};
     const std::string kUrl{"mse://1"};
     EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
-    EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
         .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+}
+
+void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
+{
+    load(pipeline);
+    EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 }
 

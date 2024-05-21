@@ -503,7 +503,6 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         priv->m_isFlushOngoing = false;
 
-GST_WARNING("KLOPS13");
         StateChangeResult result = client->pause(priv->m_sourceId);
         if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
         {
@@ -544,7 +543,6 @@ GST_WARNING("KLOPS13");
             return GST_STATE_CHANGE_FAILURE;
         }
 
-GST_WARNING("KLOPS14");
         StateChangeResult result = client->pause(priv->m_sourceId);
         if (result == StateChangeResult::SUCCESS_ASYNC)
         {
