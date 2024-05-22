@@ -74,5 +74,5 @@ endif()
 
 if( NATIVE_BUILD )
     message("NATIVE_BUILD is on")
-    add_compile_options(-O0 -ggdb)
+    add_compile_options(-ggdb)
 endif()
