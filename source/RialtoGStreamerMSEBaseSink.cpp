@@ -198,7 +198,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 
     sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
 
-    RialtoGStreamerMSEBaseSinkCallbacks& callbacks = sink->priv->m_callbacks;
+    RialtoGStreamerMSEBaseSinkCallbacks &callbacks = sink->priv->m_callbacks;
     callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
     callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
     callbacks.stateChangedCallback =

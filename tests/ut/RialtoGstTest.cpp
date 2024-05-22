@@ -132,7 +132,8 @@ RialtoGstTest::RialtoGstTest()
                    [this]()
                    {
                        EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl())
-                           .Times(2).WillRepeatedly(ReturnRef(m_clientLogControlMock));
+                           .Times(2)
+                           .WillRepeatedly(ReturnRef(m_clientLogControlMock));
                        EXPECT_CALL(m_clientLogControlMock, registerLogHandler(_, _)).Times(2).WillRepeatedly(Return(true));
                        expectSinksInitialisation();
                        gst_init(nullptr, nullptr);
