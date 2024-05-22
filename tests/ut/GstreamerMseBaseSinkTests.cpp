@@ -653,14 +653,16 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
-    //EXPECT_CALL(m_mediaPipelineMock, notifyLostState(kSourceId));
+
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_start()));
     EXPECT_TRUE(audioSink->priv->m_isFlushOngoing);
     EXPECT_FALSE(audioSink->priv->m_isEos);
 
     setNullState(pipeline, kSourceId);
-    gst_object_unref(audioSink);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopBelowPausedState)
