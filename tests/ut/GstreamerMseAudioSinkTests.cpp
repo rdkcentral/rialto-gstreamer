@@ -197,7 +197,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToAttachSourceWithOpus)
     setCaps(audioSink, caps);
 
     EXPECT_FALSE(audioSink->priv->m_sourceAttached);
-setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kUnknownSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }

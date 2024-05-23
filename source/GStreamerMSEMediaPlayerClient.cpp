@@ -284,8 +284,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
             }
 
             if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PAUSED &&
-                m_clientState != ClientState::AWAITING_PLAYING &&
-                m_clientState != ClientState::AWAITING_PAUSED)
+                m_clientState != ClientState::AWAITING_PLAYING && m_clientState != ClientState::AWAITING_PAUSED)
             {
                 // if the server is already paused and we are not in async, we don't need to send pause command
                 GST_INFO("Server is already paused");
@@ -362,7 +361,6 @@ void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
             {
                 m_clientState = ClientState::AWAITING_PAUSED;
             }
-
         });
 }
 
@@ -481,10 +479,11 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
         m_wasAllSourcesAttachedSent = true;
         m_clientState = ClientState::READY;
 
-        // In single-source playbin3 streams, confirmation about number of available sources comes after attaching the source,
+        // In playbin3 streams, confirmation about number of available sources comes after attaching the source,
         // so we need to check if all sources are ready to pause
         if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
         {
+            GST_INFO("Sending pause command, because all attached sources are ready to pause");
             m_clientBackend->pause();
             m_clientState = ClientState::AWAITING_PAUSED;
         }
@@ -762,8 +761,7 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState state)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                                                    [state](const auto &source)
-                                                    { return source.second.m_state == state; });
+                       [state](const auto &source) { return source.second.m_state == state; });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()

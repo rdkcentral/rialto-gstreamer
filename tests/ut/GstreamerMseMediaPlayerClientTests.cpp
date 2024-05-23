@@ -37,7 +37,6 @@ using testing::StrictMock;
 
 namespace
 {
-
 constexpr uint32_t kMaxVideoWidth{1024};
 constexpr uint32_t kMaxVideoHeight{768};
 constexpr int64_t kPosition{123};
@@ -684,7 +683,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenAlreadyPaused)
     gst_object_unref(audioSink);
     gst_object_unref(videoSink);
 }
-
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenNotAllSourcesAttached)
 {
