@@ -190,12 +190,10 @@ RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
 
 RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
 {
-    static int i = 0;
-    std::string name = "rialtomsevideosink" + std::to_string(i++);
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
-    GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", name.c_str());
+    GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
