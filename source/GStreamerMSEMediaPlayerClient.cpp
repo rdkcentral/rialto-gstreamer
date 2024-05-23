@@ -268,7 +268,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
     return result;
 }
 
-StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId, bool forcePause)
+StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
 {
     StateChangeResult result = StateChangeResult::NOT_ATTACHED;
     m_backendQueue->callInEventLoop(
@@ -277,7 +277,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId, bool fo
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                GST_ERROR("Cannot pause - there's no attached source with id %d", sourceId);
+                GST_WARNING("Cannot pause - there's no attached source with id %d", sourceId);
 
                 result = StateChangeResult::NOT_ATTACHED;
                 return;
@@ -325,7 +325,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId, bool fo
 
                 if (shouldPause)
                 {
-                    GST_DEBUG("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
+                    GST_INFO("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
                     m_clientBackend->pause();
                     m_clientState = ClientState::AWAITING_PAUSED;
                 }
@@ -354,7 +354,7 @@ void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
             sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
             if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
             {
-                GST_DEBUG("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
+                GST_INFO("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
                 m_clientBackend->pause();
                 m_clientState = ClientState::AWAITING_PAUSED;
             }
@@ -480,6 +480,14 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
         m_clientBackend->allSourcesAttached();
         m_wasAllSourcesAttachedSent = true;
         m_clientState = ClientState::READY;
+
+        // In single-source playbin3 streams, confirmation about number of available sources comes after attaching the source,
+        // so we need to check if all sources are ready to pause
+        if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
+        {
+            m_clientBackend->pause();
+            m_clientState = ClientState::AWAITING_PAUSED;
+        }
     }
 }
 

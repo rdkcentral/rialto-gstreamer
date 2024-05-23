@@ -269,7 +269,7 @@ public:
 
     bool createBackend();
     StateChangeResult play(int32_t sourceId);
-    StateChangeResult pause(int32_t sourceId, bool forcePause = false);
+    StateChangeResult pause(int32_t sourceId);
     void notifyLostState(int32_t sourceId);
     void stop();
     void setPlaybackRate(double rate);
