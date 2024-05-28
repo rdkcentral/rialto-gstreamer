@@ -1019,13 +1019,13 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
 
-bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)
+bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text)
 {
     if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-video") &&
-        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio"))
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio") &&
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-text"))
     {
-        g_object_get(parentObject, "n-video", &n_video, nullptr);
-        g_object_get(parentObject, "n-audio", &n_audio, nullptr);
+        g_object_get(parentObject, "n-video", &n_video, "n-audio", &n_audio, "n-text", &n_text, nullptr);
 
         if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "flags"))
         {
@@ -1033,10 +1033,83 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
             g_object_get(parentObject, "flags", &flags, nullptr);
             n_video = flags & rialto_mse_base_sink_get_gst_play_flag("video") ? n_video : 0;
             n_audio = flags & rialto_mse_base_sink_get_gst_play_flag("audio") ? n_audio : 0;
+            n_text = flags & rialto_mse_base_sink_get_gst_play_flag("text") ? n_text : 0;
         }
 
         return true;
     }
 
     return false;
+}
+
+void rialto_mse_base_sink_set_streams_number(GstObject *parentObject, RialtoMSEBaseSink *sink, const firebolt::rialto::MediaSourceType &sourceType)
+{
+    RialtoMSEBaseSinkPrivate *priv = sink->priv;
+
+    int32_t videoStreams = -1;
+    int32_t audioStreams = -1;
+    int32_t subtitleStreams = -1;
+
+    gint n_video = 0;
+    gint n_audio = 0;
+    gint n_text = 0;
+
+    GstContext *context = gst_element_get_context(GST_ELEMENT(sink), "streams-info");
+    if (context)
+    {
+        //todo-klops: overflow check
+        const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        gst_structure_get_int(streamsInfoStructure, "video-streams", &n_video);
+        gst_structure_get_int(streamsInfoStructure, "audio-streams", &n_audio);
+        gst_structure_get_int(streamsInfoStructure, "text-streams", &n_text);
+
+        // gst_structure_get_uint(streamsInfoStructure, "video-streams", &n_video);
+        // gst_structure_get_uint(streamsInfoStructure, "audio-streams", &n_audio);
+        // gst_structure_get_uint(streamsInfoStructure, "text-streams", &n_text);
+
+        GST_INFO_OBJECT(sink, "Got number of streams from \"streams-info\" context: video=%d, audio=%d, text=%d",
+                        n_video, n_audio, n_text);
+
+        gst_context_unref(context);
+    }
+    else if (!rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio, n_text))
+    {
+        std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
+        if (sourceType == firebolt::rialto::MediaSourceType::VIDEO)
+        {
+            videoStreams = priv->m_numOfStreams;
+            if (priv->m_isSinglePathStream)
+            {
+                audioStreams = 0;
+                subtitleStreams = 0;
+            }
+        }
+        else if (sourceType == firebolt::rialto::MediaSourceType::AUDIO)
+        {
+            audioStreams = priv->m_numOfStreams;
+            if (priv->m_isSinglePathStream)
+            {
+                videoStreams = 0;
+                subtitleStreams = 0;
+            }
+        }
+        else if (sourceType == firebolt::rialto::MediaSourceType::SUBTITLE)
+        {
+            subtitleStreams = priv->m_numOfStreams;
+            if (priv->m_isSinglePathStream)
+            {
+                videoStreams = 0;
+                audioStreams = 0;
+            }
+        }
+    }
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+    if (!client)
+    {
+        //todo-klops: log error
+        return;
+    }
+    GST_INFO_OBJECT(sink, "Setting number of streams: video=%d, audio=%d, text=%d", videoStreams, audioStreams, subtitleStreams);
+    client->handleStreamCollection(audioStreams, videoStreams);
 }

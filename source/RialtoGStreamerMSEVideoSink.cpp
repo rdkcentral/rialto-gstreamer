@@ -74,24 +74,41 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
         g_free(parentObjectName);
 
-        int videoStreams = 0;
-        bool isVideoOnly = false;
+        rialto_mse_base_sink_set_streams_number(parentObject, RIALTO_MSE_BASE_SINK(sink), firebolt::rialto::MediaSourceType::VIDEO);
 
-        gint n_video = 0;
-        gint n_audio = 0;
-        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio))
-        {
-            videoStreams = n_video;
-            isVideoOnly = n_audio == 0;
-            GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
-                            isVideoOnly ? "'true'" : "'false'");
-        }
-        else
-        {
-            std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
-            videoStreams = basePriv->m_numOfStreams;
-            isVideoOnly = basePriv->m_isSinglePathStream;
-        }
+        // int videoStreams = 0;
+        // bool isVideoOnly = false;
+
+        // guint n_video = 0;
+        // guint n_audio = 0;
+        // guint n_text = 0;
+
+        // GstContext *context = gst_element_get_context(element, "streams-info");
+        // if (context)
+        // {
+        //     const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        //     gst_structure_get_uint(streamsInfoStructure, "video-streams", &n_video);
+        //     gst_structure_get_uint(streamsInfoStructure, "audio-streams", &n_audio);
+        //     gst_structure_get_uint(streamsInfoStructure, "text-streams", &n_text);
+
+        //     GST_INFO_OBJECT(sink, "Got number of streams from \"streams-info\" context: video=%u, audio=%u, text=%u",
+        //                     n_video, n_audio, n_text);
+
+        //     gst_context_unref(context);
+        // }
+        // else if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio, n_text))
+        // {
+        //     videoStreams = n_video;
+        //     isVideoOnly = n_audio == 0;
+        //     GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
+        //                     isVideoOnly ? "'true'" : "'false'");
+        // }
+        // else
+        // {
+        //     std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
+        //     videoStreams = basePriv->m_numOfStreams;
+        //     isVideoOnly = basePriv->m_isSinglePathStream;
+        // }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
@@ -99,7 +116,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-        client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+        // client->setVideoStreamsInfo(videoStreams, isVideoOnly);
         std::unique_lock lock{priv->rectangleMutex};
         if (priv->rectangleSettingQueued)
         {
