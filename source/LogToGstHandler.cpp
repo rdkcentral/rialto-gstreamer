@@ -135,8 +135,9 @@ void LogToGstHandler::logToGstSinkInit()
         else
         {
             // Other values of g_referenceCount should not be possible
-            // -2 should not be possible because logToGstPreRegister should have been calles
-            GST_ERROR("logToGstPreRegister() was NOT called");
+            // -2 should not be possible because logToGstPreRegister should have been called
+            // (call logToGstPreRegister during class_init)
+            GST_ERROR("Call logToGstPreRegister() before logToGstSinkInit()");
             g_referenceCount = 0;
         }
 
@@ -178,7 +179,7 @@ void LogToGstHandler::logToGstSinkFinalize()
                      .registerLogHandler(nullptr, true))
             {
                 GST_ERROR("Unable to cancel rialto log handler");
-                g_referenceCount = 1;
+                g_referenceCount = -1; // This is like the pre-reg state
             }
         }
     }

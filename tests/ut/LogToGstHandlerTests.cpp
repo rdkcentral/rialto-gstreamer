@@ -17,8 +17,17 @@
  */
 
 #include <gtest/gtest.h>
+#include <iostream>
+using namespace std;
 
+#include "ClientLogControlMock.h"
 #include "LogToGstHandler.h"
+
+using testing::_;
+using testing::IsNull;
+using testing::NotNull;
+using testing::Return;
+using testing::StrictMock;
 
 using namespace firebolt::rialto;
 
@@ -31,6 +40,11 @@ public:
     }
 
     ~LogToGstHandlerTest() override {}
+
+    std::shared_ptr<StrictMock<firebolt::rialto::ClientLogControlFactoryMock>> m_clientLogControlFactoryMock{
+        std::dynamic_pointer_cast<StrictMock<firebolt::rialto::ClientLogControlFactoryMock>>(
+            firebolt::rialto::IClientLogControlFactory::createFactory())};
+    ::StrictMock<firebolt::rialto::ClientLogControlMock> m_clientLogControlMock;
 };
 
 TEST_F(LogToGstHandlerTest, callingLogHandlerAtAllLevelsShouldSucceed)
@@ -43,4 +57,62 @@ TEST_F(LogToGstHandlerTest, callingLogHandlerAtAllLevelsShouldSucceed)
     logTest(logToGstHandler, IClientLogHandler::Level::Info);
     logTest(logToGstHandler, IClientLogHandler::Level::Debug);
     logTest(logToGstHandler, IClientLogHandler::Level::External);
+}
+
+TEST_F(LogToGstHandlerTest, callingLogToGstSinkInitShouldWork)
+{
+    EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl()).WillRepeatedly(ReturnRef(m_clientLogControlMock));
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(NotNull(), _)).WillOnce(Return(true));
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(IsNull(), _)).WillOnce(Return(true));
+
+    client::LogToGstHandler::logToGstSinkInit();
+    client::LogToGstHandler::logToGstSinkFinalize();
+}
+
+TEST_F(LogToGstHandlerTest, ifRegisterLogHandlerFailsThenItShouldRetry)
+{
+    EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl()).WillRepeatedly(ReturnRef(m_clientLogControlMock));
+
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(NotNull(), _)).WillOnce(Return(false));
+    client::LogToGstHandler::logToGstSinkInit(); // This should call registerLogHandler()
+
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(NotNull(), _)).WillOnce(Return(true));
+    client::LogToGstHandler::logToGstSinkInit(); // This should retry calling registerLogHandler()
+
+    client::LogToGstHandler::logToGstSinkInit(); // This should NOT call registerLogHandler() again
+
+    client::LogToGstHandler::logToGstSinkFinalize(); // This should NOT call registerLogHandler(), refcount = 2
+
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(IsNull(), _)).WillOnce(Return(true));
+    client::LogToGstHandler::logToGstSinkFinalize(); // This should call registerLogHandler() to de-register
+}
+
+TEST_F(LogToGstHandlerTest, ifRegisterLogHandlerFailsToCancelThenItsLikePreregistration)
+{
+    EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl()).WillRepeatedly(ReturnRef(m_clientLogControlMock));
+
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(NotNull(), _)).WillOnce(Return(true));
+    client::LogToGstHandler::logToGstSinkInit(); // This should retry calling registerLogHandler()
+
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(IsNull(), _)).WillOnce(Return(false));
+    client::LogToGstHandler::logToGstSinkFinalize(); // This should call registerLogHandler() to de-register
+
+    client::LogToGstHandler::logToGstSinkInit(); // This should not call registerLogHandler()
+
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(IsNull(), _)).WillOnce(Return(true));
+    client::LogToGstHandler::logToGstSinkFinalize(); // This should call registerLogHandler() to de-register
+}
+
+TEST_F(LogToGstHandlerTest, logToGstSinkFinalizeCalledTooMuchShouldDoNothing)
+{
+    // Calling finalise before init should do nothing
+    client::LogToGstHandler::logToGstSinkFinalize();
+
+    // Functionality should still be normal...
+    EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl()).WillRepeatedly(ReturnRef(m_clientLogControlMock));
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(NotNull(), _)).WillOnce(Return(true));
+    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(IsNull(), _)).WillOnce(Return(true));
+
+    client::LogToGstHandler::logToGstSinkInit();
+    client::LogToGstHandler::logToGstSinkFinalize();
 }
