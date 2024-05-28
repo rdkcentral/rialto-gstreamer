@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef FIREBOLT_RIALTO_LOG_HANDLER_H_
-#define FIREBOLT_RIALTO_LOG_HANDLER_H_
+#ifndef FIREBOLT_RIALTO_CLIENT_LOG_HANDLER_H_
+#define FIREBOLT_RIALTO_CLIENT_LOG_HANDLER_H_
 
 #include "IClientLogHandler.h"
 
@@ -41,4 +41,4 @@ public:
     static void logToGstSinkFinalize();
 };
 } // namespace firebolt::rialto::client
-#endif // FIREBOLT_RIALTO_RIALTO_LOG_HANDLER_H_
+#endif // FIREBOLT_RIALTO_RIALTO_CLIENT_LOG_HANDLER_H_

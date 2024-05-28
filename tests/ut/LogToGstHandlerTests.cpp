@@ -25,7 +25,7 @@ using namespace firebolt::rialto;
 class LogToGstHandlerTest : public testing::Test
 {
 public:
-    void logTest(LogToGstHandler &logHandler, IClientLogHandler::Level level)
+    void logTest(client::LogToGstHandler &logHandler, IClientLogHandler::Level level)
     {
         logHandler.log(level, "testFile", 1, "testFunction", "testMessage");
     }
@@ -35,7 +35,7 @@ public:
 
 TEST_F(LogToGstHandlerTest, callingLogHandlerAtAllLevelsShouldSucceed)
 {
-    LogToGstHandler logToGstHandler;
+    client::LogToGstHandler logToGstHandler;
     logTest(logToGstHandler, IClientLogHandler::Level::Fatal);
     logTest(logToGstHandler, IClientLogHandler::Level::Error);
     logTest(logToGstHandler, IClientLogHandler::Level::Warning);
