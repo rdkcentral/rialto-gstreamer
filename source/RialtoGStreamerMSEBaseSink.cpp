@@ -132,8 +132,6 @@ static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
                                                               firebolt::rialto::PlaybackState state)
 {
-    sink->priv->m_serverPlaybackState = state;
-
     GstState current = GST_STATE(sink);
     GstState next = GST_STATE_NEXT(sink);
     GstState pending = GST_STATE_PENDING(sink);
