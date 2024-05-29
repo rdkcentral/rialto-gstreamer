@@ -106,6 +106,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotAttachSourceTwice)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
@@ -126,6 +127,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithMpeg)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
@@ -146,6 +148,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithEac3)
     setPausedState(pipeline, audioSink);
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-eac3", kHasDrm, kAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("audio/x-eac3", "mpegversion", G_TYPE_INT, 2, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, nullptr)};
@@ -167,6 +170,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithAc3)
     setPausedState(pipeline, audioSink);
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-eac3", kHasDrm, kAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("audio/x-ac3", "framed", G_TYPE_BOOLEAN, TRUE, "channels", G_TYPE_INT, kChannels,
                                       "rate", G_TYPE_INT, kRate, "alignment", G_TYPE_STRING, "frame", nullptr)};
@@ -185,16 +189,15 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToAttachSourceWithOpus)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-    setPausedState(pipeline, audioSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     GstCaps *caps{
         gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate, nullptr)};
     setCaps(audioSink, caps);
 
     EXPECT_FALSE(audioSink->priv->m_sourceAttached);
-
     setNullState(pipeline, kUnknownSourceId);
-
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
@@ -208,6 +211,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpus)
 
     const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-opus", kHasDrm, kAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
     GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
                                       "channel-mapping-family", G_TYPE_INT, 0, nullptr)};
     setCaps(audioSink, caps);
@@ -227,6 +232,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(audioSink, caps);
@@ -254,20 +260,16 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultVolumeValueWhenPipelineIsB
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldGetVolumeProperty)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
-
-    setPausedState(pipeline, audioSink);
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     gdouble volume{-1.0};
     constexpr gdouble kVolume{0.8};
     EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
-    g_object_get(audioSink, "volume", &volume, nullptr);
+    g_object_get(textContext.m_sink, "volume", &volume, nullptr);
     EXPECT_EQ(kVolume, volume);
 
-    setNullState(pipeline, kUnknownSourceId);
-
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultMuteValueWhenPipelineIsBelowPausedState)
@@ -283,18 +285,15 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultMuteValueWhenPipelineIsBel
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldGetMuteProperty)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
-
-    setPausedState(pipeline, audioSink);
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     gboolean mute{FALSE};
     EXPECT_CALL(m_mediaPipelineMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
-    g_object_get(audioSink, "mute", &mute, nullptr);
+    g_object_get(textContext.m_sink, "mute", &mute, nullptr);
     EXPECT_TRUE(mute);
 
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBelowPausedState)
@@ -314,18 +313,14 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBe
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetVolume)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
-
-    setPausedState(pipeline, audioSink);
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     constexpr gdouble kVolume{0.8};
     EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
-    g_object_set(audioSink, "volume", kVolume, nullptr);
+    g_object_set(textContext.m_sink, "volume", kVolume, nullptr);
 
-    setNullState(pipeline, kUnknownSourceId);
-
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedVolume)
@@ -337,7 +332,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedVolume)
     g_object_set(audioSink, "volume", kVolume, nullptr);
 
     EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
-    setPausedState(pipeline, audioSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     setNullState(pipeline, kUnknownSourceId);
 
@@ -361,18 +357,14 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetMutePropertyWhenPipelineIsBelo
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetMute)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
-
-    setPausedState(pipeline, audioSink);
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     constexpr gboolean kMute{TRUE};
     EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
-    g_object_set(audioSink, "mute", kMute, nullptr);
+    g_object_set(textContext.m_sink, "mute", kMute, nullptr);
 
-    setNullState(pipeline, kUnknownSourceId);
-
-    gst_object_unref(pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedMute)
@@ -384,7 +376,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedMute)
     g_object_set(audioSink, "mute", kMute, nullptr);
 
     EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
-    setPausedState(pipeline, audioSink);
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     setNullState(pipeline, kUnknownSourceId);
 

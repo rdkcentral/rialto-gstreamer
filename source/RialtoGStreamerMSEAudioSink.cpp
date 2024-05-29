@@ -239,6 +239,12 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             else
             {
                 basePriv->m_sourceAttached = true;
+
+                // check if READY -> PAUSED was requested before source was attached
+                if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
+                {
+                    client->pause(sink->priv->m_sourceId);
+                }
             }
         }
         else

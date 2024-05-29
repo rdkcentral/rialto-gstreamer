@@ -415,8 +415,6 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotSetEosTwice)
     EXPECT_FALSE(m_sut->setEos());
 }
 
-// TODO dodac z push samples tutaj
-
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotBeOpened)
 {
     expectCallInEventLoop();
