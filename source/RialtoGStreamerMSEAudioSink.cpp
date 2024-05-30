@@ -58,7 +58,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
-        if(!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element))
+        if (!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element))
         {
             return GST_STATE_CHANGE_FAILURE;
         }

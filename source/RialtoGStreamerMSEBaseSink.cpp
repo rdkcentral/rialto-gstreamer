@@ -1024,7 +1024,8 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
 
-static bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text)
+static bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio,
+                                                           gint &n_text)
 {
     if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-video") &&
         g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio") &&
