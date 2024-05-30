@@ -1068,6 +1068,33 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEvent)
                                      gst_stream_new("s_audio", nullptr, GST_STREAM_TYPE_AUDIO, GST_STREAM_FLAG_NONE));
     gst_stream_collection_add_stream(streamCollection,
                                      gst_stream_new("s_video", nullptr, GST_STREAM_TYPE_VIDEO, GST_STREAM_FLAG_NONE));
+    gst_stream_collection_add_stream(streamCollection,
+                                     gst_stream_new("s_text", nullptr, GST_STREAM_TYPE_TEXT, GST_STREAM_FLAG_NONE));
+
+    RialtoMSEBaseSink *audioSink{createAudioSink()};
+    GstElement *pipeline{createPipelineWithSink(audioSink)};
+
+    setPausedState(pipeline, audioSink);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_stream_collection(streamCollection)));
+    setNullState(pipeline, kUnknownSourceId);
+    gst_object_unref(pipeline);
+    gst_object_unref(streamCollection);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfo)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    GstContext *context = gst_context_new("streams-info", false);
+
+    GstStructure *contextStructure = gst_context_writable_structure(context);
+
+    gst_structure_set(contextStructure, "video-streams", G_TYPE_UINT, 0x1u, "audio-streams", G_TYPE_UINT, 0x1u,
+                      "text-streams", G_TYPE_UINT, 0x1u, nullptr);
+    gst_element_set_context(GST_ELEMENT(m_context.pipeline), context);
+    gst_context_unref(context);
 
     RialtoMSEBaseSink *audioSink{createAudioSink()};
     GstElement *pipeline{createPipelineWithSink(audioSink)};

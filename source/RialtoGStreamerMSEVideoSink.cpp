@@ -62,53 +62,10 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
         // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first)
         // the video capabilities will NOT be set.
-
-        GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
-        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject, priv->maxWidth, priv->maxHeight))
+        if (!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element, priv->maxWidth, priv->maxHeight))
         {
-            GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
         }
-
-        gchar *parentObjectName = gst_object_get_name(parentObject);
-        GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
-        g_free(parentObjectName);
-
-        rialto_mse_base_sink_set_streams_number(parentObject, RIALTO_MSE_BASE_SINK(sink), firebolt::rialto::MediaSourceType::VIDEO);
-
-        // int videoStreams = 0;
-        // bool isVideoOnly = false;
-
-        // guint n_video = 0;
-        // guint n_audio = 0;
-        // guint n_text = 0;
-
-        // GstContext *context = gst_element_get_context(element, "streams-info");
-        // if (context)
-        // {
-        //     const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
-        //     gst_structure_get_uint(streamsInfoStructure, "video-streams", &n_video);
-        //     gst_structure_get_uint(streamsInfoStructure, "audio-streams", &n_audio);
-        //     gst_structure_get_uint(streamsInfoStructure, "text-streams", &n_text);
-
-        //     GST_INFO_OBJECT(sink, "Got number of streams from \"streams-info\" context: video=%u, audio=%u, text=%u",
-        //                     n_video, n_audio, n_text);
-
-        //     gst_context_unref(context);
-        // }
-        // else if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio, n_text))
-        // {
-        //     videoStreams = n_video;
-        //     isVideoOnly = n_audio == 0;
-        //     GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
-        //                     isVideoOnly ? "'true'" : "'false'");
-        // }
-        // else
-        // {
-        //     std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
-        //     videoStreams = basePriv->m_numOfStreams;
-        //     isVideoOnly = basePriv->m_isSinglePathStream;
-        // }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
@@ -390,6 +347,7 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
         return;
     }
 
+    basePriv->m_mediaSourceType = firebolt::rialto::MediaSourceType::VIDEO;
     gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
     gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_video_sink_event);
 

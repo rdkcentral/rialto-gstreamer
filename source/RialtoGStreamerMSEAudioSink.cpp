@@ -58,36 +58,9 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
-        // Attach the media player client to media player manager
-        GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
-        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject))
+        if(!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element))
         {
-            GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
-        }
-
-        gchar *parentObjectName = gst_object_get_name(parentObject);
-        GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
-        g_free(parentObjectName);
-
-        int32_t audioStreams = 0;
-        bool isAudioOnly = false;
-
-        gint n_video = 0;
-        gint n_audio = 0;
-        gint n_text = 0;
-        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio, n_text))
-        {
-            audioStreams = n_audio;
-            isAudioOnly = n_video == 0;
-            GST_INFO_OBJECT(element, "There are %u audio streams and isAudioOnly value is %s", n_audio,
-                            isAudioOnly ? "'true'" : "'false'");
-        }
-        else
-        {
-            std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
-            audioStreams = basePriv->m_numOfStreams;
-            isAudioOnly = basePriv->m_isSinglePathStream;
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
@@ -96,7 +69,6 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-        client->setAudioStreamsInfo(audioStreams, isAudioOnly);
         if (priv->isVolumeQueued)
         {
             client->setVolume(priv->volume);
@@ -385,6 +357,7 @@ static void rialto_mse_audio_sink_init(RialtoMSEAudioSink *sink)
         return;
     }
 
+    priv->m_mediaSourceType = firebolt::rialto::MediaSourceType::AUDIO;
     gst_pad_set_chain_function(priv->m_sinkPad, rialto_mse_base_sink_chain);
     gst_pad_set_event_function(priv->m_sinkPad, rialto_mse_audio_sink_event);
 

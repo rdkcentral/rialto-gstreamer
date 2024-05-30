@@ -67,7 +67,8 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
       m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -748,13 +749,14 @@ void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bo
         });
 }
 
-void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams, int32_t videoStreams)
+void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams)
 {
     m_backendQueue->callInEventLoop(
         [&]()
         {
             m_audioStreams = audioStreams;
             m_videoStreams = videoStreams;
+            m_subtitleStreams = subtitleStreams;
         });
 }
 

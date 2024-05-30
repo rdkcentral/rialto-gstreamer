@@ -300,7 +300,7 @@ public:
     ClientState getClientState();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
-    void handleStreamCollection(int32_t audioStreams, int32_t videoStreams);
+    void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
 
 private:
     bool areAllStreamsAttached();
@@ -319,6 +319,7 @@ private:
     bool m_wasAllSourcesAttachedSent = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
+    int32_t m_subtitleStreams;
 
     struct Rectangle
     {

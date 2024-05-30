@@ -1229,7 +1229,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttached)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
 {
-    constexpr int kAudioStreams{1}, kVideoStreams{0};
+    constexpr int kAudioStreams{1}, kVideoStreams{0}, kSubtitleStreams{0};
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
@@ -1237,7 +1237,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
 
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
     expectPostMessage();
-    m_sut->handleStreamCollection(kAudioStreams, kVideoStreams);
+    m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kSubtitleStreams);
 
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
     expectPostMessage();

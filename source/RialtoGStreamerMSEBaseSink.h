@@ -79,7 +79,7 @@ firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEB
                                                                       const GstStructure *structure);
 bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStructure *s, uint32_t &dvProfile);
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink);
-bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text);
-void rialto_mse_base_sink_set_streams_number(GstObject *parentObject, RialtoMSEBaseSink *sink,
-                                             const firebolt::rialto::MediaSourceType &sourceType);
+bool rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(GstElement *element,
+                                                                        const uint32_t maxVideoWidth = 0,
+                                                                        const uint32_t maxVideoHeight = 0);
 G_END_DECLS
