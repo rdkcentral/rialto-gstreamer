@@ -97,3 +97,11 @@
    fun:dlopen_implementation
    fun:dlopen@@GLIBC_2.34
 }
+{
+   ignore_g_atomic_rc_box_alloc_possibly_lost
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:g_atomic_rc_box_alloc
+   ...
+}
