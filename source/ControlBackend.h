@@ -56,7 +56,7 @@ public:
                 GST_ERROR("Unable to create control");
                 return;
             }
-            if (!m_control->registerClient(m_controlClient, m_rialtoClientState))
+            if (!m_control->registerClientAndUnregisterOnDestruction(m_controlClient, m_rialtoClientState))
             {
                 GST_ERROR("Unable to register client");
                 return;
