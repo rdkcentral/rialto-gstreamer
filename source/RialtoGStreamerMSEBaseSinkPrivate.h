@@ -71,8 +71,6 @@ struct _RialtoMSEBaseSinkPrivate
     std::condition_variable m_flushCondVariable;
     std::mutex m_flushMutex;
 
-    std::mutex m_lostStateMutex;
-
     std::string m_uri;
     RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
 
@@ -83,6 +81,5 @@ struct _RialtoMSEBaseSinkPrivate
     bool m_isSinglePathStream = false;
     int32_t m_numOfStreams = 1;
     std::atomic<bool> m_hasDrm;
-    firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
 };
 G_END_DECLS

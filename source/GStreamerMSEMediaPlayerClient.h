@@ -47,6 +47,17 @@
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
 
 class GStreamerMSEMediaPlayerClient;
+
+enum class ClientState
+{
+    IDLE,
+    READY,
+    AWAITING_PAUSED,
+    PAUSED,
+    AWAITING_PLAYING,
+    PLAYING
+};
+
 class BufferPuller
 {
 public:
@@ -70,8 +81,8 @@ class AttachedSource
 
 public:
     AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
-                   firebolt::rialto::MediaSourceType type)
-        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type)
+                   firebolt::rialto::MediaSourceType type, ClientState state = ClientState::READY)
+        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type), m_state(state)
     {
     }
 
@@ -85,6 +96,7 @@ private:
     firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
     int64_t m_position = 0;
     bool m_isFlushing = false;
+    ClientState m_state = ClientState::READY;
 };
 
 class HaveDataMessage : public Message
@@ -212,6 +224,13 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
+enum class StateChangeResult
+{
+    SUCCESS_ASYNC,
+    SUCCESS_SYNC,
+    NOT_ATTACHED
+};
+
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
                                       public std::enable_shared_from_this<GStreamerMSEMediaPlayerClient>
 {
@@ -249,8 +268,9 @@ public:
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
 
     bool createBackend();
-    void play();
-    void pause();
+    StateChangeResult play(int32_t sourceId);
+    StateChangeResult pause(int32_t sourceId);
+    void notifyLostState(int32_t sourceId);
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
@@ -277,6 +297,7 @@ public:
     double getVolume();
     void setMute(bool mute);
     bool getMute();
+    ClientState getClientState();
     void setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly);
     void setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly);
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams);
@@ -284,6 +305,7 @@ public:
 private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
+    bool checkIfAllAttachedSourcesInState(ClientState state);
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
@@ -303,6 +325,8 @@ private:
         unsigned int x, y, width, height;
     } m_videoRectangle;
 
+    firebolt::rialto::PlaybackState m_serverPlaybackState = firebolt::rialto::PlaybackState::IDLE;
+    ClientState m_clientState = ClientState::IDLE;
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
     bool m_streamingStopped;
 
