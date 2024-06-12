@@ -20,6 +20,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
 #include "GstreamerCatLog.h"
+#include <cstdint>
 #include <cstring>
 #include <gst/audio/audio.h>
 #include <inttypes.h>
