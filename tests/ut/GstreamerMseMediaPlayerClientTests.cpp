@@ -1043,10 +1043,10 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
 {
     constexpr int32_t kVideoStreams{1};
-    constexpr bool kIsSingleStream{true};
-
+    constexpr int32_t kAudioStreams{0};
+    constexpr int32_t kTextStreams{0};
     expectCallInEventLoop();
-    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+    m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kTextStreams);
 
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
 
@@ -1127,22 +1127,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreamsOnly)
     m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kTextStreams);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVideoStreams)
-{
-    constexpr int32_t kVideoStreams{1};
-    constexpr bool kIsVideoOnly{false};
-    expectCallInEventLoop();
-    m_sut->setVideoStreamsInfo(kVideoStreams, kIsVideoOnly);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVideoStreamsOnly)
-{
-    constexpr int32_t kVideoStreams{1};
-    constexpr bool kIsVideoOnly{true};
-    expectCallInEventLoop();
-    m_sut->setVideoStreamsInfo(kVideoStreams, kIsVideoOnly);
-}
-
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAddSegment)
 {
     constexpr auto kStatus{firebolt::rialto::AddSegmentStatus::OK};
@@ -1198,10 +1182,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
 {
     constexpr int32_t kVideoStreams{1};
     constexpr int32_t kAudioStreams{1};
-    constexpr bool kIsSingleStream{false};
+    constexpr int32_t kTextStreams{0};
     expectCallInEventLoop();
-    m_sut->setAudioStreamsInfo(kAudioStreams, kIsSingleStream);
-    m_sut->setVideoStreamsInfo(kVideoStreams, kIsSingleStream);
+    m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kTextStreams);
     RialtoMSEBaseSink *audioSink = createAudioSink();
     RialtoMSEBaseSink *videoSink = createVideoSink();
     bufferPullerWillBeCreated();

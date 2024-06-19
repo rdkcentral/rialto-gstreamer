@@ -711,44 +711,6 @@ ClientState GStreamerMSEMediaPlayerClient::getClientState()
     return state;
 }
 
-void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_audioStreams == UNKNOWN_STREAMS_NUMBER)
-            {
-                m_audioStreams = audioStreams;
-                GST_INFO("Set audio streams number to %d", m_audioStreams);
-            }
-
-            if (m_videoStreams == UNKNOWN_STREAMS_NUMBER && isAudioOnly)
-            {
-                m_videoStreams = 0;
-                GST_INFO("Set audio only session");
-            }
-        });
-}
-
-void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_videoStreams == UNKNOWN_STREAMS_NUMBER)
-            {
-                m_videoStreams = videoStreams;
-                GST_INFO("Set video streams number to %d", m_videoStreams);
-            }
-
-            if (m_audioStreams == UNKNOWN_STREAMS_NUMBER && isVideoOnly)
-            {
-                m_audioStreams = 0;
-                GST_INFO("Set video only session");
-            }
-        });
-}
-
 void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams, int32_t videoStreams,
                                                            int32_t subtitleStreams)
 {
@@ -759,7 +721,7 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
             m_videoStreams = videoStreams;
             m_subtitleStreams = subtitleStreams;
 
-            //TODO: remove below log after subtitle sink is implemented
+            // TODO: remove below log after subtitle sink is implemented
             if (m_subtitleStreams > 0)
             {
                 GST_WARNING("Subtitle streams are not supported yet");
