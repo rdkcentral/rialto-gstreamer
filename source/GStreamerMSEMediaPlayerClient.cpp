@@ -758,6 +758,12 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
             m_audioStreams = audioStreams;
             m_videoStreams = videoStreams;
             m_subtitleStreams = subtitleStreams;
+
+            //TODO: remove below log after subtitle sink is implemented
+            if (m_subtitleStreams > 0)
+            {
+                GST_WARNING("Subtitle streams are not supported yet");
+            }
         });
 }
 

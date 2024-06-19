@@ -73,7 +73,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-        // client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+
         std::unique_lock lock{priv->rectangleMutex};
         if (priv->rectangleSettingQueued)
         {
