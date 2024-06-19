@@ -771,6 +771,7 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
 {
     int32_t attachedVideoSources = 0;
     int32_t attachedAudioSources = 0;
+    int32_t attachedSubtitleSources = 0;
     for (auto &source : m_attachedSources)
     {
         if (source.second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
@@ -781,9 +782,14 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
         {
             attachedAudioSources++;
         }
+        else if (source.second.getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+        {
+            attachedSubtitleSources++;
+        }
     }
 
-    return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams;
+    return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams &&
+           attachedSubtitleSources == m_subtitleStreams;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
