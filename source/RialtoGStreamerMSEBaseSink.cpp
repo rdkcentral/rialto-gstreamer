@@ -28,6 +28,7 @@
 #include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include <limits>
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
@@ -793,7 +794,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
             gst_event_unref(event);
             return FALSE;
         }
-        int32_t videoStreams{0}, audioStreams{0};
+        int32_t videoStreams{0}, audioStreams{0}, textStreams{0};
         GstStreamCollection *streamCollection;
         gst_event_parse_stream_collection(event, &streamCollection);
         guint streamsSize = gst_stream_collection_get_size(streamCollection);
@@ -809,9 +810,13 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
             {
                 ++videoStreams;
             }
+            else if (type & GST_STREAM_TYPE_TEXT)
+            {
+                ++textStreams;
+            }
         }
         gst_object_unref(streamCollection);
-        client->handleStreamCollection(audioStreams, videoStreams);
+        client->handleStreamCollection(audioStreams, videoStreams, textStreams);
         client->sendAllSourcesAttachedIfPossible();
         break;
     }
@@ -1019,13 +1024,14 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     gst_element_lost_state(GST_ELEMENT_CAST(sink));
 }
 
-bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio)
+static bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gint &n_video, gint &n_audio,
+                                                           gint &n_text)
 {
     if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-video") &&
-        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio"))
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-audio") &&
+        g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "n-text"))
     {
-        g_object_get(parentObject, "n-video", &n_video, nullptr);
-        g_object_get(parentObject, "n-audio", &n_audio, nullptr);
+        g_object_get(parentObject, "n-video", &n_video, "n-audio", &n_audio, "n-text", &n_text, nullptr);
 
         if (g_object_class_find_property(G_OBJECT_GET_CLASS(parentObject), "flags"))
         {
@@ -1033,10 +1039,112 @@ bool rialto_mse_base_sink_get_n_streams_from_parent(GstObject *parentObject, gin
             g_object_get(parentObject, "flags", &flags, nullptr);
             n_video = flags & rialto_mse_base_sink_get_gst_play_flag("video") ? n_video : 0;
             n_audio = flags & rialto_mse_base_sink_get_gst_play_flag("audio") ? n_audio : 0;
+            n_text = flags & rialto_mse_base_sink_get_gst_play_flag("text") ? n_text : 0;
         }
 
         return true;
     }
 
     return false;
+}
+
+static bool rialto_mse_base_sink_set_streams_number(RialtoMSEBaseSink *sink, GstObject *parentObject)
+{
+    RialtoMSEBaseSinkPrivate *priv = sink->priv;
+    int32_t videoStreams{-1}, audioStreams{-1}, subtitleStreams{-1};
+
+    GstContext *context = gst_element_get_context(GST_ELEMENT(sink), "streams-info");
+    if (context)
+    {
+        GST_DEBUG_OBJECT(sink, "Getting number of streams from \"streams-info\" context");
+
+        guint n_video{0}, n_audio{0}, n_text{0};
+
+        const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        gst_structure_get_uint(streamsInfoStructure, "video-streams", &n_video);
+        gst_structure_get_uint(streamsInfoStructure, "audio-streams", &n_audio);
+        gst_structure_get_uint(streamsInfoStructure, "text-streams", &n_text);
+
+        if (n_video > std::numeric_limits<int32_t>::max() || n_audio > std::numeric_limits<int32_t>::max() ||
+            n_text > std::numeric_limits<int32_t>::max())
+        {
+            GST_ERROR_OBJECT(sink, "Number of streams is too big, video=%u, audio=%u, text=%u", n_video, n_audio, n_text);
+            gst_context_unref(context);
+            return false;
+        }
+
+        videoStreams = n_video;
+        audioStreams = n_audio;
+        subtitleStreams = n_text;
+
+        gst_context_unref(context);
+    }
+    else if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, videoStreams, audioStreams, subtitleStreams))
+    {
+        GST_DEBUG_OBJECT(sink, "Got number of streams from playbin2 properties");
+    }
+    else
+    {
+        std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
+        if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::VIDEO)
+        {
+            videoStreams = priv->m_numOfStreams;
+            if (priv->m_isSinglePathStream)
+            {
+                audioStreams = 0;
+                subtitleStreams = 0;
+            }
+        }
+        else if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::AUDIO)
+        {
+            audioStreams = priv->m_numOfStreams;
+            if (priv->m_isSinglePathStream)
+            {
+                videoStreams = 0;
+                subtitleStreams = 0;
+            }
+        }
+        else if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::SUBTITLE)
+        {
+            subtitleStreams = priv->m_numOfStreams;
+            if (priv->m_isSinglePathStream)
+            {
+                videoStreams = 0;
+                audioStreams = 0;
+            }
+        }
+    }
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+    if (!client)
+    {
+        GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
+        return false;
+    }
+
+    GST_INFO_OBJECT(sink, "Setting number of streams: video=%d, audio=%d, text=%d", videoStreams, audioStreams,
+                    subtitleStreams);
+    client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
+
+    return true;
+}
+
+bool rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(GstElement *element, const uint32_t maxVideoWidth,
+                                                                        const uint32_t maxVideoHeight)
+{
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
+    RialtoMSEBaseSinkPrivate *priv = sink->priv;
+
+    GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
+    if (!priv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
+    {
+        GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
+        return false;
+    }
+
+    gchar *parentObjectName = gst_object_get_name(parentObject);
+    GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
+    g_free(parentObjectName);
+
+    return rialto_mse_base_sink_set_streams_number(sink, parentObject);
 }

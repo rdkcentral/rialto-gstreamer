@@ -62,35 +62,9 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
         // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first)
         // the video capabilities will NOT be set.
-
-        GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
-        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject, priv->maxWidth, priv->maxHeight))
+        if (!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element, priv->maxWidth, priv->maxHeight))
         {
-            GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
-        }
-
-        gchar *parentObjectName = gst_object_get_name(parentObject);
-        GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
-        g_free(parentObjectName);
-
-        int videoStreams = 0;
-        bool isVideoOnly = false;
-
-        gint n_video = 0;
-        gint n_audio = 0;
-        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio))
-        {
-            videoStreams = n_video;
-            isVideoOnly = n_audio == 0;
-            GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
-                            isVideoOnly ? "'true'" : "'false'");
-        }
-        else
-        {
-            std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
-            videoStreams = basePriv->m_numOfStreams;
-            isVideoOnly = basePriv->m_isSinglePathStream;
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
@@ -99,7 +73,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-        client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+
         std::unique_lock lock{priv->rectangleMutex};
         if (priv->rectangleSettingQueued)
         {
@@ -373,6 +347,7 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
         return;
     }
 
+    basePriv->m_mediaSourceType = firebolt::rialto::MediaSourceType::VIDEO;
     gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
     gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_video_sink_event);
 
