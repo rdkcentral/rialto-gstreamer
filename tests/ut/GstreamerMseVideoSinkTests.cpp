@@ -262,13 +262,37 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetMaxVideoWidthProperty)
     RIALTO_MSE_VIDEO_SINK(videoSink)->priv->maxWidth = kWidth;
 
     unsigned maxVideoWidth{0};
-    g_object_get(videoSink, "maxVideoWidth", &maxVideoWidth, nullptr);
+    g_object_get(videoSink, "max-video-width", &maxVideoWidth, nullptr);
     EXPECT_EQ(kWidth, maxVideoWidth);
 
     gst_object_unref(videoSink);
 }
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetMaxVideoHeightProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RIALTO_MSE_VIDEO_SINK(videoSink)->priv->maxHeight = kHeight;
+
+    unsigned maxVideoHeight{0};
+    g_object_get(videoSink, "max-video-height", &maxVideoHeight, nullptr);
+    EXPECT_EQ(maxVideoHeight, kHeight);
+
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldGetMaxVideoWidthPropertyDeprecated)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RIALTO_MSE_VIDEO_SINK(videoSink)->priv->maxWidth = kWidth;
+
+    unsigned maxVideoWidth{0};
+    g_object_get(videoSink, "maxVideoWidth", &maxVideoWidth, nullptr);
+    EXPECT_EQ(kWidth, maxVideoWidth);
+
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldGetMaxVideoHeightPropertyDeprecated)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
     RIALTO_MSE_VIDEO_SINK(videoSink)->priv->maxHeight = kHeight;

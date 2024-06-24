@@ -44,6 +44,8 @@ enum
     PROP_WINDOW_SET,
     PROP_MAX_VIDEO_WIDTH,
     PROP_MAX_VIDEO_HEIGHT,
+    PROP_MAX_VIDEO_WIDTH_DEPRECATED,
+    PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
     PROP_FRAME_STEP_ON_PREROLL,
     PROP_LAST
 };
@@ -238,11 +240,13 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         }
         break;
     case PROP_MAX_VIDEO_WIDTH:
+    case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
     {
         g_value_set_uint(value, priv->maxWidth);
         break;
     }
     case PROP_MAX_VIDEO_HEIGHT:
+    case PROP_MAX_VIDEO_HEIGHT_DEPRECATED:
     {
         g_value_set_uint(value, priv->maxHeight);
         break;
@@ -300,9 +304,11 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         break;
     }
     case PROP_MAX_VIDEO_WIDTH:
+    case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
         priv->maxWidth = g_value_get_uint(value);
         break;
     case PROP_MAX_VIDEO_HEIGHT:
+    case PROP_MAX_VIDEO_HEIGHT_DEPRECATED:
         priv->maxHeight = g_value_get_uint(value);
         break;
     case PROP_FRAME_STEP_ON_PREROLL:
@@ -368,13 +374,23 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                         nullptr, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH,
-                                    g_param_spec_uint("maxVideoWidth",
-                                                      "maxVideoWidth", "Maximum width of video frames to be decoded. Should only be set for video only streams.",
+                                    g_param_spec_uint("max-video-width",
+                                                      "max video width", "Maximum width of video frames to be decoded. Should only be set for video only streams.",
                                                       0, 3840, DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_HEIGHT,
+                                    g_param_spec_uint("max-video-height",
+                                                      "max video height", "Maximum height of video frames to be decoded. should only be set for video only streams.",
+                                                      0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH_DEPRECATED,
+                                    g_param_spec_uint("maxVideoWidth",
+                                                      "maxVideoWidth", "[DEPRECATED] Use max-video-width",
+                                                      0, 3840, DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
                                     g_param_spec_uint("maxVideoHeight",
-                                                      "maxVideoHeight", "Maximum height of video frames to be decoded. should only be set for video only streams.",
+                                                      "maxVideoHeight", "[DEPRECATED] max-video-height",
                                                       0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_FRAME_STEP_ON_PREROLL,

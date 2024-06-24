@@ -71,12 +71,10 @@ struct _RialtoMSEBaseSinkPrivate
     std::condition_variable m_flushCondVariable;
     std::mutex m_flushMutex;
 
-    std::string m_uri;
     RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
 
     MediaPlayerManager m_mediaPlayerManager;
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
-    bool m_handleResetTimeMessage = false;
     std::atomic<bool> m_sourceAttached{false};
     bool m_isSinglePathStream = false;
     int32_t m_numOfStreams = 1;
