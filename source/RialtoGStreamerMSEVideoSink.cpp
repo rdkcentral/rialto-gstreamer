@@ -384,13 +384,11 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                       0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH_DEPRECATED,
-                                    g_param_spec_uint("maxVideoWidth",
-                                                      "maxVideoWidth", "[DEPRECATED] Use max-video-width",
+                                    g_param_spec_uint("maxVideoWidth", "maxVideoWidth", "[DEPRECATED] Use max-video-width",
                                                       0, 3840, DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
-                                    g_param_spec_uint("maxVideoHeight",
-                                                      "maxVideoHeight", "[DEPRECATED] max-video-height",
+                                    g_param_spec_uint("maxVideoHeight", "maxVideoHeight", "[DEPRECATED] max-video-height",
                                                       0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_FRAME_STEP_ON_PREROLL,
