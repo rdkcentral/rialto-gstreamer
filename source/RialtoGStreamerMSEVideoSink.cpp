@@ -239,14 +239,16 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
             g_value_set_string(value, client->getVideoRectangle().c_str());
         }
         break;
-    case PROP_MAX_VIDEO_WIDTH:
     case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
+        GST_WARNING_OBJECT(object, "MaxVideoWidth property is deprecated. Use 'max-video-width' instead");
+    case PROP_MAX_VIDEO_WIDTH:
     {
         g_value_set_uint(value, priv->maxWidth);
         break;
     }
-    case PROP_MAX_VIDEO_HEIGHT:
     case PROP_MAX_VIDEO_HEIGHT_DEPRECATED:
+        GST_WARNING_OBJECT(object, "MaxVideoHeight property is deprecated. Use 'max-video-height' instead");
+    case PROP_MAX_VIDEO_HEIGHT:
     {
         g_value_set_uint(value, priv->maxHeight);
         break;
