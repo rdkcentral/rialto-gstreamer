@@ -690,6 +690,23 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenNotAllSourcesA
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotOverwriteStreamCollectionSettings)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 0, 0);
+    m_sut->handleStreamCollection(1, 1, 0);
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAttached)
 {
     constexpr int32_t kVideoStreams{1};

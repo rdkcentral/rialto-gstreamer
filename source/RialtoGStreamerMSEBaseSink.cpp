@@ -1085,6 +1085,9 @@ static bool rialto_mse_base_sink_set_streams_number(RialtoMSEBaseSink *sink, Gst
     }
     else
     {
+        //The default value of streams is V:1, A:1, S:0
+        //Changing the default setting via properties is considered as DEPRECATED
+        subtitleStreams = 0;
         std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
         if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::VIDEO)
         {
@@ -1122,8 +1125,6 @@ static bool rialto_mse_base_sink_set_streams_number(RialtoMSEBaseSink *sink, Gst
         return false;
     }
 
-    GST_INFO_OBJECT(sink, "Setting number of streams: video=%d, audio=%d, text=%d", videoStreams, audioStreams,
-                    subtitleStreams);
     client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
 
     return true;

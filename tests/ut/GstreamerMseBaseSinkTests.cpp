@@ -1135,6 +1135,34 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoAllAttached)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldHandleDefaultStreamSetting)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    GstElement *pipeline = gst_pipeline_new("test-pipeline");
+    gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(audioSink));
+    gst_bin_add(GST_BIN(pipeline), GST_ELEMENT_CAST(videoSink));
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kAudioSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    const int32_t kVideoSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *audioCaps{createAudioCaps()};
+    GstCaps *videoCaps{createVideoCaps()};
+    setCaps(audioSink, audioCaps);
+    setCaps(videoSink, videoCaps);
+
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(kAudioSourceId)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(kVideoSourceId)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_caps_unref(audioCaps);
+    gst_caps_unref(videoCaps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoNotAllAttached)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
