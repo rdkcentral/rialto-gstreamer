@@ -18,8 +18,22 @@
 
 #include "PlaybinStub.h"
 
-G_DEFINE_FLAGS_TYPE(GstPlayFlags, gst_play_flags, G_DEFINE_ENUM_VALUE(GST_PLAY_FLAG_VIDEO, "video"),
-                    G_DEFINE_ENUM_VALUE(GST_PLAY_FLAG_AUDIO, "audio"), G_DEFINE_ENUM_VALUE(GST_PLAY_FLAG_TEXT, "text"));
+GType gst_play_flags_get_type(void)
+{
+    static gsize g_define_type__static = 0;
+    if (g_once_init_enter(&g_define_type__static))
+    {
+        static const GFlagsValue flags_values[] = {
+            {GST_PLAY_FLAG_VIDEO, "GST_PLAY_FLAG_VIDEO", "video"},
+            {GST_PLAY_FLAG_AUDIO, "GST_PLAY_FLAG_AUDIO", "audio"},
+            {GST_PLAY_FLAG_TEXT, "GST_PLAY_FLAG_TEXT", "text"},
+            {0, NULL, NULL},
+        };
+        GType g_define_type = g_flags_register_static(g_intern_static_string("GstPlayFlags"), flags_values);
+        g_once_init_leave(&g_define_type__static, g_define_type);
+    }
+    return g_define_type__static;
+}
 
 enum
 {
