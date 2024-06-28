@@ -762,8 +762,6 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
         }
     }
 
-    GST_WARNING("attachedVideoSources %d, m_videoStreams %d, attachedAudioSources %d, m_audioStreams %d, attachedSubtitleSources %d, m_subtitleStreams %d", 
-    attachedVideoSources, m_videoStreams, attachedAudioSources, m_audioStreams, attachedSubtitleSources, m_subtitleStreams);
     return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams &&
            attachedSubtitleSources == m_subtitleStreams;
 }
