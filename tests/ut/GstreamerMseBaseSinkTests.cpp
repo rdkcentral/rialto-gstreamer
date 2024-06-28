@@ -68,6 +68,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchAudioSinkToPausedWithAVStreamsProp
     EXPECT_TRUE(waitForMessage(playbin, GST_MESSAGE_ASYNC_DONE));
 
     setNullState(playbin, kSourceId);
+    gst_caps_unref(caps);
     gst_object_unref(playbin);
 }
 
@@ -91,6 +92,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchVideoSinkToPausedWithAVStreamsProp
     EXPECT_TRUE(waitForMessage(playbin, GST_MESSAGE_ASYNC_DONE));
 
     setNullState(playbin, kSourceId);
+    gst_caps_unref(caps);
     gst_object_unref(playbin);
 }
 
