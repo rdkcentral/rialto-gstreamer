@@ -80,4 +80,8 @@
         <!-- Macro symbols do not work :( -->
         <id>unknownMacro</id>
     </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <fileName>tests/stubs/source/PlaybinStub.cpp</fileName>
+    </suppress>
 </suppressions>
