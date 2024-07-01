@@ -717,9 +717,15 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            m_audioStreams = audioStreams;
-            m_videoStreams = videoStreams;
-            m_subtitleStreams = subtitleStreams;
+            if (m_audioStreams == UNKNOWN_STREAMS_NUMBER)
+                m_audioStreams = audioStreams;
+            if (m_videoStreams == UNKNOWN_STREAMS_NUMBER)
+                m_videoStreams = videoStreams;
+            if (m_subtitleStreams == UNKNOWN_STREAMS_NUMBER)
+                m_subtitleStreams = subtitleStreams;
+
+            GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
+                     m_audioStreams, m_subtitleStreams);
 
             // TODO: remove below log after subtitle sink is implemented
             if (m_subtitleStreams > 0)
