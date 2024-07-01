@@ -19,6 +19,7 @@
 #include "RialtoGstTest.h"
 #include "Matchers.h"
 #include "MediaPipelineCapabilitiesMock.h"
+#include "PlaybinStub.h"
 #include "RialtoGSteamerPlugin.cpp" // urgh... disgusting!
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include <algorithm>
@@ -145,6 +146,7 @@ RialtoGstTest::RialtoGstTest()
                                                       "Sinks which communicate with RialtoServer", rialto_mse_sinks_init,
                                                       "1.0", "LGPL", PACKAGE, PACKAGE, "http://gstreamer.net/");
                        EXPECT_TRUE(registerResult);
+                       EXPECT_TRUE(register_play_bin_stub());
                    });
 }
 
@@ -204,6 +206,13 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
+}
+
+GstElement *RialtoGstTest::createPlaybin2WithSink(RialtoMSEBaseSink *sink) const
+{
+    GstElement *playbin = gst_element_factory_make("playbinstub", "test-playbin");
+    gst_bin_add(GST_BIN(playbin), GST_ELEMENT_CAST(sink));
+    return playbin;
 }
 
 GstElement *RialtoGstTest::createPipelineWithSink(RialtoMSEBaseSink *sink) const
@@ -420,25 +429,6 @@ void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,
     auto mediaPlayerClient{sink->priv->m_mediaPlayerManager.getMediaPlayerClient()};
     ASSERT_TRUE(mediaPlayerClient);
     mediaPlayerClient->handlePlaybackStateChange(state);
-}
-
-void RialtoGstTest::installAudioVideoStreamsProperty(GstElement *pipeline) const
-{
-    static std::once_flag flag;
-    std::call_once(flag,
-                   [&]()
-                   {
-                       g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 123,
-                                                       g_param_spec_int("n-video", "n-video", "num of video streams", 1,
-                                                                        G_MAXINT, 1, GParamFlags(G_PARAM_READWRITE)));
-                       g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
-                                                       g_param_spec_int("n-audio", "n-audio", "num of audio streams", 1,
-                                                                        G_MAXINT, 1, GParamFlags(G_PARAM_READWRITE)));
-
-                       g_object_class_install_property(G_OBJECT_GET_CLASS(pipeline), 124,
-                                                       g_param_spec_uint("flags", "flags", "flags", 1, G_MAXINT, 1,
-                                                                         GParamFlags(G_PARAM_READWRITE)));
-                   });
 }
 
 void RialtoGstTest::expectSinksInitialisation() const

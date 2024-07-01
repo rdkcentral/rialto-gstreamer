@@ -17,6 +17,7 @@
  */
 
 #include "Matchers.h"
+#include "PlaybinStub.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
 
@@ -46,32 +47,52 @@ public:
     ~GstreamerMseBaseSinkTests() override = default;
 };
 
-// TODO(RIALTO-568): Tests shouldn't install global gst class properties, because they remain in following testcase
-TEST_F(GstreamerMseBaseSinkTests, DISABLED_ShouldSwitchAudioSinkToPausedWithAVStreamsProperty)
+TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchAudioSinkToPausedWithAVStreamsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
+    GstElement *playbin = createPlaybin2WithSink(audioSink);
 
-    installAudioVideoStreamsProperty(pipeline);
+    g_object_set(playbin, "n-audio", 1, nullptr);
+    g_object_set(playbin, "n-video", 0, nullptr);
+    g_object_set(playbin, "flags", GST_PLAY_FLAG_AUDIO, nullptr);
 
-    setPausedState(pipeline, audioSink);
+    setPausedState(playbin, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(playbin, GST_MESSAGE_ASYNC_DONE));
+
+    setNullState(playbin, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(playbin);
 }
 
-// TODO(RIALTO-568): Tests shouldn't install global gst class properties, because they remain in following testcase
-TEST_F(GstreamerMseBaseSinkTests, DISABLED_ShouldSwitchVideoSinkToPausedWithAVStreamsProperty)
+TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchVideoSinkToPausedWithAVStreamsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
-    GstElement *pipeline = createPipelineWithSink(videoSink);
+    GstElement *playbin = createPlaybin2WithSink(videoSink);
 
-    installAudioVideoStreamsProperty(pipeline);
+    g_object_set(playbin, "n-audio", 0, nullptr);
+    g_object_set(playbin, "n-video", 1, nullptr);
+    g_object_set(playbin, "flags", GST_PLAY_FLAG_VIDEO, nullptr);
 
-    setPausedState(pipeline, videoSink);
+    setPausedState(playbin, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
-    gst_object_unref(pipeline);
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    sendPlaybackStateNotification(videoSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(playbin, GST_MESSAGE_ASYNC_DONE));
+
+    setNullState(playbin, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(playbin);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldReachPlayingState)
