@@ -1085,8 +1085,8 @@ static bool rialto_mse_base_sink_set_streams_number(RialtoMSEBaseSink *sink, Gst
     }
     else
     {
-        //The default value of streams is V:1, A:1, S:0
-        //Changing the default setting via properties is considered as DEPRECATED
+        // The default value of streams is V:1, A:1, S:0
+        // Changing the default setting via properties is considered as DEPRECATED
         subtitleStreams = 0;
         std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
         if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::VIDEO)
