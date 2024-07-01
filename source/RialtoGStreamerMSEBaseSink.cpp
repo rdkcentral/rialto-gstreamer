@@ -49,8 +49,6 @@ enum
 enum
 {
     PROP_0,
-    PROP_LOCATION,
-    PROP_HANDLE_RESET_TIME_MESSAGE,
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
     PROP_HAS_DRM,
@@ -205,12 +203,6 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     switch (propId)
     {
-    case PROP_LOCATION:
-        g_value_set_string(value, sink->priv->m_uri.c_str());
-        break;
-    case PROP_HANDLE_RESET_TIME_MESSAGE:
-        g_value_set_boolean(value, sink->priv->m_handleResetTimeMessage ? TRUE : FALSE);
-        break;
     case PROP_IS_SINGLE_PATH_STREAM:
         g_value_set_boolean(value, sink->priv->m_isSinglePathStream ? TRUE : FALSE);
         break;
@@ -233,12 +225,6 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     switch (propId)
     {
-    case PROP_LOCATION:
-        sink->priv->m_uri = g_value_get_string(value);
-        break;
-    case PROP_HANDLE_RESET_TIME_MESSAGE:
-        sink->priv->m_handleResetTimeMessage = g_value_get_boolean(value) != FALSE;
-        break;
     case PROP_IS_SINGLE_PATH_STREAM:
         sink->priv->m_isSinglePathStream = g_value_get_boolean(value) != FALSE;
         break;
@@ -633,15 +619,6 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
                                                G_TYPE_POINTER);
-
-    g_object_class_install_property(gobjectClass, PROP_LOCATION,
-                                    g_param_spec_string("location", "location", "Location to read from", nullptr,
-                                                        GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-
-    g_object_class_install_property(gobjectClass, PROP_HANDLE_RESET_TIME_MESSAGE,
-                                    g_param_spec_boolean("handle-reset-time-message", "Handle Reset Time Message",
-                                                         "Handle Reset Time Message", FALSE,
-                                                         GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_IS_SINGLE_PATH_STREAM,
                                     g_param_spec_boolean("single-path-stream", "single path stream",
