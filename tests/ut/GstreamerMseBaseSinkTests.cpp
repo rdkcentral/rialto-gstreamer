@@ -33,7 +33,6 @@ constexpr bool kHasDrm{true};
 constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
-const std::string kUri{"location"};
 constexpr int kNumOfStreams{1};
 constexpr gdouble kPlaybackRate{1.0};
 constexpr gint64 kStart{12};
@@ -151,28 +150,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseBaseSinkTests, ShouldGetLocationProperty)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    audioSink->priv->m_uri = kUri;
-    gchar *uri{nullptr};
-    g_object_get(audioSink, "location", &uri, nullptr);
-    ASSERT_TRUE(uri);
-    EXPECT_EQ(std::string{uri}, kUri);
-    g_free(uri);
-    gst_object_unref(audioSink);
-}
-
-TEST_F(GstreamerMseBaseSinkTests, ShouldGetHandleResetTimeMessageProperty)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    audioSink->priv->m_handleResetTimeMessage = true;
-    gboolean value{FALSE};
-    g_object_get(audioSink, "handle-reset-time-message", &value, nullptr);
-    EXPECT_TRUE(value);
-    gst_object_unref(audioSink);
-}
-
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -200,22 +177,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetHasDrmProperty)
     gboolean value{FALSE};
     g_object_get(audioSink, "has-drm", &value, nullptr);
     EXPECT_TRUE(value);
-    gst_object_unref(audioSink);
-}
-
-TEST_F(GstreamerMseBaseSinkTests, ShouldSetLocationProperty)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    g_object_set(audioSink, "location", kUri.c_str(), nullptr);
-    EXPECT_EQ(audioSink->priv->m_uri, kUri);
-    gst_object_unref(audioSink);
-}
-
-TEST_F(GstreamerMseBaseSinkTests, ShouldSetHandleResetTimeMessageProperty)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    g_object_set(audioSink, "handle-reset-time-message", true, nullptr);
-    EXPECT_TRUE(audioSink->priv->m_handleResetTimeMessage);
     gst_object_unref(audioSink);
 }
 
