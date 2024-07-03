@@ -66,8 +66,9 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_clientBackend(MediaPlayerClientBackend),
+      m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
+      m_subtitleStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -710,51 +711,27 @@ ClientState GStreamerMSEMediaPlayerClient::getClientState()
     return state;
 }
 
-void GStreamerMSEMediaPlayerClient::setAudioStreamsInfo(int32_t audioStreams, bool isAudioOnly)
+void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams, int32_t videoStreams,
+                                                           int32_t subtitleStreams)
 {
     m_backendQueue->callInEventLoop(
         [&]()
         {
             if (m_audioStreams == UNKNOWN_STREAMS_NUMBER)
-            {
                 m_audioStreams = audioStreams;
-                GST_INFO("Set audio streams number to %d", m_audioStreams);
-            }
-
-            if (m_videoStreams == UNKNOWN_STREAMS_NUMBER && isAudioOnly)
-            {
-                m_videoStreams = 0;
-                GST_INFO("Set audio only session");
-            }
-        });
-}
-
-void GStreamerMSEMediaPlayerClient::setVideoStreamsInfo(int32_t videoStreams, bool isVideoOnly)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
             if (m_videoStreams == UNKNOWN_STREAMS_NUMBER)
-            {
                 m_videoStreams = videoStreams;
-                GST_INFO("Set video streams number to %d", m_videoStreams);
-            }
+            if (m_subtitleStreams == UNKNOWN_STREAMS_NUMBER)
+                m_subtitleStreams = subtitleStreams;
 
-            if (m_audioStreams == UNKNOWN_STREAMS_NUMBER && isVideoOnly)
+            GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
+                     m_audioStreams, m_subtitleStreams);
+
+            // TODO: remove below log after subtitle sink is implemented
+            if (m_subtitleStreams > 0)
             {
-                m_audioStreams = 0;
-                GST_INFO("Set video only session");
+                GST_WARNING("Subtitle streams are not supported yet");
             }
-        });
-}
-
-void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams, int32_t videoStreams)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            m_audioStreams = audioStreams;
-            m_videoStreams = videoStreams;
         });
 }
 
@@ -768,6 +745,7 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
 {
     int32_t attachedVideoSources = 0;
     int32_t attachedAudioSources = 0;
+    int32_t attachedSubtitleSources = 0;
     for (auto &source : m_attachedSources)
     {
         if (source.second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
@@ -778,9 +756,14 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
         {
             attachedAudioSources++;
         }
+        else if (source.second.getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+        {
+            attachedSubtitleSources++;
+        }
     }
 
-    return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams;
+    return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams &&
+           attachedSubtitleSources == m_subtitleStreams;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)

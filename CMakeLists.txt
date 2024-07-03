@@ -69,6 +69,7 @@ else() # UnitTests
 
     add_subdirectory( tests/third-party EXCLUDE_FROM_ALL )
     add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
+    add_subdirectory( tests/stubs EXCLUDE_FROM_ALL )
     add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
 endif()
 

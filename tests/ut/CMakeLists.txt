@@ -99,6 +99,7 @@ target_include_directories(
         PRIVATE
         $<TARGET_PROPERTY:GstRialtoMocks,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoTestLib,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:gstRialtoStubs,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(
@@ -106,4 +107,5 @@ target_link_libraries(
 
         gstRialtoThirdParty
         gstRialtoTestLib
+        gstRialtoStubs
 )

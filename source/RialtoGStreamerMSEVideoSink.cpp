@@ -44,6 +44,8 @@ enum
     PROP_WINDOW_SET,
     PROP_MAX_VIDEO_WIDTH,
     PROP_MAX_VIDEO_HEIGHT,
+    PROP_MAX_VIDEO_WIDTH_DEPRECATED,
+    PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
     PROP_FRAME_STEP_ON_PREROLL,
     PROP_LAST
 };
@@ -62,35 +64,9 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
         // maxWidth and maxHeight are used to set the video capabilities of the MediaPlayer.
         // If the mediaPlayer has already been created (ie. an audio sink on the same parent bus changed state first)
         // the video capabilities will NOT be set.
-
-        GstObject *parentObject = rialto_mse_base_get_oldest_gst_bin_parent(element);
-        if (!basePriv->m_mediaPlayerManager.attachMediaPlayerClient(parentObject, priv->maxWidth, priv->maxHeight))
+        if (!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element, priv->maxWidth, priv->maxHeight))
         {
-            GST_ERROR_OBJECT(sink, "Cannot attach the MediaPlayerClient");
             return GST_STATE_CHANGE_FAILURE;
-        }
-
-        gchar *parentObjectName = gst_object_get_name(parentObject);
-        GST_INFO_OBJECT(element, "Attached media player client with parent %s(%p)", parentObjectName, parentObject);
-        g_free(parentObjectName);
-
-        int videoStreams = 0;
-        bool isVideoOnly = false;
-
-        gint n_video = 0;
-        gint n_audio = 0;
-        if (rialto_mse_base_sink_get_n_streams_from_parent(parentObject, n_video, n_audio))
-        {
-            videoStreams = n_video;
-            isVideoOnly = n_audio == 0;
-            GST_INFO_OBJECT(element, "There are %u video streams and isVideoOnly value is %s", n_video,
-                            isVideoOnly ? "'true'" : "'false'");
-        }
-        else
-        {
-            std::lock_guard<std::mutex> lock(basePriv->m_sinkMutex);
-            videoStreams = basePriv->m_numOfStreams;
-            isVideoOnly = basePriv->m_isSinglePathStream;
         }
 
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
@@ -99,7 +75,7 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-        client->setVideoStreamsInfo(videoStreams, isVideoOnly);
+
         std::unique_lock lock{priv->rectangleMutex};
         if (priv->rectangleSettingQueued)
         {
@@ -263,11 +239,15 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
             g_value_set_string(value, client->getVideoRectangle().c_str());
         }
         break;
+    case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
+        GST_WARNING_OBJECT(object, "MaxVideoWidth property is deprecated. Use 'max-video-width' instead");
     case PROP_MAX_VIDEO_WIDTH:
     {
         g_value_set_uint(value, priv->maxWidth);
         break;
     }
+    case PROP_MAX_VIDEO_HEIGHT_DEPRECATED:
+        GST_WARNING_OBJECT(object, "MaxVideoHeight property is deprecated. Use 'max-video-height' instead");
     case PROP_MAX_VIDEO_HEIGHT:
     {
         g_value_set_uint(value, priv->maxHeight);
@@ -326,9 +306,11 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         break;
     }
     case PROP_MAX_VIDEO_WIDTH:
+    case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
         priv->maxWidth = g_value_get_uint(value);
         break;
     case PROP_MAX_VIDEO_HEIGHT:
+    case PROP_MAX_VIDEO_HEIGHT_DEPRECATED:
         priv->maxHeight = g_value_get_uint(value);
         break;
     case PROP_FRAME_STEP_ON_PREROLL:
@@ -373,6 +355,7 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
         return;
     }
 
+    basePriv->m_mediaSourceType = firebolt::rialto::MediaSourceType::VIDEO;
     gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
     gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_video_sink_event);
 
@@ -393,13 +376,21 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                         nullptr, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH,
-                                    g_param_spec_uint("maxVideoWidth",
-                                                      "maxVideoWidth", "Maximum width of video frames to be decoded. Should only be set for video only streams.",
+                                    g_param_spec_uint("max-video-width",
+                                                      "max video width", "Maximum width of video frames to be decoded. Should only be set for video only streams.",
                                                       0, 3840, DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_HEIGHT,
-                                    g_param_spec_uint("maxVideoHeight",
-                                                      "maxVideoHeight", "Maximum height of video frames to be decoded. should only be set for video only streams.",
+                                    g_param_spec_uint("max-video-height",
+                                                      "max video height", "Maximum height of video frames to be decoded. should only be set for video only streams.",
+                                                      0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_WIDTH_DEPRECATED,
+                                    g_param_spec_uint("maxVideoWidth", "maxVideoWidth", "[DEPRECATED] Use max-video-width",
+                                                      0, 3840, DEFAULT_MAX_VIDEO_WIDTH, GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
+                                    g_param_spec_uint("maxVideoHeight", "maxVideoHeight", "[DEPRECATED] max-video-height",
                                                       0, 2160, DEFAULT_MAX_VIDEO_HEIGHT, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_FRAME_STEP_ON_PREROLL,

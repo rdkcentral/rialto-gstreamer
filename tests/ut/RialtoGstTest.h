@@ -57,6 +57,7 @@ public:
     RialtoMSEBaseSink *createAudioSink() const;
     RialtoMSEBaseSink *createVideoSink() const;
     RialtoWebAudioSink *createWebAudioSink() const;
+    GstElement *createPlaybin2WithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoWebAudioSink *sink) const;
     TestContext createPipelineWithAudioSinkAndSetToPaused();
@@ -79,7 +80,6 @@ public:
     void setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const;
     void setCaps(RialtoWebAudioSink *sink, GstCaps *caps) const;
     void sendPlaybackStateNotification(RialtoMSEBaseSink *sink, const firebolt::rialto::PlaybackState &state) const;
-    void installAudioVideoStreamsProperty(GstElement *pipeline) const;
 
 private:
     void expectSinksInitialisation() const;
