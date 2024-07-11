@@ -82,6 +82,18 @@
     </suppress>
     <suppress>
         <id>unusedFunction</id>
+        <symbolName>logToGstPreRegister</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>logToGstSinkFinalize</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>logToGstSinkInit</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
         <fileName>tests/stubs/source/PlaybinStub.cpp</fileName>
     </suppress>
 </suppressions>
