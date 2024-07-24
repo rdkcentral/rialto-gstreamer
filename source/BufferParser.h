@@ -63,4 +63,13 @@ private:
                               int64_t duration) override;
 };
 
+class SubtitleBufferParser : public BufferParser
+{
+private:
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
+    parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure, int64_t timeStamp,
+                              int64_t duration) override;
+};
+
+
 #endif // BUFFERPARSER_H

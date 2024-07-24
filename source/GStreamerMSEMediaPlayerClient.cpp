@@ -420,7 +420,8 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                                                  RialtoMSEBaseSink *rialtoSink)
 {
     if (source->getType() != firebolt::rialto::MediaSourceType::AUDIO &&
-        source->getType() != firebolt::rialto::MediaSourceType::VIDEO)
+        source->getType() != firebolt::rialto::MediaSourceType::VIDEO &&
+        source->getType() != firebolt::rialto::MediaSourceType::SUBTITLE)
     {
         GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source->getType()));
         return false;
@@ -434,19 +435,22 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
 
             if (result)
             {
-                std::shared_ptr<BufferPuller> bufferPuller;
+                std::shared_ptr<BufferParser> bufferParser;
                 if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
                 {
-                    std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
-                                                                  audioBufferParser);
+                    bufferParser = std::make_shared<AudioBufferParser>();
                 }
                 else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
                 {
-                    std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
-                                                                  videoBufferParser);
+                    bufferParser = std::make_shared<VideoBufferParser>();
                 }
+                else if (source->getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+                {
+                    bufferParser = std::make_shared<SubtitleBufferParser>();
+                }
+
+                std::shared_ptr<BufferPuller> bufferPuller =
+                    std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink), bufferParser);
 
                 if (m_attachedSources.find(source->getId()) == m_attachedSources.end())
                 {
@@ -726,12 +730,6 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
 
             GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
                      m_audioStreams, m_subtitleStreams);
-
-            // TODO: remove below log after subtitle sink is implemented
-            if (m_subtitleStreams > 0)
-            {
-                GST_WARNING("Subtitle streams are not supported yet");
-            }
         });
 }
 

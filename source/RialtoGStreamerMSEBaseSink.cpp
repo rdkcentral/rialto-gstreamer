@@ -400,24 +400,29 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
     }
     case GST_QUERY_POSITION:
     {
+        GST_DEBUG_OBJECT(sink, "KLOPS1");
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
             return FALSE;
         }
-
+GST_DEBUG_OBJECT(sink, "KLOPS2");
         GstFormat fmt;
         gst_query_parse_position(query, &fmt, NULL);
         switch (fmt)
         {
         case GST_FORMAT_TIME:
         {
+            GST_DEBUG_OBJECT(sink, "KLOPS3 %p", client.get());
+            GST_DEBUG_OBJECT(sink, "KLOPS3.1 %p", sink->priv);
+            GST_DEBUG_OBJECT(sink, "KLOPS3.2 %d", sink->priv->m_sourceId.load());
             gint64 position = client->getPosition(sink->priv->m_sourceId);
             GST_DEBUG_OBJECT(sink, "Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
             if (position < 0)
             {
                 return FALSE;
             }
+            GST_DEBUG_OBJECT(sink, "KLOPS4");
             gst_query_set_position(query, fmt, position);
             break;
         }
