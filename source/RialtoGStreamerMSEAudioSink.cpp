@@ -111,7 +111,7 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
     if (strct_name)
     {
         if (g_str_has_prefix(strct_name, "audio/mpeg") || g_str_has_prefix(strct_name, "audio/x-eac3") ||
-            g_str_has_prefix(strct_name, "audio/x-ac3"))
+            g_str_has_prefix(strct_name, "audio/x-ac3") || g_str_has_prefix(strct_name, "audio/b-wav"))
         {
             gint sample_rate = 0;
             gint number_of_channels = 0;
@@ -125,6 +125,10 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
                 mimeType = "audio/mp4";
+            }
+            else if (g_str_has_prefix(strct_name, "audio/b-wav"))
+            {
+                mimeType = "audio/b-wav";
             }
             else
             {
