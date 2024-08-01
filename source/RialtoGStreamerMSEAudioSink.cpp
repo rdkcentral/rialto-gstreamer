@@ -111,7 +111,7 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
     if (strct_name)
     {
         if (g_str_has_prefix(strct_name, "audio/mpeg") || g_str_has_prefix(strct_name, "audio/x-eac3") ||
-            g_str_has_prefix(strct_name, "audio/x-ac3") || g_str_has_prefix(strct_name, "audio/b-wav"))
+            g_str_has_prefix(strct_name, "audio/x-ac3"))
         {
             gint sample_rate = 0;
             gint number_of_channels = 0;
@@ -125,10 +125,6 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             if (g_str_has_prefix(strct_name, "audio/mpeg"))
             {
                 mimeType = "audio/mp4";
-            }
-            else if (g_str_has_prefix(strct_name, "audio/b-wav"))
-            {
-                mimeType = "audio/b-wav";
             }
             else
             {
@@ -169,6 +165,31 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
                 GST_ERROR("Failed to parse opus caps!");
                 return nullptr;
             }
+        }
+        else if (g_str_has_prefix(strct_name, "audio/b-wav"))
+        {
+            gint sample_rate = 0;
+            gint number_of_channels = 0;
+            std::optional<uint64_t> channelMask;
+            gst_structure_get_int(structure, "rate", &sample_rate);
+            gst_structure_get_int(structure, "channels", &number_of_channels);
+            std::optional<firebolt::rialto::Layout> layout =
+                rialto_mse_sink_convert_layout(gst_structure_get_string(structure, "layout"));
+            std::optional<firebolt::rialto::Format> format =
+                rialto_mse_sink_convert_format(gst_structure_get_string(structure, "format"));
+            const GValue *channelMaskValue = gst_structure_get_value(structure, "channel-mask");
+            if (channelMaskValue)
+            {
+                channelMask = gst_value_get_bitmask(channelMaskValue);
+            }
+
+            mimeType = "audio/b-wav";
+            audioConfig = firebolt::rialto::AudioConfig{static_cast<uint32_t>(number_of_channels),
+                                                        static_cast<uint32_t>(sample_rate),
+                                                        {},
+                                                        format,
+                                                        layout,
+                                                        channelMask};
         }
         else
         {

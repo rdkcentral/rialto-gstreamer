@@ -227,18 +227,24 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpus)
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithBwav)
 {
+    constexpr firebolt::rialto::Format kExpectedFormat{firebolt::rialto::Format::S16LE};
+    constexpr firebolt::rialto::Layout kExpectedLayout{firebolt::rialto::Layout::INTERLEAVED};
+    constexpr uint64_t kExpectedChannelMask{0x0000000000000003};
+    const firebolt::rialto::AudioConfig kExpectedAudioConfig{kChannels,       kRate,           {},
+                                                             kExpectedFormat, kExpectedLayout, kExpectedChannelMask};
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     setPausedState(pipeline, audioSink);
 
-    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/b-wav", kHasDrm, kAudioConfig};
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/b-wav", kHasDrm,
+                                                                             kExpectedAudioConfig};
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
     allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("audio/b-wav", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
                                       "format", G_TYPE_STRING, "S16LE", "enable-svp", G_TYPE_STRING, "true",
-                                      "channel-mask", GST_TYPE_BITMASK, 0x0000000000000003, "layout", G_TYPE_STRING,
+                                      "channel-mask", GST_TYPE_BITMASK, kExpectedChannelMask, "layout", G_TYPE_STRING,
                                       "interleaved", nullptr)};
     setCaps(audioSink, caps);
 

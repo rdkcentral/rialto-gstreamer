@@ -98,6 +98,7 @@ add_gtests (
         TimerTests.cpp
         WebAudioClientBackendTests.cpp
         LogToGstHandlerTests.cpp
+        GStreamerMSEUtilsTests.cpp
         )
 
 target_include_directories(

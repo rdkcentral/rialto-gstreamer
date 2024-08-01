@@ -64,3 +64,141 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
 }
+
+std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gchar *layoutStr)
+{
+    if (g_strcmp0(layoutStr, "interleaved") == 0)
+    {
+        return firebolt::rialto::Layout::INTERLEAVED;
+    }
+    if (g_strcmp0(layoutStr, "non-interleaved") == 0)
+    {
+        return firebolt::rialto::Layout::NON_INTERLEAVED;
+    }
+    return std::nullopt;
+}
+
+std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gchar *formatStr)
+{
+    if (g_strcmp0(formatStr, "S8") == 0)
+    {
+        return firebolt::rialto::Format::S8;
+    }
+    if (g_strcmp0(formatStr, "U8") == 0)
+    {
+        return firebolt::rialto::Format::U8;
+    }
+    if (g_strcmp0(formatStr, "S16LE") == 0)
+    {
+        return firebolt::rialto::Format::S16LE;
+    }
+    if (g_strcmp0(formatStr, "S16BE") == 0)
+    {
+        return firebolt::rialto::Format::S16BE;
+    }
+    if (g_strcmp0(formatStr, "U16LE") == 0)
+    {
+        return firebolt::rialto::Format::U16LE;
+    }
+    if (g_strcmp0(formatStr, "U16BE") == 0)
+    {
+        return firebolt::rialto::Format::U16BE;
+    }
+    if (g_strcmp0(formatStr, "S24_32LE") == 0)
+    {
+        return firebolt::rialto::Format::S24_32LE;
+    }
+    if (g_strcmp0(formatStr, "S24_32BE") == 0)
+    {
+        return firebolt::rialto::Format::S24_32BE;
+    }
+    if (g_strcmp0(formatStr, "U24_32LE") == 0)
+    {
+        return firebolt::rialto::Format::U24_32LE;
+    }
+    if (g_strcmp0(formatStr, "U24_32BE") == 0)
+    {
+        return firebolt::rialto::Format::U24_32BE;
+    }
+    if (g_strcmp0(formatStr, "S32LE") == 0)
+    {
+        return firebolt::rialto::Format::S32LE;
+    }
+    if (g_strcmp0(formatStr, "S32BE") == 0)
+    {
+        return firebolt::rialto::Format::S32BE;
+    }
+    if (g_strcmp0(formatStr, "U32LE") == 0)
+    {
+        return firebolt::rialto::Format::U32LE;
+    }
+    if (g_strcmp0(formatStr, "U32BE") == 0)
+    {
+        return firebolt::rialto::Format::U32BE;
+    }
+    if (g_strcmp0(formatStr, "S24LE") == 0)
+    {
+        return firebolt::rialto::Format::S24LE;
+    }
+    if (g_strcmp0(formatStr, "S24BE") == 0)
+    {
+        return firebolt::rialto::Format::S24BE;
+    }
+    if (g_strcmp0(formatStr, "U24LE") == 0)
+    {
+        return firebolt::rialto::Format::U24LE;
+    }
+    if (g_strcmp0(formatStr, "U24BE") == 0)
+    {
+        return firebolt::rialto::Format::U24BE;
+    }
+    if (g_strcmp0(formatStr, "S20LE") == 0)
+    {
+        return firebolt::rialto::Format::S20LE;
+    }
+    if (g_strcmp0(formatStr, "S20BE") == 0)
+    {
+        return firebolt::rialto::Format::S20BE;
+    }
+    if (g_strcmp0(formatStr, "U20LE") == 0)
+    {
+        return firebolt::rialto::Format::U20LE;
+    }
+    if (g_strcmp0(formatStr, "U20BE") == 0)
+    {
+        return firebolt::rialto::Format::U20BE;
+    }
+    if (g_strcmp0(formatStr, "S18LE") == 0)
+    {
+        return firebolt::rialto::Format::S18LE;
+    }
+    if (g_strcmp0(formatStr, "S18BE") == 0)
+    {
+        return firebolt::rialto::Format::S18BE;
+    }
+    if (g_strcmp0(formatStr, "U18LE") == 0)
+    {
+        return firebolt::rialto::Format::U18LE;
+    }
+    if (g_strcmp0(formatStr, "U18BE") == 0)
+    {
+        return firebolt::rialto::Format::U18BE;
+    }
+    if (g_strcmp0(formatStr, "F32LE") == 0)
+    {
+        return firebolt::rialto::Format::F32LE;
+    }
+    if (g_strcmp0(formatStr, "F32BE") == 0)
+    {
+        return firebolt::rialto::Format::F32BE;
+    }
+    if (g_strcmp0(formatStr, "F64LE") == 0)
+    {
+        return firebolt::rialto::Format::F64LE;
+    }
+    if (g_strcmp0(formatStr, "F64BE") == 0)
+    {
+        return firebolt::rialto::Format::F64BE;
+    }
+    return std::nullopt;
+}
