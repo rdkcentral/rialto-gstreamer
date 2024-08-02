@@ -70,12 +70,14 @@ static unsigned rialto_mse_base_sink_get_gst_play_flag(const char *nick)
     return flag ? flag->value : 0;
 }
 
+//AV
 static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
 }
 
+//AV
 static void rialto_mse_base_async_done(RialtoMSEBaseSink *sink)
 {
     sink->priv->m_isStateCommitNeeded = false;
@@ -128,6 +130,7 @@ static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt
     g_error_free(gError);
 }
 
+//AV
 static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
@@ -166,7 +169,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         priv->m_isFlushOngoing = false;
 
-        StateChangeResult result = client->pause(priv->m_sourceId);
+        StateChangeResult result = client->pause(priv->m_sourceId, priv->m_isAsync);
         if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
         {
             // NOT_ATTACHED is not a problem here, because source will be attached later when GST_EVENT_CAPS is received
@@ -264,6 +267,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     return status;
 }
 
+//AV
 static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
                                                               firebolt::rialto::PlaybackState state)
 {
