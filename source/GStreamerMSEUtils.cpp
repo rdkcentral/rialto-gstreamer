@@ -80,125 +80,41 @@ std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gch
 
 std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gchar *formatStr)
 {
-    if (g_strcmp0(formatStr, "S8") == 0)
+    static const std::unordered_map<std::string, firebolt::rialto::Format>
+        kStringToFormat{{"S8", firebolt::rialto::Format::S8},
+                        {"U8", firebolt::rialto::Format::U8},
+                        {"S16LE", firebolt::rialto::Format::S16LE},
+                        {"S16BE", firebolt::rialto::Format::S16BE},
+                        {"U16LE", firebolt::rialto::Format::U16LE},
+                        {"U16BE", firebolt::rialto::Format::U16BE},
+                        {"S24_32LE", firebolt::rialto::Format::S24_32LE},
+                        {"S24_32BE", firebolt::rialto::Format::S24_32BE},
+                        {"U24_32LE", firebolt::rialto::Format::U24_32LE},
+                        {"U24_32BE", firebolt::rialto::Format::U24_32BE},
+                        {"S32LE", firebolt::rialto::Format::S32LE},
+                        {"S32BE", firebolt::rialto::Format::S32BE},
+                        {"U32LE", firebolt::rialto::Format::U32LE},
+                        {"U32BE", firebolt::rialto::Format::U32BE},
+                        {"S24LE", firebolt::rialto::Format::S24LE},
+                        {"S24BE", firebolt::rialto::Format::S24BE},
+                        {"U24LE", firebolt::rialto::Format::U24LE},
+                        {"U24BE", firebolt::rialto::Format::U24BE},
+                        {"S20LE", firebolt::rialto::Format::S20LE},
+                        {"S20BE", firebolt::rialto::Format::S20BE},
+                        {"U20LE", firebolt::rialto::Format::U20LE},
+                        {"U20BE", firebolt::rialto::Format::U20BE},
+                        {"S18LE", firebolt::rialto::Format::S18LE},
+                        {"S18BE", firebolt::rialto::Format::S18BE},
+                        {"U18LE", firebolt::rialto::Format::U18LE},
+                        {"U18BE", firebolt::rialto::Format::U18BE},
+                        {"F32LE", firebolt::rialto::Format::F32LE},
+                        {"F32BE", firebolt::rialto::Format::F32BE},
+                        {"F64LE", firebolt::rialto::Format::F64LE},
+                        {"F64BE", firebolt::rialto::Format::F64BE}};
+    const auto it = kStringToFormat.find(formatStr);
+    if (it != kStringToFormat.end())
     {
-        return firebolt::rialto::Format::S8;
-    }
-    if (g_strcmp0(formatStr, "U8") == 0)
-    {
-        return firebolt::rialto::Format::U8;
-    }
-    if (g_strcmp0(formatStr, "S16LE") == 0)
-    {
-        return firebolt::rialto::Format::S16LE;
-    }
-    if (g_strcmp0(formatStr, "S16BE") == 0)
-    {
-        return firebolt::rialto::Format::S16BE;
-    }
-    if (g_strcmp0(formatStr, "U16LE") == 0)
-    {
-        return firebolt::rialto::Format::U16LE;
-    }
-    if (g_strcmp0(formatStr, "U16BE") == 0)
-    {
-        return firebolt::rialto::Format::U16BE;
-    }
-    if (g_strcmp0(formatStr, "S24_32LE") == 0)
-    {
-        return firebolt::rialto::Format::S24_32LE;
-    }
-    if (g_strcmp0(formatStr, "S24_32BE") == 0)
-    {
-        return firebolt::rialto::Format::S24_32BE;
-    }
-    if (g_strcmp0(formatStr, "U24_32LE") == 0)
-    {
-        return firebolt::rialto::Format::U24_32LE;
-    }
-    if (g_strcmp0(formatStr, "U24_32BE") == 0)
-    {
-        return firebolt::rialto::Format::U24_32BE;
-    }
-    if (g_strcmp0(formatStr, "S32LE") == 0)
-    {
-        return firebolt::rialto::Format::S32LE;
-    }
-    if (g_strcmp0(formatStr, "S32BE") == 0)
-    {
-        return firebolt::rialto::Format::S32BE;
-    }
-    if (g_strcmp0(formatStr, "U32LE") == 0)
-    {
-        return firebolt::rialto::Format::U32LE;
-    }
-    if (g_strcmp0(formatStr, "U32BE") == 0)
-    {
-        return firebolt::rialto::Format::U32BE;
-    }
-    if (g_strcmp0(formatStr, "S24LE") == 0)
-    {
-        return firebolt::rialto::Format::S24LE;
-    }
-    if (g_strcmp0(formatStr, "S24BE") == 0)
-    {
-        return firebolt::rialto::Format::S24BE;
-    }
-    if (g_strcmp0(formatStr, "U24LE") == 0)
-    {
-        return firebolt::rialto::Format::U24LE;
-    }
-    if (g_strcmp0(formatStr, "U24BE") == 0)
-    {
-        return firebolt::rialto::Format::U24BE;
-    }
-    if (g_strcmp0(formatStr, "S20LE") == 0)
-    {
-        return firebolt::rialto::Format::S20LE;
-    }
-    if (g_strcmp0(formatStr, "S20BE") == 0)
-    {
-        return firebolt::rialto::Format::S20BE;
-    }
-    if (g_strcmp0(formatStr, "U20LE") == 0)
-    {
-        return firebolt::rialto::Format::U20LE;
-    }
-    if (g_strcmp0(formatStr, "U20BE") == 0)
-    {
-        return firebolt::rialto::Format::U20BE;
-    }
-    if (g_strcmp0(formatStr, "S18LE") == 0)
-    {
-        return firebolt::rialto::Format::S18LE;
-    }
-    if (g_strcmp0(formatStr, "S18BE") == 0)
-    {
-        return firebolt::rialto::Format::S18BE;
-    }
-    if (g_strcmp0(formatStr, "U18LE") == 0)
-    {
-        return firebolt::rialto::Format::U18LE;
-    }
-    if (g_strcmp0(formatStr, "U18BE") == 0)
-    {
-        return firebolt::rialto::Format::U18BE;
-    }
-    if (g_strcmp0(formatStr, "F32LE") == 0)
-    {
-        return firebolt::rialto::Format::F32LE;
-    }
-    if (g_strcmp0(formatStr, "F32BE") == 0)
-    {
-        return firebolt::rialto::Format::F32BE;
-    }
-    if (g_strcmp0(formatStr, "F64LE") == 0)
-    {
-        return firebolt::rialto::Format::F64LE;
-    }
-    if (g_strcmp0(formatStr, "F64BE") == 0)
-    {
-        return firebolt::rialto::Format::F64BE;
+        return it->second;
     }
     return std::nullopt;
 }
