@@ -169,7 +169,7 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
 
         priv->m_isFlushOngoing = false;
 
-        StateChangeResult result = client->pause(priv->m_sourceId, priv->m_isAsync);
+        StateChangeResult result = client->pause(priv->m_sourceId/*, priv->m_isAsync*/);
         if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
         {
             // NOT_ATTACHED is not a problem here, because source will be attached later when GST_EVENT_CAPS is received
