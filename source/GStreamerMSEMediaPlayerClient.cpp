@@ -181,6 +181,16 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return position;
 }
 
+bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    return m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames);
+}
+
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;

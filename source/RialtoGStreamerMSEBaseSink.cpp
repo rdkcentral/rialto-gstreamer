@@ -52,6 +52,7 @@ enum
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
     PROP_HAS_DRM,
+    PROP_STATS,
     PROP_LAST
 };
 
@@ -212,6 +213,30 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
     case PROP_HAS_DRM:
         g_value_set_boolean(value, sink->priv->m_hasDrm);
         break;
+    case PROP_STATS:
+    {
+        guint64 totalVideoFrames{5};
+        guint64 droppedVideoFrames{2};
+
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            GST_ERROR_OBJECT(sink, "Could not get the media player client");
+            return;
+        }
+
+        if (client->getStats(sink->priv->m_sourceId, totalVideoFrames, droppedVideoFrames))
+        {
+            GstStructure *stats{gst_structure_new("stats", "rendered", G_TYPE_UINT64, totalVideoFrames, "dropped",
+                                                  G_TYPE_UINT64, droppedVideoFrames, nullptr)};
+            g_value_set_pointer(value, stats);
+        }
+        else
+        {
+            GST_ERROR_OBJECT(sink, "No stats returned from client");
+        }
+    }
+    break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -631,6 +656,9 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_HAS_DRM,
                                     g_param_spec_boolean("has-drm", "has drm", "has drm", TRUE,
                                                          GParamFlags(G_PARAM_READWRITE)));
+    g_object_class_install_property(gobjectClass, PROP_STATS,
+                                    g_param_spec_pointer("stats", NULL, "pointer to a gst_structure",
+                                                         GParamFlags(G_PARAM_READABLE)));
 }
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
