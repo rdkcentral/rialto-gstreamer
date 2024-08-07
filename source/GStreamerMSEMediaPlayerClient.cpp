@@ -526,6 +526,16 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             case firebolt::rialto::PlaybackState::PAUSED:
             case firebolt::rialto::PlaybackState::PLAYING:
             {
+                if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
+                {
+                    m_clientState = ClientState::PAUSED;
+                }
+                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
+                         m_clientState == ClientState::AWAITING_PLAYING)
+                {
+                    m_clientState = ClientState::PLAYING;
+                }
+
                 for (auto &source : m_attachedSources)
                 {
                     if (state == firebolt::rialto::PlaybackState::PAUSED &&
@@ -540,16 +550,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     }
 
                     rialto_mse_base_handle_rialto_server_state_changed(source.second.m_rialtoSink, state);
-                }
-
-                if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
-                {
-                    m_clientState = ClientState::PAUSED;
-                }
-                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
-                         m_clientState == ClientState::AWAITING_PLAYING)
-                {
-                    m_clientState = ClientState::PLAYING;
                 }
 
                 break;
