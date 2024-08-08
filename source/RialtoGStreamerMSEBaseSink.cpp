@@ -360,9 +360,6 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
         break;
     case PROP_STATS:
     {
-        guint64 totalVideoFrames{5};
-        guint64 droppedVideoFrames{2};
-
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
@@ -370,6 +367,8 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
             return;
         }
 
+        guint64 totalVideoFrames;
+        guint64 droppedVideoFrames;
         if (client->getStats(sink->priv->m_sourceId, totalVideoFrames, droppedVideoFrames))
         {
             GstStructure *stats{gst_structure_new("stats", "rendered", G_TYPE_UINT64, totalVideoFrames, "dropped",
