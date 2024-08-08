@@ -453,6 +453,24 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetGapWithoutLevel)
     gst_object_unref(textContext.m_pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetGapWithoutParamsAndDoNotCrash)
+{
+    constexpr int64_t kPosition{0};
+    constexpr uint32_t kDuration{0};
+
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    GstStructure *dataStruct = gst_structure_new_empty("gap-params");
+    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, firebolt::rialto::kUndefinedLevel))
+        .WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "gap", dataStruct, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+
+    gst_structure_free(dataStruct);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToGetOrSetUnknownProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
