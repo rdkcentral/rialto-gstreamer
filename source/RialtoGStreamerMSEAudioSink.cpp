@@ -166,6 +166,31 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
                 return nullptr;
             }
         }
+        else if (g_str_has_prefix(strct_name, "audio/b-wav"))
+        {
+            gint sample_rate = 0;
+            gint number_of_channels = 0;
+            std::optional<uint64_t> channelMask;
+            gst_structure_get_int(structure, "rate", &sample_rate);
+            gst_structure_get_int(structure, "channels", &number_of_channels);
+            std::optional<firebolt::rialto::Layout> layout =
+                rialto_mse_sink_convert_layout(gst_structure_get_string(structure, "layout"));
+            std::optional<firebolt::rialto::Format> format =
+                rialto_mse_sink_convert_format(gst_structure_get_string(structure, "format"));
+            const GValue *channelMaskValue = gst_structure_get_value(structure, "channel-mask");
+            if (channelMaskValue)
+            {
+                channelMask = gst_value_get_bitmask(channelMaskValue);
+            }
+
+            mimeType = "audio/b-wav";
+            audioConfig = firebolt::rialto::AudioConfig{static_cast<uint32_t>(number_of_channels),
+                                                        static_cast<uint32_t>(sample_rate),
+                                                        {},
+                                                        format,
+                                                        layout,
+                                                        channelMask};
+        }
         else
         {
             GST_INFO_OBJECT(sink, "%s audio media source created", strct_name);

@@ -30,6 +30,7 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"audio/aac", {"audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
          {"audio/x-eac3", {"audio/x-ac3", "audio/x-eac3"}},
          {"audio/x-opus", {"audio/x-opus"}},
+         {"audio/b-wav", {"audio/b-wav"}},
          {"video/h264", {"video/x-h264"}},
          {"video/h265", {"video/x-h265"}},
          {"video/x-av1", {"video/x-av1"}},
@@ -62,4 +63,58 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
+}
+
+std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gchar *layoutStr)
+{
+    if (g_strcmp0(layoutStr, "interleaved") == 0)
+    {
+        return firebolt::rialto::Layout::INTERLEAVED;
+    }
+    if (g_strcmp0(layoutStr, "non-interleaved") == 0)
+    {
+        return firebolt::rialto::Layout::NON_INTERLEAVED;
+    }
+    return std::nullopt;
+}
+
+std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gchar *formatStr)
+{
+    static const std::unordered_map<std::string, firebolt::rialto::Format>
+        kStringToFormat{{"S8", firebolt::rialto::Format::S8},
+                        {"U8", firebolt::rialto::Format::U8},
+                        {"S16LE", firebolt::rialto::Format::S16LE},
+                        {"S16BE", firebolt::rialto::Format::S16BE},
+                        {"U16LE", firebolt::rialto::Format::U16LE},
+                        {"U16BE", firebolt::rialto::Format::U16BE},
+                        {"S24_32LE", firebolt::rialto::Format::S24_32LE},
+                        {"S24_32BE", firebolt::rialto::Format::S24_32BE},
+                        {"U24_32LE", firebolt::rialto::Format::U24_32LE},
+                        {"U24_32BE", firebolt::rialto::Format::U24_32BE},
+                        {"S32LE", firebolt::rialto::Format::S32LE},
+                        {"S32BE", firebolt::rialto::Format::S32BE},
+                        {"U32LE", firebolt::rialto::Format::U32LE},
+                        {"U32BE", firebolt::rialto::Format::U32BE},
+                        {"S24LE", firebolt::rialto::Format::S24LE},
+                        {"S24BE", firebolt::rialto::Format::S24BE},
+                        {"U24LE", firebolt::rialto::Format::U24LE},
+                        {"U24BE", firebolt::rialto::Format::U24BE},
+                        {"S20LE", firebolt::rialto::Format::S20LE},
+                        {"S20BE", firebolt::rialto::Format::S20BE},
+                        {"U20LE", firebolt::rialto::Format::U20LE},
+                        {"U20BE", firebolt::rialto::Format::U20BE},
+                        {"S18LE", firebolt::rialto::Format::S18LE},
+                        {"S18BE", firebolt::rialto::Format::S18BE},
+                        {"U18LE", firebolt::rialto::Format::U18LE},
+                        {"U18BE", firebolt::rialto::Format::U18BE},
+                        {"F32LE", firebolt::rialto::Format::F32LE},
+                        {"F32BE", firebolt::rialto::Format::F32BE},
+                        {"F64LE", firebolt::rialto::Format::F64LE},
+                        {"F64BE", firebolt::rialto::Format::F64BE}};
+    const auto it = kStringToFormat.find(formatStr);
+    if (it != kStringToFormat.end())
+    {
+        return it->second;
+    }
+    return std::nullopt;
 }
