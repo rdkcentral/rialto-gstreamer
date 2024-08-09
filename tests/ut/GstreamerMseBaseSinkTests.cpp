@@ -197,6 +197,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
     g_object_get(audioSink, "stats", &stats, nullptr);
     EXPECT_NE(stats, nullptr);
 
+    gst_structure_free(stats);
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
