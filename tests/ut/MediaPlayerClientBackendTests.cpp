@@ -272,3 +272,14 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition));
 }
+
+TEST_F(MediaPlayerClientBackendTests, ShouldProcessAudioGap)
+{
+    constexpr int64_t kPosition{34};
+    constexpr uint32_t kDuration{23};
+    constexpr uint32_t kLevel{1};
+    EXPECT_CALL(*m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.processAudioGap(kPosition, kDuration, kLevel));
+}

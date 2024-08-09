@@ -45,6 +45,7 @@ enum
     PROP_0,
     PROP_VOLUME,
     PROP_MUTE,
+    PROP_GAP,
     PROP_LAST
 };
 
@@ -350,6 +351,30 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         client->setMute(priv->mute);
         break;
     }
+    case PROP_GAP:
+    {
+        gint64 position{0};
+        guint duration{0}, level{0};
+
+        GstStructure *gapData = GST_STRUCTURE_CAST(g_value_get_boxed(value));
+        if (!gst_structure_get_int64(gapData, "position", &position))
+        {
+            GST_WARNING_OBJECT(object, "Set gap: position is missing!");
+        }
+        if (!gst_structure_get_uint(gapData, "duration", &duration))
+        {
+            GST_WARNING_OBJECT(object, "Set gap: duration is missing!");
+        }
+        if (gst_structure_get_uint(gapData, "level", &level))
+        {
+            client->processAudioGap(position, duration, level);
+        }
+        else
+        {
+            client->processAudioGap(position, duration);
+        }
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -406,6 +431,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_MUTE,
                                     g_param_spec_boolean("mute", "Mute", "Mute status of this stream", kDefaultMute,
                                                          GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(gobjectClass, PROP_GAP,
+                                    g_param_spec_boxed("gap", "Gap", "Audio Gap", GST_TYPE_STRUCTURE,
+                                                       (GParamFlags)(G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS)));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
