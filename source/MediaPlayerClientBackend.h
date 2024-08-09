@@ -86,6 +86,11 @@ public:
 
     bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
 
+    bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override
+    {
+        return m_mediaPlayerBackend->getStats(sourceId, renderedFrames, droppedFrames);
+    }
+
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
     bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }

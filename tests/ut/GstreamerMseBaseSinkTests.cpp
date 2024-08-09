@@ -180,6 +180,41 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetHasDrmProperty)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getStats(_, _, _)).WillOnce(Return(true));
+    GstStructure *stats{nullptr};
+    g_object_get(audioSink, "stats", &stats, nullptr);
+    EXPECT_NE(stats, nullptr);
+
+    gst_structure_free(stats);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    // No pipeline therefore the stats should still be null
+    GstStructure *stats{nullptr};
+    g_object_get(audioSink, "stats", &stats, nullptr);
+    EXPECT_EQ(stats, nullptr);
+
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
