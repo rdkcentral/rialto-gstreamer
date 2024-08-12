@@ -50,6 +50,9 @@ const std::string kMimeType{""};
 constexpr double kVolume{1.0};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
+constexpr uint32_t kDuration{30};
+constexpr uint32_t kLevel{1};
+
 MATCHER_P(PtrMatcher, ptr, "")
 {
     return ptr == arg.get();
@@ -978,7 +981,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
 
     gst_object_unref(audioSink);
 }
+//
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(true));
+    m_sut->processAudioGap(kPosition, kDuration, kLevel);
+}
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(false));
+    m_sut->processAudioGap(kPosition, kDuration, kLevel);
+}
+
+//
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetPlaybackRate)
 {
     constexpr double kPlaybackRate{0.5};
