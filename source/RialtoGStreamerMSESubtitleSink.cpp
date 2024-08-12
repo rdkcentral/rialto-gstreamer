@@ -50,7 +50,6 @@ enum
 static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSESubtitleSink *sink = RIALTO_MSE_SUBTITLE_SINK(element);
-    //RialtoMSESubtitleSinkPrivate *priv = sink->priv;
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
 
     switch (transition)
@@ -266,15 +265,6 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
         }
         //std::unique_lock lock{priv->rectangleMutex};
         priv->m_textTrackIdentifier = std::string(textTrackIdentifier);
-        // if (!client)
-        // {
-        //     GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
-        //     priv->rectangleSettingQueued = true;
-        // }
-        // else
-        // {
-        //     client->setVideoRectangle(priv->videoRectangle);
-        // }
         break;
     }
     case PROP_WINDOW_ID:

@@ -721,6 +721,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     case GST_EVENT_EOS:
     {
         std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
+        GST_ERROR_OBJECT(sink, "KLOPS EOS");
         sink->priv->m_isEos = true;
         break;
     }

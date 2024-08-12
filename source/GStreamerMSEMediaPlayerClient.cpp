@@ -934,7 +934,7 @@ void PullBufferMessage::handle()
         GstMapInfo map;
         if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
         {
-            GST_ERROR_OBJECT(m_rialtoSink, "Could not map audio buffer");
+            GST_ERROR_OBJECT(m_rialtoSink, "Could not map buffer");
             rialto_mse_base_sink_pop_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
             continue;
         }
@@ -965,6 +965,7 @@ void PullBufferMessage::handle()
     firebolt::rialto::MediaSourceStatus status = firebolt::rialto::MediaSourceStatus::OK;
     if (isEos)
     {
+        GST_ERROR_OBJECT(m_rialtoSink, "KLOPS EOS");
         status = firebolt::rialto::MediaSourceStatus::EOS;
     }
     else if (addedSegments == 0)
