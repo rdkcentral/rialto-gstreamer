@@ -426,6 +426,19 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
         });
 }
 
+void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t duration, uint32_t level)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            if (!m_clientBackend->processAudioGap(position, duration, level))
+            {
+                GST_ERROR("Process Audio Gap operation failed");
+                return;
+            }
+        });
+}
+
 bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                                                  RialtoMSEBaseSink *rialtoSink)
 {

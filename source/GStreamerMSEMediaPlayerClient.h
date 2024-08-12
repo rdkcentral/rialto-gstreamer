@@ -277,6 +277,7 @@ public:
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
     void setSourcePosition(int32_t sourceId, int64_t position);
+    void processAudioGap(int64_t position, uint32_t duration, uint32_t level = firebolt::rialto::kUndefinedLevel);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                       RialtoMSEBaseSink *rialtoSink);

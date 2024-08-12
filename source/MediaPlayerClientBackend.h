@@ -108,6 +108,11 @@ public:
         return m_mediaPlayerBackend->setSourcePosition(sourceId, position);
     }
 
+    bool processAudioGap(int64_t position, uint32_t duration, uint32_t level) override
+    {
+        return m_mediaPlayerBackend->processAudioGap(position, duration, level);
+    }
+
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };

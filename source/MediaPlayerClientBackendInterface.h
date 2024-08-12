@@ -54,5 +54,6 @@ public:
     virtual bool getMute(bool &mute) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
     virtual bool setSourcePosition(int32_t sourceId, int64_t position) = 0;
+    virtual bool processAudioGap(int64_t position, uint32_t duration, uint32_t level) = 0;
 };
 } // namespace firebolt::rialto::client
