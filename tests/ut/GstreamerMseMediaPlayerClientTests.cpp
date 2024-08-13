@@ -51,7 +51,8 @@ constexpr double kVolume{1.0};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
 constexpr uint32_t kDuration{30};
-constexpr uint32_t kLevel{1};
+constexpr int64_t kDiscontinuityGap{1};
+constexpr bool kAudioAac{false};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -986,16 +987,18 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
 {
     expectCallInEventLoop();
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(true));
-    m_sut->processAudioGap(kPosition, kDuration, kLevel);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(true));
+    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
 {
     expectCallInEventLoop();
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(false));
-    m_sut->processAudioGap(kPosition, kDuration, kLevel);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(false));
+    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
 }
 
 //

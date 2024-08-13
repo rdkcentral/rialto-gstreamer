@@ -353,8 +353,9 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_GAP:
     {
-        gint64 position{0};
-        guint duration{0}, level{0};
+        gint64 position{0}, discontinuityGap{0};
+        guint duration{0};
+        gboolean audioAac{FALSE};
 
         GstStructure *gapData = GST_STRUCTURE_CAST(g_value_get_boxed(value));
         if (!gst_structure_get_int64(gapData, "position", &position))
@@ -365,14 +366,17 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         {
             GST_WARNING_OBJECT(object, "Set gap: duration is missing!");
         }
-        if (gst_structure_get_uint(gapData, "level", &level))
+        if (!gst_structure_get_int64(gapData, "discontinuity-gap", &discontinuityGap))
         {
-            client->processAudioGap(position, duration, level);
+            GST_WARNING_OBJECT(object, "Set gap: discontinuity gap is missing!");
         }
-        else
+        if (!gst_structure_get_boolean(gapData, "audio-aac", &audioAac))
         {
-            client->processAudioGap(position, duration);
+            GST_WARNING_OBJECT(object, "Set gap: audio aac is missing!");
         }
+
+        GST_DEBUG_OBJECT(object, "Processing audio gap.");
+        client->processAudioGap(position, duration, discontinuityGap, audioAac);
         break;
     }
     default:

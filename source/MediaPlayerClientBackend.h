@@ -103,9 +103,9 @@ public:
         return m_mediaPlayerBackend->setSourcePosition(sourceId, position);
     }
 
-    bool processAudioGap(int64_t position, uint32_t duration, uint32_t level) override
+    bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) override
     {
-        return m_mediaPlayerBackend->processAudioGap(position, duration, level);
+        return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);
     }
 
 private:
