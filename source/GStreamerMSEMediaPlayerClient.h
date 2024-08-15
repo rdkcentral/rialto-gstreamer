@@ -263,6 +263,8 @@ public:
 
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
+    bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
+
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);

@@ -181,6 +181,16 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return position;
 }
 
+bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    return m_clientBackend->setImmediateOutput(sourceId, immediateOutput);
+}
+
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;

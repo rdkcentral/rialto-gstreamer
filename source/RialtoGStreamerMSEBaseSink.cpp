@@ -19,6 +19,8 @@
 #define USE_GLIB 1
 
 #include <cstring>
+#include <limits>
+
 #include <gst/gst.h>
 
 #include "ControlBackend.h"
@@ -28,7 +30,6 @@
 #include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include <limits>
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug

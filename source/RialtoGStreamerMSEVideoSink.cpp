@@ -47,8 +47,61 @@ enum
     PROP_MAX_VIDEO_WIDTH_DEPRECATED,
     PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
     PROP_FRAME_STEP_ON_PREROLL,
+    PROP_IMMEDIATE_OUTPUT,
     PROP_LAST
 };
+
+// Function to check if an element has a property
+static bool elementHasProperty(GstElementFactory *factory, const char *propertyName)
+{
+    GstElement *element = gst_element_factory_create(factory, nullptr);
+    if (!element)
+    {
+        return false;
+    }
+
+    GParamSpec **props;
+    guint n_props;
+    props = g_object_class_list_properties(G_OBJECT_GET_CLASS(element), &n_props);
+
+    bool hasProperty{false};
+    for (guint i = 0; i < n_props; ++i)
+    {
+        if (g_strcmp0(props[i]->name, propertyName) == 0)
+        {
+            hasProperty = true;
+            break;
+        }
+    }
+
+    gst_object_unref(element);
+    g_free(props);
+    return hasProperty;
+}
+
+static bool doesAnyElementHaveProperty(const char *propertyName)
+{
+    // Get all element factories
+    GList *factories =
+        gst_element_factory_list_get_elements(GST_ELEMENT_FACTORY_TYPE_SINK | GST_ELEMENT_FACTORY_TYPE_DECODER,
+                                              GST_RANK_NONE);
+
+    // Scan all sinks and decoders for the "audio-fade" property
+
+    bool hasProperty{false};
+    for (GList *iter = factories; iter != nullptr; iter = iter->next)
+    {
+        GstElementFactory *factory = GST_ELEMENT_FACTORY(iter->data);
+        if (elementHasProperty(factory, propertyName))
+        {
+            hasProperty = true;
+        }
+    }
+
+    // Cleanup
+    gst_plugin_feature_list_free(factories);
+    return hasProperty;
+}
 
 static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *element, GstStateChange transition)
 {
@@ -324,6 +377,20 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         priv->stepOnPrerollEnabled = stepOnPrerollEnabled;
         break;
     }
+    case PROP_IMMEDIATE_OUTPUT:
+    {
+        if (!client)
+        {
+            GST_ERROR_OBJECT(sink, "Could not get the media player client");
+            return;
+        }
+
+        if (!client->setImmediateOutput(sink->parent.priv->m_sourceId, g_value_get_boolean(value) != FALSE))
+        {
+            GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+        }
+    }
+    break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -397,6 +464,14 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
                                                          "allow frame stepping on preroll into pause", FALSE,
                                                          G_PARAM_READWRITE));
+
+    const char *kImmediateOutputPropertyName{"immediate-output"};
+    if (doesAnyElementHaveProperty(kImmediateOutputPropertyName))
+    {
+        g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
+                                        g_param_spec_boolean(kImmediateOutputPropertyName, "immediate output",
+                                                             "immediate output", TRUE, GParamFlags(G_PARAM_WRITABLE)));
+    }
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
