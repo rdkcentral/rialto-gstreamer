@@ -92,9 +92,9 @@ public:
 
     bool getVolume(double &volume) override { return m_mediaPlayerBackend->getVolume(volume); }
 
-    bool setMute(bool mute) override { return m_mediaPlayerBackend->setMute(mute); }
+    bool setMute(bool mute, int sourceId) override { return m_mediaPlayerBackend->setMute(sourceId, mute); }
 
-    bool getMute(bool &mute) override { return m_mediaPlayerBackend->getMute(mute); }
+    bool getMute(bool &mute, int sourceId) override { return m_mediaPlayerBackend->getMute(sourceId, mute); }
 
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 

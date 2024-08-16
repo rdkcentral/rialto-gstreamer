@@ -42,6 +42,8 @@ typedef struct _RialtoMSESubtitleSinkPrivate RialtoMSESubtitleSinkPrivate;
 struct _RialtoMSESubtitleSinkPrivate
 {
     std::string m_textTrackIdentifier;
+    bool m_isMuted = false;
+    bool m_isMuteQueued = false;
     uint32_t m_videoId = 0;
 };
 

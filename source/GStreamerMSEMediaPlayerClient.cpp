@@ -316,7 +316,8 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 }
                 else if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
                 {
-                    shouldPause = true;
+                    m_clientState = ClientState::AWAITING_PAUSED;
+                    //shouldPause = true;
                 }
                 else
                 {
@@ -685,23 +686,24 @@ double GStreamerMSEMediaPlayerClient::getVolume()
     return volume;
 }
 
-void GStreamerMSEMediaPlayerClient::setMute(bool mute)
+void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute); });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
-bool GStreamerMSEMediaPlayerClient::getMute()
+bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
 {
     bool mute{false};
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            if (m_clientBackend->getMute(mute))
+            if (m_clientBackend->getMute(mute, sourceId))
             {
                 m_mute = mute;
             }
             else
             {
+                //todo-klops
                 mute = m_mute;
             }
         });
@@ -735,8 +737,8 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
 
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState state)
 {
-    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                       [state](const auto &source) { return source.second.m_state == state; });
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [state](const auto &source)
+                       { return /*!source.second.m_isAsync || */source.second.m_state == state; });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()

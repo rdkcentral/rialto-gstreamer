@@ -67,6 +67,13 @@ static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *el
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
+
+        if (sink->priv->m_isMuteQueued)
+        {
+            client->setMute(sink->priv->m_isMuted, basePriv->m_sourceId);
+            sink->priv->m_isMuteQueued = false;
+        }
+
         break;
     }
     default:
@@ -93,7 +100,7 @@ rialto_mse_subtitle_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *c
     std::string mimeType;
     if (mimeName)
     {
-        if (g_str_has_prefix(mimeName, "text/vtt") || g_str_has_prefix(mimeName, "application/x-subtitle-vtt"))
+        if (g_str_has_prefix(mimeName, "text/vtt") || g_str_has_prefix(mimeName, "application/x-subtitle-vtt") /*klosps*/ || g_str_has_prefix(mimeName, "application/x-subtitle-unknown"))
         {
             mimeType = "text/vtt";
         }
@@ -193,16 +200,10 @@ static void rialto_mse_subtitle_sink_get_property(GObject *object, guint propId,
     switch (propId)
     {
     case PROP_MUTE:
-        // if (!client)
-        // {
-        //     std::unique_lock lock{priv->rectangleMutex};
-        //     g_value_set_string(value, priv->videoRectangle.c_str());
-        // }
-        // else
-        // {
-        //     g_value_set_string(value, client->getVideoRectangle().c_str());
-        // }
+    {
+        g_value_set_boolean(value, priv->m_isMuted);
         break;
+    }
     case PROP_TEXT_TRACK_IDENTIFIER:
     {
         g_value_set_string(value, priv->m_textTrackIdentifier.c_str());
@@ -245,15 +246,15 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
     switch (propId)
     {
     case PROP_MUTE:
-        // if (!client)
-        // {
-        //     std::unique_lock lock{priv->rectangleMutex};
-        //     g_value_set_string(value, priv->videoRectangle.c_str());
-        // }
-        // else
-        // {
-        //     g_value_set_string(value, client->getVideoRectangle().c_str());
-        // }
+        priv->m_isMuted = g_value_get_boolean(value);
+        if (!client)
+        {
+            priv->m_isMuteQueued = true;
+            return;
+        }
+
+        client->setMute(priv->m_isMuted, basePriv->m_sourceId);
+
         break;
     case PROP_TEXT_TRACK_IDENTIFIER:
     {

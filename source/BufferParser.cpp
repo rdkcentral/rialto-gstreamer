@@ -190,15 +190,7 @@ std::unique_ptr<IMediaPipeline::MediaSegment>
 SubtitleBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure,
                                              int64_t timeStamp, int64_t duration)
 {
-    //     GstMapInfo m_info;
-    // if(gst_buffer_map(buffer, &m_info, GST_MAP_READ))
-    // {
-    //     std::string data(reinterpret_cast<char *>(m_info.data), m_info.size);
-    //     GST_ERROR_OBJECT("KLOPS parseSpecificPartOfBuffer '%s', size %u", data.c_str(), m_info.size);
-    //     textTrackSink->priv->m_textTrackAccessor->sendData(data);
-
-    //     //unmap!!
-    // }
+    //todo-klops
     std::unique_ptr<IMediaPipeline::MediaSegment> mseData =
         std::make_unique<IMediaPipeline::MediaSegment>(streamId, MediaSourceType::SUBTITLE, timeStamp, duration);
 

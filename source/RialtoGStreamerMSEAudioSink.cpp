@@ -76,7 +76,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         if (priv->isMuteQueued)
         {
-            client->setMute(priv->mute);
+            client->setMute(priv->mute, basePriv->m_sourceId);
             priv->isMuteQueued = false;
         }
 
@@ -270,7 +270,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_boolean(value, priv->mute);
             return;
         }
-        g_value_set_boolean(value, client->getMute());
+        g_value_set_boolean(value, client->getMute(basePriv->m_sourceId));
         break;
     }
     default:
@@ -322,7 +322,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isMuteQueued = true;
             return;
         }
-        client->setMute(priv->mute);
+        client->setMute(priv->mute, basePriv->m_sourceId);
         break;
     }
     default:

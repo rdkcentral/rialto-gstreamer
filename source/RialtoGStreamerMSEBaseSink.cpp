@@ -41,13 +41,6 @@ G_DEFINE_TYPE_WITH_CODE(RialtoMSEBaseSink, rialto_mse_base_sink, GST_TYPE_ELEMEN
 
 enum
 {
-    Prop0,
-    PropSync,
-    PropLast
-};
-
-enum
-{
     PROP_0,
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
@@ -532,7 +525,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     GST_DEBUG_OBJECT(sink, "handling event '%s'", GST_EVENT_TYPE_NAME(event));
     bool shouldForwardUpstream = GST_EVENT_IS_UPSTREAM(event);
-
+    GST_DEBUG_OBJECT(sink, "KLOPS-seek %u", shouldForwardUpstream);
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_SEEK:
@@ -597,6 +590,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
         {
             GST_DEBUG_OBJECT(sink, "forwarding upstream event '%s' failed", GST_EVENT_TYPE_NAME(event));
         }
+
         return result;
     }
 
@@ -1083,7 +1077,7 @@ static bool rialto_mse_base_sink_set_streams_number(RialtoMSEBaseSink *sink, Gst
     {
         // The default value of streams is V:1, A:1, S:0
         // Changing the default setting via properties is considered as DEPRECATED
-        subtitleStreams = 0;
+        subtitleStreams = 1; //todo-klops
         std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
         if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::VIDEO)
         {
