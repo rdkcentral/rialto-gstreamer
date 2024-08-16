@@ -25,6 +25,14 @@
 #include <chrono>
 #include <thread>
 
+
+//todo-klops
+//separate Segmnet
+//separate mute for audio and subtitle
+//CC lang
+//check all properties
+//CC support
+
 namespace
 {
 // The start time of segment might differ from the first sample which is injected.
@@ -703,7 +711,6 @@ bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
             }
             else
             {
-                //todo-klops
                 mute = m_mute;
             }
         });
@@ -967,7 +974,6 @@ void PullBufferMessage::handle()
     firebolt::rialto::MediaSourceStatus status = firebolt::rialto::MediaSourceStatus::OK;
     if (isEos)
     {
-        GST_ERROR_OBJECT(m_rialtoSink, "KLOPS EOS");
         status = firebolt::rialto::MediaSourceStatus::EOS;
     }
     else if (addedSegments == 0)

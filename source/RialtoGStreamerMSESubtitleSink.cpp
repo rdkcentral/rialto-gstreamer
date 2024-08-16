@@ -284,7 +284,6 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
     }
 }
 
-//TODO-klops: needed?
 static void rialto_mse_subtitle_sink_qos_handle(GstElement *element, uint64_t processed, uint64_t dropped)
 {
     GstBus *bus = gst_element_get_bus(element);

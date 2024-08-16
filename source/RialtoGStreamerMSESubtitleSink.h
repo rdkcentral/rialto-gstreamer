@@ -38,7 +38,6 @@ typedef struct _RialtoMSESubtitleSink RialtoMSESubtitleSink;
 typedef struct _RialtoMSESubtitleSinkClass RialtoMSESubtitleSinkClass;
 typedef struct _RialtoMSESubtitleSinkPrivate RialtoMSESubtitleSinkPrivate;
 
-//TODO-klops: move to separate file 
 struct _RialtoMSESubtitleSinkPrivate
 {
     std::string m_textTrackIdentifier;

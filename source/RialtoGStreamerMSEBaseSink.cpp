@@ -397,29 +397,25 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
     }
     case GST_QUERY_POSITION:
     {
-        GST_DEBUG_OBJECT(sink, "KLOPS1");
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
             return FALSE;
         }
-GST_DEBUG_OBJECT(sink, "KLOPS2");
+
         GstFormat fmt;
         gst_query_parse_position(query, &fmt, NULL);
         switch (fmt)
         {
         case GST_FORMAT_TIME:
         {
-            GST_DEBUG_OBJECT(sink, "KLOPS3 %p", client.get());
-            GST_DEBUG_OBJECT(sink, "KLOPS3.1 %p", sink->priv);
-            GST_DEBUG_OBJECT(sink, "KLOPS3.2 %d", sink->priv->m_sourceId.load());
             gint64 position = client->getPosition(sink->priv->m_sourceId);
             GST_DEBUG_OBJECT(sink, "Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
             if (position < 0)
             {
                 return FALSE;
             }
-            GST_DEBUG_OBJECT(sink, "KLOPS4");
+
             gst_query_set_position(query, fmt, position);
             break;
         }
@@ -525,7 +521,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     GST_DEBUG_OBJECT(sink, "handling event '%s'", GST_EVENT_TYPE_NAME(event));
     bool shouldForwardUpstream = GST_EVENT_IS_UPSTREAM(event);
-    GST_DEBUG_OBJECT(sink, "KLOPS-seek %u", shouldForwardUpstream);
+
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_SEEK:
@@ -715,7 +711,6 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     case GST_EVENT_EOS:
     {
         std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
-        GST_ERROR_OBJECT(sink, "KLOPS EOS");
         sink->priv->m_isEos = true;
         break;
     }
@@ -1077,7 +1072,7 @@ static bool rialto_mse_base_sink_set_streams_number(RialtoMSEBaseSink *sink, Gst
     {
         // The default value of streams is V:1, A:1, S:0
         // Changing the default setting via properties is considered as DEPRECATED
-        subtitleStreams = 1; //todo-klops
+        subtitleStreams = 0;
         std::lock_guard<std::mutex> lock(priv->m_sinkMutex);
         if (priv->m_mediaSourceType == firebolt::rialto::MediaSourceType::VIDEO)
         {
