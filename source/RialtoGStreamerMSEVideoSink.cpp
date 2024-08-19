@@ -259,6 +259,22 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         g_value_set_boolean(value, priv->stepOnPrerollEnabled);
         break;
     }
+    case PROP_IMMEDIATE_OUTPUT:
+    {
+        if (!client)
+        {
+            GST_ERROR_OBJECT(sink, "Could not get the media player client");
+            return;
+        }
+
+        bool immediateOutput{false};
+        if (!client->getImmediateOutput(sink->parent.priv->m_sourceId, immediateOutput))
+        {
+            GST_ERROR_OBJECT(sink, "Could not get immediate-output");
+        }
+        g_value_set_boolean(value, immediateOutput);
+    }
+    break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -423,12 +439,13 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
 
         const char *kImmediateOutputPropertyName{"immediate-output"};
-        if (mediaPlayerCapabilities->doesSinkOrDecoderHaveProperty(firebolt::rialto::MediaSourceType::AUDIO,
+        if (mediaPlayerCapabilities->doesSinkOrDecoderHaveProperty(firebolt::rialto::MediaSourceType::VIDEO,
                                                                    kImmediateOutputPropertyName))
         {
             g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
                                             g_param_spec_boolean(kImmediateOutputPropertyName, "immediate output",
-                                                                 "immediate output", TRUE, GParamFlags(G_PARAM_WRITABLE)));
+                                                                 "immediate output", TRUE,
+                                                                 GParamFlags(G_PARAM_READWRITE)));
         }
     }
     else

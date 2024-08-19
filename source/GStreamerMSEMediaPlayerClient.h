@@ -264,6 +264,7 @@ public:
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
+    bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,

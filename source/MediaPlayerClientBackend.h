@@ -91,6 +91,11 @@ public:
         return m_mediaPlayerBackend->setImmediateOutput(sourceId, immediateOutput);
     }
 
+    bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) override
+    {
+        return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);
+    }
+
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
     bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }

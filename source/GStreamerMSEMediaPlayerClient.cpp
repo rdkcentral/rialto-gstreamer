@@ -191,6 +191,16 @@ bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool im
     return m_clientBackend->setImmediateOutput(sourceId, immediateOutput);
 }
 
+bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    return m_clientBackend->getImmediateOutput(sourceId, immediateOutput);
+}
+
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;
