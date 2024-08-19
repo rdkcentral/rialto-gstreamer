@@ -419,31 +419,15 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetGap)
 {
     constexpr int64_t kPosition{123};
     constexpr uint32_t kDuration{456};
-    constexpr uint32_t kLevel{1};
+    constexpr int64_t kDiscontinuityGap{1};
+    constexpr bool kAudioAac{false};
 
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     GstStructure *dataStruct = gst_structure_new("gap-params", "position", G_TYPE_INT64, kPosition, "duration",
-                                                 G_TYPE_UINT, kDuration, "level", G_TYPE_UINT, kLevel, nullptr);
-    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(true));
-    g_object_set(textContext.m_sink, "gap", dataStruct, nullptr);
-
-    setNullState(textContext.m_pipeline, textContext.m_sourceId);
-
-    gst_structure_free(dataStruct);
-    gst_object_unref(textContext.m_pipeline);
-}
-
-TEST_F(GstreamerMseAudioSinkTests, ShouldSetGapWithoutLevel)
-{
-    constexpr int64_t kPosition{123};
-    constexpr uint32_t kDuration{456};
-
-    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
-
-    GstStructure *dataStruct = gst_structure_new("gap-params", "position", G_TYPE_INT64, kPosition, "duration",
-                                                 G_TYPE_UINT, kDuration, nullptr);
-    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, firebolt::rialto::kUndefinedLevel))
+                                                 G_TYPE_UINT, kDuration, "discontinuity-gap", G_TYPE_INT64,
+                                                 kDiscontinuityGap, "audio-aac", G_TYPE_BOOLEAN, kAudioAac, nullptr);
+    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
         .WillOnce(Return(true));
     g_object_set(textContext.m_sink, "gap", dataStruct, nullptr);
 
@@ -457,11 +441,13 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetGapWithoutParamsAndDoNotCrash)
 {
     constexpr int64_t kPosition{0};
     constexpr uint32_t kDuration{0};
+    constexpr int64_t kDiscontinuityGap{0};
+    constexpr bool kAudioAac{false};
 
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     GstStructure *dataStruct = gst_structure_new_empty("gap-params");
-    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, firebolt::rialto::kUndefinedLevel))
+    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
         .WillOnce(Return(true));
     g_object_set(textContext.m_sink, "gap", dataStruct, nullptr);
 

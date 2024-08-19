@@ -426,12 +426,13 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
         });
 }
 
-void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t duration, uint32_t level)
+void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap,
+                                                    bool audioAac)
 {
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            if (!m_clientBackend->processAudioGap(position, duration, level))
+            if (!m_clientBackend->processAudioGap(position, duration, discontinuityGap, audioAac))
             {
                 GST_ERROR("Process Audio Gap operation failed");
                 return;
