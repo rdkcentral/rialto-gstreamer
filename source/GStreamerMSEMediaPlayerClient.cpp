@@ -247,7 +247,9 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
 
             if (m_clientState == ClientState::PAUSED)
             {
-                if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PLAYING))
+                // If one source is AWAITING_PLAYING, the other source can still be PLAYING.
+                // This happends when we are switching out audio.
+                if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PLAYING, ClientState::PLAYING}))
                 {
                     GST_INFO("Sending play command");
                     m_clientBackend->play();
@@ -753,6 +755,12 @@ bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
                        [state](const auto &source) { return source.second.m_state == state; });
+}
+
+bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState>& states)
+{
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
+                       [states](const auto &source) { return std::find(states.begin(), states.end(), source.second.m_state) != states.end(); });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
