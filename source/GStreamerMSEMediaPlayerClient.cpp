@@ -672,9 +672,10 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
     return result;
 }
 
-void GStreamerMSEMediaPlayerClient::setVolume(double volume)
+void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volumeDuration,
+                                              firebolt::rialto::EaseType easeType)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(volume); });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(targetVolume, volumeDuration, easeType); });
 }
 
 double GStreamerMSEMediaPlayerClient::getVolume()

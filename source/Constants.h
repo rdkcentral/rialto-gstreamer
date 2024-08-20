@@ -17,6 +17,9 @@
  */
 
 #pragma once
+#include <MediaCommon.h>
 
 constexpr double kDefaultVolume{1.0};
+constexpr uint32_t kDefaultVolumeDuration{0};
+constexpr firebolt::rialto::EaseType kDefaultEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kDefaultMute{false};

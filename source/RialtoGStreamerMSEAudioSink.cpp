@@ -72,7 +72,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         if (priv->isVolumeQueued)
         {
-            client->setVolume(priv->volume);
+            client->setVolume(priv->targetVolume, priv->volumeDuration, priv->easeType);
             priv->isVolumeQueued = false;
         }
         if (priv->isMuteQueued)
@@ -283,7 +283,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            g_value_set_double(value, priv->volume);
+            g_value_set_double(value, priv->targetVolume);
             return;
         }
         g_value_set_double(value, client->getVolume());
@@ -329,14 +329,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     {
     case PROP_VOLUME:
     {
-        priv->volume = g_value_get_double(value);
+        priv->targetVolume = g_value_get_double(value);
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
             priv->isVolumeQueued = true;
             return;
         }
-        client->setVolume(priv->volume);
+        client->setVolume(priv->targetVolume, priv->volumeDuration, priv->easeType);
         break;
     }
     case PROP_MUTE:

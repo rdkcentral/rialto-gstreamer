@@ -47,8 +47,8 @@ public:
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment) = 0;
     virtual bool getPosition(int64_t &position) = 0;
     virtual bool renderFrame() = 0;
-    virtual bool setVolume(double volume) = 0;
-    virtual bool getVolume(double &volume) = 0;
+    virtual bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) = 0;
+    virtual bool getVolume(double &currentVolume) = 0;
     virtual bool setMute(bool mute) = 0;
     virtual bool getMute(bool &mute) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;

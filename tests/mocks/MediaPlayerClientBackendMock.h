@@ -50,8 +50,9 @@ public:
                 (override));
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
     MOCK_METHOD(bool, renderFrame, (), (override));
-    MOCK_METHOD(bool, setVolume, (double volume), (override));
-    MOCK_METHOD(bool, getVolume, (double &volume), (override));
+    MOCK_METHOD(bool, setVolume, (double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType type),
+                (override));
+    MOCK_METHOD(bool, getVolume, (double &curretVolume), (override));
     MOCK_METHOD(bool, setMute, (bool mute), (override));
     MOCK_METHOD(bool, getMute, (bool &mute), (override));
     MOCK_METHOD(bool, flush, (int32_t sourceId, bool resetTime), (override));

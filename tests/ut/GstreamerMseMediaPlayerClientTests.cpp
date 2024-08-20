@@ -48,6 +48,8 @@ const std::string kUrl{"mse://1"};
 constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
 const std::string kMimeType{""};
 constexpr double kVolume{1.0};
+constexpr uint32_t kVolumeDuration{30};
+constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
 constexpr uint32_t kDuration{30};
@@ -1106,8 +1108,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVolume(kVolume)).WillOnce(Return(true));
-    m_sut->setVolume(kVolume);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
+    m_sut->setVolume(kVolume, kVolumeDuration, kEaseType);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
