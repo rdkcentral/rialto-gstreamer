@@ -26,13 +26,12 @@
 G_BEGIN_DECLS
 
 #define RIALTO_TYPE_MSE_SUBTITLE_SINK (rialto_mse_subtitle_sink_get_type())
-#define RIALTO_MSE_SUBTITLE_SINK(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), RIALTO_TYPE_MSE_SUBTITLE_SINK, RialtoMSESubtitleSink))
-#define RIALTO_MSE_SUBTITLE_SINK_CLASS(klass)                                                                             \
+#define RIALTO_MSE_SUBTITLE_SINK(obj)                                                                                  \
+    (G_TYPE_CHECK_INSTANCE_CAST((obj), RIALTO_TYPE_MSE_SUBTITLE_SINK, RialtoMSESubtitleSink))
+#define RIALTO_MSE_SUBTITLE_SINK_CLASS(klass)                                                                          \
     (G_TYPE_CHECK_CLASS_CAST((klass), RIALTO_TYPE_MSE_SUBTITLE_SINK, RialtoMSESubtitleSinkClass))
 #define RIALTO_IS_MSE_SUBTITLE_SINK(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), RIALTO_TYPE_MSE_SUBTITLE_SINK))
 #define RIALTO_IS_MSE_SUBTITLE_SINK_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), RIALTO_TYPE_MSE_SUBTITLE_SINK))
-
-
 
 typedef struct _RialtoMSESubtitleSink RialtoMSESubtitleSink;
 typedef struct _RialtoMSESubtitleSinkClass RialtoMSESubtitleSinkClass;
@@ -62,5 +61,5 @@ struct _RialtoMSESubtitleSinkClass
 GType rialto_mse_subtitle_sink_get_type(void);
 
 void rialto_mse_subtitle_sink_set_client_backend(GstElement *sink,
-                                              const std::shared_ptr<GStreamerMSEMediaPlayerClient> &mediaPlayerClient);
+                                                 const std::shared_ptr<GStreamerMSEMediaPlayerClient> &mediaPlayerClient);
 G_END_DECLS

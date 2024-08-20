@@ -51,7 +51,7 @@ public:
     virtual bool getVolume(double &volume) = 0;
     virtual bool setMute(bool mute, int sourceId) = 0;
     virtual bool getMute(bool &mute, int sourceId) = 0;
-    virtual bool setTextTrackIdentifier(const std::string &textTrackIdentifier)  = 0;
+    virtual bool setTextTrackIdentifier(const std::string &textTrackIdentifier) = 0;
     virtual bool getTextTrackIdentifier(std::string &textTrackIdentifier) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
     virtual bool setSourcePosition(int32_t sourceId, int64_t position) = 0;

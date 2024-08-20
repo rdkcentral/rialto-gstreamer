@@ -299,7 +299,7 @@ public:
     double getVolume();
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
-    void setTextTrackIdentifier(const std::string& textTrackIdentifier);
+    void setTextTrackIdentifier(const std::string &textTrackIdentifier);
     std::string getTextTrackIdentifier();
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);

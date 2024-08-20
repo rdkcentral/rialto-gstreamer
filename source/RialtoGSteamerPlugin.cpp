@@ -18,8 +18,8 @@
 
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEAudioSink.h"
-#include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerMSESubtitleSink.h"
+#include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerWebAudioSink.h"
 #include <cstring>
 #include <limits>

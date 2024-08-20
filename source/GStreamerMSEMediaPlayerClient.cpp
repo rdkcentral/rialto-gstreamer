@@ -317,7 +317,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 else if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
                 {
                     m_clientState = ClientState::AWAITING_PAUSED;
-                    //shouldPause = true;
+                    // shouldPause = true;
                 }
                 else
                 {
@@ -699,7 +699,7 @@ bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
     return mute;
 }
 
-void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string& textTrackIdentifier)
+void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string &textTrackIdentifier)
 {
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
 }
@@ -707,11 +707,7 @@ void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string& te
 std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()
 {
     std::string getTextTrackIdentifier;
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            m_clientBackend->getTextTrackIdentifier(getTextTrackIdentifier);
-        });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getTextTrackIdentifier(getTextTrackIdentifier); });
     return getTextTrackIdentifier;
 }
 
@@ -742,8 +738,9 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
 
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState state)
 {
-    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [state](const auto &source)
-                       { return /*!source.second.m_isAsync || */source.second.m_state == state; });
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
+                       [state](const auto &source)
+                       { return /*!source.second.m_isAsync || */ source.second.m_state == state; });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()

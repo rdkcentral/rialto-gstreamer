@@ -71,5 +71,4 @@ private:
                               int64_t duration) override;
 };
 
-
 #endif // BUFFERPARSER_H

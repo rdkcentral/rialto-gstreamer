@@ -188,7 +188,7 @@ VideoBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
 
 std::unique_ptr<IMediaPipeline::MediaSegment>
 SubtitleBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure,
-                                             int64_t timeStamp, int64_t duration)
+                                                int64_t timeStamp, int64_t duration)
 {
     std::unique_ptr<IMediaPipeline::MediaSegment> mseData =
         std::make_unique<IMediaPipeline::MediaSegment>(streamId, MediaSourceType::SUBTITLE, timeStamp, duration);

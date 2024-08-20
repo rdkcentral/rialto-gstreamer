@@ -87,7 +87,9 @@ rialto_mse_subtitle_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *c
     std::string mimeType;
     if (mimeName)
     {
-        if (g_str_has_prefix(mimeName, "text/vtt") || g_str_has_prefix(mimeName, "application/x-subtitle-vtt") /*klosps*/ || g_str_has_prefix(mimeName, "application/x-subtitle-unknown"))
+        if (g_str_has_prefix(mimeName, "text/vtt") ||
+            g_str_has_prefix(mimeName, "application/x-subtitle-vtt") /*klosps*/ ||
+            g_str_has_prefix(mimeName, "application/x-subtitle-unknown"))
         {
             mimeType = "text/vtt";
         }
@@ -363,8 +365,8 @@ static void rialto_mse_subtitle_sink_class_init(RialtoMSESubtitleSinkClass *klas
                                                         nullptr, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_WINDOW_ID,
-                                    g_param_spec_uint("window-id", "Window ID", "Id of window (placeholder)", 0, 256,
-                                                      0, GParamFlags(G_PARAM_READWRITE)));
+                                    g_param_spec_uint("window-id", "Window ID", "Id of window (placeholder)", 0, 256, 0,
+                                                      GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_ASYNC,
                                     g_param_spec_boolean("async", "Async", "Asynchronous mode", FALSE, G_PARAM_READWRITE));
