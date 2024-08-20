@@ -50,8 +50,8 @@ enum
 static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSESubtitleSink *sink = RIALTO_MSE_SUBTITLE_SINK(element);
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
 
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
     switch (transition)
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
@@ -59,19 +59,6 @@ static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *el
         if (!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element))
         {
             return GST_STATE_CHANGE_FAILURE;
-        }
-
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-        if (!client)
-        {
-            GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
-            return GST_STATE_CHANGE_FAILURE;
-        }
-
-        if (sink->priv->m_isMuteQueued)
-        {
-            client->setMute(sink->priv->m_isMuted, basePriv->m_sourceId);
-            sink->priv->m_isMuteQueued = false;
         }
 
         break;
@@ -129,6 +116,7 @@ rialto_mse_subtitle_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *c
 static gboolean rialto_mse_subtitle_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
+    RialtoMSESubtitleSink *subtitleSink = RIALTO_MSE_SUBTITLE_SINK(parent);
     RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
     switch (GST_EVENT_TYPE(event))
     {
@@ -157,6 +145,20 @@ static gboolean rialto_mse_subtitle_sink_event(GstPad *pad, GstObject *parent, G
             else
             {
                 basePriv->m_sourceAttached = true;
+                if (subtitleSink->priv->m_isMuteQueued)
+                {
+                    client->setMute(subtitleSink->priv->m_isMuted, basePriv->m_sourceId);
+                    subtitleSink->priv->m_isMuteQueued = false;
+                }
+
+                {
+                    std::unique_lock lock{subtitleSink->priv->m_mutex};
+                    if (subtitleSink->priv->m_isTextTrackIdentifierQueued)
+                    {
+                        client->setTextTrackIdentifier(subtitleSink->priv->m_textTrackIdentifier);
+                        subtitleSink->priv->m_isTextTrackIdentifierQueued = false;
+                    }
+                }
 
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
@@ -201,12 +203,26 @@ static void rialto_mse_subtitle_sink_get_property(GObject *object, guint propId,
     {
     case PROP_MUTE:
     {
-        g_value_set_boolean(value, priv->m_isMuted);
+        if (!client)
+        {
+            g_value_set_boolean(value, priv->m_isMuted);
+            return;
+        }
+        g_value_set_boolean(value, client->getMute(basePriv->m_sourceId));
         break;
     }
     case PROP_TEXT_TRACK_IDENTIFIER:
     {
-        g_value_set_string(value, priv->m_textTrackIdentifier.c_str());
+        {
+            std::unique_lock lock{priv->m_mutex};
+            if (!client)
+            {
+                g_value_set_string(value, priv->m_textTrackIdentifier.c_str());
+                return;
+            }
+        }
+        g_value_set_string(value, client->getTextTrackIdentifier().c_str());
+
         break;
     }
     case PROP_WINDOW_ID:
@@ -247,7 +263,7 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
     {
     case PROP_MUTE:
         priv->m_isMuted = g_value_get_boolean(value);
-        if (!client)
+        if (!client || !basePriv->m_sourceAttached)
         {
             priv->m_isMuteQueued = true;
             return;
@@ -264,8 +280,19 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
             GST_WARNING_OBJECT(object, "TextTrackIdentifier string not valid");
             break;
         }
-        //std::unique_lock lock{priv->rectangleMutex};
+
+        std::unique_lock lock{priv->m_mutex};
         priv->m_textTrackIdentifier = std::string(textTrackIdentifier);
+        if (!client || !basePriv->m_sourceAttached)
+        {
+            GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
+            priv->m_isTextTrackIdentifierQueued = true;
+        }
+        else
+        {
+            client->setTextTrackIdentifier(priv->m_textTrackIdentifier);
+        }
+
         break;
     }
     case PROP_WINDOW_ID:
@@ -331,8 +358,9 @@ static void rialto_mse_subtitle_sink_class_init(RialtoMSESubtitleSinkClass *klas
 
     g_object_class_install_property(gobjectClass, PROP_TEXT_TRACK_IDENTIFIER,
                                     g_param_spec_string("text-track-identifier", "Text Track Identifier",
-                                                        "Identifier of text track", nullptr,
-                                                        GParamFlags(G_PARAM_READWRITE)));
+                                                        "Identifier of text track. Valid input for service is "
+                                                        "\"CC[1-4]\", \"TEXT[1-4]\", \"SERVICE[1-64]\"",
+                                                        nullptr, GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_WINDOW_ID,
                                     g_param_spec_uint("window-id", "Window ID", "Id of window (placeholder)", 0, 256,

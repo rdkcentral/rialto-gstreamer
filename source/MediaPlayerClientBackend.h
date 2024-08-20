@@ -96,6 +96,16 @@ public:
 
     bool getMute(bool &mute, int sourceId) override { return m_mediaPlayerBackend->getMute(sourceId, mute); }
 
+    bool setTextTrackIdentifier(const std::string &textTrackIdentifier) override
+    {
+        return m_mediaPlayerBackend->setTextTrackIdentifier(textTrackIdentifier);
+    }
+
+    bool getTextTrackIdentifier(std::string &textTrackIdentifier) override
+    {
+        return m_mediaPlayerBackend->getTextTrackIdentifier(textTrackIdentifier);
+    }
+
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 
     bool setSourcePosition(int32_t sourceId, int64_t position) override

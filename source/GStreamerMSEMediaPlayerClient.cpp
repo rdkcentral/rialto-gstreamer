@@ -25,14 +25,6 @@
 #include <chrono>
 #include <thread>
 
-
-//todo-klops
-//separate Segmnet
-//separate mute for audio and subtitle
-//CC lang
-//check all properties
-//CC support
-
 namespace
 {
 // The start time of segment might differ from the first sample which is injected.
@@ -702,19 +694,25 @@ void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
 bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
 {
     bool mute{false};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getMute(mute, sourceId); });
+
+    return mute;
+}
+
+void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string& textTrackIdentifier)
+{
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
+}
+
+std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()
+{
+    std::string getTextTrackIdentifier;
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            if (m_clientBackend->getMute(mute, sourceId))
-            {
-                m_mute = mute;
-            }
-            else
-            {
-                mute = m_mute;
-            }
+            m_clientBackend->getTextTrackIdentifier(getTextTrackIdentifier);
         });
-    return mute;
+    return getTextTrackIdentifier;
 }
 
 ClientState GStreamerMSEMediaPlayerClient::getClientState()
