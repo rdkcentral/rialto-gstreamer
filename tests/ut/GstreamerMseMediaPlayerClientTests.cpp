@@ -773,6 +773,32 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDoNothingWhenLostStateNotAttach
     EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPlayWhenRecoveringFromLostStateFromPlaying)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+    serverTransitionedToPaused();
+    allSourcesWantToPlay();
+    serverTransitionedToPlaying();
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->notifyLostState(m_audioSourceId);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    serverTransitionedToPaused();
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PAUSED);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
+    m_sut->play(m_audioSourceId);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
+
+    serverTransitionedToPlaying();
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
+
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlaying)
 {
     attachAudioVideo();

@@ -234,7 +234,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
 
-                if (checkIfAllAttachedSourcesInState(ClientState::PLAYING))
+                if (checkIfAllAttachedSourcesInStates({ClientState::PLAYING}))
                 {
                     m_clientState = ClientState::PLAYING;
                 }
@@ -247,7 +247,9 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
 
             if (m_clientState == ClientState::PAUSED)
             {
-                if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PLAYING))
+                // If one source is AWAITING_PLAYING, the other source can still be PLAYING.
+                // This happends when we are switching out audio.
+                if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PLAYING, ClientState::PLAYING}))
                 {
                     GST_INFO("Sending play command");
                     m_clientBackend->play();
@@ -291,7 +293,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 GST_INFO("Server is already paused");
                 sourceIt->second.m_state = ClientState::PAUSED;
 
-                if (checkIfAllAttachedSourcesInState(ClientState::PAUSED))
+                if (checkIfAllAttachedSourcesInStates({ClientState::PAUSED}))
                 {
                     m_clientState = ClientState::PAUSED;
                 }
@@ -305,7 +307,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 bool shouldPause = false;
                 if (m_clientState == ClientState::READY)
                 {
-                    if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
+                    if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PAUSED}))
                     {
                         shouldPause = true;
                     }
@@ -496,7 +498,7 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
 
         // In playbin3 streams, confirmation about number of available sources comes after attaching the source,
         // so we need to check if all sources are ready to pause
-        if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
+        if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PAUSED}))
         {
             GST_INFO("Sending pause command, because all attached sources are ready to pause");
             m_clientBackend->pause();
@@ -750,10 +752,11 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
         });
 }
 
-bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState state)
+bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                       [state](const auto &source) { return source.second.m_state == state; });
+                       [states](const auto &source)
+                       { return std::find(states.begin(), states.end(), source.second.m_state) != states.end(); });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
