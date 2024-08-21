@@ -87,9 +87,7 @@ rialto_mse_subtitle_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *c
     std::string mimeType;
     if (mimeName)
     {
-        if (g_str_has_prefix(mimeName, "text/vtt") ||
-            g_str_has_prefix(mimeName, "application/x-subtitle-vtt") /*klosps*/ ||
-            g_str_has_prefix(mimeName, "application/x-subtitle-unknown"))
+        if (g_str_has_prefix(mimeName, "text/vtt") || g_str_has_prefix(mimeName, "application/x-subtitle-vtt"))
         {
             mimeType = "text/vtt";
         }
