@@ -210,6 +210,39 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSetImmediateOutputProperty)
     gst_object_unref(videoSink);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetImmediateOutputProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getImmediateOutput(_, _)).WillOnce(DoAll(SetArgReferee<1>(true), Return(true)));
+    gboolean immediateOutput;
+    g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+    EXPECT_TRUE(immediateOutput);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetImmediateOutputProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    // No pipeline therefore the m_mediaPipelineMock method getImmediateOutput() will not be called
+    gboolean immediateOutput;
+    g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+
+    gst_object_unref(videoSink);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
