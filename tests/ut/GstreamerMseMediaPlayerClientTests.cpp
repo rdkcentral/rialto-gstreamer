@@ -51,7 +51,8 @@ constexpr double kVolume{1.0};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
 constexpr uint32_t kDuration{30};
-constexpr uint32_t kLevel{1};
+constexpr int64_t kDiscontinuityGap{1};
+constexpr bool kAudioAac{false};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -770,6 +771,32 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDoNothingWhenLostStateNotAttach
     EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPlayWhenRecoveringFromLostStateFromPlaying)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+    serverTransitionedToPaused();
+    allSourcesWantToPlay();
+    serverTransitionedToPlaying();
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->notifyLostState(m_audioSourceId);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    serverTransitionedToPaused();
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PAUSED);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
+    m_sut->play(m_audioSourceId);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
+
+    serverTransitionedToPlaying();
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
+
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlaying)
 {
     attachAudioVideo();
@@ -986,16 +1013,18 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
 {
     expectCallInEventLoop();
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(true));
-    m_sut->processAudioGap(kPosition, kDuration, kLevel);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(true));
+    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
 {
     expectCallInEventLoop();
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kLevel)).WillOnce(Return(false));
-    m_sut->processAudioGap(kPosition, kDuration, kLevel);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(false));
+    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
 }
 
 //

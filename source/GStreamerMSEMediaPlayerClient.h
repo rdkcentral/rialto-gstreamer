@@ -278,7 +278,7 @@ public:
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
     void setSourcePosition(int32_t sourceId, int64_t position);
-    void processAudioGap(int64_t position, uint32_t duration, uint32_t level = firebolt::rialto::kUndefinedLevel);
+    void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                       RialtoMSEBaseSink *rialtoSink);
@@ -307,7 +307,7 @@ public:
 private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
-    bool checkIfAllAttachedSourcesInState(ClientState state);
+    bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
