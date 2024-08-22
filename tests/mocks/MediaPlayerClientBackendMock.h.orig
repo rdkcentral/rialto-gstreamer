@@ -16,43 +16,45 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef FIREBOLT_RIALTO_MEDIA_PIPELINE_MOCK_H_
-#define FIREBOLT_RIALTO_MEDIA_PIPELINE_MOCK_H_
+#ifndef FIREBOLT_RIALTO_CLIENT_MEDIA_PLAYER_CLIENT_BACKEND_MOCK_H_
+#define FIREBOLT_RIALTO_CLIENT_MEDIA_PLAYER_CLIENT_BACKEND_MOCK_H_
 
-#include "IMediaPipeline.h"
+#include "MediaPlayerClientBackendInterface.h"
 #include <gmock/gmock.h>
 
-namespace firebolt::rialto
+namespace firebolt::rialto::client
 {
-class MediaPipelineFactoryMock : public IMediaPipelineFactory
-{
-public:
-    MOCK_METHOD(std::unique_ptr<IMediaPipeline>, createMediaPipeline,
-                (std::weak_ptr<IMediaPipelineClient> client, const VideoRequirements &videoRequirements),
-                (const, override));
-};
-
-class MediaPipelineMock : public IMediaPipeline
+class MediaPlayerClientBackendMock : public MediaPlayerClientBackendInterface
 {
 public:
-    MOCK_METHOD(std::weak_ptr<IMediaPipelineClient>, getClient, (), (override));
-    MOCK_METHOD(bool, load, (MediaType type, const std::string &mimeType, const std::string &url), (override));
-    MOCK_METHOD(bool, attachSource, (const std::unique_ptr<MediaSource> &source), (override));
+    MOCK_METHOD(void, createMediaPlayerBackend,
+                (std::weak_ptr<IMediaPipelineClient> client, uint32_t maxWidth, uint32_t maxHeight), (override));
+    MOCK_METHOD(bool, isMediaPlayerBackendCreated, (), (const, override));
+    MOCK_METHOD(bool, attachSource, (std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> & source),
+                (override));
     MOCK_METHOD(bool, removeSource, (int32_t id), (override));
     MOCK_METHOD(bool, allSourcesAttached, (), (override));
+    MOCK_METHOD(bool, load, (firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url),
+                (override));
     MOCK_METHOD(bool, play, (), (override));
     MOCK_METHOD(bool, pause, (), (override));
     MOCK_METHOD(bool, stop, (), (override));
+    MOCK_METHOD(bool, haveData, (firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId), (override));
+    MOCK_METHOD(bool, seek, (int64_t seekPosition), (override));
     MOCK_METHOD(bool, setPlaybackRate, (double rate), (override));
-    MOCK_METHOD(bool, setPosition, (int64_t position), (override));
+    MOCK_METHOD(bool, setVideoWindow, (unsigned int x, unsigned int y, unsigned int width, unsigned int height),
+                (override));
+    MOCK_METHOD(firebolt::rialto::AddSegmentStatus, addSegment,
+                (unsigned int needDataRequestId,
+                 const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment),
+                (override));
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
+<<<<<<< HEAD
     MOCK_METHOD(bool, setImmediateOutput, (int32_t sourceId, bool immediateOutput), (override));
     MOCK_METHOD(bool, getImmediateOutput, (int32_t sourceId, bool &immediateOutput), (override));
+=======
     MOCK_METHOD(bool, getStats, (int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames), (override));
-    MOCK_METHOD(bool, setVideoWindow, (uint32_t x, uint32_t y, uint32_t width, uint32_t height), (override));
-    MOCK_METHOD(bool, haveData, (MediaSourceStatus status, uint32_t needDataRequestId), (override));
-    MOCK_METHOD(AddSegmentStatus, addSegment,
-                (uint32_t needDataRequestId, const std::unique_ptr<MediaSegment> &mediaSegment), (override));
+>>>>>>> master
     MOCK_METHOD(bool, renderFrame, (), (override));
     MOCK_METHOD(bool, setVolume, (double volume), (override));
     MOCK_METHOD(bool, getVolume, (double &volume), (override));
@@ -63,6 +65,6 @@ public:
     MOCK_METHOD(bool, processAudioGap, (int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac),
                 (override));
 };
-} // namespace firebolt::rialto
+} // namespace firebolt::rialto::client
 
-#endif // FIREBOLT_RIALTO_MEDIA_PIPELINE_MOCK_H_
+#endif // FIREBOLT_RIALTO_CLIENT_MEDIA_PLAYER_CLIENT_BACKEND_MOCK_H_
