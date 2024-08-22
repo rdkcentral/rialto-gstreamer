@@ -443,6 +443,9 @@ void RialtoGstTest::expectSinksInitialisation() const
         .WillOnce(Return(kSupportedAudioMimeTypes));
     EXPECT_CALL(*capabilitiesMockVideo, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
         .WillOnce(Return(kSupportedVideoMimeTypes));
+    EXPECT_CALL(*capabilitiesMockVideo, doesSinkOrDecoderHaveProperty(firebolt::rialto::MediaSourceType::VIDEO, _))
+        .WillOnce(Return(true));
+
     std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
         std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
             IMediaPipelineCapabilitiesFactory::createFactory())};
