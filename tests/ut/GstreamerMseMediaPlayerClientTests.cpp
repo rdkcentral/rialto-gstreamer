@@ -978,8 +978,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
-    m_sut->setSourcePosition(kSourceId, kPosition);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(true));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime);
 
     gst_object_unref(audioSink);
 }
@@ -991,8 +991,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(false));
-    m_sut->setSourcePosition(kSourceId, kPosition);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(false));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime);
 
     gst_object_unref(audioSink);
 }
@@ -1004,7 +1004,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    m_sut->setSourcePosition(kSourceId + 1, kPosition);
+    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime);
 
     gst_object_unref(audioSink);
 }
