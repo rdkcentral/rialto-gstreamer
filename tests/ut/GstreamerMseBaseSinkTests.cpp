@@ -535,6 +535,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleNewSegment)
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
 {
     constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{false};
 
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -550,7 +551,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(true));
 
     GstSegment *segment{gst_segment_new()};
     gst_segment_init(segment, GST_FORMAT_TIME);
