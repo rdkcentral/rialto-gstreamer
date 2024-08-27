@@ -167,7 +167,7 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
                 return nullptr;
             }
         }
-        else if (g_str_has_prefix(strct_name, "audio/b-wav"))
+        else if (g_str_has_prefix(strct_name, "audio/b-wav") || g_str_has_prefix(strct_name, "audio/x-raw"))
         {
             gint sample_rate = 0;
             gint number_of_channels = 0;
@@ -184,7 +184,15 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
                 channelMask = gst_value_get_bitmask(channelMaskValue);
             }
 
-            mimeType = "audio/b-wav";
+            if (g_str_has_prefix(strct_name, "audio/b-wav"))
+            {
+                mimeType = "audio/b-wav";
+            }
+            else
+            {
+                mimeType = "audio/x-raw";
+            }
+
             audioConfig = firebolt::rialto::AudioConfig{static_cast<uint32_t>(number_of_channels),
                                                         static_cast<uint32_t>(sample_rate),
                                                         {},
