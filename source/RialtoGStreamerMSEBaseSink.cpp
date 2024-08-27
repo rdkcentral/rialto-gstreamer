@@ -540,7 +540,8 @@ static void rialto_mse_base_sink_set_segment(RialtoMSEBaseSink *sink)
         GST_ERROR_OBJECT(sink, "Could not get the media player client");
         return;
     }
-    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start);
+    const bool kResetTime{sink->priv->m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
+    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start, kResetTime);
 }
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
