@@ -438,14 +438,18 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
 
-        std::vector<std::string> kPropertyNamesToSearch{"immediate-output"};
-        if (!mediaPlayerCapabilities
-                 ->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO, kPropertyNamesToSearch)
-                 .empty())
+        const std::string kImmediateOutputPropertyName{"immediate-output"};
+        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName};
+        std::vector<std::string> supportedProperties{
+            mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
+                                                            kPropertyNamesToSearch)};
+
+        if (std::find(supportedProperties.begin(), supportedProperties.end(), kImmediateOutputPropertyName) !=
+            supportedProperties.end())
         {
             g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
-                                            g_param_spec_boolean("immediate-output", "immediate output",
-                                                                 "immediate output", TRUE,
+                                            g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
+                                                                 "immediate output", "immediate output", TRUE,
                                                                  GParamFlags(G_PARAM_READWRITE)));
         }
     }
