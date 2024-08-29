@@ -50,6 +50,7 @@ const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/a
                                                         "audio/x-opus", "audio/b-wav", "audio/x-raw"};
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
+const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml"};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 int32_t generateSourceId()
 {
@@ -440,10 +441,14 @@ void RialtoGstTest::expectSinksInitialisation() const
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
     std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockVideo{
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
+    std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockSubtitles{
+        std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
     EXPECT_CALL(*capabilitiesMockAudio, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
         .WillOnce(Return(kSupportedAudioMimeTypes));
     EXPECT_CALL(*capabilitiesMockVideo, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
         .WillOnce(Return(kSupportedVideoMimeTypes));
+    EXPECT_CALL(*capabilitiesMockSubtitles, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::SUBTITLE))
+        .WillOnce(Return(kSupportedSubtitlesMimeTypes));
     EXPECT_CALL(*capabilitiesMockVideo, getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO, _))
         .WillOnce(Invoke(
             [&](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
@@ -458,5 +463,6 @@ void RialtoGstTest::expectSinksInitialisation() const
     // Video sink is registered first
     EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities())
         .WillOnce(Return(ByMove(std::move(capabilitiesMockVideo))))
-        .WillOnce(Return(ByMove(std::move(capabilitiesMockAudio))));
+        .WillOnce(Return(ByMove(std::move(capabilitiesMockAudio))))
+        .WillOnce(Return(ByMove(std::move(capabilitiesMockSubtitles))));
 }
