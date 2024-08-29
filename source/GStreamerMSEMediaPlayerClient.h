@@ -97,6 +97,8 @@ private:
     int64_t m_position = 0;
     bool m_isFlushing = false;
     ClientState m_state = ClientState::READY;
+    bool m_isAsync = true;
+    bool m_isMuted = false;
 };
 
 class HaveDataMessage : public Message
@@ -300,8 +302,10 @@ public:
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double volume);
     double getVolume();
-    void setMute(bool mute);
-    bool getMute();
+    void setMute(bool mute, int32_t sourceId);
+    bool getMute(int sourceId);
+    void setTextTrackIdentifier(const std::string &textTrackIdentifier);
+    std::string getTextTrackIdentifier();
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
 
