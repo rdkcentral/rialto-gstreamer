@@ -200,6 +200,5 @@ void ProcessProtectionMetadata(GstBuffer *buffer, BufferProtectionMetadata &meta
             getEncryptionSchemeFromProtectionMetadata(protectionMeta, metadata);
             getEncryptionPatternFromProtectionMetadata(protectionMeta, metadata);
         }
-        gst_buffer_remove_meta(buffer, reinterpret_cast<GstMeta *>(protectionMeta));
     }
 }

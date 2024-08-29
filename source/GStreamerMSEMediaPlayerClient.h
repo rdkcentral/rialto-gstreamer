@@ -265,6 +265,8 @@ public:
 
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
+    bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
+
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
@@ -276,7 +278,8 @@ public:
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
-    void setSourcePosition(int32_t sourceId, int64_t position);
+    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime);
+    void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                       RialtoMSEBaseSink *rialtoSink);
@@ -307,7 +310,7 @@ public:
 private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
-    bool checkIfAllAttachedSourcesInState(ClientState state);
+    bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;

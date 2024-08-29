@@ -86,6 +86,11 @@ public:
 
     bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
 
+    bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override
+    {
+        return m_mediaPlayerBackend->getStats(sourceId, renderedFrames, droppedFrames);
+    }
+
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
     bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }
@@ -108,9 +113,14 @@ public:
 
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 
-    bool setSourcePosition(int32_t sourceId, int64_t position) override
+    bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime) override
     {
-        return m_mediaPlayerBackend->setSourcePosition(sourceId, position);
+        return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime);
+    }
+
+    bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) override
+    {
+        return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);
     }
 
 private:

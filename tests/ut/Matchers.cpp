@@ -28,7 +28,8 @@ bool operator==(const VideoRequirements &lhs, const VideoRequirements &rhs)
 bool operator==(const AudioConfig &lhs, const AudioConfig &rhs)
 {
     // Skip checking codecSpecificConfig, as it is returned by gstreamer function
-    return lhs.numberOfChannels == rhs.numberOfChannels && lhs.sampleRate == rhs.sampleRate;
+    return lhs.numberOfChannels == rhs.numberOfChannels && lhs.sampleRate == rhs.sampleRate &&
+           lhs.format == rhs.format && lhs.layout == rhs.layout && lhs.channelMask == rhs.channelMask;
 }
 
 bool operator==(const WebAudioPcmConfig &lhs, const WebAudioPcmConfig &rhs)

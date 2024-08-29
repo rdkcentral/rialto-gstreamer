@@ -46,6 +46,7 @@ public:
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment) = 0;
     virtual bool getPosition(int64_t &position) = 0;
+    virtual bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) = 0;
     virtual bool renderFrame() = 0;
     virtual bool setVolume(double volume) = 0;
     virtual bool getVolume(double &volume) = 0;
@@ -54,6 +55,7 @@ public:
     virtual bool setTextTrackIdentifier(const std::string &textTrackIdentifier) = 0;
     virtual bool getTextTrackIdentifier(std::string &textTrackIdentifier) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
-    virtual bool setSourcePosition(int32_t sourceId, int64_t position) = 0;
+    virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime) = 0;
+    virtual bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) = 0;
 };
 } // namespace firebolt::rialto::client

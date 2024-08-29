@@ -21,9 +21,13 @@
 
 #include <gst/gst.h>
 
+#include <MediaCommon.h>
+
+#include <optional>
 #include <string>
 #include <vector>
 void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                                           const std::vector<std::string> &supportedMimeType);
-
+std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gchar *layoutStr);
+std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gchar *formatStr);
 #endif // GSTREAMERMSEUTILS_H

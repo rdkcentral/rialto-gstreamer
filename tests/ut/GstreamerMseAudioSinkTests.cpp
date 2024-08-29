@@ -225,6 +225,37 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpus)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithBwav)
+{
+    constexpr firebolt::rialto::Format kExpectedFormat{firebolt::rialto::Format::S16LE};
+    constexpr firebolt::rialto::Layout kExpectedLayout{firebolt::rialto::Layout::INTERLEAVED};
+    constexpr uint64_t kExpectedChannelMask{0x0000000000000003};
+    const firebolt::rialto::AudioConfig kExpectedAudioConfig{kChannels,       kRate,           {},
+                                                             kExpectedFormat, kExpectedLayout, kExpectedChannelMask};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/b-wav", kHasDrm,
+                                                                             kExpectedAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_simple("audio/b-wav", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
+                                      "format", G_TYPE_STRING, "S16LE", "enable-svp", G_TYPE_STRING, "true",
+                                      "channel-mask", GST_TYPE_BITMASK, kExpectedChannelMask, "layout", G_TYPE_STRING,
+                                      "interleaved", nullptr)};
+    setCaps(audioSink, caps);
+
+    EXPECT_TRUE(audioSink->priv->m_sourceAttached);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -382,6 +413,48 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedMute)
     setNullState(pipeline, kUnknownSourceId);
 
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetGap)
+{
+    constexpr int64_t kPosition{123};
+    constexpr uint32_t kDuration{456};
+    constexpr int64_t kDiscontinuityGap{1};
+    constexpr bool kAudioAac{false};
+
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    GstStructure *dataStruct = gst_structure_new("gap-params", "position", G_TYPE_INT64, kPosition, "duration",
+                                                 G_TYPE_UINT, kDuration, "discontinuity-gap", G_TYPE_INT64,
+                                                 kDiscontinuityGap, "audio-aac", G_TYPE_BOOLEAN, kAudioAac, nullptr);
+    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "gap", dataStruct, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+
+    gst_structure_free(dataStruct);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetGapWithoutParamsAndDoNotCrash)
+{
+    constexpr int64_t kPosition{0};
+    constexpr uint32_t kDuration{0};
+    constexpr int64_t kDiscontinuityGap{0};
+    constexpr bool kAudioAac{false};
+
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    GstStructure *dataStruct = gst_structure_new_empty("gap-params");
+    EXPECT_CALL(m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "gap", dataStruct, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+
+    gst_structure_free(dataStruct);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToGetOrSetUnknownProperty)

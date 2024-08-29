@@ -45,6 +45,7 @@ enum
     PROP_0,
     PROP_VOLUME,
     PROP_MUTE,
+    PROP_GAP,
     PROP_LAST
 };
 
@@ -160,6 +161,31 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
                 GST_ERROR("Failed to parse opus caps!");
                 return nullptr;
             }
+        }
+        else if (g_str_has_prefix(strct_name, "audio/b-wav"))
+        {
+            gint sample_rate = 0;
+            gint number_of_channels = 0;
+            std::optional<uint64_t> channelMask;
+            gst_structure_get_int(structure, "rate", &sample_rate);
+            gst_structure_get_int(structure, "channels", &number_of_channels);
+            std::optional<firebolt::rialto::Layout> layout =
+                rialto_mse_sink_convert_layout(gst_structure_get_string(structure, "layout"));
+            std::optional<firebolt::rialto::Format> format =
+                rialto_mse_sink_convert_format(gst_structure_get_string(structure, "format"));
+            const GValue *channelMaskValue = gst_structure_get_value(structure, "channel-mask");
+            if (channelMaskValue)
+            {
+                channelMask = gst_value_get_bitmask(channelMaskValue);
+            }
+
+            mimeType = "audio/b-wav";
+            audioConfig = firebolt::rialto::AudioConfig{static_cast<uint32_t>(number_of_channels),
+                                                        static_cast<uint32_t>(sample_rate),
+                                                        {},
+                                                        format,
+                                                        layout,
+                                                        channelMask};
         }
         else
         {
@@ -327,6 +353,34 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         client->setMute(priv->mute, basePriv->m_sourceId);
         break;
     }
+    case PROP_GAP:
+    {
+        gint64 position{0}, discontinuityGap{0};
+        guint duration{0};
+        gboolean audioAac{FALSE};
+
+        GstStructure *gapData = GST_STRUCTURE_CAST(g_value_get_boxed(value));
+        if (!gst_structure_get_int64(gapData, "position", &position))
+        {
+            GST_WARNING_OBJECT(object, "Set gap: position is missing!");
+        }
+        if (!gst_structure_get_uint(gapData, "duration", &duration))
+        {
+            GST_WARNING_OBJECT(object, "Set gap: duration is missing!");
+        }
+        if (!gst_structure_get_int64(gapData, "discontinuity-gap", &discontinuityGap))
+        {
+            GST_WARNING_OBJECT(object, "Set gap: discontinuity gap is missing!");
+        }
+        if (!gst_structure_get_boolean(gapData, "audio-aac", &audioAac))
+        {
+            GST_WARNING_OBJECT(object, "Set gap: audio aac is missing!");
+        }
+
+        GST_DEBUG_OBJECT(object, "Processing audio gap.");
+        client->processAudioGap(position, duration, discontinuityGap, audioAac);
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -383,6 +437,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_MUTE,
                                     g_param_spec_boolean("mute", "Mute", "Mute status of this stream", kDefaultMute,
                                                          GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(gobjectClass, PROP_GAP,
+                                    g_param_spec_boxed("gap", "Gap", "Audio Gap", GST_TYPE_STRUCTURE,
+                                                       (GParamFlags)(G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS)));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
