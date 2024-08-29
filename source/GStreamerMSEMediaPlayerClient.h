@@ -97,8 +97,6 @@ private:
     int64_t m_position = 0;
     bool m_isFlushing = false;
     ClientState m_state = ClientState::READY;
-    bool m_isAsync = true;
-    bool m_isMuted = false;
 };
 
 class HaveDataMessage : public Message
@@ -320,7 +318,6 @@ private:
     int64_t m_position;
     int64_t m_duration;
     double m_volume = kDefaultVolume;
-    bool m_mute = kDefaultMute;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;

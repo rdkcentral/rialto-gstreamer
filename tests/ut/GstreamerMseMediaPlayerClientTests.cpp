@@ -1179,22 +1179,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReturnLastKnownMuteWhenOperationFails)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
-    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_, kAudioSourceId))
-        .WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
-    EXPECT_EQ(m_sut->getMute(kAudioSourceId), kMute);
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_, kAudioSourceId)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getMute(kAudioSourceId), kMute);
-
-    gst_object_unref(audioSink);
-}
-
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreams)
 {
     constexpr int32_t kVideoStreams{-1};

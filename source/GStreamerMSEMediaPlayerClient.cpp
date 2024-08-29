@@ -348,8 +348,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 }
                 else if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
                 {
-                    m_clientState = ClientState::AWAITING_PAUSED;
-                    // shouldPause = true;
+                    shouldPause = true;
                 }
                 else
                 {
