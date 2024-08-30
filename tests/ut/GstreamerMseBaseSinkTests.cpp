@@ -200,6 +200,26 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetImmediateOutputProperty)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSetImmediateOutputPropertyDueToPipelinedFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, setImmediateOutput(_, _)).WillOnce(Return(false));
+    g_object_set(videoSink, "immediate-output", TRUE, nullptr);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSetImmediateOutputProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -226,6 +246,28 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetImmediateOutputProperty)
     gboolean immediateOutput;
     g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
     EXPECT_TRUE(immediateOutput);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetImmediateOutputPropertyDueToPipelinedFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getImmediateOutput(_, _)).WillOnce(Return(false));
+    gboolean immediateOutput{true};
+    g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+    EXPECT_FALSE(immediateOutput); // The return value for failure
 
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
