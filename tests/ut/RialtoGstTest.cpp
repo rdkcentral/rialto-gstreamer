@@ -46,7 +46,7 @@ constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
 const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4", "audio/aac", "audio/x-eac3", "audio/x-opus",
-                                                        "audio/b-wav"};
+                                                        "audio/b-wav", "audio/x-raw"};
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
