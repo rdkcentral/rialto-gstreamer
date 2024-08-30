@@ -181,6 +181,26 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return position;
 }
 
+bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    return m_clientBackend->setImmediateOutput(sourceId, immediateOutput);
+}
+
+bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    return m_clientBackend->getImmediateOutput(sourceId, immediateOutput);
+}
+
 bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
 {
     if (!m_clientBackend)
