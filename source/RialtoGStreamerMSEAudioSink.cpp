@@ -46,6 +46,10 @@ enum
     PROP_VOLUME,
     PROP_MUTE,
     PROP_GAP,
+    PROP_LOW_LATENCY,
+    PROP_SYNC,
+    PROP_SYNC_OFF,
+    PROP_STREAM_SYNC_MODE,
     PROP_LAST
 };
 
@@ -456,6 +460,47 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
 
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+
+        const std::string kLowLatencyPropertyName{"low-latency"};
+        const std::string kSyncPropertyName{"sync"};
+        const std::string kSyncOffPropertyName{"sync-off"};
+        const std::string kStreamSyncModePropertyName{"stream-sync-mode"};
+        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName, kSyncOffPropertyName, kStreamSyncModePropertyName};
+        std::vector<std::string> supportedProperties{
+            mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
+                                                            kPropertyNamesToSearch)};
+
+        for (auto it = supportedProperties.begin(); it != supportedProperties.end(); ++it)
+        {
+            if (kLowLatencyPropertyName == *it)
+            {
+                g_object_class_install_property(gobjectClass, PROP_LOW_LATENCY,
+                                                g_param_spec_boolean(kLowLatencyPropertyName.c_str(), "low latency",
+                                                                     "Turn on low latency mode, for use with gaming (no audio decoding, no a/v sync)", FALSE, GParamFlags(G_PARAM_WRITABLE)));
+            }
+            else if (kSyncPropertyName == it*)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SYNC,
+                                                g_param_spec_boolean(kSyncPropertyName.c_str(), "sync", "Clock sync", FALSE,
+                                                                     GParamFlags(G_PARAM_READWRITE)));
+            }
+            else if (kSyncOffPropertyName == it*)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SYNC_OFF,
+                                                g_param_spec_boolean(kSyncOffPropertyName.c_str(), "sync off", "Turn on free running audio. Must be set before pipeline is PLAYING state.", TRUE,
+                                                                     GParamFlags(G_PARAM_WRITABLE)));
+            }
+            else if (kStreamSyncModePropertyName == it*)
+            {
+                g_object_class_install_property(gobjectClass, PROP_STREAM_SYNC_MODE,  
+                                                g_param_spec_int(kStreamSyncModePropertyName.c_str(), "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync", 0, G_MAXINT,
+                                                                 0, GParamFlags(G_PARAM_READWRITE)));
+            }
+            else
+            {
+                GST_ERROR("Unexpected property %s returned from rialto", it->c_str());
+            }
+        }
     }
     else
     {
