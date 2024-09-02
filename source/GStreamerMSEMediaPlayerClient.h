@@ -302,6 +302,12 @@ public:
     double getVolume();
     void setMute(bool mute);
     bool getMute();
+    void setLowLatency(bool lowLatency);
+    void setSync(bool sync);
+    bool getSync();
+    void setSyncOff(bool syncOff);
+    void setStreamSyncMode(int32_t streamSyncMode);
+    bool getStreamSyncMode();
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
 

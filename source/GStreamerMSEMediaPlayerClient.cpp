@@ -750,6 +750,32 @@ bool GStreamerMSEMediaPlayerClient::getMute()
     return mute;
 }
 
+void GStreamerMSEMediaPlayerClient::setLowLatency(bool lowLatency)
+{
+}
+
+void GStreamerMSEMediaPlayerClient::setSync(bool sync)
+{
+}
+
+bool GStreamerMSEMediaPlayerClient::getSync()
+{
+    return false;
+}
+
+void GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
+{
+}
+
+void GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
+{
+}
+
+bool GStreamerMSEMediaPlayerClient::getStreamSyncMode()
+{
+    return false;
+}
+
 ClientState GStreamerMSEMediaPlayerClient::getClientState()
 {
     ClientState state{ClientState::IDLE};

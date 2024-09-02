@@ -86,12 +86,12 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         if (priv->isSyncQueued)
         {
-            client->setSync(priv->isSync);
+            client->setSync(priv->sync);
             priv->isSyncQueued = false;
         }
         if (priv->isLowLatencyQueued)
         {
-            client->setLowLatency(priv->isLowLatency);
+            client->setLowLatency(priv->lowLatency);
             priv->isLowLatencyQueued = false;
         }
         if (priv->isSyncOffQueued)
@@ -335,7 +335,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            g_value_set_boolean(value, priv->isSync);
+            g_value_set_boolean(value, priv->sync);
             return;
         }
         g_value_set_boolean(value, client->getSync());
@@ -433,38 +433,38 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_LOW_LATENCY:
     {
-        priv->isLowLatency = g_value_get_boolean(value);
+        priv->lowLatency = g_value_get_boolean(value);
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue low latency setting");
             priv->isLowLatencyQueued = true;
             return;
         }
-        client->setLowLatency(priv->isLowLatency);
+        client->setLowLatency(priv->lowLatency);
         break;
     }
     case PROP_SYNC:
     {
-        priv->isSync = g_value_get_boolean(value);
+        priv->sync = g_value_get_boolean(value);
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue sync setting");
             priv->isSyncQueued = true;
             return;
         }
-        client->setSync(priv->isSync);
+        client->setSync(priv->sync);
         break;
     }
     case PROP_SYNC_OFF:
     {
-        priv->isSyncOff = g_value_get_boolean(value);
+        priv->syncOff = g_value_get_boolean(value);
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue sync off setting");
             priv->isSyncOffQueued = true;
             return;
         }
-        client->setMute(priv->isSyncOff);
+        client->setMute(priv->syncOff);
         break;
     }
     case PROP_STREAM_SYNC_MODE:
@@ -566,19 +566,19 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                 g_param_spec_boolean(kLowLatencyPropertyName.c_str(), "low latency",
                                                                      "Turn on low latency mode, for use with gaming (no audio decoding, no a/v sync)", FALSE, GParamFlags(G_PARAM_WRITABLE)));
             }
-            else if (kSyncPropertyName == it*)
+            else if (kSyncPropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_SYNC,
                                                 g_param_spec_boolean(kSyncPropertyName.c_str(), "sync", "Clock sync", FALSE,
                                                                      GParamFlags(G_PARAM_READWRITE)));
             }
-            else if (kSyncOffPropertyName == it*)
+            else if (kSyncOffPropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_SYNC_OFF,
                                                 g_param_spec_boolean(kSyncOffPropertyName.c_str(), "sync off", "Turn on free running audio. Must be set before pipeline is PLAYING state.", TRUE,
                                                                      GParamFlags(G_PARAM_WRITABLE)));
             }
-            else if (kStreamSyncModePropertyName == it*)
+            else if (kStreamSyncModePropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_STREAM_SYNC_MODE,  
                                                 g_param_spec_int(kStreamSyncModePropertyName.c_str(), "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync", 0, G_MAXINT,

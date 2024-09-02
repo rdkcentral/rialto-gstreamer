@@ -30,11 +30,11 @@ struct _RialtoMSEAudioSinkPrivate
     std::atomic_bool mute = kDefaultMute;
     std::atomic_bool isVolumeQueued = false;
     std::atomic_bool isMuteQueued = false;
-    std::atomic_bool isSync = false;
+    std::atomic_bool sync = false;
     std::atomic_bool isSyncQueued = false;
-    std::atomic_bool isLowLatency = false;
+    std::atomic_bool lowLatency = false;
     std::atomic_bool isLowLatencyQueued = false;
-    std::atomic_bool isSyncOff = false;
+    std::atomic_bool syncOff = false;
     std::atomic_bool isSyncOffQueued = false;
     int32_t streamSyncMode = 0;
     std::atomic_bool isStreamSyncModeQueued = false;
