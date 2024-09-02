@@ -84,6 +84,26 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             client->setMute(priv->mute);
             priv->isMuteQueued = false;
         }
+        if (priv->isSyncQueued)
+        {
+            client->setSync(priv->isSync);
+            priv->isSyncQueued = false;
+        }
+        if (priv->isLowLatencyQueued)
+        {
+            client->setLowLatency(priv->isLowLatency);
+            priv->isLowLatencyQueued = false;
+        }
+        if (priv->isSyncOffQueued)
+        {
+            client->setSyncOff(priv->syncOff);
+            priv->isSyncOffQueued = false;
+        }
+        if (priv->isStreamSyncModeQueued)
+        {
+            client->setStreamSyncMode(priv->streamSyncMode);
+            priv->isStreamSyncModeQueued = false;
+        }
 
         break;
     }
@@ -311,6 +331,26 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         g_value_set_boolean(value, client->getMute());
         break;
     }
+    case PROP_SYNC:
+    {
+        if (!client)
+        {
+            g_value_set_boolean(value, priv->isSync);
+            return;
+        }
+        g_value_set_boolean(value, client->getSync());
+        break;
+    }
+    case PROP_STREAM_SYNC_MODE:
+    {
+        if (!client)
+        {
+            g_value_set_int(value, priv->streamSyncMode);
+            return;
+        }
+        g_value_set_int(value, client->getStreamSyncMode());
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -389,6 +429,54 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
 
         GST_DEBUG_OBJECT(object, "Processing audio gap.");
         client->processAudioGap(position, duration, discontinuityGap, audioAac);
+        break;
+    }
+    case PROP_LOW_LATENCY:
+    {
+        priv->isLowLatency = g_value_get_boolean(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue low latency setting");
+            priv->isLowLatencyQueued = true;
+            return;
+        }
+        client->setLowLatency(priv->isLowLatency);
+        break;
+    }
+    case PROP_SYNC:
+    {
+        priv->isSync = g_value_get_boolean(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue sync setting");
+            priv->isSyncQueued = true;
+            return;
+        }
+        client->setSync(priv->isSync);
+        break;
+    }
+    case PROP_SYNC_OFF:
+    {
+        priv->isSyncOff = g_value_get_boolean(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue sync off setting");
+            priv->isSyncOffQueued = true;
+            return;
+        }
+        client->setMute(priv->isSyncOff);
+        break;
+    }
+    case PROP_STREAM_SYNC_MODE:
+    {
+        priv->streamSyncMode = g_value_get_int(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue stream sync mode setting");
+            priv->isStreamSyncModeQueued = true;
+            return;
+        }
+        client->setStreamSyncMode(priv->streamSyncMode);
         break;
     }
     default:
