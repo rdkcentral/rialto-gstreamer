@@ -100,6 +100,7 @@ add_gtests (
         WebAudioClientBackendTests.cpp
         LogToGstHandlerTests.cpp
         GStreamerMSEUtilsTests.cpp
+        GstreamerMseSubtitleSinkTests.cpp
         )
 
 target_include_directories(

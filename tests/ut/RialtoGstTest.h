@@ -56,6 +56,7 @@ public:
     GstCaps *createVideoCaps() const;
     RialtoMSEBaseSink *createAudioSink() const;
     RialtoMSEBaseSink *createVideoSink() const;
+    RialtoMSEBaseSink *createSubtitleSink() const;
     RialtoWebAudioSink *createWebAudioSink() const;
     GstElement *createPlaybin2WithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
@@ -70,6 +71,7 @@ public:
     void allSourcesWillBeAttached() const;
     int32_t audioSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceAudio &mediaSource) const;
     int32_t videoSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceVideo &mediaSource) const;
+    int32_t subtitleSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceSubtitle &mediaSource) const;
     int32_t dolbyVisionSourceWillBeAttached(
         const firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision &mediaSource) const;
     void load(GstElement *pipeline);

@@ -131,6 +131,21 @@ MATCHER_P(MediaSourceDolbyVisionMatcher, mediaSource, "")
         return false;
     }
 }
+MATCHER_P(MediaSourceSubtitleMatcher, mediaSource, "")
+{
+    try
+    {
+        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceSubtitle &>(*arg)};
+        return matchedSource.getType() == mediaSource.getType() &&
+               matchedSource.getMimeType() == mediaSource.getMimeType() &&
+               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
+               matchedSource.getTextTrackIdentifier() == mediaSource.getTextTrackIdentifier();
+    }
+    catch (std::exception &)
+    {
+        return false;
+    }
+}
 } // namespace
 
 RialtoGstTest::RialtoGstTest()
@@ -199,6 +214,15 @@ RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
+    return RIALTO_MSE_BASE_SINK(videoSink);
+}
+
+RialtoMSEBaseSink *RialtoGstTest::createSubtitleSink() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *videoSink = gst_element_factory_make("rialtomsesubtitlesink", "rialtomsesubtitlesink");
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
@@ -349,6 +373,20 @@ int32_t RialtoGstTest::videoSourceWillBeAttached(const firebolt::rialto::IMediaP
 {
     const int32_t kSourceId{generateSourceId()};
     EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceVideoMatcher(mediaSource)))
+        .WillOnce(Invoke(
+            [=](auto &source)
+            {
+                source->setId(kSourceId);
+                return true;
+            }));
+    return kSourceId;
+}
+
+int32_t
+RialtoGstTest::subtitleSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceSubtitle &mediaSource) const
+{
+    const int32_t kSourceId{generateSourceId()};
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceSubtitleMatcher(mediaSource)))
         .WillOnce(Invoke(
             [=](auto &source)
             {
