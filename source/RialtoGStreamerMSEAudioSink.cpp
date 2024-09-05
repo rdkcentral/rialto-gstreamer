@@ -84,24 +84,36 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             client->setMute(priv->mute);
             priv->isMuteQueued = false;
         }
-        if (priv->isSyncQueued)
-        {
-            client->setSync(priv->sync);
-            priv->isSyncQueued = false;
-        }
         if (priv->isLowLatencyQueued)
         {
-            client->setLowLatency(priv->lowLatency);
+            if (!client->setLowLatency(priv->lowLatency))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set queued low-latency");
+            }
             priv->isLowLatencyQueued = false;
+        }
+        if (priv->isSyncQueued)
+        {
+            if (!client->setSync(priv->sync))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set queued sync");
+            }
+            priv->isSyncQueued = false;
         }
         if (priv->isSyncOffQueued)
         {
-            client->setSyncOff(priv->syncOff);
+            if (!client->setSyncOff(priv->syncOff))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set queued sync-off");
+            }
             priv->isSyncOffQueued = false;
         }
         if (priv->isStreamSyncModeQueued)
         {
-            client->setStreamSyncMode(priv->streamSyncMode);
+            if (!client->setStreamSyncMode(priv->streamSyncMode))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set queued stream-sync-mode");
+            }
             priv->isStreamSyncModeQueued = false;
         }
 
@@ -338,7 +350,13 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_boolean(value, priv->sync);
             return;
         }
-        g_value_set_boolean(value, client->getSync());
+
+        bool sync{false};
+        if (!client->getSync(sync))
+        {
+            GST_ERROR_OBJECT(sink, "Could not get sync");
+        }
+        g_value_set_boolean(value, sync);
         break;
     }
     case PROP_STREAM_SYNC_MODE:
@@ -348,7 +366,13 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_int(value, priv->streamSyncMode);
             return;
         }
-        g_value_set_int(value, client->getStreamSyncMode());
+
+        int32_t streamSyncMode{0};
+        if (!client->getStreamSyncMode(streamSyncMode))
+        {
+            GST_ERROR_OBJECT(sink, "Could not get stream-sync-mode");
+        }
+        g_value_set_boolean(value, streamSyncMode);
         break;
     }
     default:
@@ -440,7 +464,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isLowLatencyQueued = true;
             return;
         }
-        client->setLowLatency(priv->lowLatency);
+
+        if (!client->setLowLatency(priv->lowLatency))
+        {
+            GST_ERROR_OBJECT(sink, "Could not set low-latency");
+        }
         break;
     }
     case PROP_SYNC:
@@ -452,7 +480,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isSyncQueued = true;
             return;
         }
-        client->setSync(priv->sync);
+    
+        if (!client->setSync(priv->sync))
+        {
+            GST_ERROR_OBJECT(sink, "Could not set sync");
+        }
         break;
     }
     case PROP_SYNC_OFF:
@@ -464,7 +496,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isSyncOffQueued = true;
             return;
         }
-        client->setMute(priv->syncOff);
+
+        if (!client->setSyncOff(priv->syncOff))
+        {
+            GST_ERROR_OBJECT(sink, "Could not set sync-off");
+        }
         break;
     }
     case PROP_STREAM_SYNC_MODE:
@@ -476,7 +512,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isStreamSyncModeQueued = true;
             return;
         }
-        client->setStreamSyncMode(priv->streamSyncMode);
+
+        if (!client->setStreamSyncMode(priv->streamSyncMode))
+        {
+            GST_ERROR_OBJECT(sink, "Could not set stream-sync-mode");
+        }
         break;
     }
     default:

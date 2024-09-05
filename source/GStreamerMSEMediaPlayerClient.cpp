@@ -188,7 +188,7 @@ bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool im
         return false;
     }
 
-    return m_clientBackend->setImmediateOutput(sourceId, immediateOutput);
+    return m_backendQueue->callInEventLoop([&]() { m_clientBackend->setImmediateOutput(sourceId, immediateOutput); });
 }
 
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
@@ -198,7 +198,9 @@ bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &i
         return false;
     }
 
-    return m_clientBackend->getImmediateOutput(sourceId, immediateOutput);
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getImmediateOutput(sourceId, immediateOutput); });
+    return status;
 }
 
 bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
@@ -208,7 +210,9 @@ bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &rendere
         return false;
     }
 
-    return m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames);
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
+    return status;
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()
@@ -750,30 +754,76 @@ bool GStreamerMSEMediaPlayerClient::getMute()
     return mute;
 }
 
-void GStreamerMSEMediaPlayerClient::setLowLatency(bool lowLatency)
+bool GStreamerMSEMediaPlayerClient::setLowLatency(bool lowLatency)
 {
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setLowLatency(lowLatency); });
+    return status;
 }
 
-void GStreamerMSEMediaPlayerClient::setSync(bool sync)
+bool GStreamerMSEMediaPlayerClient::setSync(bool sync)
 {
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setSync(sync); });
+    return status;
 }
 
-bool GStreamerMSEMediaPlayerClient::getSync()
+bool GStreamerMSEMediaPlayerClient::getSync(bool &sync)
 {
-    return false;
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getSync(sync); });
+    return status;
 }
 
-void GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
+bool GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
 {
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setSyncOff(syncOff); });
+    return status;
 }
 
-void GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
+bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
 {
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(streamSyncMode); });
+    return status;
 }
 
-bool GStreamerMSEMediaPlayerClient::getStreamSyncMode()
+bool GStreamerMSEMediaPlayerClient::getStreamSyncMode(int32_t &streamSyncMode)
 {
-    return false;
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getStreamSyncMode(streamSyncMode); });
+    return status;
 }
 
 ClientState GStreamerMSEMediaPlayerClient::getClientState()

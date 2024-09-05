@@ -54,6 +54,12 @@ public:
     virtual bool getVolume(double &volume) = 0;
     virtual bool setMute(bool mute) = 0;
     virtual bool getMute(bool &mute) = 0;
+    virtual bool setLowLatency(bool lowLatency) = 0;
+    virtual bool setSync(bool sync) = 0;
+    virtual bool getSync(bool &sync) = 0;
+    virtual bool setSyncOff(bool syncOff) = 0;
+    virtual bool setStreamSyncMode(int32_t streamSyncMode) = 0;
+    virtual bool getStreamSyncMode(int32_t &streamSyncMode) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
     virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime) = 0;
     virtual bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) = 0;
