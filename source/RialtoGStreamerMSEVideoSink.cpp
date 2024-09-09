@@ -387,6 +387,7 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
     }
 
     basePriv->m_mediaSourceType = firebolt::rialto::MediaSourceType::VIDEO;
+    basePriv->m_isAsync = true;
     gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
     gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_video_sink_event);
 

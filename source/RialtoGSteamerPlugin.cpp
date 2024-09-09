@@ -18,6 +18,7 @@
 
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEAudioSink.h"
+#include "RialtoGStreamerMSESubtitleSink.h"
 #include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGStreamerWebAudioSink.h"
 #include <cstring>
@@ -70,6 +71,7 @@ static gboolean rialto_mse_sinks_init(GstPlugin *plugin)
 
     return gst_element_register(plugin, "rialtomsevideosink", sinkRank, RIALTO_TYPE_MSE_VIDEO_SINK) &&
            gst_element_register(plugin, "rialtomseaudiosink", sinkRank, RIALTO_TYPE_MSE_AUDIO_SINK) &&
+           gst_element_register(plugin, "rialtomsesubtitlesink", sinkRank, RIALTO_TYPE_MSE_SUBTITLE_SINK) &&
            gst_element_register(plugin, "rialtowebaudiosink", sinkRank, RIALTO_TYPE_WEB_AUDIO_SINK);
 }
 
