@@ -23,7 +23,6 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <thread>
 
 namespace
