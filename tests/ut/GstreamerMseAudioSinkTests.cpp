@@ -371,6 +371,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultSyncValueWhenPipelineIsBel
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultSyncPropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    gboolean sync{!kDefaultSync};
+    EXPECT_CALL(m_mediaPipelineMock, getSync(_)).WillOnce(Return(false));
+    g_object_get(textContext.m_sink, "sync", &sync, nullptr);
+    EXPECT_EQ(sync, kDefaultSync);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldGetSyncProperty)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -393,6 +406,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultStreamSyncModeValueWhenPip
     EXPECT_EQ(kDefaultStreamSyncMode, streamSyncMode); // Default value should be returned
 
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultStreamSyncModePropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    int32_t streamSyncMode{kDefaultStreamSyncMode - 1};
+    EXPECT_CALL(m_mediaPipelineMock, getStreamSyncMode(_)).WillOnce(Return(false));
+    g_object_get(textContext.m_sink, "stream-sync-mode", &streamSyncMode, nullptr);
+    EXPECT_EQ(streamSyncMode, kDefaultStreamSyncMode);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldGetStreamSyncModeProperty)
@@ -514,6 +540,20 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetLowLatencyPropertyWhenPipeline
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetLowLatencyPropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gboolean kLowLatency{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setLowLatency(kLowLatency)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "low-latency", kLowLatency, nullptr);
+
+    // Error is logged
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetLowLatency)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -543,6 +583,25 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedLowLatency)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedLowLatencyOnRialtoFailure)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kLowLatency{TRUE};
+    g_object_set(audioSink, "low-latency", kLowLatency, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setLowLatency(kLowLatency)).WillOnce(Return(false));
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    // Error is logged
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncPropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -556,6 +615,20 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncPropertyWhenPipelineIsBelo
     EXPECT_EQ(kSync, sync);
 
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncPropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gboolean kSync{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setSync(kSync)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "sync", kSync, nullptr);
+
+    // Error is logged
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetSync)
@@ -587,6 +660,25 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedSync)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedSyncOnRialtoFailure)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kSync{TRUE};
+    g_object_set(audioSink, "sync", kSync, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setSync(kSync)).WillOnce(Return(false));
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    // Error is logged
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncOffPropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -597,6 +689,20 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncOffPropertyWhenPipelineIsB
     // low-latency is a read only property so we cant check whats set here
 
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncOffPropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gboolean kSyncOff{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setSyncOff(kSyncOff)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "sync-off", kSyncOff, nullptr);
+
+    // Error is logged
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetSyncOff)
@@ -628,6 +734,39 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedSyncOff)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedSyncOffOnRialtoFailure)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kSyncOff{TRUE};
+    g_object_set(audioSink, "sync-off", kSyncOff, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setSyncOff(kSyncOff)).WillOnce(Return(false));
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    // Error is logged
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetStreamSyncModePropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gint kStreamSyncMode{1};
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "stream-sync-mode", kStreamSyncMode, nullptr);
+
+    // Error is logged
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldSetStreamSyncMode)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -651,6 +790,25 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedStreamSyncMode)
     EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
     load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailure)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gint kStreamSyncMode{1};
+    g_object_set(audioSink, "stream-sync-mode", kStreamSyncMode, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(false));
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    // Error is logged
 
     setNullState(pipeline, kUnknownSourceId);
 

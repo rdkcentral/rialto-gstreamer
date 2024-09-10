@@ -353,7 +353,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             return;
         }
 
-        bool sync{false};
+        bool sync{kDefaultSync};
         if (!client->getSync(sync))
         {
             GST_ERROR_OBJECT(sink, "Could not get sync");
@@ -369,7 +369,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             return;
         }
 
-        int32_t streamSyncMode{0};
+        int32_t streamSyncMode{kDefaultStreamSyncMode};
         if (!client->getStreamSyncMode(streamSyncMode))
         {
             GST_ERROR_OBJECT(sink, "Could not get stream-sync-mode");
