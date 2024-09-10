@@ -574,11 +574,17 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedLowLatency)
     constexpr gboolean kLowLatency{TRUE};
     g_object_set(audioSink, "low-latency", kLowLatency, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, setLowLatency(kLowLatency)).WillOnce(Return(true));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
+    EXPECT_CALL(m_mediaPipelineMock, setLowLatency(kLowLatency)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -591,13 +597,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedLowLatencyOnRialtoFailure)
     constexpr gboolean kLowLatency{TRUE};
     g_object_set(audioSink, "low-latency", kLowLatency, nullptr);
 
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
     EXPECT_CALL(m_mediaPipelineMock, setLowLatency(kLowLatency)).WillOnce(Return(false));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
 
     // Error is logged
 
-    setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -651,11 +663,17 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedSync)
     constexpr gboolean kSync{TRUE};
     g_object_set(audioSink, "sync", kSync, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, setSync(kSync)).WillOnce(Return(true));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
+    EXPECT_CALL(m_mediaPipelineMock, setSync(kSync)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -668,13 +686,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedSyncOnRialtoFailure)
     constexpr gboolean kSync{TRUE};
     g_object_set(audioSink, "sync", kSync, nullptr);
 
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
     EXPECT_CALL(m_mediaPipelineMock, setSync(kSync)).WillOnce(Return(false));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
 
     // Error is logged
 
-    setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -725,11 +749,17 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedSyncOff)
     constexpr gboolean kSyncOff{TRUE};
     g_object_set(audioSink, "sync-off", kSyncOff, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, setSyncOff(kSyncOff)).WillOnce(Return(true));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
+    EXPECT_CALL(m_mediaPipelineMock, setSyncOff(kSyncOff)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -742,13 +772,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedSyncOffOnRialtoFailure)
     constexpr gboolean kSyncOff{TRUE};
     g_object_set(audioSink, "sync-off", kSyncOff, nullptr);
 
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
     EXPECT_CALL(m_mediaPipelineMock, setSyncOff(kSyncOff)).WillOnce(Return(false));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
 
     // Error is logged
 
-    setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -787,11 +823,17 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedStreamSyncMode)
     constexpr gint kStreamSyncMode{1};
     g_object_set(audioSink, "stream-sync-mode", kStreamSyncMode, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
@@ -804,13 +846,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailu
     constexpr gint kStreamSyncMode{1};
     g_object_set(audioSink, "stream-sync-mode", kStreamSyncMode, nullptr);
 
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
     EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(false));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
 
     // Error is logged
 
-    setNullState(pipeline, kUnknownSourceId);
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }
