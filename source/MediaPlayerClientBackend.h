@@ -119,9 +119,15 @@ public:
 
     bool setSyncOff(bool syncOff) override { return m_mediaPlayerBackend->setSyncOff(syncOff); }
 
-    bool setStreamSyncMode(int32_t streamSyncMode) override { return m_mediaPlayerBackend->setStreamSyncMode(streamSyncMode); }
+    bool setStreamSyncMode(int32_t streamSyncMode) override
+    {
+        return m_mediaPlayerBackend->setStreamSyncMode(streamSyncMode);
+    }
 
-    bool getStreamSyncMode(int32_t &streamSyncMode) override { return m_mediaPlayerBackend->getStreamSyncMode(streamSyncMode); }
+    bool getStreamSyncMode(int32_t &streamSyncMode) override
+    {
+        return m_mediaPlayerBackend->getStreamSyncMode(streamSyncMode);
+    }
 
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 

@@ -213,7 +213,8 @@ bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &rendere
     }
 
     bool status{false};
-    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
+    m_backendQueue->callInEventLoop([&]()
+                                    { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
     return status;
 }
 

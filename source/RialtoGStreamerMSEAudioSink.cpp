@@ -480,7 +480,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isSyncQueued = true;
             return;
         }
-    
+
         if (!client->setSync(priv->sync))
         {
             GST_ERROR_OBJECT(sink, "Could not set sync");
@@ -593,7 +593,8 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kSyncPropertyName{"sync"};
         const std::string kSyncOffPropertyName{"sync-off"};
         const std::string kStreamSyncModePropertyName{"stream-sync-mode"};
-        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName, kSyncOffPropertyName, kStreamSyncModePropertyName};
+        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
+                                                              kSyncOffPropertyName, kStreamSyncModePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -603,26 +604,30 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             if (kLowLatencyPropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_LOW_LATENCY,
-                                                g_param_spec_boolean(kLowLatencyPropertyName.c_str(), "low latency",
-                                                                     "Turn on low latency mode, for use with gaming (no audio decoding, no a/v sync)", kDefaultLowLatency, GParamFlags(G_PARAM_WRITABLE)));
+                                                g_param_spec_boolean(kLowLatencyPropertyName.c_str(),
+                                                                     "low latency", "Turn on low latency mode, for use with gaming (no audio decoding, no a/v sync)",
+                                                                     kDefaultLowLatency, GParamFlags(G_PARAM_WRITABLE)));
             }
             else if (kSyncPropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_SYNC,
-                                                g_param_spec_boolean(kSyncPropertyName.c_str(), "sync", "Clock sync", kDefaultSync,
-                                                                     GParamFlags(G_PARAM_READWRITE)));
+                                                g_param_spec_boolean(kSyncPropertyName.c_str(), "sync", "Clock sync",
+                                                                     kDefaultSync, GParamFlags(G_PARAM_READWRITE)));
             }
             else if (kSyncOffPropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_SYNC_OFF,
-                                                g_param_spec_boolean(kSyncOffPropertyName.c_str(), "sync off", "Turn on free running audio. Must be set before pipeline is PLAYING state.", kDefaultSyncOff,
-                                                                     GParamFlags(G_PARAM_WRITABLE)));
+                                                g_param_spec_boolean(kSyncOffPropertyName.c_str(),
+                                                                     "sync off", "Turn on free running audio. Must be set before pipeline is PLAYING state.",
+                                                                     kDefaultSyncOff, GParamFlags(G_PARAM_WRITABLE)));
             }
             else if (kStreamSyncModePropertyName == *it)
             {
-                g_object_class_install_property(gobjectClass, PROP_STREAM_SYNC_MODE,  
-                                                g_param_spec_int(kStreamSyncModePropertyName.c_str(), "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync", 0, G_MAXINT,
-                                                                 kDefaultStreamSyncMode, GParamFlags(G_PARAM_READWRITE)));
+                g_object_class_install_property(gobjectClass, PROP_STREAM_SYNC_MODE,
+                                                g_param_spec_int(kStreamSyncModePropertyName.c_str(),
+                                                                 "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync",
+                                                                 0, G_MAXINT, kDefaultStreamSyncMode,
+                                                                 GParamFlags(G_PARAM_READWRITE)));
             }
             else
             {

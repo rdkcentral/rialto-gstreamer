@@ -650,7 +650,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedStreamSyncMode)
     gst_object_unref(pipeline);
 }
 
-
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetStreamSyncModePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
