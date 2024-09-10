@@ -26,6 +26,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEVideoSink.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEAudioSink.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerWebAudioSink.cpp
+        ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSESubtitleSink.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerUtils.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerEMEUtils.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerMSEUtils.cpp
@@ -99,6 +100,7 @@ add_gtests (
         WebAudioClientBackendTests.cpp
         LogToGstHandlerTests.cpp
         GStreamerMSEUtilsTests.cpp
+        GstreamerMseSubtitleSinkTests.cpp
         )
 
 target_include_directories(

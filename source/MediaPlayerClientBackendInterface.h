@@ -52,8 +52,10 @@ public:
     virtual bool renderFrame() = 0;
     virtual bool setVolume(double volume) = 0;
     virtual bool getVolume(double &volume) = 0;
-    virtual bool setMute(bool mute) = 0;
-    virtual bool getMute(bool &mute) = 0;
+    virtual bool setMute(bool mute, int sourceId) = 0;
+    virtual bool getMute(bool &mute, int sourceId) = 0;
+    virtual bool setTextTrackIdentifier(const std::string &textTrackIdentifier) = 0;
+    virtual bool getTextTrackIdentifier(std::string &textTrackIdentifier) = 0;
     virtual bool setLowLatency(bool lowLatency) = 0;
     virtual bool setSync(bool sync) = 0;
     virtual bool getSync(bool &sync) = 0;

@@ -42,13 +42,6 @@ G_DEFINE_TYPE_WITH_CODE(RialtoMSEBaseSink, rialto_mse_base_sink, GST_TYPE_ELEMEN
 
 enum
 {
-    Prop0,
-    PropSync,
-    PropLast
-};
-
-enum
-{
     PROP_0,
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
@@ -443,6 +436,7 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
             {
                 return FALSE;
             }
+
             gst_query_set_position(query, fmt, position);
             break;
         }
@@ -614,6 +608,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
         {
             GST_DEBUG_OBJECT(sink, "forwarding upstream event '%s' failed", GST_EVENT_TYPE_NAME(event));
         }
+
         return result;
     }
 

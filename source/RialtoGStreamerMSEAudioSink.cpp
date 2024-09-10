@@ -79,11 +79,6 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             client->setVolume(priv->volume);
             priv->isVolumeQueued = false;
         }
-        if (priv->isMuteQueued)
-        {
-            client->setMute(priv->mute);
-            priv->isMuteQueued = false;
-        }
         if (priv->isLowLatencyQueued)
         {
             if (!client->setLowLatency(priv->lowLatency))
@@ -254,6 +249,7 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
 static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
+    RialtoMSEAudioSink *audioSink = RIALTO_MSE_AUDIO_SINK(parent);
     RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
     switch (GST_EVENT_TYPE(event))
     {
@@ -282,6 +278,12 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             else
             {
                 basePriv->m_sourceAttached = true;
+
+                if (audioSink->priv->isMuteQueued)
+                {
+                    client->setMute(audioSink->priv->mute, basePriv->m_sourceId);
+                    audioSink->priv->isMuteQueued = false;
+                }
 
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
@@ -340,7 +342,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_boolean(value, priv->mute);
             return;
         }
-        g_value_set_boolean(value, client->getMute());
+        g_value_set_boolean(value, client->getMute(basePriv->m_sourceId));
         break;
     }
     case PROP_SYNC:
@@ -418,13 +420,13 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_MUTE:
     {
         priv->mute = g_value_get_boolean(value);
-        if (!client)
+        if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue mute setting");
             priv->isMuteQueued = true;
             return;
         }
-        client->setMute(priv->mute);
+        client->setMute(priv->mute, basePriv->m_sourceId);
         break;
     }
     case PROP_GAP:

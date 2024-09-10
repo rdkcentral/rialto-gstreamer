@@ -351,7 +351,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetMuteProperty)
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     gboolean mute{FALSE};
-    EXPECT_CALL(m_mediaPipelineMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, getMute(textContext.m_sourceId, _))
+        .WillOnce(DoAll(SetArgReferee<1>(true), Return(true)));
     g_object_get(textContext.m_sink, "mute", &mute, nullptr);
     EXPECT_TRUE(mute);
 
@@ -471,7 +472,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetMute)
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     constexpr gboolean kMute{TRUE};
-    EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(textContext.m_sourceId, kMute)).WillOnce(Return(true));
     g_object_set(textContext.m_sink, "mute", kMute, nullptr);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
@@ -486,11 +487,17 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedMute)
     constexpr gboolean kMute{TRUE};
     g_object_set(audioSink, "mute", kMute, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
-    load(pipeline);
-    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
 
-    setNullState(pipeline, kUnknownSourceId);
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
 
     gst_object_unref(pipeline);
 }

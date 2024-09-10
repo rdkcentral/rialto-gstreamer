@@ -107,9 +107,19 @@ public:
 
     bool getVolume(double &volume) override { return m_mediaPlayerBackend->getVolume(volume); }
 
-    bool setMute(bool mute) override { return m_mediaPlayerBackend->setMute(mute); }
+    bool setMute(bool mute, int sourceId) override { return m_mediaPlayerBackend->setMute(sourceId, mute); }
 
-    bool getMute(bool &mute) override { return m_mediaPlayerBackend->getMute(mute); }
+    bool getMute(bool &mute, int sourceId) override { return m_mediaPlayerBackend->getMute(sourceId, mute); }
+
+    bool setTextTrackIdentifier(const std::string &textTrackIdentifier) override
+    {
+        return m_mediaPlayerBackend->setTextTrackIdentifier(textTrackIdentifier);
+    }
+
+    bool getTextTrackIdentifier(std::string &textTrackIdentifier) override
+    {
+        return m_mediaPlayerBackend->getTextTrackIdentifier(textTrackIdentifier);
+    }
 
     bool setLowLatency(bool lowLatency) override { return m_mediaPlayerBackend->setLowLatency(lowLatency); }
 

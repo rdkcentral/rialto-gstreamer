@@ -53,6 +53,7 @@ constexpr bool kResetTime{true};
 constexpr uint32_t kDuration{30};
 constexpr int64_t kDiscontinuityGap{1};
 constexpr bool kAudioAac{false};
+const std::string kTextTrackIdentifier{"TextTrackId"};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -1154,25 +1155,29 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReturnLastKnownVolumeWhenOperat
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute)).WillOnce(Return(true));
-    m_sut->setMute(kMute);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute, kAudioSourceId)).WillOnce(Return(true));
+    m_sut->setMute(kMute, kAudioSourceId);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
 {
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
-    EXPECT_EQ(m_sut->getMute(), kMute);
-}
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReturnLastKnownMuteWhenOperationFails)
-{
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
-    EXPECT_EQ(m_sut->getMute(), kMute);
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getMute(), kMute);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_, kAudioSourceId))
+        .WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
+    EXPECT_EQ(m_sut->getMute(kAudioSourceId), kMute);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreams)
@@ -1244,6 +1249,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachVideoSource)
     gst_object_unref(sink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachSubtitleSource)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE);
+    gst_object_unref(sink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1292,4 +1305,19 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetTextTrackIdentifier)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
+    m_sut->setTextTrackIdentifier(kTextTrackIdentifier);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetTextTrackIdentifier)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getTextTrackIdentifier(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
+    EXPECT_EQ(m_sut->getTextTrackIdentifier(), kTextTrackIdentifier);
 }
