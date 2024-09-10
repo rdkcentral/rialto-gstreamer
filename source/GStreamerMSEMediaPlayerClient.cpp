@@ -188,7 +188,9 @@ bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool im
         return false;
     }
 
-    return m_backendQueue->callInEventLoop([&]() { m_clientBackend->setImmediateOutput(sourceId, immediateOutput); });
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setImmediateOutput(sourceId, immediateOutput); });
+    return status;
 }
 
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
