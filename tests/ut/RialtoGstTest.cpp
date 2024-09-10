@@ -493,6 +493,13 @@ void RialtoGstTest::expectSinksInitialisation() const
             {
                 return propertiesToSearch; // Mock that all are supported
             }));
+    EXPECT_CALL(*capabilitiesMockAudio,
+                getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO, _)) // TODO check props
+        .WillOnce(Invoke(
+            [&](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
+            {
+                return propertiesToSearch; // Mock that all are supported
+            }));
 
     std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
         std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(

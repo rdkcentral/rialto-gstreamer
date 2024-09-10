@@ -304,6 +304,12 @@ public:
     bool getMute(int sourceId);
     void setTextTrackIdentifier(const std::string &textTrackIdentifier);
     std::string getTextTrackIdentifier();
+    bool setLowLatency(bool lowLatency);
+    bool setSync(bool sync);
+    bool getSync(bool &sync);
+    bool setSyncOff(bool syncOff);
+    bool setStreamSyncMode(int32_t streamSyncMode);
+    bool getStreamSyncMode(int32_t &streamSyncMode);
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
 

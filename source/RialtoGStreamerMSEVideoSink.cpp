@@ -353,8 +353,8 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         {
             GST_ERROR_OBJECT(sink, "Could not set immediate-output");
         }
+        break;
     }
-    break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
