@@ -79,38 +79,6 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             client->setVolume(priv->volume);
             priv->isVolumeQueued = false;
         }
-        if (priv->isLowLatencyQueued)
-        {
-            if (!client->setLowLatency(priv->lowLatency))
-            {
-                GST_ERROR_OBJECT(sink, "Could not set queued low-latency");
-            }
-            priv->isLowLatencyQueued = false;
-        }
-        if (priv->isSyncQueued)
-        {
-            if (!client->setSync(priv->sync))
-            {
-                GST_ERROR_OBJECT(sink, "Could not set queued sync");
-            }
-            priv->isSyncQueued = false;
-        }
-        if (priv->isSyncOffQueued)
-        {
-            if (!client->setSyncOff(priv->syncOff))
-            {
-                GST_ERROR_OBJECT(sink, "Could not set queued sync-off");
-            }
-            priv->isSyncOffQueued = false;
-        }
-        if (priv->isStreamSyncModeQueued)
-        {
-            if (!client->setStreamSyncMode(priv->streamSyncMode))
-            {
-                GST_ERROR_OBJECT(sink, "Could not set queued stream-sync-mode");
-            }
-            priv->isStreamSyncModeQueued = false;
-        }
 
         break;
     }
@@ -283,6 +251,38 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 {
                     client->setMute(audioSink->priv->mute, basePriv->m_sourceId);
                     audioSink->priv->isMuteQueued = false;
+                }
+                if (audioSink->priv->isLowLatencyQueued)
+                {
+                    if (!client->setLowLatency(audioSink->priv->lowLatency))
+                    {
+                        GST_ERROR_OBJECT(audioSink, "Could not set queued low-latency");
+                    }
+                    audioSink->priv->isLowLatencyQueued = false;
+                }
+                if (audioSink->priv->isSyncQueued)
+                {
+                    if (!client->setSync(audioSink->priv->sync))
+                    {
+                        GST_ERROR_OBJECT(audioSink, "Could not set queued sync");
+                    }
+                    audioSink->priv->isSyncQueued = false;
+                }
+                if (audioSink->priv->isSyncOffQueued)
+                {
+                    if (!client->setSyncOff(audioSink->priv->syncOff))
+                    {
+                        GST_ERROR_OBJECT(audioSink, "Could not set queued sync-off");
+                    }
+                    audioSink->priv->isSyncOffQueued = false;
+                }
+                if (audioSink->priv->isStreamSyncModeQueued)
+                {
+                    if (!client->setStreamSyncMode(audioSink->priv->streamSyncMode))
+                    {
+                        GST_ERROR_OBJECT(audioSink, "Could not set queued stream-sync-mode");
+                    }
+                    audioSink->priv->isStreamSyncModeQueued = false;
                 }
 
                 // check if READY -> PAUSED was requested before source was attached
