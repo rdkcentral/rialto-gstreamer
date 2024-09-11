@@ -181,6 +181,43 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return position;
 }
 
+bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setImmediateOutput(sourceId, immediateOutput); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getImmediateOutput(sourceId, immediateOutput); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]()
+                                    { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;
@@ -398,7 +435,7 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
         });
 }
 
-void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position)
+void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position, bool resetTime)
 {
     m_backendQueue->callInEventLoop(
         [&]()
@@ -409,7 +446,7 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
                 GST_ERROR("Cannot Set Source Position - there's no attached source with id %d", sourceId);
                 return;
             }
-            if (!m_clientBackend->setSourcePosition(sourceId, position))
+            if (!m_clientBackend->setSourcePosition(sourceId, position, resetTime))
             {
                 GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
                 return;
@@ -436,7 +473,8 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                                                  RialtoMSEBaseSink *rialtoSink)
 {
     if (source->getType() != firebolt::rialto::MediaSourceType::AUDIO &&
-        source->getType() != firebolt::rialto::MediaSourceType::VIDEO)
+        source->getType() != firebolt::rialto::MediaSourceType::VIDEO &&
+        source->getType() != firebolt::rialto::MediaSourceType::SUBTITLE)
     {
         GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source->getType()));
         return false;
@@ -450,19 +488,22 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
 
             if (result)
             {
-                std::shared_ptr<BufferPuller> bufferPuller;
+                std::shared_ptr<BufferParser> bufferParser;
                 if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
                 {
-                    std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
-                                                                  audioBufferParser);
+                    bufferParser = std::make_shared<AudioBufferParser>();
                 }
                 else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
                 {
-                    std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
-                                                                  videoBufferParser);
+                    bufferParser = std::make_shared<VideoBufferParser>();
                 }
+                else if (source->getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+                {
+                    bufferParser = std::make_shared<SubtitleBufferParser>();
+                }
+
+                std::shared_ptr<BufferPuller> bufferPuller =
+                    std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink), bufferParser);
 
                 if (m_attachedSources.find(source->getId()) == m_attachedSources.end())
                 {
@@ -698,27 +739,101 @@ double GStreamerMSEMediaPlayerClient::getVolume()
     return volume;
 }
 
-void GStreamerMSEMediaPlayerClient::setMute(bool mute)
+void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute); });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
-bool GStreamerMSEMediaPlayerClient::getMute()
+bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
 {
     bool mute{false};
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_clientBackend->getMute(mute))
-            {
-                m_mute = mute;
-            }
-            else
-            {
-                mute = m_mute;
-            }
-        });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getMute(mute, sourceId); });
+
     return mute;
+}
+
+void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string &textTrackIdentifier)
+{
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
+}
+
+std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()
+{
+    std::string getTextTrackIdentifier;
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getTextTrackIdentifier(getTextTrackIdentifier); });
+    return getTextTrackIdentifier;
+}
+
+bool GStreamerMSEMediaPlayerClient::setLowLatency(bool lowLatency)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setLowLatency(lowLatency); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::setSync(bool sync)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setSync(sync); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getSync(bool &sync)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getSync(sync); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setSyncOff(syncOff); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(streamSyncMode); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getStreamSyncMode(int32_t &streamSyncMode)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getStreamSyncMode(streamSyncMode); });
+    return status;
 }
 
 ClientState GStreamerMSEMediaPlayerClient::getClientState()
@@ -743,12 +858,6 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
 
             GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
                      m_audioStreams, m_subtitleStreams);
-
-            // TODO: remove below log after subtitle sink is implemented
-            if (m_subtitleStreams > 0)
-            {
-                GST_WARNING("Subtitle streams are not supported yet");
-            }
         });
 }
 
@@ -954,7 +1063,7 @@ void PullBufferMessage::handle()
         GstMapInfo map;
         if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
         {
-            GST_ERROR_OBJECT(m_rialtoSink, "Could not map audio buffer");
+            GST_ERROR_OBJECT(m_rialtoSink, "Could not map buffer");
             rialto_mse_base_sink_pop_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
             continue;
         }

@@ -263,6 +263,10 @@ public:
 
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
+    bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
+    bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
+    bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
+
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
@@ -274,7 +278,7 @@ public:
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
-    void setSourcePosition(int32_t sourceId, int64_t position);
+    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime);
     void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
@@ -296,8 +300,16 @@ public:
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     double getVolume();
-    void setMute(bool mute);
-    bool getMute();
+    void setMute(bool mute, int32_t sourceId);
+    bool getMute(int sourceId);
+    void setTextTrackIdentifier(const std::string &textTrackIdentifier);
+    std::string getTextTrackIdentifier();
+    bool setLowLatency(bool lowLatency);
+    bool setSync(bool sync);
+    bool getSync(bool &sync);
+    bool setSyncOff(bool syncOff);
+    bool setStreamSyncMode(int32_t streamSyncMode);
+    bool getStreamSyncMode(int32_t &streamSyncMode);
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
 
@@ -312,7 +324,6 @@ private:
     int64_t m_position;
     int64_t m_duration;
     double m_volume = kDefaultVolume;
-    bool m_mute = kDefaultMute;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;

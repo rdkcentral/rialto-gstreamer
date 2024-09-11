@@ -239,19 +239,21 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetVolume)
 
 TEST_F(MediaPlayerClientBackendTests, ShouldSetMute)
 {
-    EXPECT_CALL(*m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
+    constexpr int32_t kSourceId{12};
+    EXPECT_CALL(*m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.setMute(kMute));
+    EXPECT_TRUE(m_sut.setMute(kMute, kSourceId));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldGetMute)
 {
+    constexpr int32_t kSourceId{12};
     bool mute{false};
-    EXPECT_CALL(*m_mediaPipelineMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
+    EXPECT_CALL(*m_mediaPipelineMock, getMute(kSourceId, _)).WillOnce(DoAll(SetArgReferee<1>(kMute), Return(true)));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.getMute(mute));
+    EXPECT_TRUE(m_sut.getMute(mute, kSourceId));
     EXPECT_EQ(kMute, mute);
 }
 
@@ -269,10 +271,11 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
 {
     constexpr int32_t kSourceId{12};
     constexpr int64_t kPosition{34};
-    EXPECT_CALL(*m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
+    constexpr bool kResetTime{true};
+    EXPECT_CALL(*m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition));
+    EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition, kResetTime));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldProcessAudioGap)

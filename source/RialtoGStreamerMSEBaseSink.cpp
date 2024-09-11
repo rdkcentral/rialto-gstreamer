@@ -19,6 +19,8 @@
 #define USE_GLIB 1
 
 #include <cstring>
+#include <limits>
+
 #include <gst/gst.h>
 
 #include "ControlBackend.h"
@@ -28,7 +30,6 @@
 #include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include <limits>
 
 GST_DEBUG_CATEGORY_STATIC(RialtoMSEBaseSinkDebug);
 #define GST_CAT_DEFAULT RialtoMSEBaseSinkDebug
@@ -41,17 +42,11 @@ G_DEFINE_TYPE_WITH_CODE(RialtoMSEBaseSink, rialto_mse_base_sink, GST_TYPE_ELEMEN
 
 enum
 {
-    Prop0,
-    PropSync,
-    PropLast
-};
-
-enum
-{
     PROP_0,
     PROP_IS_SINGLE_PATH_STREAM,
     PROP_N_STREAMS,
     PROP_HAS_DRM,
+    PROP_STATS,
     PROP_LAST
 };
 
@@ -357,6 +352,29 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
     case PROP_HAS_DRM:
         g_value_set_boolean(value, sink->priv->m_hasDrm);
         break;
+    case PROP_STATS:
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            GST_ERROR_OBJECT(sink, "Could not get the media player client");
+            return;
+        }
+
+        guint64 totalVideoFrames;
+        guint64 droppedVideoFrames;
+        if (client->getStats(sink->priv->m_sourceId, totalVideoFrames, droppedVideoFrames))
+        {
+            GstStructure *stats{gst_structure_new("stats", "rendered", G_TYPE_UINT64, totalVideoFrames, "dropped",
+                                                  G_TYPE_UINT64, droppedVideoFrames, nullptr)};
+            g_value_set_pointer(value, stats);
+        }
+        else
+        {
+            GST_ERROR_OBJECT(sink, "No stats returned from client");
+        }
+    }
+    break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -418,6 +436,7 @@ static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
             {
                 return FALSE;
             }
+
             gst_query_set_position(query, fmt, position);
             break;
         }
@@ -515,7 +534,8 @@ static void rialto_mse_base_sink_set_segment(RialtoMSEBaseSink *sink)
         GST_ERROR_OBJECT(sink, "Could not get the media player client");
         return;
     }
-    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start);
+    const bool kResetTime{sink->priv->m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
+    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start, kResetTime);
 }
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
@@ -588,6 +608,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
         {
             GST_DEBUG_OBJECT(sink, "forwarding upstream event '%s' failed", GST_EVENT_TYPE_NAME(event));
         }
+
         return result;
     }
 
@@ -640,6 +661,9 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_HAS_DRM,
                                     g_param_spec_boolean("has-drm", "has drm", "has drm", TRUE,
                                                          GParamFlags(G_PARAM_READWRITE)));
+    g_object_class_install_property(gobjectClass, PROP_STATS,
+                                    g_param_spec_pointer("stats", NULL, "pointer to a gst_structure",
+                                                         GParamFlags(G_PARAM_READABLE)));
 }
 
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)

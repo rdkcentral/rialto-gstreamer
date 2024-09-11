@@ -49,14 +49,25 @@ public:
                  const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment),
                 (override));
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
+    MOCK_METHOD(bool, setImmediateOutput, (int32_t sourceId, bool immediateOutput), (override));
+    MOCK_METHOD(bool, getImmediateOutput, (int32_t sourceId, bool &immediateOutput), (override));
+    MOCK_METHOD(bool, getStats, (int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames), (override));
     MOCK_METHOD(bool, renderFrame, (), (override));
     MOCK_METHOD(bool, setVolume, (double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType type),
                 (override));
     MOCK_METHOD(bool, getVolume, (double &curretVolume), (override));
-    MOCK_METHOD(bool, setMute, (bool mute), (override));
-    MOCK_METHOD(bool, getMute, (bool &mute), (override));
+    MOCK_METHOD(bool, setMute, (bool mute, int sourceId), (override));
+    MOCK_METHOD(bool, getMute, (bool &mute, int sourceId), (override));
+    MOCK_METHOD(bool, setTextTrackIdentifier, (const std::string &textTrackIdentifier), (override));
+    MOCK_METHOD(bool, getTextTrackIdentifier, (std::string & textTrackIdentifier), (override));
+    MOCK_METHOD(bool, setLowLatency, (bool lowLatency), (override));
+    MOCK_METHOD(bool, setSync, (bool sync), (override));
+    MOCK_METHOD(bool, getSync, (bool &sync), (override));
+    MOCK_METHOD(bool, setSyncOff, (bool syncOff), (override));
+    MOCK_METHOD(bool, setStreamSyncMode, (int32_t streamSyncMode), (override));
+    MOCK_METHOD(bool, getStreamSyncMode, (int32_t & streamSyncMode), (override));
     MOCK_METHOD(bool, flush, (int32_t sourceId, bool resetTime), (override));
-    MOCK_METHOD(bool, setSourcePosition, (int32_t sourceId, int64_t position), (override));
+    MOCK_METHOD(bool, setSourcePosition, (int32_t sourceId, int64_t position, bool resetTime), (override));
     MOCK_METHOD(bool, processAudioGap, (int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac),
                 (override));
 };

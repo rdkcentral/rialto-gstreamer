@@ -79,6 +79,7 @@ struct _RialtoMSEBaseSinkPrivate
     bool m_isSinglePathStream = false;
     int32_t m_numOfStreams = 1;
     std::atomic<bool> m_hasDrm;
+    std::atomic<bool> m_isAsync;
     firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
 };

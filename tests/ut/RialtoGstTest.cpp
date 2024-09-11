@@ -31,6 +31,7 @@ using firebolt::rialto::ApplicationState;
 using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
 using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
 using firebolt::rialto::MediaPipelineCapabilitiesMock;
+
 using testing::_;
 using testing::ByMove;
 using testing::DoAll;
@@ -45,10 +46,11 @@ constexpr bool kHasDrm{true};
 constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
-const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4", "audio/aac", "audio/x-eac3", "audio/x-opus",
-                                                        "audio/b-wav"};
+const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/aac",   "audio/x-eac3",
+                                                        "audio/x-opus", "audio/b-wav", "audio/x-raw"};
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
+const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml"};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 int32_t generateSourceId()
 {
@@ -129,6 +131,21 @@ MATCHER_P(MediaSourceDolbyVisionMatcher, mediaSource, "")
         return false;
     }
 }
+MATCHER_P(MediaSourceSubtitleMatcher, mediaSource, "")
+{
+    try
+    {
+        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceSubtitle &>(*arg)};
+        return matchedSource.getType() == mediaSource.getType() &&
+               matchedSource.getMimeType() == mediaSource.getMimeType() &&
+               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
+               matchedSource.getTextTrackIdentifier() == mediaSource.getTextTrackIdentifier();
+    }
+    catch (std::exception &)
+    {
+        return false;
+    }
+}
 } // namespace
 
 RialtoGstTest::RialtoGstTest()
@@ -197,6 +214,15 @@ RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
+    return RIALTO_MSE_BASE_SINK(videoSink);
+}
+
+RialtoMSEBaseSink *RialtoGstTest::createSubtitleSink() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *videoSink = gst_element_factory_make("rialtomsesubtitlesink", "rialtomsesubtitlesink");
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
@@ -356,6 +382,20 @@ int32_t RialtoGstTest::videoSourceWillBeAttached(const firebolt::rialto::IMediaP
     return kSourceId;
 }
 
+int32_t
+RialtoGstTest::subtitleSourceWillBeAttached(const firebolt::rialto::IMediaPipeline::MediaSourceSubtitle &mediaSource) const
+{
+    const int32_t kSourceId{generateSourceId()};
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(MediaSourceSubtitleMatcher(mediaSource)))
+        .WillOnce(Invoke(
+            [=](auto &source)
+            {
+                source->setId(kSourceId);
+                return true;
+            }));
+    return kSourceId;
+}
+
 int32_t RialtoGstTest::dolbyVisionSourceWillBeAttached(
     const firebolt::rialto::IMediaPipeline::MediaSourceVideoDolbyVision &mediaSource) const
 {
@@ -439,10 +479,28 @@ void RialtoGstTest::expectSinksInitialisation() const
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
     std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockVideo{
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
+    std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockSubtitles{
+        std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
     EXPECT_CALL(*capabilitiesMockAudio, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
         .WillOnce(Return(kSupportedAudioMimeTypes));
     EXPECT_CALL(*capabilitiesMockVideo, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
         .WillOnce(Return(kSupportedVideoMimeTypes));
+    EXPECT_CALL(*capabilitiesMockSubtitles, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::SUBTITLE))
+        .WillOnce(Return(kSupportedSubtitlesMimeTypes));
+    EXPECT_CALL(*capabilitiesMockVideo, getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO, _))
+        .WillOnce(Invoke(
+            [&](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
+            {
+                return propertiesToSearch; // Mock that all are supported
+            }));
+    EXPECT_CALL(*capabilitiesMockAudio,
+                getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO, _)) // TODO check props
+        .WillOnce(Invoke(
+            [&](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
+            {
+                return propertiesToSearch; // Mock that all are supported
+            }));
+
     std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
         std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
             IMediaPipelineCapabilitiesFactory::createFactory())};
@@ -450,5 +508,6 @@ void RialtoGstTest::expectSinksInitialisation() const
     // Video sink is registered first
     EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities())
         .WillOnce(Return(ByMove(std::move(capabilitiesMockVideo))))
-        .WillOnce(Return(ByMove(std::move(capabilitiesMockAudio))));
+        .WillOnce(Return(ByMove(std::move(capabilitiesMockAudio))))
+        .WillOnce(Return(ByMove(std::move(capabilitiesMockSubtitles))));
 }
