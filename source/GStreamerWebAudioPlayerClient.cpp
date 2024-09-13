@@ -443,3 +443,29 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     }
     }
 }
+
+bool GStreamerWebAudioPlayerClient::setVolume(double volume)
+{
+    return m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(volume); });
+}
+
+bool GStreamerWebAudioPlayerClient::getVolume(double &volume)
+{
+    volume = 0;
+    bool result{false};
+#if 1
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            if (m_clientBackend->getVolume(volume))
+            {
+                m_volume = volume;
+            }
+            else
+            {
+                volume = m_volume;
+            }
+        });
+#endif
+    return result;
+}

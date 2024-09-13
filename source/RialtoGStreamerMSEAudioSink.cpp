@@ -64,21 +64,22 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-        if (!client)
+        const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient =
+            basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!kClient)
         {
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
-        if (priv->isVolumeQueued)
+        if (priv->m_isVolumeQueued)
         {
-            client->setVolume(priv->volume);
-            priv->isVolumeQueued = false;
+            kClient->setVolume(priv->m_volume);
+            priv->m_isVolumeQueued = false;
         }
-        if (priv->isMuteQueued)
+        if (priv->m_isMuteQueued)
         {
-            client->setMute(priv->mute);
-            priv->isMuteQueued = false;
+            kClient->setMute(priv->m_mute);
+            priv->m_isMuteQueued = false;
         }
 
         break;
@@ -237,9 +238,9 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             rialto_mse_audio_sink_create_media_source(sink, caps);
         if (asource)
         {
-            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+            const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient =
                 sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(asource, sink)))
+            if ((!kClient) || (!kClient->attachSource(asource, sink)))
             {
                 GST_ERROR_OBJECT(sink, "Failed to attach AUDIO source");
             }
@@ -250,7 +251,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
                 {
-                    client->pause(sink->priv->m_sourceId);
+                    kClient->pause(sink->priv->m_sourceId);
                 }
             }
         }
@@ -283,28 +284,28 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         return;
     }
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+    const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
     switch (propId)
     {
     case PROP_VOLUME:
     {
-        if (!client)
+        if (!kClient)
         {
-            g_value_set_double(value, priv->volume);
+            g_value_set_double(value, priv->m_volume);
             return;
         }
-        g_value_set_double(value, client->getVolume());
+        g_value_set_double(value, kClient->getVolume());
         break;
     }
     case PROP_MUTE:
     {
-        if (!client)
+        if (!kClient)
         {
-            g_value_set_boolean(value, priv->mute);
+            g_value_set_boolean(value, priv->m_mute);
             return;
         }
-        g_value_set_boolean(value, client->getMute());
+        g_value_set_boolean(value, kClient->getMute());
         break;
     }
     default:
@@ -331,32 +332,32 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         return;
     }
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+    const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
     switch (propId)
     {
     case PROP_VOLUME:
     {
-        priv->volume = g_value_get_double(value);
-        if (!client)
+        priv->m_volume = g_value_get_double(value);
+        if (!kClient)
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
-            priv->isVolumeQueued = true;
+            priv->m_isVolumeQueued = true;
             return;
         }
-        client->setVolume(priv->volume);
+        kClient->setVolume(priv->m_volume);
         break;
     }
     case PROP_MUTE:
     {
-        priv->mute = g_value_get_boolean(value);
-        if (!client)
+        priv->m_mute = g_value_get_boolean(value);
+        if (!kClient)
         {
             GST_DEBUG_OBJECT(object, "Enqueue mute setting");
-            priv->isMuteQueued = true;
+            priv->m_isMuteQueued = true;
             return;
         }
-        client->setMute(priv->mute);
+        kClient->setMute(priv->m_mute);
         break;
     }
     case PROP_GAP:
@@ -384,7 +385,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
 
         GST_DEBUG_OBJECT(object, "Processing audio gap.");
-        client->processAudioGap(position, duration, discontinuityGap, audioAac);
+        kClient->processAudioGap(position, duration, discontinuityGap, audioAac);
         break;
     }
     default:

@@ -183,32 +183,35 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 
 bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
 {
-    if (!m_clientBackend)
+    bool result{false};
+    if (m_clientBackend)
     {
-        return false;
+        m_backendQueue->callInEventLoop([&]()
+                                        { result = m_clientBackend->setImmediateOutput(sourceId, immediateOutput); });
     }
-
-    return m_clientBackend->setImmediateOutput(sourceId, immediateOutput);
+    return result;
 }
 
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
 {
-    if (!m_clientBackend)
+    bool result{false};
+    if (m_clientBackend)
     {
-        return false;
+        m_backendQueue->callInEventLoop([&]()
+                                        { result = m_clientBackend->getImmediateOutput(sourceId, immediateOutput); });
     }
-
-    return m_clientBackend->getImmediateOutput(sourceId, immediateOutput);
+    return result;
 }
 
 bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
 {
-    if (!m_clientBackend)
+    bool result{false};
+    if (m_clientBackend)
     {
-        return false;
+        m_backendQueue->callInEventLoop(
+            [&]() { result = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
     }
-
-    return m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames);
+    return result;
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()

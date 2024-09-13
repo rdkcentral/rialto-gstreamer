@@ -18,9 +18,11 @@
 
 #pragma once
 
+#include "Constants.h"
 #include "ControlBackendInterface.h"
 #include "GStreamerWebAudioPlayerClient.h"
-#include <MediaCommon.h>
+#include "MediaCommon.h"
+
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
@@ -42,6 +44,8 @@ struct _RialtoWebAudioSinkPrivate
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
     bool m_isPlayingDelayed{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
+    std::atomic<double> m_volume = kDefaultVolume;
+    std::atomic<bool> m_isVolumeQueued = false;
 };
 
 struct _RialtoWebAudioSink

@@ -104,6 +104,24 @@ public:
     bool setEos();
 
     /**
+     * @brief Get the volume.
+     *
+     * @param[out] volume : The volume level
+     *
+     * @retval true on success.
+     */
+    bool getVolume(double &volume);
+
+    /**
+     * @brief Set the volume.
+     *
+     * @param[in] volume : The volume level
+     *
+     * @retval true on success.
+     */
+    bool setVolume(double volume);
+
+    /**
      * @brief Whether the backend has been opened or not.
      *
      * @retval true if open.
