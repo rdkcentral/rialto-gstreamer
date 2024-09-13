@@ -66,6 +66,7 @@ void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sin
 void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped);
 void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error);
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);
+void rialto_mse_base_handle_source_id_assigned(RialtoMSEBaseSink *sink);
 
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);
