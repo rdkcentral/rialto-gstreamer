@@ -300,8 +300,16 @@ public:
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double volume);
     double getVolume();
-    void setMute(bool mute);
-    bool getMute();
+    void setMute(bool mute, int32_t sourceId);
+    bool getMute(int sourceId);
+    void setTextTrackIdentifier(const std::string &textTrackIdentifier);
+    std::string getTextTrackIdentifier();
+    bool setLowLatency(bool lowLatency);
+    bool setSync(bool sync);
+    bool getSync(bool &sync);
+    bool setSyncOff(bool syncOff);
+    bool setStreamSyncMode(int32_t streamSyncMode);
+    bool getStreamSyncMode(int32_t &streamSyncMode);
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
 
@@ -316,7 +324,6 @@ private:
     int64_t m_position;
     int64_t m_duration;
     double m_volume = kDefaultVolume;
-    bool m_mute = kDefaultMute;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;

@@ -18,5 +18,11 @@
 
 #pragma once
 
+#include <cstdint>
+
 constexpr double kDefaultVolume{1.0};
 constexpr bool kDefaultMute{false};
+constexpr bool kDefaultLowLatency{false};
+constexpr bool kDefaultSync{false};
+constexpr bool kDefaultSyncOff{false};
+constexpr int32_t kDefaultStreamSyncMode{0};

@@ -226,6 +226,11 @@ private:
     std::string m_mimeType;
 
     /**
+     * @brief The current web audio player volume.
+     */
+    double m_volume;
+
+    /**
      * @brief The current web audio player config.
      */
     firebolt::rialto::WebAudioConfig m_config;
