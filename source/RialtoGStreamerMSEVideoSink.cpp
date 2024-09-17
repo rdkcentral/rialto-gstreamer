@@ -236,33 +236,29 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         return;
     }
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-
     switch (propId)
     {
     case PROP_WINDOW_SET:
+    {
+        std::unique_lock lock{priv->propertyMutex};
+        auto client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
-            // It is possible that within rialto_mse_video_sink_change_state() that:-
-            //   1. the client could be created
-            //   AND 2. the lock on priv->propertyMutex is acquired
-            // therefore we need to re-check the client AFTER getting a lock ourselves...
-            std::unique_lock lock{priv->propertyMutex};
-            client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-            if (!client)
-            {
-                // It's possible that someone calls to get this value before setting it, therefore
-                // queue a setting event for our default value so that it will become true when
-                // the client connects...
-                priv->rectangleSettingQueued = true;
-                g_value_set_string(value, priv->videoRectangle.c_str());
-            }
+            // Return the default value and
+            // queue a setting event (for the default value) so that it will become true when
+            // the client connects...
+            GST_DEBUG_OBJECT(object, "Return default rectangle setting, and queue an event to set the default upon "
+                                     "client connect");
+            priv->rectangleSettingQueued = true;
+            g_value_set_string(value, priv->videoRectangle.c_str());
         }
-        if (client)
+        else
         {
+            lock.release();
             g_value_set_string(value, client->getVideoRectangle().c_str());
         }
         break;
+    }
     case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
         GST_WARNING_OBJECT(object, "MaxVideoWidth property is deprecated. Use 'max-video-width' instead");
     case PROP_MAX_VIDEO_WIDTH:
@@ -284,26 +280,22 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_IMMEDIATE_OUTPUT:
     {
+        std::unique_lock lock{priv->propertyMutex};
+        auto client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
-            // It is possible that within rialto_mse_video_sink_change_state() that:-
-            //   1. the client could be created
-            //   AND 2. the lock on priv->propertyMutex is acquired
-            // therefore we need to re-check the client AFTER getting a lock ourselves...
-            std::unique_lock lock{priv->propertyMutex};
-            client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-            if (!client)
-            {
-                // It's possible that someone calls to get this value before setting it, therefore
-                // queue a setting event for our default value so that it will become true when
-                // the client connects...
-                priv->immediateOutputQueued = true;
-                g_value_set_boolean(value, priv->immediateOutput);
-            }
+            // Return the default value and
+            // queue a setting event (for the default value) so that it will become true when
+            // the client connects...
+            GST_DEBUG_OBJECT(object, "Return default immediate-output setting, and queue an event to set the default "
+                                     "upon client connect");
+            priv->immediateOutputQueued = true;
+            g_value_set_boolean(value, priv->immediateOutput);
         }
-        if (client)
+        else
         {
             bool immediateOutput{priv->immediateOutput};
+            lock.release();
             if (!client->getImmediateOutput(sink->parent.priv->m_sourceId, immediateOutput))
             {
                 GST_ERROR_OBJECT(sink, "Could not get immediate-output");
@@ -385,7 +377,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         priv->immediateOutput = immediateOutput;
         if (!client)
         {
-            GST_ERROR_OBJECT(sink, "Immediate output setting enqueued");
+            GST_DEBUG_OBJECT(sink, "Immediate output setting enqueued");
             priv->immediateOutputQueued = true;
         }
         else
