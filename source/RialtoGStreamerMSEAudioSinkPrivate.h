@@ -26,10 +26,10 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEAudioSinkPrivate
 {
-    std::atomic<double> m_volume = kDefaultVolume;
-    std::atomic_bool m_mute = kDefaultMute;
-    std::atomic_bool m_isVolumeQueued = false;
-    std::atomic_bool m_isMuteQueued = false;
+    std::atomic<double> volume = kDefaultVolume;
+    std::atomic_bool mute = kDefaultMute;
+    std::atomic_bool isVolumeQueued = false;
+    std::atomic_bool isMuteQueued = false;
     std::atomic_bool lowLatency = kDefaultLowLatency;
     std::atomic_bool isLowLatencyQueued = false;
     std::atomic_bool sync = kDefaultSync;

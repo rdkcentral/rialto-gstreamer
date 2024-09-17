@@ -228,7 +228,7 @@ private:
     /**
      * @brief The current web audio player volume.
      */
-    double m_volume;
+    double volume;
 
     /**
      * @brief The current web audio player config.

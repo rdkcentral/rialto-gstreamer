@@ -459,11 +459,11 @@ bool GStreamerWebAudioPlayerClient::getVolume(double &volume)
         {
             if (m_clientBackend->getVolume(volume))
             {
-                m_volume = volume;
+                volume = volume;
             }
             else
             {
-                volume = m_volume;
+                volume = volume;
             }
         });
 #endif

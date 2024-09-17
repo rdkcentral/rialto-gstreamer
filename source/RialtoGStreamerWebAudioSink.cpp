@@ -169,10 +169,10 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
-        if (priv->m_isVolumeQueued)
+        if (priv->isVolumeQueued)
         {
-            kClient->setVolume(priv->m_volume);
-            priv->m_isVolumeQueued = false;
+            kClient->setVolume(priv->volume);
+            priv->isVolumeQueued = false;
         }
         break;
     }
@@ -330,7 +330,7 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
         double volume;
         if (!kClient || !kClient->getVolume(volume))
         {
-            volume = priv->m_volume;
+            volume = priv->volume;
         }
         g_value_set_double(value, volume);
         break;
@@ -371,14 +371,14 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
 
     case PROP_VOLUME:
     {
-        priv->m_volume = g_value_get_double(value);
+        priv->volume = g_value_get_double(value);
         if (!kClient)
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
-            priv->m_isVolumeQueued = true;
+            priv->isVolumeQueued = true;
             return;
         }
-        if (!kClient->setVolume(priv->m_volume))
+        if (!kClient->setVolume(priv->volume))
         {
             GST_ERROR_OBJECT(object, "Failed to set volume");
         }
