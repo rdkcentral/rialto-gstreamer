@@ -77,12 +77,12 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        std::unique_lock lock{priv->rectangleMutex};
+        std::unique_lock lock{priv->propertyMutex};
         if (priv->rectangleSettingQueued)
         {
             GST_DEBUG_OBJECT(sink, "Set queued video rectangle");
-            client->setVideoRectangle(priv->videoRectangle);
             priv->rectangleSettingQueued = false;
+            client->setVideoRectangle(priv->videoRectangle);
         }
         break;
     }
@@ -158,8 +158,8 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
 
 static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
-    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
-    RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
+    RialtoMSEBaseSink *baseSink = RIALTO_MSE_BASE_SINK(parent);
+    RialtoMSEBaseSinkPrivate *basePriv = baseSink->priv;
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_CAPS:
@@ -168,36 +168,47 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
         gst_event_parse_caps(event, &caps);
         if (basePriv->m_sourceAttached)
         {
-            GST_INFO_OBJECT(sink, "Source already attached. Skip calling attachSource");
+            GST_INFO_OBJECT(baseSink, "Source already attached. Skip calling attachSource");
             break;
         }
 
-        GST_INFO_OBJECT(sink, "Attaching VIDEO source with caps %" GST_PTR_FORMAT, caps);
+        GST_INFO_OBJECT(baseSink, "Attaching VIDEO source with caps %" GST_PTR_FORMAT, caps);
 
         std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
-            rialto_mse_video_sink_create_media_source(sink, caps);
+            rialto_mse_video_sink_create_media_source(baseSink, caps);
         if (vsource)
         {
-            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(vsource, sink)))
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+            if ((!client) || (!client->attachSource(vsource, baseSink)))
             {
-                GST_ERROR_OBJECT(sink, "Failed to attach VIDEO source");
+                GST_ERROR_OBJECT(baseSink, "Failed to attach VIDEO source");
             }
             else
             {
                 basePriv->m_sourceAttached = true;
 
                 // check if READY -> PAUSED was requested before source was attached
-                if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
+                if (GST_STATE_NEXT(baseSink) == GST_STATE_PAUSED)
                 {
-                    client->pause(sink->priv->m_sourceId);
+                    client->pause(basePriv->m_sourceId);
+                }
+                RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(parent);
+                RialtoMSEVideoSinkPrivate *priv = sink->priv;
+                std::unique_lock lock{priv->propertyMutex};
+                if (priv->immediateOutputQueued)
+                {
+                    GST_DEBUG_OBJECT(sink, "Set queued immediate-output");
+                    priv->immediateOutputQueued = false;
+                    if (!client->setImmediateOutput(basePriv->m_sourceId, priv->immediateOutput))
+                    {
+                        GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+                    }
                 }
             }
         }
         else
         {
-            GST_ERROR_OBJECT(sink, "Failed to create VIDEO source");
+            GST_ERROR_OBJECT(baseSink, "Failed to create VIDEO source");
         }
 
         break;
@@ -225,21 +236,29 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         return;
     }
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-
     switch (propId)
     {
     case PROP_WINDOW_SET:
+    {
+        std::unique_lock lock{priv->propertyMutex};
+        auto client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
-            std::unique_lock lock{priv->rectangleMutex};
+            // Return the default value and
+            // queue a setting event (for the default value) so that it will become true when
+            // the client connects...
+            GST_DEBUG_OBJECT(object, "Return default rectangle setting, and queue an event to set the default upon "
+                                     "client connect");
+            priv->rectangleSettingQueued = true;
             g_value_set_string(value, priv->videoRectangle.c_str());
         }
         else
         {
+            lock.unlock();
             g_value_set_string(value, client->getVideoRectangle().c_str());
         }
         break;
+    }
     case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
         GST_WARNING_OBJECT(object, "MaxVideoWidth property is deprecated. Use 'max-video-width' instead");
     case PROP_MAX_VIDEO_WIDTH:
@@ -261,20 +280,30 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_IMMEDIATE_OUTPUT:
     {
+        std::unique_lock lock{priv->propertyMutex};
+        auto client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
-            GST_ERROR_OBJECT(sink, "Could not get the media player client");
-            return;
+            // Return the default value and
+            // queue a setting event (for the default value) so that it will become true when
+            // the client connects...
+            GST_DEBUG_OBJECT(object, "Return default immediate-output setting, and queue an event to set the default "
+                                     "upon client connect");
+            priv->immediateOutputQueued = true;
+            g_value_set_boolean(value, priv->immediateOutput);
         }
-
-        bool immediateOutput{false};
-        if (!client->getImmediateOutput(sink->parent.priv->m_sourceId, immediateOutput))
+        else
         {
-            GST_ERROR_OBJECT(sink, "Could not get immediate-output");
+            bool immediateOutput{priv->immediateOutput};
+            lock.unlock();
+            if (!client->getImmediateOutput(sink->parent.priv->m_sourceId, immediateOutput))
+            {
+                GST_ERROR_OBJECT(sink, "Could not get immediate-output");
+            }
+            g_value_set_boolean(value, immediateOutput);
         }
-        g_value_set_boolean(value, immediateOutput);
+        break;
     }
-    break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -309,8 +338,9 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
             GST_WARNING_OBJECT(object, "Rectangle string not valid");
             break;
         }
-        std::unique_lock lock{priv->rectangleMutex};
-        priv->videoRectangle = std::string(rectangle);
+        std::string videoRectangle{rectangle};
+        std::unique_lock lock{priv->propertyMutex};
+        priv->videoRectangle = videoRectangle;
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
@@ -318,7 +348,8 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         else
         {
-            client->setVideoRectangle(priv->videoRectangle);
+            lock.unlock();
+            client->setVideoRectangle(videoRectangle);
         }
         break;
     }
@@ -343,15 +374,21 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_IMMEDIATE_OUTPUT:
     {
+        bool immediateOutput = (g_value_get_boolean(value) != FALSE);
+        std::unique_lock lock{priv->propertyMutex};
+        priv->immediateOutput = immediateOutput;
         if (!client)
         {
-            GST_ERROR_OBJECT(sink, "Could not get the media player client");
-            return;
+            GST_DEBUG_OBJECT(sink, "Immediate output setting enqueued");
+            priv->immediateOutputQueued = true;
         }
-
-        if (!client->setImmediateOutput(sink->parent.priv->m_sourceId, g_value_get_boolean(value) != FALSE))
+        else
         {
-            GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+            lock.unlock();
+            if (!client->setImmediateOutput(basePriv->m_sourceId, immediateOutput))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+            }
         }
         break;
     }

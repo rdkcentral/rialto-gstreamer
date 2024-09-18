@@ -120,6 +120,33 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH264)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedImmediateOutput)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    {
+        // Queue an immediate-output request
+        EXPECT_CALL(m_mediaPipelineMock, setImmediateOutput(_, true)).WillOnce(Return(true));
+        RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(videoSink);
+        sink->priv->immediateOutput = true;
+        sink->priv->immediateOutputQueued = true;
+    }
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_TRUE(videoSink->priv->m_sourceAttached);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
