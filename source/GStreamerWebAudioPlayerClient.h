@@ -18,26 +18,27 @@
 
 #pragma once
 
+#include "Constants.h"
 #include "IMessageQueue.h"
 #include "ITimer.h"
+#include "MediaCommon.h"
 #include "WebAudioClientBackendInterface.h"
-#include <MediaCommon.h>
-#include <condition_variable>
+
 #include <gst/app/gstappsink.h>
 #include <gst/base/gstbasesink.h>
 #include <gst/gst.h>
-#include <mutex>
-#include <thread>
-#include <vector>
-
-#include <atomic>
-#include <functional>
-#include <memory>
-#include <queue>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <thread>
 #include <unistd.h>
+
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <vector>
 
 struct WebAudioSinkCallbacks
 {
@@ -224,11 +225,6 @@ private:
      * @brief The current web audio player mime type.
      */
     std::string m_mimeType;
-
-    /**
-     * @brief The current web audio player volume.
-     */
-    double volume;
 
     /**
      * @brief The current web audio player config.

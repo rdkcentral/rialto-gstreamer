@@ -478,6 +478,29 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedVolume)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnLastKnownVolumeWhenOperationFails)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gdouble kVolume{0.7};
+    {
+        EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
+        gdouble volume{-1.0};
+        g_object_get(textContext.m_sink, "volume", &volume, nullptr);
+        EXPECT_EQ(volume, kVolume);
+    }
+
+    {
+        EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(1.0), Return(false)));
+        gdouble volume{-1.0};
+        g_object_get(textContext.m_sink, "volume", &volume, nullptr);
+        EXPECT_EQ(volume, kVolume);
+    }
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetMutePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

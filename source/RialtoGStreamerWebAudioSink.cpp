@@ -169,11 +169,6 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
         GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
-        if (priv->isVolumeQueued)
-        {
-            kClient->setVolume(priv->volume);
-            priv->isVolumeQueued = false;
-        }
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
@@ -254,13 +249,14 @@ static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *eleme
 static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
+    RialtoWebAudioSinkPrivate *priv = sink->priv;
     bool result = false;
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_EOS:
     {
         GST_DEBUG("GST_EVENT_EOS");
-        result = sink->priv->m_webAudioClient->setEos();
+        result = priv->m_webAudioClient->setEos();
         gst_event_unref(event);
         break;
     }
@@ -270,25 +266,32 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         gst_event_parse_caps(event, &caps);
         GST_INFO_OBJECT(sink, "Opening WebAudio with caps %" GST_PTR_FORMAT, caps);
 
-        if (!sink->priv->m_webAudioClient->open(caps))
+        if (!priv->m_webAudioClient->open(caps))
         {
             GST_ERROR_OBJECT(sink, "Failed to open web audio");
-        }
-        else if (sink->priv->m_isPlayingDelayed)
-        {
-            if (!sink->priv->m_webAudioClient->play())
-            {
-                GST_ERROR_OBJECT(sink, "Failed to play web audio");
-            }
-            else
-            {
-                sink->priv->m_isPlayingDelayed = false;
-                result = true;
-            }
         }
         else
         {
             result = true;
+            if (priv->isVolumeQueued)
+            {
+                priv->m_webAudioClient->setVolume(priv->volume);
+                priv->isVolumeQueued = false;
+            }
+
+            if (priv->m_isPlayingDelayed)
+            {
+                // kClient->isOpen() must be true before setVolume will work
+                if (!priv->m_webAudioClient->play())
+                {
+                    GST_ERROR_OBJECT(sink, "Failed to play web audio");
+                    result = false;
+                }
+                else
+                {
+                    priv->m_isPlayingDelayed = false;
+                }
+            }
         }
         gst_event_unref(event);
         break;
@@ -328,7 +331,14 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
     case PROP_VOLUME:
     {
         double volume;
-        if (!kClient || !kClient->getVolume(volume))
+        if (kClient && kClient->isOpen())
+        {
+            if (kClient->getVolume(volume))
+                priv->volume = volume;
+            else
+                volume = priv->volume; // Use last known volume
+        }
+        else
         {
             volume = priv->volume;
         }
@@ -372,7 +382,7 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_VOLUME:
     {
         priv->volume = g_value_get_double(value);
-        if (!kClient)
+        if (!kClient || !kClient->isOpen())
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
             priv->isVolumeQueued = true;

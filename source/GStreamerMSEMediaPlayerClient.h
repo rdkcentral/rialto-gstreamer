@@ -18,15 +18,13 @@
 
 #pragma once
 
-#include "IMessageQueue.h"
-#include "MediaPlayerClientBackendInterface.h"
-#include <IMediaPipeline.h>
-#include <MediaCommon.h>
+#include <atomic>
 #include <condition_variable>
 #include <gst/gst.h>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <functional>
@@ -38,10 +36,12 @@
 
 #include "BufferParser.h"
 #include "Constants.h"
+#include "IMediaPipeline.h"
+#include "IMessageQueue.h"
+#include "MediaCommon.h"
+#include "MediaPlayerClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
-#include <atomic>
-#include <unordered_set>
 
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
@@ -299,7 +299,7 @@ public:
     void destroyClientBackend();
     bool renderFrame(RialtoMSEBaseSink *sink);
     void setVolume(double volume);
-    double getVolume();
+    bool getVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
     void setTextTrackIdentifier(const std::string &textTrackIdentifier);
@@ -323,7 +323,6 @@ private:
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
     int64_t m_position;
     int64_t m_duration;
-    double m_volume = kDefaultVolume;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;

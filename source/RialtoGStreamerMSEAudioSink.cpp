@@ -329,12 +329,19 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
     case PROP_VOLUME:
     {
-        if (!kClient)
+        double volume;
+        if (kClient)
         {
-            g_value_set_double(value, priv->volume);
-            return;
+            if (kClient->getVolume(volume))
+                priv->volume = volume;
+            else
+                volume = priv->volume; // Use last known volume
         }
-        g_value_set_double(value, kClient->getVolume());
+        else
+        {
+            volume = priv->volume;
+        }
+        g_value_set_double(value, volume);
         break;
     }
     case PROP_MUTE:
@@ -410,7 +417,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_VOLUME:
     {
         priv->volume = g_value_get_double(value);
-        if (!kClient)
+        if (!kClient || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
             priv->isVolumeQueued = true;

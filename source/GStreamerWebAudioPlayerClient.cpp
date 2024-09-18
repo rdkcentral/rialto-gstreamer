@@ -18,10 +18,12 @@
 
 #include "GStreamerWebAudioPlayerClient.h"
 #include "GstreamerCatLog.h"
+
+#include <string.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
-#include <string.h>
 #include <thread>
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
@@ -446,26 +448,14 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
 
 bool GStreamerWebAudioPlayerClient::setVolume(double volume)
 {
-    return m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(volume); });
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setVolume(volume); });
+    return status;
 }
 
 bool GStreamerWebAudioPlayerClient::getVolume(double &volume)
 {
-    volume = 0;
-    bool result{false};
-#if 1
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_clientBackend->getVolume(volume))
-            {
-                volume = volume;
-            }
-            else
-            {
-                volume = volume;
-            }
-        });
-#endif
-    return result;
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    return status;
 }

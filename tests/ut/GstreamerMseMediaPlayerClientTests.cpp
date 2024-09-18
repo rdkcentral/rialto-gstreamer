@@ -1146,16 +1146,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
 {
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
-    EXPECT_EQ(m_sut->getVolume(), kVolume);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReturnLastKnownVolumeWhenOperationFails)
-{
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
-    EXPECT_EQ(m_sut->getVolume(), kVolume);
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getVolume(), kVolume);
+    double volume{-1.0};
+    EXPECT_TRUE(m_sut->getVolume(volume));
+    EXPECT_EQ(volume, kVolume);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
