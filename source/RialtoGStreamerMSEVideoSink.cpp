@@ -254,7 +254,7 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         }
         else
         {
-            lock.release();
+            lock.unlock();
             g_value_set_string(value, client->getVideoRectangle().c_str());
         }
         break;
@@ -295,7 +295,7 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         else
         {
             bool immediateOutput{priv->immediateOutput};
-            lock.release();
+            lock.unlock();
             if (!client->getImmediateOutput(sink->parent.priv->m_sourceId, immediateOutput))
             {
                 GST_ERROR_OBJECT(sink, "Could not get immediate-output");
@@ -338,8 +338,9 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
             GST_WARNING_OBJECT(object, "Rectangle string not valid");
             break;
         }
+        std::string videoRectangle{rectangle};
         std::unique_lock lock{priv->propertyMutex};
-        priv->videoRectangle = std::string(rectangle);
+        priv->videoRectangle = videoRectangle;
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
@@ -347,7 +348,8 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         else
         {
-            client->setVideoRectangle(priv->videoRectangle);
+            lock.unlock();
+            client->setVideoRectangle(videoRectangle);
         }
         break;
     }
@@ -382,6 +384,7 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         else
         {
+            lock.unlock();
             if (!client->setImmediateOutput(basePriv->m_sourceId, immediateOutput))
             {
                 GST_ERROR_OBJECT(sink, "Could not set immediate-output");
