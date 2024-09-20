@@ -40,6 +40,12 @@ struct _RialtoMSEAudioSinkPrivate
     std::atomic_bool isSyncOffQueued = false;
     std::atomic<int32_t> streamSyncMode = kDefaultStreamSyncMode;
     std::atomic_bool isStreamSyncModeQueued = false;
+    // std::atomic<const gchar*> audioFade = nullptr;
+    std::atomic_bool isAudioFadeQueued = false;
+    std::atomic<std::string> audioFade = kDefaultAudioFade;
+    std::atomic<uint32_t> fadeVolume = kDefaultFadeVolume;
+    
+    
 };
 
 G_END_DECLS

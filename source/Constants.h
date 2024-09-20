@@ -29,3 +29,4 @@ constexpr bool kDefaultLowLatency{false};
 constexpr bool kDefaultSync{false};
 constexpr bool kDefaultSyncOff{false};
 constexpr int32_t kDefaultStreamSyncMode{0};
+constexpr uint32_t kDefaultFadeVolume{0};
