@@ -30,4 +30,4 @@ constexpr bool kDefaultSync{false};
 constexpr bool kDefaultSyncOff{false};
 constexpr int32_t kDefaultStreamSyncMode{0};
 constexpr double kDefaultFadeVolume{0};
-constexpr const char* kDefaultAudioFade = "";
+constexpr const char *kDefaultAudioFade = "";

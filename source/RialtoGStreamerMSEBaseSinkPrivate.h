@@ -61,6 +61,7 @@ struct _RialtoMSEBaseSinkPrivate
     GstCaps *m_caps = nullptr;
 
     std::atomic<int32_t> m_sourceId;
+    std::atomic<double> m_currentVolume;
     std::queue<GstSample *> m_samples;
     bool m_isEos = false;
     std::atomic<bool> m_isFlushOngoing;

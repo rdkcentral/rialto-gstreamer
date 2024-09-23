@@ -19,6 +19,7 @@
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 #include <inttypes.h>
+#include <mutex>
 #include <stdint.h>
 
 #include "Constants.h"
@@ -387,14 +388,11 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_FADE_VOLUME:
     {
-        if (!client)
+        if (!client->getVolume())
         {
-            g_value_set_uint(value, priv->fadeVolume);
-            return;
+            GST_ERROR_OBJECT(sink, "Could not get fade volume");
         }
-
-        double fadeVolume{kDefaultFadeVolume};
-        g_value_set_uint(value, fadeVolume);
+        g_value_set_uint(value, kDefaultFadeVolume);
         break;
     }
     default:
@@ -405,6 +403,35 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
 }
 
+int convertEaseTypeToInt(firebolt::rialto::EaseType easeType)
+{
+    switch (easeType)
+    {
+    case firebolt::rialto::EaseType::EASE_LINEAR:
+        return 0;
+    case firebolt::rialto::EaseType::EASE_IN_CUBIC:
+        return 1;
+    case firebolt::rialto::EaseType::EASE_OUT_CUBIC:
+        return 2;
+    default:
+        return -1;
+    }
+}
+
+firebolt::rialto::EaseType convertIntToEaseType(int easeTypeInt)
+{
+    switch (easeTypeInt)
+    {
+    case 0:
+        return firebolt::rialto::EaseType::EASE_LINEAR;
+    case 1:
+        return firebolt::rialto::EaseType::EASE_IN_CUBIC;
+    case 2:
+        return firebolt::rialto::EaseType::EASE_OUT_CUBIC;
+    default:
+        return firebolt::rialto::EaseType::EASE_LINEAR; // Or handle the default case appropriately
+    }
+}
 static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
@@ -544,26 +571,29 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_AUDIO_FADE:
     {
         const gchar *audioFadeStr = g_value_get_string(value);
-        double volume;
-        uint32_t duration;
-        int easeTypeInt;
+        double volume = 0.0;
+        uint32_t duration = 0;
+        int easeTypeInt = convertEaseTypeToInt(firebolt::rialto::EaseType::EASE_LINEAR);
 
         if (sscanf(audioFadeStr, "%lf,%u,%d", &volume, &duration, &easeTypeInt) != 3)
         {
-            GST_ERROR_OBJECT(object, "Failed to parse audio fade string");
-            return;
+            GST_WARNING_OBJECT(object, "Failed to parse audio fade string");
         }
 
-        firebolt::rialto::EaseType easeType = static_cast<firebolt::rialto::EaseType>(easeTypeInt);
+        std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
+        priv->audioFadeConfig.volume = volume;
+        priv->audioFadeConfig.duration = duration;
 
-        priv->audioFadeConfig = {volume, duration, easeType};
+        firebolt::rialto::EaseType easeType = convertIntToEaseType(easeTypeInt);
+        priv->audioFadeConfig.easeType = easeType;
 
         if (!client || !basePriv->m_sourceAttached)
         {
-            GST_DEBUG_OBJECT(object, "Enqueue audio-fade setting");
+            GST_DEBUG_OBJECT(object, "Enqueue audio fade setting");
             priv->isAudioFadeQueued = true;
             return;
         }
+
         client->setVolume(volume, duration, easeType);
         break;
     }
@@ -643,7 +673,8 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kStreamSyncModePropertyName{"stream-sync-mode"};
         const std::string kAudioFadePropertyName{"audio-fade"};
         const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
-                                                              kSyncOffPropertyName, kStreamSyncModePropertyName, kAudioFadePropertyName};
+                                                              kSyncOffPropertyName, kStreamSyncModePropertyName,
+                                                              kAudioFadePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -681,9 +712,9 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             else if (kAudioFadePropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
-                                                g_param_spec_string(kAudioFadePropertyName.c_str(),
-                                                                     "audio fade", "Controls fade effect for audio transitions",
-                                                                     kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+                                                g_param_spec_string(kAudioFadePropertyName.c_str(), "audio fade",
+                                                                    "Controls fade effect for audio transitions",
+                                                                    kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
             }
             else
             {
