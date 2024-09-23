@@ -288,10 +288,8 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (audioSink->priv->isAudioFadeQueued)
                 {
-                    if (!client->setAudioFade(audioSink->priv->audioFade))
-                    {
-                        GST_ERROR_OBJECT(audioSink, "Could not set queued audio-fade");
-                    }
+                    AudioFadeConfig audioFadeConfig = audioSink->priv->audioFadeConfig;
+                    client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
                     audioSink->priv->isAudioFadeQueued = false;
                 }
 
@@ -395,11 +393,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             return;
         }
 
-        uint32_t fadeVolume{kDefaultFadeVolume};
-        if (!client->getFadeVolume(fadeVolume))
-        {
-            GST_ERROR_OBJECT(sink, "Could not get fade-volume");
-        }
+        double fadeVolume{kDefaultFadeVolume};
         g_value_set_uint(value, fadeVolume);
         break;
     }
@@ -549,35 +543,28 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_AUDIO_FADE:
     {
-        priv->audioFade = g_value_get_string(value);
+        const gchar *audioFadeStr = g_value_get_string(value);
+        double volume;
+        uint32_t duration;
+        int easeTypeInt;
+
+        if (sscanf(audioFadeStr, "%lf,%u,%d", &volume, &duration, &easeTypeInt) != 3)
+        {
+            GST_ERROR_OBJECT(object, "Failed to parse audio fade string");
+            return;
+        }
+
+        firebolt::rialto::EaseType easeType = static_cast<firebolt::rialto::EaseType>(easeTypeInt);
+
+        priv->audioFadeConfig = {volume, duration, easeType};
+
         if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue audio-fade setting");
             priv->isAudioFadeQueued = true;
             return;
         }
-        // Pass the volume, duration and easetype in here - opposite of SetVolume .cpp
-        std::string audioFadeStr(priv->audioFade);
-        std::istringstream iss(audioFadeStr);
-        std::string volumeStr, durationStr, easetypeStr;
-
-        if (std::getline(iss, volumeStr, ',') && std::getline(iss, durationStr, ',') && std::getline(iss, easetypeStr, ','))
-        {
-            float volume = std::stof(volumeStr);
-            int duration = std::stoi(durationStr);
-            std::string easetype = easetypeStr;
-
-            // Call client->setAudioFade with the extracted parameters
-            if (!client->setAudioFade(volume, duration, easetype, basePriv->m_sourceId))
-            {
-                GST_ERROR_OBJECT(object, "Failed to set audio fade");
-            }
-        }
-        else
-        {
-            GST_ERROR_OBJECT(object, "Invalid audio fade format");
-        }
-        // client->setAudioFade(priv->audioFade , basePriv->m_sourceId);
+        client->setVolume(volume, duration, easeType);
         break;
     }
     default:

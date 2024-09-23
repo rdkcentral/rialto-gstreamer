@@ -24,6 +24,13 @@
 
 G_BEGIN_DECLS
 
+struct AudioFadeConfig
+{
+    double volume;
+    uint32_t duration;
+    firebolt::rialto::EaseType easeType;
+};
+
 struct _RialtoMSEAudioSinkPrivate
 {
     std::atomic<double> targetVolume = kDefaultVolume;
@@ -40,12 +47,10 @@ struct _RialtoMSEAudioSinkPrivate
     std::atomic_bool isSyncOffQueued = false;
     std::atomic<int32_t> streamSyncMode = kDefaultStreamSyncMode;
     std::atomic_bool isStreamSyncModeQueued = false;
-    // std::atomic<const gchar*> audioFade = nullptr;
+    std::atomic<const gchar*> audioFade = kDefaultAudioFade;
+    AudioFadeConfig audioFadeConfig;
     std::atomic_bool isAudioFadeQueued = false;
-    std::atomic<std::string> audioFade = kDefaultAudioFade;
     std::atomic<uint32_t> fadeVolume = kDefaultFadeVolume;
-    
-    
 };
 
 G_END_DECLS
