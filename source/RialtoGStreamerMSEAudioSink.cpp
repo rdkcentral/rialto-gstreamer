@@ -394,14 +394,17 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            g_value_set_uint(value, priv->targetVolume);
+            g_value_set_double(value, priv->targetVolume);
             return;
         }
         if (!client->getVolume())
         {
             GST_ERROR_OBJECT(sink, "Could not get fade volume");
         }
-        g_value_set_uint(value, kDefaultFadeVolume);
+        else
+        {
+            g_value_set_double(value, client->getVolume());
+        }
         break;
     }
     default:
@@ -470,7 +473,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->isVolumeQueued = true;
             return;
         }
-        client->setVolume(priv->targetVolume, priv->volumeDuration, priv->easeType);
+        client->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
         break;
     }
     case PROP_MUTE:
@@ -586,7 +589,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
 
         if (sscanf(audioFadeStr, "%lf,%u,%d", &volume, &duration, &easeTypeInt) != 3)
         {
-            GST_WARNING_OBJECT(object, "Failed to parse audio fade string: %s. Default values: volume=%lf, duration=%u, easeTypeInt=%d",
+            GST_WARNING_OBJECT(object, "Failed to parse audio fade string: %s. Continuing with values: volume=%lf, duration=%u, easeTypeInt=%d",
                                audioFadeStr, volume, duration, easeTypeInt);
         }
 
