@@ -394,18 +394,18 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            g_value_set_double(value, priv->targetVolume);
+            g_value_set_uint(value, priv->targetVolume);
             return;
         }
-        if (!client->getVolume())
+        uint fadeVolume = client->getVolume();
+        if (!fadeVolume)
         {
             GST_ERROR_OBJECT(sink, "Could not get fade volume");
         }
         else
         {
-            g_value_set_double(value, client->getVolume());
+            g_value_set_uint(value, fadeVolume);
         }
-        break;
     }
     default:
     {
