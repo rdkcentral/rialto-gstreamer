@@ -289,7 +289,11 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (audioSink->priv->isAudioFadeQueued)
                 {
-                    AudioFadeConfig audioFadeConfig = audioSink->priv->audioFadeConfig;
+                    AudioFadeConfig audioFadeConfig;
+                    {
+                        std::lock_guard<std::mutex> lock(audioSink->priv->audioFadeConfigMutex);
+                        audioFadeConfig = audioSink->priv->audioFadeConfig;
+                    }
                     client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
                     audioSink->priv->isAudioFadeQueued = false;
                 }
@@ -388,6 +392,11 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_FADE_VOLUME:
     {
+        if (!client)
+        {
+            g_value_set_uint(value, priv->targetVolume);
+            return;
+        }
         if (!client->getVolume())
         {
             GST_ERROR_OBJECT(sink, "Could not get fade volume");
@@ -571,21 +580,23 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_AUDIO_FADE:
     {
         const gchar *audioFadeStr = g_value_get_string(value);
-        double volume = 0.0;
-        uint32_t duration = 0;
-        int easeTypeInt = convertEaseTypeToInt(firebolt::rialto::EaseType::EASE_LINEAR);
+        double volume = kDefaultVolume;
+        uint32_t duration = kDefaultVolumeDuration;
+        int easeTypeInt = convertEaseTypeToInt(kDefaultEaseType);
 
         if (sscanf(audioFadeStr, "%lf,%u,%d", &volume, &duration, &easeTypeInt) != 3)
         {
-            GST_WARNING_OBJECT(object, "Failed to parse audio fade string");
+            GST_WARNING_OBJECT(object, "Failed to parse audio fade string: %s. Default values: volume=%lf, duration=%u, easeTypeInt=%d",
+                               audioFadeStr, volume, duration, easeTypeInt);
         }
 
-        std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
-        priv->audioFadeConfig.volume = volume;
-        priv->audioFadeConfig.duration = duration;
-
         firebolt::rialto::EaseType easeType = convertIntToEaseType(easeTypeInt);
-        priv->audioFadeConfig.easeType = easeType;
+        {
+            std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
+            priv->audioFadeConfig.volume = volume;
+            priv->audioFadeConfig.duration = duration;
+            priv->audioFadeConfig.easeType = easeType;
+        }
 
         if (!client || !basePriv->m_sourceAttached)
         {
