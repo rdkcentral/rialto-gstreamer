@@ -60,6 +60,8 @@ constexpr bool kLowLatency{true};
 constexpr bool kSync{true};
 constexpr bool kSyncOff{true};
 constexpr int32_t kStreamSyncMode{1};
+constexpr uint32_t kBufferingLimit{12384};
+constexpr bool kUseBuffering{true};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -1538,4 +1540,34 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetTextTrackIdentifier)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getTextTrackIdentifier(_))
         .WillOnce(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
     EXPECT_EQ(m_sut->getTextTrackIdentifier(), kTextTrackIdentifier);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetBufferingLimit)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setBufferingLimit(kBufferingLimit)).WillOnce(Return(true));
+    m_sut->setBufferingLimit(kBufferingLimit);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetBufferingLimit)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getBufferingLimit(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kBufferingLimit), Return(true)));
+    EXPECT_EQ(m_sut->getBufferingLimit(), kBufferingLimit);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetUseBuffering)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setUseBuffering(kUseBuffering)).WillOnce(Return(true));
+    m_sut->setUseBuffering(kUseBuffering);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetUseBuffering)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getUseBuffering(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kUseBuffering), Return(true)));
+    EXPECT_EQ(m_sut->getUseBuffering(), kUseBuffering);
 }

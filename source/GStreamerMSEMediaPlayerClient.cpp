@@ -861,6 +861,48 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
         });
 }
 
+void GStreamerMSEMediaPlayerClient::setBufferingLimit(uint32_t limitBufferingMs)
+{
+    if (!m_clientBackend)
+    {
+        return;
+    }
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setBufferingLimit(limitBufferingMs); });
+}
+
+uint32_t GStreamerMSEMediaPlayerClient::getBufferingLimit()
+{
+    if (!m_clientBackend)
+    {
+        return 0;
+    }
+
+    uint32_t result{0};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getBufferingLimit(result); });
+    return result;
+}
+
+void GStreamerMSEMediaPlayerClient::setUseBuffering(bool useBuffering)
+{
+    if (!m_clientBackend)
+    {
+        return;
+    }
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setUseBuffering(useBuffering); });
+}
+
+bool GStreamerMSEMediaPlayerClient::getUseBuffering()
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool result{false};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getUseBuffering(result); });
+    return result;
+}
+
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),

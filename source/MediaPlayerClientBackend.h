@@ -151,6 +151,20 @@ public:
         return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);
     }
 
+    bool setBufferingLimit(uint32_t limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->setBufferingLimit(limitBufferingMs);
+    }
+
+    bool getBufferingLimit(uint32_t &limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->getBufferingLimit(limitBufferingMs);
+    }
+
+    bool setUseBuffering(bool useBuffering) override { return m_mediaPlayerBackend->setUseBuffering(useBuffering); }
+
+    bool getUseBuffering(bool &useBuffering) override { return m_mediaPlayerBackend->getUseBuffering(useBuffering); }
+
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };
