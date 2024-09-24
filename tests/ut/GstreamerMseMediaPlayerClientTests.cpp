@@ -1345,9 +1345,15 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncOffIfNoClientBackend)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetStreamSyncMode)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
-    EXPECT_TRUE(m_sut->setStreamSyncMode(kStreamSyncMode));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setStreamSyncMode(kAudioSourceId, kStreamSyncMode)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setStreamSyncMode(kAudioSourceId, kStreamSyncMode));
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientBackend)
@@ -1362,7 +1368,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientB
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
                                                             kMaxVideoHeight);
 
-    EXPECT_FALSE(m_sut->setStreamSyncMode(kStreamSyncMode));
+    EXPECT_FALSE(m_sut->setStreamSyncMode(kUnknownSourceId, kStreamSyncMode));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetStreamSyncMode)

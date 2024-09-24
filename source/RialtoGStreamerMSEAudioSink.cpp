@@ -278,7 +278,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (audioSink->priv->isStreamSyncModeQueued)
                 {
-                    if (!client->setStreamSyncMode(audioSink->priv->streamSyncMode))
+                    if (!client->setStreamSyncMode(basePriv->m_sourceId, audioSink->priv->streamSyncMode))
                     {
                         GST_ERROR_OBJECT(audioSink, "Could not set queued stream-sync-mode");
                     }
@@ -515,7 +515,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             return;
         }
 
-        if (!client->setStreamSyncMode(priv->streamSyncMode))
+        if (!client->setStreamSyncMode(basePriv->m_sourceId, priv->streamSyncMode))
         {
             GST_ERROR_OBJECT(sink, "Could not set stream-sync-mode");
         }

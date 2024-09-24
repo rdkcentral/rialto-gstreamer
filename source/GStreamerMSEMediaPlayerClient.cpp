@@ -812,7 +812,7 @@ bool GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
     return status;
 }
 
-bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
+bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode)
 {
     if (!m_clientBackend)
     {
@@ -820,7 +820,7 @@ bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
     }
 
     bool status{false};
-    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(streamSyncMode); });
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(sourceId, streamSyncMode); });
     return status;
 }
 

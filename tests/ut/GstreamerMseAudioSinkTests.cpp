@@ -794,7 +794,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetStreamSyncModePropertyOnRialto
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     constexpr gint kStreamSyncMode{1};
-    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(false));
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(textContext.m_sourceId, kStreamSyncMode)).WillOnce(Return(false));
     g_object_set(textContext.m_sink, "stream-sync-mode", kStreamSyncMode, nullptr);
 
     // Error is logged
@@ -808,7 +808,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetStreamSyncMode)
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     constexpr gint kStreamSyncMode{1};
-    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(textContext.m_sourceId, kStreamSyncMode)).WillOnce(Return(true));
     g_object_set(textContext.m_sink, "stream-sync-mode", kStreamSyncMode, nullptr);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
@@ -827,7 +827,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedStreamSyncMode)
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
     allSourcesWillBeAttached();
 
-    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kSourceId, kStreamSyncMode)).WillOnce(Return(true));
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
@@ -850,7 +850,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailu
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
     allSourcesWillBeAttached();
 
-    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(false));
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kSourceId, kStreamSyncMode)).WillOnce(Return(false));
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);

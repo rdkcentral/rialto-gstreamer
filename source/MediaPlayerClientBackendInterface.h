@@ -60,7 +60,7 @@ public:
     virtual bool setSync(bool sync) = 0;
     virtual bool getSync(bool &sync) = 0;
     virtual bool setSyncOff(bool syncOff) = 0;
-    virtual bool setStreamSyncMode(int32_t streamSyncMode) = 0;
+    virtual bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode) = 0;
     virtual bool getStreamSyncMode(int32_t &streamSyncMode) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
     virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0) = 0;
