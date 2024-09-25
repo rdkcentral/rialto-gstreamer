@@ -434,6 +434,156 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetStreamSyncModeProperty)
     gst_object_unref(textContext.m_pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultBufferingLimitWhenPipelineIsBelowPausedState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    guint bufferingLimit{0};
+    g_object_get(audioSink, "limit-buffering-ms", &bufferingLimit, nullptr);
+    EXPECT_EQ(kDefaultBufferingLimit, bufferingLimit); // Default value should be returned
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldGetBufferingLimitProperty)
+{
+    constexpr guint kBufferingLimit{123};
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    guint bufferingLimit{0};
+    EXPECT_CALL(m_mediaPipelineMock, getBufferingLimit(_)).WillOnce(DoAll(SetArgReferee<0>(kBufferingLimit), Return(true)));
+    g_object_get(textContext.m_sink, "limit-buffering-ms", &bufferingLimit, nullptr);
+    EXPECT_EQ(bufferingLimit, kBufferingLimit);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetBufferingLimitProperty)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr guint kBufferingLimit{1};
+    EXPECT_CALL(m_mediaPipelineMock, setBufferingLimit(kBufferingLimit)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "limit-buffering-ms", kBufferingLimit, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedBufferingLimit)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr guint kBufferingLimit{1};
+    g_object_set(audioSink, "limit-buffering-ms", kBufferingLimit, nullptr);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setBufferingLimit(kBufferingLimit)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetBufferingLimitPropertyWhenPipelineIsBelowPausedState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    constexpr guint kBufferingLimit{123};
+    g_object_set(audioSink, "limit-buffering-ms", kBufferingLimit, nullptr);
+
+    // Sink should return cached value, when get is called
+    guint bufferingLimit{0};
+    g_object_get(audioSink, "limit-buffering-ms", &bufferingLimit, nullptr);
+    EXPECT_EQ(kBufferingLimit, bufferingLimit);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultUseBufferingWhenPipelineIsBelowPausedState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    gboolean useBuffering{FALSE};
+    g_object_get(audioSink, "use-buffering", &useBuffering, nullptr);
+    EXPECT_EQ(kDefaultUseBuffering, useBuffering); // Default value should be returned
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldGetUseBufferingProperty)
+{
+    constexpr gboolean kUseBuffering{TRUE};
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    gboolean useBuffering{FALSE};
+    EXPECT_CALL(m_mediaPipelineMock, getUseBuffering(_)).WillOnce(DoAll(SetArgReferee<0>(kUseBuffering), Return(true)));
+    g_object_get(textContext.m_sink, "use-buffering", &useBuffering, nullptr);
+    EXPECT_EQ(useBuffering, kUseBuffering);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetUseBufferingProperty)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gboolean kUseBuffering{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setUseBuffering(kUseBuffering)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "use-buffering", kUseBuffering, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedUseBuffering)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kUseBuffering{TRUE};
+    g_object_set(audioSink, "use-buffering", kUseBuffering, nullptr);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setUseBuffering(kUseBuffering)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetUseBufferingPropertyWhenPipelineIsBelowPausedState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    constexpr gboolean kUseBuffering{TRUE};
+    g_object_set(audioSink, "use-buffering", kUseBuffering, nullptr);
+
+    // Sink should return cached value, when get is called
+    gboolean useBuffering{FALSE};
+    g_object_get(audioSink, "use-buffering", &useBuffering, nullptr);
+    EXPECT_EQ(kUseBuffering, useBuffering);
+
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

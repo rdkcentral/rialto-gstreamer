@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerMSEMediaPlayerClient.h"
+#include "Constants.h"
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
@@ -874,10 +875,10 @@ uint32_t GStreamerMSEMediaPlayerClient::getBufferingLimit()
 {
     if (!m_clientBackend)
     {
-        return 0;
+        return kDefaultBufferingLimit;
     }
 
-    uint32_t result{0};
+    uint32_t result{kDefaultBufferingLimit};
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->getBufferingLimit(result); });
     return result;
 }
@@ -895,10 +896,10 @@ bool GStreamerMSEMediaPlayerClient::getUseBuffering()
 {
     if (!m_clientBackend)
     {
-        return false;
+        return kDefaultUseBuffering;
     }
 
-    bool result{false};
+    bool result{kDefaultUseBuffering};
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->getUseBuffering(result); });
     return result;
 }
