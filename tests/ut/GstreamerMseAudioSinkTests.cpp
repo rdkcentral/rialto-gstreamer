@@ -19,6 +19,7 @@
 #include "Constants.h"
 #include "Matchers.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include "RialtoGStreamerMSEAudioSinkPrivate.h" 
 #include "RialtoGstTest.h"
 
 using testing::_;
@@ -429,6 +430,45 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetStreamSyncModeProperty)
     EXPECT_CALL(m_mediaPipelineMock, getStreamSyncMode(_)).WillOnce(DoAll(SetArgReferee<0>(1), Return(true)));
     g_object_get(textContext.m_sink, "stream-sync-mode", &streamSyncMode, nullptr);
     EXPECT_EQ(streamSyncMode, 1);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F (GstreamerMseAudioSinkTests, ShouldReturnDefaultFadeVolumeValueWhenPipelineIsBelowPausedState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    
+    guint fadeVolume{0};
+    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kDefaultFadeVolume), Return(false)));
+    g_object_get(audioSink, "fade-volume", &fadeVolume, nullptr); 
+    EXPECT_EQ(fadeVolume, kDefaultFadeVolume);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultFadeVolumePropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    guint fadeVolume{0};
+    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kDefaultFadeVolume), Return(true)));
+    g_object_get(textContext.m_sink, "fade-volume", &fadeVolume, nullptr);
+    EXPECT_EQ(fadeVolume, kDefaultFadeVolume);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldGetFadeVolumeProperty)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    guint fadeVolume{0};
+    constexpr guint kFadeVolume{50};
+    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kFadeVolume), Return(true)));
+    g_object_get(textContext.m_sink, "fade-volume", &fadeVolume, nullptr);
+    EXPECT_EQ(fadeVolume, kFadeVolume);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);

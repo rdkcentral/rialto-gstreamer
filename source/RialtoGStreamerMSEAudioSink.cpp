@@ -397,15 +397,17 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_uint(value, priv->targetVolume);
             return;
         }
-        uint fadeVolume = client->getVolume();
-        if (!fadeVolume)
+        uint32_t fadeVolume = client->getVolume();
+        if (fadeVolume == 0)
         {
             GST_ERROR_OBJECT(sink, "Could not get fade volume");
+            g_value_set_uint(value, kDefaultFadeVolume);
         }
         else
         {
             g_value_set_uint(value, fadeVolume);
         }
+        break;
     }
     default:
     {
@@ -686,9 +688,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kSyncOffPropertyName{"sync-off"};
         const std::string kStreamSyncModePropertyName{"stream-sync-mode"};
         const std::string kAudioFadePropertyName{"audio-fade"};
+        const std::string kFadeVolumePropertyName{"fade-volume"};
         const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
                                                               kSyncOffPropertyName, kStreamSyncModePropertyName,
-                                                              kAudioFadePropertyName};
+                                                              kAudioFadePropertyName, kFadeVolumePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -726,9 +729,16 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             else if (kAudioFadePropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
-                                                g_param_spec_string(kAudioFadePropertyName.c_str(), "audio fade",
-                                                                    "Controls fade effect for audio transitions",
-                                                                    kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+                                                g_param_spec_string(kAudioFadePropertyName.c_str(),"audio fade",
+                                                                    "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])", 
+                                                                     kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+            }
+            else if (kFadeVolumePropertyName == *it)
+            {
+                g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
+                                                g_param_spec_uint(kFadeVolumePropertyName.c_str(), 
+                                                                  "fade volume", "Get current fade volume",
+                                                                  0, 100, kDefaultFadeVolume, G_PARAM_READABLE));
             }
             else
             {
