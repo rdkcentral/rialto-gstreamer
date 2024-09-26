@@ -121,6 +121,24 @@ public:
         return m_mediaPlayerBackend->getTextTrackIdentifier(textTrackIdentifier);
     }
 
+    bool setLowLatency(bool lowLatency) override { return m_mediaPlayerBackend->setLowLatency(lowLatency); }
+
+    bool setSync(bool sync) override { return m_mediaPlayerBackend->setSync(sync); }
+
+    bool getSync(bool &sync) override { return m_mediaPlayerBackend->getSync(sync); }
+
+    bool setSyncOff(bool syncOff) override { return m_mediaPlayerBackend->setSyncOff(syncOff); }
+
+    bool setStreamSyncMode(int32_t streamSyncMode) override
+    {
+        return m_mediaPlayerBackend->setStreamSyncMode(streamSyncMode);
+    }
+
+    bool getStreamSyncMode(int32_t &streamSyncMode) override
+    {
+        return m_mediaPlayerBackend->getStreamSyncMode(streamSyncMode);
+    }
+
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 
     bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0) override
