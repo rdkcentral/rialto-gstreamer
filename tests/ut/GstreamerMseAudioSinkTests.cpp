@@ -454,7 +454,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetVolume)
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     constexpr gdouble kVolume{0.8};
-    EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume, 0, firebolt::rialto::EaseType::EASE_LINEAR)).WillOnce(Return(true));
     g_object_set(textContext.m_sink, "volume", kVolume, nullptr);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
@@ -469,7 +469,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedVolume)
     constexpr gdouble kVolume{0.8};
     g_object_set(audioSink, "volume", kVolume, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume, 0, firebolt::rialto::EaseType::EASE_LINEAR)).WillOnce(Return(true));
     load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
