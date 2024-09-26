@@ -688,8 +688,8 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kAudioFadePropertyName{"audio-fade"};
         const std::string kFadeVolumePropertyName{"fade-volume"};
         const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
-                                                              kSyncOffPropertyName, kStreamSyncModePropertyName,
-                                                              kAudioFadePropertyName, kFadeVolumePropertyName};
+                                                              kSyncOffPropertyName,    kStreamSyncModePropertyName,
+                                                              kAudioFadePropertyName,  kFadeVolumePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -727,16 +727,16 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             else if (kAudioFadePropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
-                                                g_param_spec_string(kAudioFadePropertyName.c_str(),"audio fade",
-                                                                    "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])", 
-                                                                     kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+                                                g_param_spec_string(kAudioFadePropertyName.c_str(),
+                                                                    "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
+                                                                    kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
             }
             else if (kFadeVolumePropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
-                                                g_param_spec_uint(kFadeVolumePropertyName.c_str(), 
-                                                                  "fade volume", "Get current fade volume",
-                                                                  0, 100, kDefaultFadeVolume, G_PARAM_READABLE));
+                                                g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
+                                                                  "Get current fade volume", 0, 100, kDefaultFadeVolume,
+                                                                  G_PARAM_READABLE));
             }
             else
             {

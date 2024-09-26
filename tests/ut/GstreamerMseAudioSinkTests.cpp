@@ -18,8 +18,8 @@
 
 #include "Constants.h"
 #include "Matchers.h"
+#include "RialtoGStreamerMSEAudioSinkPrivate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include "RialtoGStreamerMSEAudioSinkPrivate.h" 
 #include "RialtoGstTest.h"
 
 using testing::_;
@@ -438,9 +438,9 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetStreamSyncModeProperty)
 TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultFadeVolumeValueWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
-    
+
     guint fadeVolume{0};
-    g_object_get(audioSink, "fade-volume", &fadeVolume, nullptr); 
+    g_object_get(audioSink, "fade-volume", &fadeVolume, nullptr);
     EXPECT_EQ(kDefaultFadeVolume, fadeVolume);
 
     gst_object_unref(audioSink);
@@ -491,7 +491,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailWhenParsingInvalidAudioFadeString)
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     const gchar *kInvalidFadeConfig{"invalid"};
-    
+
     EXPECT_CALL(m_mediaPipelineMock, setVolume(_, _, _)).Times(0);
     g_object_set(textContext.m_sink, "audio-fade", kInvalidFadeConfig, nullptr);
 
@@ -516,18 +516,18 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldWarnWhenParsingAudioFadeStringWithOneVa
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldApplyAudioFadeWhenClientIsAvailable)
 {
-   TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     gdouble targetVolume{0.5};
     guint volumeDuration{1000};
     firebolt::rialto::EaseType easeType{firebolt::rialto::EaseType::EASE_LINEAR};
-    const gchar *kFadeConfig = "0.5,1000,0"; 
+    const gchar *kFadeConfig = "0.5,1000,0";
 
-   EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, volumeDuration, easeType)).WillOnce(Return(true));
-   g_object_set(textContext.m_sink, "audio-fade", kFadeConfig, nullptr);
+    EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, volumeDuration, easeType)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "audio-fade", kFadeConfig, nullptr);
 
-   setNullState(textContext.m_pipeline, textContext.m_sourceId);
-   gst_object_unref(textContext.m_pipeline);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBelowPausedState)
