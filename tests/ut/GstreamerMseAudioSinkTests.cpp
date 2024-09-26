@@ -504,9 +504,10 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldWarnWhenParsingAudioFadeStringWithOneVa
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     const gchar *kPartialFadeConfig{"0.5"};
-    gdouble volume{0.5};
+    gdouble targetVolume{0.5};
 
-    EXPECT_CALL(m_mediaPipelineMock, setVolume(volume, kDefaultVolumeDuration, kDefaultEaseType)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, kDefaultVolumeDuration, kDefaultEaseType))
+        .WillOnce(Return(true));
 
     g_object_set(textContext.m_sink, "audio-fade", kPartialFadeConfig, nullptr);
 
@@ -520,8 +521,8 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldApplyAudioFadeWhenClientIsAvailable)
 
     gdouble targetVolume{0.5};
     guint volumeDuration{1000};
-    firebolt::rialto::EaseType easeType{firebolt::rialto::EaseType::EASE_LINEAR};
-    const gchar *kFadeConfig = "0.5,1000,0";
+    firebolt::rialto::EaseType easeType{firebolt::rialto::EaseType::EASE_IN_CUBIC};
+    const gchar *kFadeConfig = "0.5,1000,1";
 
     EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, volumeDuration, easeType)).WillOnce(Return(true));
     g_object_set(textContext.m_sink, "audio-fade", kFadeConfig, nullptr);
