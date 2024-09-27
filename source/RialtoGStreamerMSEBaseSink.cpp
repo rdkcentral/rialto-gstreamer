@@ -535,7 +535,8 @@ static void rialto_mse_base_sink_set_segment(RialtoMSEBaseSink *sink)
         return;
     }
     const bool kResetTime{sink->priv->m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
-    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start, kResetTime);
+    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start, kResetTime,
+                              sink->priv->m_lastSegment.applied_rate);
 }
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)

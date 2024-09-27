@@ -278,7 +278,7 @@ public:
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
-    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime);
+    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0);
     void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,

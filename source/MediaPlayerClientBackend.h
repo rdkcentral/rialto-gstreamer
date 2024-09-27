@@ -141,9 +141,9 @@ public:
 
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 
-    bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime) override
+    bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0) override
     {
-        return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime);
+        return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime, appliedRate);
     }
 
     bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) override

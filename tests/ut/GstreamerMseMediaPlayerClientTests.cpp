@@ -50,6 +50,7 @@ const std::string kMimeType{""};
 constexpr double kVolume{1.0};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
+constexpr double kAppliedRate{2.0};
 constexpr uint32_t kDuration{30};
 constexpr int64_t kDiscontinuityGap{1};
 constexpr bool kAudioAac{false};
@@ -984,8 +985,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(true));
-    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate))
+        .WillOnce(Return(true));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate);
 
     gst_object_unref(audioSink);
 }
@@ -997,8 +999,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(false));
-    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate))
+        .WillOnce(Return(false));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate);
 
     gst_object_unref(audioSink);
 }
@@ -1010,7 +1013,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime);
+    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime, kAppliedRate);
 
     gst_object_unref(audioSink);
 }
