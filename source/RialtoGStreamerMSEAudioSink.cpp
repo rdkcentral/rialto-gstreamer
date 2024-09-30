@@ -79,7 +79,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         if (priv->isVolumeQueued)
         {
-            client->setVolume(priv->kDefaultVolume, priv->kDefaultVolumeDuration, priv->kDefaultEaseType);
+            client->setVolume(kDefaultVolume, kDefaultVolumeDuration, kDefaultEaseType);
             priv->isVolumeQueued = false;
         }
 
@@ -394,7 +394,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            g_value_set_uint(value, priv->kDefaultFadeVolume);
+            g_value_set_uint(value, kDefaultFadeVolume);
             return;
         }
         g_value_set_uint(value, static_cast<unsigned int>(client->getVolume()));
