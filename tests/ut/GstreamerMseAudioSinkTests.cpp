@@ -439,7 +439,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldReturnDefaultFadeVolumeValueWhenPipelin
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
-    guint fadeVolume{0};
+    guint fadeVolume{1};
     g_object_get(audioSink, "fade-volume", &fadeVolume, nullptr);
     EXPECT_EQ(kDefaultFadeVolume, fadeVolume);
 

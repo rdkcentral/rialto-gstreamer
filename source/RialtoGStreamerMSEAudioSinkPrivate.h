@@ -51,7 +51,6 @@ struct _RialtoMSEAudioSinkPrivate
     AudioFadeConfig audioFadeConfig;
     std::mutex audioFadeConfigMutex;
     std::atomic_bool isAudioFadeQueued = false;
-    std::atomic<uint32_t> fadeVolume = kDefaultFadeVolume;
 };
 
 G_END_DECLS
