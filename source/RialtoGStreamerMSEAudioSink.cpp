@@ -79,10 +79,19 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         if (priv->isVolumeQueued)
         {
-            client->setVolume(kDefaultVolume, kDefaultVolumeDuration, kDefaultEaseType);
+            client->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
             priv->isVolumeQueued = false;
         }
-
+        if (priv->isAudioFadeQueued)
+        {
+            AudioFadeConfig audioFadeConfig;
+            {
+                std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
+                audioFadeConfig = priv->audioFadeConfig;
+            }
+            client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
+            priv->isAudioFadeQueued = false;
+        }
         break;
     }
     default:
@@ -287,17 +296,6 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                     }
                     audioSink->priv->isStreamSyncModeQueued = false;
                 }
-                if (audioSink->priv->isAudioFadeQueued)
-                {
-                    AudioFadeConfig audioFadeConfig;
-                    {
-                        std::lock_guard<std::mutex> lock(audioSink->priv->audioFadeConfigMutex);
-                        audioFadeConfig = audioSink->priv->audioFadeConfig;
-                    }
-                    client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
-                    audioSink->priv->isAudioFadeQueued = false;
-                }
-
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
                 {
@@ -601,7 +599,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->audioFadeConfig.easeType = easeType;
         }
 
-        if (!client || !basePriv->m_sourceAttached)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue audio fade setting");
             priv->isAudioFadeQueued = true;

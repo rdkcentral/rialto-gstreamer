@@ -460,28 +460,23 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetFadeVolumeProperty)
     gst_object_unref(textContext.m_pipeline);
 }
 
-TEST_F(GstreamerMseAudioSinkTests, ShouldQueueAudioFadeIfClientIsNull)
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetCacheAudioFade)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-    const gchar *kAudioFade{"1,100,2"};
-    g_object_set(audioSink, "audio-fade", kAudioFade, nullptr);
-
-    setPausedState(pipeline, audioSink);
-    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
-    allSourcesWillBeAttached();
-
     const gdouble kVolume{1.0};
     const guint kVolumeDuration{100};
     const firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_OUT_CUBIC};
+    const gchar *kAudioFade{"1,100,2"};
+
+    g_object_set(audioSink, "audio-fade", kAudioFade, nullptr);
+
     EXPECT_CALL(m_mediaPipelineMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
-    GstCaps *caps{createAudioCaps()};
-    setCaps(audioSink, caps);
-    gst_caps_unref(caps);
-
-    setNullState(pipeline, kSourceId);
+    setNullState(pipeline, kUnknownSourceId);
 
     gst_object_unref(pipeline);
 }
