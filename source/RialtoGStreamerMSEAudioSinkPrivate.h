@@ -35,8 +35,6 @@ struct AudioFadeConfig
 struct _RialtoMSEAudioSinkPrivate
 {
     std::atomic<double> targetVolume = kDefaultVolume;
-    std::atomic<uint32_t> volumeDuration = kDefaultVolumeDuration;
-    std::atomic<firebolt::rialto::EaseType> easeType = kDefaultEaseType;
     std::atomic_bool mute = kDefaultMute;
     std::atomic_bool isVolumeQueued = false;
     std::atomic_bool isMuteQueued = false;

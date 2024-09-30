@@ -89,7 +89,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
                 std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
                 audioFadeConfig = priv->audioFadeConfig;
             }
-            client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
+            client->setVolume(priv->targetVolume, audioFadeConfig.duration, audioFadeConfig.easeType);
             priv->isAudioFadeQueued = false;
         }
         break;
@@ -395,7 +395,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_uint(value, kDefaultFadeVolume);
             return;
         }
-        g_value_set_uint(value, static_cast<unsigned int>(client->getVolume()));
+        g_value_set_uint(value, static_cast<unsigned int>(client->getVolume() * 100));
         break;
     }
     default:
