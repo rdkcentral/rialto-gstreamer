@@ -452,10 +452,10 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetFadeVolumeProperty)
 
     guint fadeVolume{0};
     constexpr guint kFadeVolume{5};
-    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(5 / 100.0), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kFadeVolume / 100.0), Return(true)));
     g_object_get(textContext.m_sink, "fade-volume", &fadeVolume, nullptr);
     EXPECT_EQ(fadeVolume, kFadeVolume);
-    
+
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
 }

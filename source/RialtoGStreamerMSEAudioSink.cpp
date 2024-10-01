@@ -408,7 +408,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             g_value_set_uint(value, kDefaultFadeVolume);
             return;
         }
-        g_value_set_uint(value, static_cast<unsigned int>(client->getVolume() * 100));
+        g_value_set_uint(value, static_cast<uint32_t>(client->getVolume() * 100));
         break;
     }
     case PROP_LIMIT_BUFFERING_MS:
@@ -607,11 +607,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_AUDIO_FADE:
     {
         const gchar *audioFadeStr = g_value_get_string(value);
-        uint32_t fadeVolume = static_cast<unsigned int>(kDefaultVolume * 100);
+        uint32_t fadeVolume = static_cast<uint32_t>(kDefaultVolume * 100);
         uint32_t duration = kDefaultVolumeDuration;
         int easeTypeInt = convertEaseTypeToInt(kDefaultEaseType);
 
-        int parsedItems = sscanf(audioFadeStr, "%d,%u,%d", &fadeVolume, &duration, &easeTypeInt);
+        int parsedItems = sscanf(audioFadeStr, "%u,%u,%d", &fadeVolume, &duration, &easeTypeInt);
 
         if (parsedItems == 0)
         {
@@ -620,7 +620,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
         else if (parsedItems == 1 || parsedItems == 2)
         {
-            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: fadeVolume=%d, duration=%u, easeTypeInt=%d",
+            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: fadeVolume=%u, duration=%u, easeTypeInt=%d",
                                audioFadeStr, fadeVolume, duration, easeTypeInt);
         }
 
@@ -751,9 +751,9 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kAudioFadePropertyName{"audio-fade"};
         const std::string kFadeVolumePropertyName{"fade-volume"};
         const std::string kBufferingLimitPropertyName{"limit-buffering-ms"};
-        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
-                                                              kSyncOffPropertyName,    kStreamSyncModePropertyName,
-                                                              kBufferingLimitPropertyName, kAudioFadePropertyName,  
+        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName,     kSyncPropertyName,
+                                                              kSyncOffPropertyName,        kStreamSyncModePropertyName,
+                                                              kBufferingLimitPropertyName, kAudioFadePropertyName,
                                                               kFadeVolumePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
