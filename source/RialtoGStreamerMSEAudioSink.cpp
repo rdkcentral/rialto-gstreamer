@@ -89,7 +89,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
                 std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
                 audioFadeConfig = priv->audioFadeConfig;
             }
-            client->setVolume(priv->targetVolume, audioFadeConfig.duration, audioFadeConfig.easeType);
+            client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
             priv->isAudioFadeQueued = false;
         }
         break;
@@ -574,11 +574,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_AUDIO_FADE:
     {
         const gchar *audioFadeStr = g_value_get_string(value);
-        double volume = kDefaultVolume;
+        uint32_t fadeVolume = static_cast<unsigned int>(kDefaultVolume * 100);
         uint32_t duration = kDefaultVolumeDuration;
         int easeTypeInt = convertEaseTypeToInt(kDefaultEaseType);
 
-        int parsedItems = sscanf(audioFadeStr, "%lf,%u,%d", &volume, &duration, &easeTypeInt);
+        int parsedItems = sscanf(audioFadeStr, "%d,%u,%d", &fadeVolume, &duration, &easeTypeInt);
 
         if (parsedItems == 0)
         {
@@ -587,10 +587,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
         else if (parsedItems == 1 || parsedItems == 2)
         {
-            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: volume=%lf, duration=%u, easeTypeInt=%d",
-                               audioFadeStr, volume, duration, easeTypeInt);
+            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: fadeVolume=%d, duration=%u, easeTypeInt=%d",
+                               audioFadeStr, fadeVolume, duration, easeTypeInt);
         }
 
+        double volume = fadeVolume / 100.0;
         firebolt::rialto::EaseType easeType = convertIntToEaseType(easeTypeInt);
         {
             std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);

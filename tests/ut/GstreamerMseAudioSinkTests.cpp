@@ -452,10 +452,9 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetFadeVolumeProperty)
 
     guint fadeVolume{0};
     constexpr guint kFadeVolume{5};
-    constexpr guint kExpectedFadeVolume{5};
-    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kFadeVolume / 100.0), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(5 / 100.0), Return(true)));
     g_object_get(textContext.m_sink, "fade-volume", &fadeVolume, nullptr);
-    EXPECT_EQ(fadeVolume, kExpectedFadeVolume);
+    EXPECT_EQ(fadeVolume, kFadeVolume);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
@@ -466,7 +465,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCacheAudioFade)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
-    const gdouble kVolume{1.0};
+    const gdouble kVolume{0.01};
     const guint kVolumeDuration{100};
     const firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_OUT_CUBIC};
     const gchar *kAudioFade{"1,100,2"};
@@ -499,7 +498,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldWarnWhenParsingAudioFadeStringWithOneVa
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    const gchar *kPartialFadeConfig{"0.5"};
+    const gchar *kPartialFadeConfig{"50"};
     gdouble targetVolume{0.5};
 
     EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, kDefaultVolumeDuration, kDefaultEaseType))
@@ -518,7 +517,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldApplyAudioFadeWhenClientIsAvailable)
     gdouble targetVolume{0.5};
     guint volumeDuration{1000};
     firebolt::rialto::EaseType easeType{firebolt::rialto::EaseType::EASE_IN_CUBIC};
-    const gchar *kFadeConfig{"0.5,1000,1"};
+    const gchar *kFadeConfig{"50,1000,1"};
 
     EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, volumeDuration, easeType)).WillOnce(Return(true));
     g_object_set(textContext.m_sink, "audio-fade", kFadeConfig, nullptr);
