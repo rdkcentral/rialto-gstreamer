@@ -38,6 +38,10 @@ struct _RialtoMSEAudioSinkPrivate
     std::atomic_bool isSyncOffQueued = false;
     std::atomic<int32_t> streamSyncMode = kDefaultStreamSyncMode;
     std::atomic_bool isStreamSyncModeQueued = false;
+    std::atomic<uint32_t> bufferingLimit = kDefaultBufferingLimit;
+    std::atomic_bool isBufferingLimitQueued = false;
+    std::atomic_bool useBuffering = kDefaultUseBuffering;
+    std::atomic_bool isUseBufferingQueued = false;
 };
 
 G_END_DECLS

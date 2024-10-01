@@ -147,6 +147,80 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedImmediateOutput)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetStreamSyncModePropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    constexpr gboolean kSyncModeStreaming{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(textContext.m_sourceId, kSyncModeStreaming)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "syncmode-streaming", kSyncModeStreaming, nullptr);
+
+    // Error is logged
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetStreamSyncMode)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    constexpr gboolean kSyncModeStreaming{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(textContext.m_sourceId, kSyncModeStreaming)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "syncmode-streaming", kSyncModeStreaming, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedStreamSyncMode)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    constexpr gboolean kSyncModeStreaming{TRUE};
+    g_object_set(videoSink, "syncmode-streaming", kSyncModeStreaming, nullptr);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kSourceId, kSyncModeStreaming)).WillOnce(Return(true));
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    constexpr gboolean kSyncModeStreaming{TRUE};
+    g_object_set(videoSink, "syncmode-streaming", kSyncModeStreaming, nullptr);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setStreamSyncMode(kSourceId, kSyncModeStreaming)).WillOnce(Return(false));
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    // Error is logged
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();

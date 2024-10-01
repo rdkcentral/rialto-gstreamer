@@ -129,9 +129,9 @@ public:
 
     bool setSyncOff(bool syncOff) override { return m_mediaPlayerBackend->setSyncOff(syncOff); }
 
-    bool setStreamSyncMode(int32_t streamSyncMode) override
+    bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode) override
     {
-        return m_mediaPlayerBackend->setStreamSyncMode(streamSyncMode);
+        return m_mediaPlayerBackend->setStreamSyncMode(sourceId, streamSyncMode);
     }
 
     bool getStreamSyncMode(int32_t &streamSyncMode) override
@@ -150,6 +150,20 @@ public:
     {
         return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);
     }
+
+    bool setBufferingLimit(uint32_t limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->setBufferingLimit(limitBufferingMs);
+    }
+
+    bool getBufferingLimit(uint32_t &limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->getBufferingLimit(limitBufferingMs);
+    }
+
+    bool setUseBuffering(bool useBuffering) override { return m_mediaPlayerBackend->setUseBuffering(useBuffering); }
+
+    bool getUseBuffering(bool &useBuffering) override { return m_mediaPlayerBackend->getUseBuffering(useBuffering); }
 
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
