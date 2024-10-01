@@ -17,6 +17,7 @@
  */
 
 #include "GStreamerMSEMediaPlayerClient.h"
+#include "Constants.h"
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
@@ -813,7 +814,7 @@ bool GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
     return status;
 }
 
-bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
+bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode)
 {
     if (!m_clientBackend)
     {
@@ -821,7 +822,7 @@ bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t streamSyncMode)
     }
 
     bool status{false};
-    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(streamSyncMode); });
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(sourceId, streamSyncMode); });
     return status;
 }
 
@@ -860,6 +861,48 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
             GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
                      m_audioStreams, m_subtitleStreams);
         });
+}
+
+void GStreamerMSEMediaPlayerClient::setBufferingLimit(uint32_t limitBufferingMs)
+{
+    if (!m_clientBackend)
+    {
+        return;
+    }
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setBufferingLimit(limitBufferingMs); });
+}
+
+uint32_t GStreamerMSEMediaPlayerClient::getBufferingLimit()
+{
+    if (!m_clientBackend)
+    {
+        return kDefaultBufferingLimit;
+    }
+
+    uint32_t result{kDefaultBufferingLimit};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getBufferingLimit(result); });
+    return result;
+}
+
+void GStreamerMSEMediaPlayerClient::setUseBuffering(bool useBuffering)
+{
+    if (!m_clientBackend)
+    {
+        return;
+    }
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setUseBuffering(useBuffering); });
+}
+
+bool GStreamerMSEMediaPlayerClient::getUseBuffering()
+{
+    if (!m_clientBackend)
+    {
+        return kDefaultUseBuffering;
+    }
+
+    bool result{kDefaultUseBuffering};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getUseBuffering(result); });
+    return result;
 }
 
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)

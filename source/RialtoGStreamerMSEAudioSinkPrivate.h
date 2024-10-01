@@ -49,6 +49,10 @@ struct _RialtoMSEAudioSinkPrivate
     AudioFadeConfig audioFadeConfig;
     std::mutex audioFadeConfigMutex;
     std::atomic_bool isAudioFadeQueued = false;
+    std::atomic<uint32_t> bufferingLimit = kDefaultBufferingLimit;
+    std::atomic_bool isBufferingLimitQueued = false;
+    std::atomic_bool useBuffering = kDefaultUseBuffering;
+    std::atomic_bool isUseBufferingQueued = false;
 };
 
 G_END_DECLS

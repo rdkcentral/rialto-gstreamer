@@ -308,10 +308,14 @@ public:
     bool setSync(bool sync);
     bool getSync(bool &sync);
     bool setSyncOff(bool syncOff);
-    bool setStreamSyncMode(int32_t streamSyncMode);
+    bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode);
     bool getStreamSyncMode(int32_t &streamSyncMode);
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
+    void setBufferingLimit(uint32_t limitBufferingMs);
+    uint32_t getBufferingLimit();
+    void setUseBuffering(bool useBuffering);
+    bool getUseBuffering();
 
 private:
     bool areAllStreamsAttached();

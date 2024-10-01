@@ -53,6 +53,8 @@ enum
     PROP_STREAM_SYNC_MODE,
     PROP_AUDIO_FADE,
     PROP_FADE_VOLUME,
+    PROP_LIMIT_BUFFERING_MS,
+    PROP_USE_BUFFERING,
     PROP_LAST
 };
 
@@ -290,12 +292,23 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (audioSink->priv->isStreamSyncModeQueued)
                 {
-                    if (!client->setStreamSyncMode(audioSink->priv->streamSyncMode))
+                    if (!client->setStreamSyncMode(basePriv->m_sourceId, audioSink->priv->streamSyncMode))
                     {
                         GST_ERROR_OBJECT(audioSink, "Could not set queued stream-sync-mode");
                     }
                     audioSink->priv->isStreamSyncModeQueued = false;
                 }
+                if (audioSink->priv->isBufferingLimitQueued)
+                {
+                    client->setBufferingLimit(audioSink->priv->bufferingLimit);
+                    audioSink->priv->isBufferingLimitQueued = false;
+                }
+                if (audioSink->priv->isUseBufferingQueued)
+                {
+                    client->setUseBuffering(audioSink->priv->useBuffering);
+                    audioSink->priv->isUseBufferingQueued = false;
+                }
+
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
                 {
@@ -396,6 +409,26 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
             return;
         }
         g_value_set_uint(value, static_cast<unsigned int>(client->getVolume() * 100));
+        break;
+    }
+    case PROP_LIMIT_BUFFERING_MS:
+    {
+        if (!client)
+        {
+            g_value_set_uint(value, priv->bufferingLimit);
+            return;
+        }
+        g_value_set_uint(value, client->getBufferingLimit());
+        break;
+    }
+    case PROP_USE_BUFFERING:
+    {
+        if (!client)
+        {
+            g_value_set_boolean(value, priv->useBuffering);
+            return;
+        }
+        g_value_set_boolean(value, client->getUseBuffering());
         break;
     }
     default:
@@ -565,7 +598,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             return;
         }
 
-        if (!client->setStreamSyncMode(priv->streamSyncMode))
+        if (!client->setStreamSyncMode(basePriv->m_sourceId, priv->streamSyncMode))
         {
             GST_ERROR_OBJECT(sink, "Could not set stream-sync-mode");
         }
@@ -608,6 +641,32 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
 
         client->setVolume(volume, duration, easeType);
+        break;
+    }
+    case PROP_LIMIT_BUFFERING_MS:
+    {
+        priv->bufferingLimit = g_value_get_uint(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue buffering limit setting");
+            priv->isBufferingLimitQueued = true;
+            return;
+        }
+
+        client->setBufferingLimit(priv->bufferingLimit);
+        break;
+    }
+    case PROP_USE_BUFFERING:
+    {
+        priv->useBuffering = g_value_get_boolean(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue use buffering setting");
+            priv->isUseBufferingQueued = true;
+            return;
+        }
+
+        client->setUseBuffering(priv->useBuffering);
         break;
     }
     default:
@@ -671,6 +730,11 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                     g_param_spec_boxed("gap", "Gap", "Audio Gap", GST_TYPE_STRUCTURE,
                                                        (GParamFlags)(G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property(gobjectClass, PROP_USE_BUFFERING,
+                                    g_param_spec_boolean("use-buffering",
+                                                         "Use buffering", "Emit GST_MESSAGE_BUFFERING based on low-/high-percent thresholds",
+                                                         kDefaultUseBuffering, G_PARAM_READWRITE));
+
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
     if (mediaPlayerCapabilities)
@@ -686,9 +750,11 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kStreamSyncModePropertyName{"stream-sync-mode"};
         const std::string kAudioFadePropertyName{"audio-fade"};
         const std::string kFadeVolumePropertyName{"fade-volume"};
+        const std::string kBufferingLimitPropertyName{"limit-buffering-ms"};
         const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
                                                               kSyncOffPropertyName,    kStreamSyncModePropertyName,
-                                                              kAudioFadePropertyName,  kFadeVolumePropertyName};
+                                                              kBufferingLimitPropertyName, kAudioFadePropertyName,  
+                                                              kFadeVolumePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -736,6 +802,15 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                 g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
                                                                   "Get current fade volume", 0, 100, kDefaultFadeVolume,
                                                                   G_PARAM_READABLE));
+            }
+            else if (kBufferingLimitPropertyName == *it)
+            {
+                constexpr uint32_t kMaxValue{20000};
+                g_object_class_install_property(gobjectClass, PROP_LIMIT_BUFFERING_MS,
+                                                g_param_spec_uint("limit-buffering-ms",
+                                                                  "limit buffering ms", "Set millisecond threshold used if limit_buffering is set. Changing this value does not enable/disable limit_buffering",
+                                                                  0, kMaxValue, kDefaultBufferingLimit,
+                                                                  G_PARAM_READWRITE));
             }
             else
             {
