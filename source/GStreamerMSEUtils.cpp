@@ -31,7 +31,13 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"audio/x-eac3", {"audio/x-ac3", "audio/x-eac3"}},
          {"audio/x-opus", {"audio/x-opus"}},
          {"audio/b-wav", {"audio/b-wav"}},
+#if 0
+         // Returning an x-raw capability (which would work) has the side-effect of
+         // breaking the WebAudio YT cert test.
+         // When WebAudio in cobalt creates the audio sink, it uses autoaudiosink which is
+         // selecting the MSE sink instead of webaudio (because it supports x-raw)
          {"audio/x-raw", {"audio/x-raw"}},
+#endif
          {"video/h264", {"video/x-h264"}},
          {"video/h265", {"video/x-h265"}},
          {"video/x-av1", {"video/x-av1"}},
