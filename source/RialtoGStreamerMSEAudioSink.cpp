@@ -543,7 +543,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_LOW_LATENCY:
     {
         priv->lowLatency = g_value_get_boolean(value);
-        if (!client || !basePriv->m_sourceAttached)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue low latency setting");
             priv->isLowLatencyQueued = true;
@@ -559,7 +559,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_SYNC:
     {
         priv->sync = g_value_get_boolean(value);
-        if (!client || !basePriv->m_sourceAttached)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue sync setting");
             priv->isSyncQueued = true;
@@ -575,7 +575,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_SYNC_OFF:
     {
         priv->syncOff = g_value_get_boolean(value);
-        if (!client || !basePriv->m_sourceAttached)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue sync off setting");
             priv->isSyncOffQueued = true;
@@ -624,7 +624,13 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
                                audioFadeStr, fadeVolume, duration, easeTypeInt);
         }
 
+        if (fadeVolume > 100)
+        {
+            GST_WARNING_OBJECT(object, "Fade volume is greater than 100. Setting it to 100.");
+            fadeVolume = 100;
+        }
         double volume = fadeVolume / 100.0;
+
         firebolt::rialto::EaseType easeType = convertIntToEaseType(easeTypeInt);
         {
             std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
