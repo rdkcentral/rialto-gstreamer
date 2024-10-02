@@ -103,9 +103,12 @@ public:
 
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
-    bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }
+    bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) override
+    {
+        return m_mediaPlayerBackend->setVolume(targetVolume, volumeDuration, easeType);
+    }
 
-    bool getVolume(double &volume) override { return m_mediaPlayerBackend->getVolume(volume); }
+    bool getVolume(double &currentVolume) override { return m_mediaPlayerBackend->getVolume(currentVolume); }
 
     bool setMute(bool mute, int sourceId) override { return m_mediaPlayerBackend->setMute(sourceId, mute); }
 

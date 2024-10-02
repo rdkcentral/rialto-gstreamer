@@ -50,8 +50,8 @@ public:
     virtual bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) = 0;
     virtual bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) = 0;
     virtual bool renderFrame() = 0;
-    virtual bool setVolume(double volume) = 0;
-    virtual bool getVolume(double &volume) = 0;
+    virtual bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) = 0;
+    virtual bool getVolume(double &currentVolume) = 0;
     virtual bool setMute(bool mute, int sourceId) = 0;
     virtual bool getMute(bool &mute, int sourceId) = 0;
     virtual bool setTextTrackIdentifier(const std::string &textTrackIdentifier) = 0;

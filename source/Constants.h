@@ -17,14 +17,19 @@
  */
 
 #pragma once
+#include <MediaCommon.h>
 
 #include <cstdint>
 
 constexpr double kDefaultVolume{1.0};
+constexpr uint32_t kDefaultVolumeDuration{0};
+constexpr firebolt::rialto::EaseType kDefaultEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kDefaultMute{false};
 constexpr bool kDefaultLowLatency{false};
 constexpr bool kDefaultSync{false};
 constexpr bool kDefaultSyncOff{false};
 constexpr int32_t kDefaultStreamSyncMode{0};
+constexpr uint32_t kDefaultFadeVolume{0};
+constexpr const char *kDefaultAudioFade = "100,0,L";
 constexpr uint32_t kDefaultBufferingLimit{750};
 constexpr bool kDefaultUseBuffering{false};

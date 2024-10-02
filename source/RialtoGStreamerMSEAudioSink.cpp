@@ -19,6 +19,7 @@
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 #include <inttypes.h>
+#include <mutex>
 #include <stdint.h>
 
 #include "Constants.h"
@@ -50,6 +51,8 @@ enum
     PROP_SYNC,
     PROP_SYNC_OFF,
     PROP_STREAM_SYNC_MODE,
+    PROP_AUDIO_FADE,
+    PROP_FADE_VOLUME,
     PROP_LIMIT_BUFFERING_MS,
     PROP_USE_BUFFERING,
     PROP_LAST
@@ -78,10 +81,19 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         }
         if (priv->isVolumeQueued)
         {
-            client->setVolume(priv->volume);
+            client->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
             priv->isVolumeQueued = false;
         }
-
+        if (priv->isAudioFadeQueued)
+        {
+            AudioFadeConfig audioFadeConfig;
+            {
+                std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
+                audioFadeConfig = priv->audioFadeConfig;
+            }
+            client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
+            priv->isAudioFadeQueued = false;
+        }
         break;
     }
     default:
@@ -341,7 +353,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         if (!client)
         {
-            g_value_set_double(value, priv->volume);
+            g_value_set_double(value, priv->targetVolume);
             return;
         }
         g_value_set_double(value, client->getVolume());
@@ -389,6 +401,16 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         g_value_set_int(value, streamSyncMode);
         break;
     }
+    case PROP_FADE_VOLUME:
+    {
+        if (!client)
+        {
+            g_value_set_uint(value, kDefaultFadeVolume);
+            return;
+        }
+        g_value_set_uint(value, static_cast<uint32_t>(client->getVolume() * 100));
+        break;
+    }
     case PROP_LIMIT_BUFFERING_MS:
     {
         if (!client)
@@ -417,6 +439,35 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
 }
 
+int convertEaseTypeToInt(firebolt::rialto::EaseType easeType)
+{
+    switch (easeType)
+    {
+    case firebolt::rialto::EaseType::EASE_LINEAR:
+        return 0;
+    case firebolt::rialto::EaseType::EASE_IN_CUBIC:
+        return 1;
+    case firebolt::rialto::EaseType::EASE_OUT_CUBIC:
+        return 2;
+    default:
+        return -1;
+    }
+}
+
+firebolt::rialto::EaseType convertIntToEaseType(int easeTypeInt)
+{
+    switch (easeTypeInt)
+    {
+    case 0:
+        return firebolt::rialto::EaseType::EASE_LINEAR;
+    case 1:
+        return firebolt::rialto::EaseType::EASE_IN_CUBIC;
+    case 2:
+        return firebolt::rialto::EaseType::EASE_OUT_CUBIC;
+    default:
+        return firebolt::rialto::EaseType::EASE_LINEAR; // Or handle the default case appropriately
+    }
+}
 static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
@@ -439,14 +490,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     {
     case PROP_VOLUME:
     {
-        priv->volume = g_value_get_double(value);
+        priv->targetVolume = g_value_get_double(value);
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
             priv->isVolumeQueued = true;
             return;
         }
-        client->setVolume(priv->volume);
+        client->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
         break;
     }
     case PROP_MUTE:
@@ -540,7 +591,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_STREAM_SYNC_MODE:
     {
         priv->streamSyncMode = g_value_get_int(value);
-        if (!client)
+        if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue stream sync mode setting");
             priv->isStreamSyncModeQueued = true;
@@ -551,6 +602,51 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         {
             GST_ERROR_OBJECT(sink, "Could not set stream-sync-mode");
         }
+        break;
+    }
+    case PROP_AUDIO_FADE:
+    {
+        const gchar *audioFadeStr = g_value_get_string(value);
+        uint32_t fadeVolume = static_cast<uint32_t>(kDefaultVolume * 100);
+        uint32_t duration = kDefaultVolumeDuration;
+        int easeTypeInt = convertEaseTypeToInt(kDefaultEaseType);
+
+        int parsedItems = sscanf(audioFadeStr, "%u,%u,%d", &fadeVolume, &duration, &easeTypeInt);
+
+        if (parsedItems == 0)
+        {
+            GST_ERROR_OBJECT(object, "Failed to parse any values from audio fade string: %s.", audioFadeStr);
+            return;
+        }
+        else if (parsedItems == 1 || parsedItems == 2)
+        {
+            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: fadeVolume=%u, duration=%u, easeTypeInt=%d",
+                               audioFadeStr, fadeVolume, duration, easeTypeInt);
+        }
+
+        if (fadeVolume > 100)
+        {
+            GST_WARNING_OBJECT(object, "Fade volume is greater than 100. Setting it to 100.");
+            fadeVolume = 100;
+        }
+        double volume = fadeVolume / 100.0;
+
+        firebolt::rialto::EaseType easeType = convertIntToEaseType(easeTypeInt);
+        {
+            std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
+            priv->audioFadeConfig.volume = volume;
+            priv->audioFadeConfig.duration = duration;
+            priv->audioFadeConfig.easeType = easeType;
+        }
+
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(object, "Enqueue audio fade setting");
+            priv->isAudioFadeQueued = true;
+            return;
+        }
+
+        client->setVolume(volume, duration, easeType);
         break;
     }
     case PROP_LIMIT_BUFFERING_MS:
@@ -658,10 +754,13 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kSyncPropertyName{"sync"};
         const std::string kSyncOffPropertyName{"sync-off"};
         const std::string kStreamSyncModePropertyName{"stream-sync-mode"};
+        const std::string kAudioFadePropertyName{"audio-fade"};
+        const std::string kFadeVolumePropertyName{"fade-volume"};
         const std::string kBufferingLimitPropertyName{"limit-buffering-ms"};
-        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName, kSyncPropertyName,
-                                                              kSyncOffPropertyName, kStreamSyncModePropertyName,
-                                                              kBufferingLimitPropertyName};
+        const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName,     kSyncPropertyName,
+                                                              kSyncOffPropertyName,        kStreamSyncModePropertyName,
+                                                              kBufferingLimitPropertyName, kAudioFadePropertyName,
+                                                              kFadeVolumePropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -695,6 +794,20 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                                  "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync",
                                                                  0, G_MAXINT, kDefaultStreamSyncMode,
                                                                  GParamFlags(G_PARAM_READWRITE)));
+            }
+            else if (kAudioFadePropertyName == *it)
+            {
+                g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
+                                                g_param_spec_string(kAudioFadePropertyName.c_str(),
+                                                                    "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
+                                                                    kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+            }
+            else if (kFadeVolumePropertyName == *it)
+            {
+                g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
+                                                g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
+                                                                  "Get current fade volume", 0, 100, kDefaultFadeVolume,
+                                                                  G_PARAM_READABLE));
             }
             else if (kBufferingLimitPropertyName == *it)
             {

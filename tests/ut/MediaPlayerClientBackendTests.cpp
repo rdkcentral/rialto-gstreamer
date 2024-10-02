@@ -39,6 +39,8 @@ namespace
 {
 constexpr VideoRequirements kVideoRequirements{1024, 768};
 constexpr double kVolume{0.7};
+constexpr uint32_t kVolumeDuration{1000};
+constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -219,10 +221,10 @@ TEST_F(MediaPlayerClientBackendTests, ShouldRenderFrame)
 
 TEST_F(MediaPlayerClientBackendTests, ShouldSetVolume)
 {
-    EXPECT_CALL(*m_mediaPipelineMock, setVolume(kVolume, 0, firebolt::rialto::EaseType::EASE_LINEAR)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.setVolume(kVolume));
+    EXPECT_TRUE(m_sut.setVolume(kVolume, kVolumeDuration, kEaseType));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldGetVolume)

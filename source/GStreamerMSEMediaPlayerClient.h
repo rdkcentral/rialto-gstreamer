@@ -298,7 +298,7 @@ public:
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(RialtoMSEBaseSink *sink);
-    void setVolume(double volume);
+    void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     double getVolume();
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
