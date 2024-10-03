@@ -63,7 +63,8 @@ public:
     virtual bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode) = 0;
     virtual bool getStreamSyncMode(int32_t &streamSyncMode) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
-    virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0) = 0;
+    virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0,
+                                   uint64_t runningTime = 0) = 0;
     virtual bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) = 0;
     virtual bool setBufferingLimit(uint32_t limitBufferingMs) = 0;
     virtual bool getBufferingLimit(uint32_t &limitBufferingMs) = 0;
