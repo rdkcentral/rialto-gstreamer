@@ -31,7 +31,7 @@
 // When WebAudio in cobalt creates the audio sink, it uses autoaudiosink which is
 // selecting the MSE sink instead of webaudio (because it supports x-raw)
 //
-// When this fix is found, please remove this MACRO from the code
+// When a better fix is found, please remove this MACRO from the code
 #define RIALTO_ENABLE_X_RAW
 #endif
 
