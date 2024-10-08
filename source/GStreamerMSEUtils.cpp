@@ -32,6 +32,7 @@
 // selecting the MSE sink instead of webaudio (because it supports x-raw)
 //
 // When a better fix is found, please remove this MACRO from the code
+// (NOTE: this macro is used in at least one other file, please search for it)
 #define RIALTO_ENABLE_X_RAW
 #endif
 
