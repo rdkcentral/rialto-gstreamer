@@ -258,7 +258,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithBwav)
     gst_object_unref(pipeline);
 }
 
-#ifdef RAILTO_ENABLE_X_RAW
+#ifdef RIALTO_ENABLE_X_RAW
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithXraw)
 {
     constexpr firebolt::rialto::Format kExpectedFormat{firebolt::rialto::Format::S32BE};
