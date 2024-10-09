@@ -470,7 +470,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetCacheAudioFade)
     const gdouble kVolume{0.01};
     const guint kVolumeDuration{100};
     const firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_OUT_CUBIC};
-    const gchar *kAudioFade{"1,100,2"};
+    const gchar *kAudioFade{"1,100,O"};
 
     g_object_set(audioSink, "audio-fade", kAudioFade, nullptr);
 
@@ -519,7 +519,7 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldApplyAudioFadeWhenClientIsAvailable)
     gdouble targetVolume{0.5};
     guint volumeDuration{1000};
     firebolt::rialto::EaseType easeType{firebolt::rialto::EaseType::EASE_IN_CUBIC};
-    const gchar *kFadeConfig{"50,1000,1"};
+    const gchar *kFadeConfig{"50,1000,I"};
 
     EXPECT_CALL(m_mediaPipelineMock, setVolume(targetVolume, volumeDuration, easeType)).WillOnce(Return(true));
     g_object_set(textContext.m_sink, "audio-fade", kFadeConfig, nullptr);

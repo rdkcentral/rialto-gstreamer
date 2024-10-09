@@ -439,35 +439,21 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
 }
 
-int convertEaseTypeToInt(firebolt::rialto::EaseType easeType)
+firebolt::rialto::EaseType convertCharToEaseType(char easeTypeChar)
 {
-    switch (easeType)
+    switch (easeTypeChar)
     {
-    case firebolt::rialto::EaseType::EASE_LINEAR:
-        return 0;
-    case firebolt::rialto::EaseType::EASE_IN_CUBIC:
-        return 1;
-    case firebolt::rialto::EaseType::EASE_OUT_CUBIC:
-        return 2;
+    case 'L':
+        return firebolt::rialto::EaseType::EASE_LINEAR;
+    case 'I':
+        return firebolt::rialto::EaseType::EASE_IN_CUBIC;
+    case 'O':
+        return firebolt::rialto::EaseType::EASE_OUT_CUBIC;
     default:
-        return -1;
+        return firebolt::rialto::EaseType::EASE_LINEAR;
     }
 }
 
-firebolt::rialto::EaseType convertIntToEaseType(int easeTypeInt)
-{
-    switch (easeTypeInt)
-    {
-    case 0:
-        return firebolt::rialto::EaseType::EASE_LINEAR;
-    case 1:
-        return firebolt::rialto::EaseType::EASE_IN_CUBIC;
-    case 2:
-        return firebolt::rialto::EaseType::EASE_OUT_CUBIC;
-    default:
-        return firebolt::rialto::EaseType::EASE_LINEAR; // Or handle the default case appropriately
-    }
-}
 static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(object);
@@ -607,11 +593,12 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_AUDIO_FADE:
     {
         const gchar *audioFadeStr = g_value_get_string(value);
+
         uint32_t fadeVolume = static_cast<uint32_t>(kDefaultVolume * 100);
         uint32_t duration = kDefaultVolumeDuration;
-        int easeTypeInt = convertEaseTypeToInt(kDefaultEaseType);
+        char easeTypeChar = 'L';
 
-        int parsedItems = sscanf(audioFadeStr, "%u,%u,%d", &fadeVolume, &duration, &easeTypeInt);
+        int parsedItems = sscanf(audioFadeStr, "%u,%u,%c", &fadeVolume, &duration, &easeTypeChar);
 
         if (parsedItems == 0)
         {
@@ -620,8 +607,8 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
         else if (parsedItems == 1 || parsedItems == 2)
         {
-            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: fadeVolume=%u, duration=%u, easeTypeInt=%d",
-                               audioFadeStr, fadeVolume, duration, easeTypeInt);
+            GST_WARNING_OBJECT(object, "Partially parsed audio fade string: %s. Continuing with values: fadeVolume=%u, duration=%u, easeTypeChar=%c",
+                               audioFadeStr, fadeVolume, duration, easeTypeChar);
         }
 
         if (fadeVolume > 100)
@@ -631,7 +618,8 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
         double volume = fadeVolume / 100.0;
 
-        firebolt::rialto::EaseType easeType = convertIntToEaseType(easeTypeInt);
+        firebolt::rialto::EaseType easeType = convertCharToEaseType(easeTypeChar);
+
         {
             std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
             priv->audioFadeConfig.volume = volume;
