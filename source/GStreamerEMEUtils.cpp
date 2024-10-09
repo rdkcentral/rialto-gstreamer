@@ -60,6 +60,11 @@ void getIVFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta, Bu
 {
     unsigned ivSize = 0;
     gst_structure_get_uint(protectionMeta->info, "iv_size", &ivSize);
+    if (!ivSize && !g_strcmp0(gst_structure_get_string(protectionMeta->info, "cipher-mode"), "cbcs"))
+    {
+        // in case of cbcs, the same initialization vector is used to decrypt all the blocks
+        gst_structure_get_uint(protectionMeta->info, "constant_iv_size", &ivSize);
+    }
     const GValue *value = gst_structure_get_value(protectionMeta->info, "iv");
     if (value)
     {
