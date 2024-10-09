@@ -156,3 +156,40 @@ TEST_F(GStreamerEmeUtilsTests, ShouldFailToReadEncryptionPatternWhenSkipByteBloc
 
     EXPECT_FALSE(m_metadata.encryptionPatternSet);
 }
+
+TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbcsConstantIVSize)
+{
+    const std::string kEncryptionScheme{"cbcs"};
+
+    // Create an IV buffer with 16 bytes (non-zero values)
+    const int kIvSize = 16;
+    uint8_t expectedIv[kIvSize] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+    // Create a GstBuffer for the IV and copy the expected IV into it
+    GstBuffer *ivBuffer = gst_buffer_new_allocate(NULL, kIvSize, NULL);
+    GstMapInfo map;
+    gst_buffer_map(ivBuffer, &map, GST_MAP_WRITE);
+    memcpy(map.data, expectedIv, kIvSize); // Copy expected IV into the buffer
+    gst_buffer_unmap(ivBuffer, &map);
+
+    GstBuffer *buffer = gst_buffer_new();
+    GstStructure *info = gst_structure_new("application/x-cenc", "encrypted", G_TYPE_BOOLEAN, TRUE, "cipher-mode",
+                                           G_TYPE_STRING, kEncryptionScheme.c_str(), "iv_size", G_TYPE_UINT,
+                                           0,                                        // iv_size = 0
+                                           "constant_iv_size", G_TYPE_UINT, kIvSize, // constant_iv_size = 16
+                                           "iv", GST_TYPE_BUFFER, ivBuffer,          // iv buffer
+                                           NULL);
+
+    rialto_mse_add_protection_metadata(buffer, info);
+
+    ProcessProtectionMetadata(buffer, m_metadata);
+
+    gst_buffer_unref(buffer);
+    gst_buffer_unref(ivBuffer);
+
+    // Validate the cipher mode
+    EXPECT_EQ(m_metadata.cipherMode, firebolt::rialto::CipherMode::CBCS);
+    // Verify that the IV in m_metadata is the same as the created IV (expectedIv)
+    ASSERT_EQ(m_metadata.iv.size(), kIvSize);                            // Ensure the sizes match
+    EXPECT_TRUE(memcmp(m_metadata.iv.data(), expectedIv, kIvSize) == 0); // Compare the IV content
+}
