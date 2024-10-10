@@ -48,6 +48,7 @@ enum
     PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
     PROP_FRAME_STEP_ON_PREROLL,
     PROP_IMMEDIATE_OUTPUT,
+    PROP_SYNCMODE_STREAMING,
     PROP_LAST
 };
 
@@ -202,6 +203,15 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
                     if (!client->setImmediateOutput(basePriv->m_sourceId, priv->immediateOutput))
                     {
                         GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+                    }
+                }
+                if (priv->syncmodeStreamingQueued)
+                {
+                    GST_DEBUG_OBJECT(sink, "Set queued syncmode-streaming");
+                    priv->syncmodeStreamingQueued = false;
+                    if (!client->setStreamSyncMode(basePriv->m_sourceId, priv->syncmodeStreaming))
+                    {
+                        GST_ERROR_OBJECT(sink, "Could not set syncmode-streaming");
                     }
                 }
             }
@@ -392,6 +402,26 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         break;
     }
+    case PROP_SYNCMODE_STREAMING:
+    {
+        bool syncmodeStreaming = (g_value_get_boolean(value) != FALSE);
+        std::unique_lock lock{priv->propertyMutex};
+        priv->syncmodeStreaming = syncmodeStreaming;
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(sink, "Syncmode streaming setting enqueued");
+            priv->syncmodeStreamingQueued = true;
+        }
+        else
+        {
+            lock.unlock();
+            if (!client->setStreamSyncMode(basePriv->m_sourceId, syncmodeStreaming))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set syncmode-streaming");
+            }
+        }
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -477,18 +507,29 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
-        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName};
+        const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
+        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
+                                                              kSyncmodeStreamingPropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
                                                             kPropertyNamesToSearch)};
 
-        if (std::find(supportedProperties.begin(), supportedProperties.end(), kImmediateOutputPropertyName) !=
-            supportedProperties.end())
+        for (const auto &propertyName : supportedProperties)
         {
-            g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
-                                            g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
-                                                                 "immediate output", "immediate output", TRUE,
-                                                                 GParamFlags(G_PARAM_READWRITE)));
+            if (kImmediateOutputPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
+                                                g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
+                                                                     "immediate output", "immediate output", TRUE,
+                                                                     GParamFlags(G_PARAM_READWRITE)));
+            }
+            else if (kSyncmodeStreamingPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
+                                                g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
+                                                                     "Enable/disable OTT streaming sync mode", FALSE,
+                                                                     G_PARAM_WRITABLE));
+            }
         }
     }
     else

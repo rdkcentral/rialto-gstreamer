@@ -22,6 +22,7 @@
 #include "MessageQueueMock.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -48,8 +49,11 @@ const std::string kUrl{"mse://1"};
 constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
 const std::string kMimeType{""};
 constexpr double kVolume{1.0};
+constexpr uint32_t kVolumeDuration{30};
+constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
+constexpr double kAppliedRate{2.0};
 constexpr uint32_t kDuration{30};
 constexpr int64_t kDiscontinuityGap{1};
 constexpr bool kAudioAac{false};
@@ -59,6 +63,8 @@ constexpr bool kLowLatency{true};
 constexpr bool kSync{true};
 constexpr bool kSyncOff{true};
 constexpr int32_t kStreamSyncMode{1};
+constexpr uint32_t kBufferingLimit{12384};
+constexpr bool kUseBuffering{true};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -984,8 +990,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(true));
-    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate))
+        .WillOnce(Return(true));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate);
 
     gst_object_unref(audioSink);
 }
@@ -997,8 +1004,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime)).WillOnce(Return(false));
-    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate))
+        .WillOnce(Return(false));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate);
 
     gst_object_unref(audioSink);
 }
@@ -1010,7 +1018,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime);
+    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime, kAppliedRate);
 
     gst_object_unref(audioSink);
 }
@@ -1138,8 +1146,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVolume(kVolume)).WillOnce(Return(true));
-    m_sut->setVolume(kVolume);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
+    m_sut->setVolume(kVolume, kVolumeDuration, kEaseType);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
@@ -1335,9 +1343,15 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncOffIfNoClientBackend)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetStreamSyncMode)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setStreamSyncMode(kStreamSyncMode)).WillOnce(Return(true));
-    EXPECT_TRUE(m_sut->setStreamSyncMode(kStreamSyncMode));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setStreamSyncMode(kAudioSourceId, kStreamSyncMode)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setStreamSyncMode(kAudioSourceId, kStreamSyncMode));
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientBackend)
@@ -1352,7 +1366,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientB
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
                                                             kMaxVideoHeight);
 
-    EXPECT_FALSE(m_sut->setStreamSyncMode(kStreamSyncMode));
+    EXPECT_FALSE(m_sut->setStreamSyncMode(kUnknownSourceId, kStreamSyncMode));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetStreamSyncMode)
@@ -1522,4 +1536,34 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetTextTrackIdentifier)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getTextTrackIdentifier(_))
         .WillOnce(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
     EXPECT_EQ(m_sut->getTextTrackIdentifier(), kTextTrackIdentifier);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetBufferingLimit)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setBufferingLimit(kBufferingLimit)).WillOnce(Return(true));
+    m_sut->setBufferingLimit(kBufferingLimit);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetBufferingLimit)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getBufferingLimit(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kBufferingLimit), Return(true)));
+    EXPECT_EQ(m_sut->getBufferingLimit(), kBufferingLimit);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetUseBuffering)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setUseBuffering(kUseBuffering)).WillOnce(Return(true));
+    m_sut->setUseBuffering(kUseBuffering);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetUseBuffering)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getUseBuffering(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kUseBuffering), Return(true)));
+    EXPECT_EQ(m_sut->getUseBuffering(), kUseBuffering);
 }

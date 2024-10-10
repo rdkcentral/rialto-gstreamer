@@ -103,9 +103,12 @@ public:
 
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
-    bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }
+    bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) override
+    {
+        return m_mediaPlayerBackend->setVolume(targetVolume, volumeDuration, easeType);
+    }
 
-    bool getVolume(double &volume) override { return m_mediaPlayerBackend->getVolume(volume); }
+    bool getVolume(double &currentVolume) override { return m_mediaPlayerBackend->getVolume(currentVolume); }
 
     bool setMute(bool mute, int sourceId) override { return m_mediaPlayerBackend->setMute(sourceId, mute); }
 
@@ -129,9 +132,9 @@ public:
 
     bool setSyncOff(bool syncOff) override { return m_mediaPlayerBackend->setSyncOff(syncOff); }
 
-    bool setStreamSyncMode(int32_t streamSyncMode) override
+    bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode) override
     {
-        return m_mediaPlayerBackend->setStreamSyncMode(streamSyncMode);
+        return m_mediaPlayerBackend->setStreamSyncMode(sourceId, streamSyncMode);
     }
 
     bool getStreamSyncMode(int32_t &streamSyncMode) override
@@ -141,15 +144,29 @@ public:
 
     bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
 
-    bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime) override
+    bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0) override
     {
-        return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime);
+        return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime, appliedRate);
     }
 
     bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) override
     {
         return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);
     }
+
+    bool setBufferingLimit(uint32_t limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->setBufferingLimit(limitBufferingMs);
+    }
+
+    bool getBufferingLimit(uint32_t &limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->getBufferingLimit(limitBufferingMs);
+    }
+
+    bool setUseBuffering(bool useBuffering) override { return m_mediaPlayerBackend->setUseBuffering(useBuffering); }
+
+    bool getUseBuffering(bool &useBuffering) override { return m_mediaPlayerBackend->getUseBuffering(useBuffering); }
 
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;

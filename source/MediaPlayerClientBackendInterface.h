@@ -50,8 +50,8 @@ public:
     virtual bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) = 0;
     virtual bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) = 0;
     virtual bool renderFrame() = 0;
-    virtual bool setVolume(double volume) = 0;
-    virtual bool getVolume(double &volume) = 0;
+    virtual bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) = 0;
+    virtual bool getVolume(double &currentVolume) = 0;
     virtual bool setMute(bool mute, int sourceId) = 0;
     virtual bool getMute(bool &mute, int sourceId) = 0;
     virtual bool setTextTrackIdentifier(const std::string &textTrackIdentifier) = 0;
@@ -60,10 +60,14 @@ public:
     virtual bool setSync(bool sync) = 0;
     virtual bool getSync(bool &sync) = 0;
     virtual bool setSyncOff(bool syncOff) = 0;
-    virtual bool setStreamSyncMode(int32_t streamSyncMode) = 0;
+    virtual bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode) = 0;
     virtual bool getStreamSyncMode(int32_t &streamSyncMode) = 0;
     virtual bool flush(int32_t sourceId, bool resetTime) = 0;
-    virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime) = 0;
+    virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0) = 0;
     virtual bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) = 0;
+    virtual bool setBufferingLimit(uint32_t limitBufferingMs) = 0;
+    virtual bool getBufferingLimit(uint32_t &limitBufferingMs) = 0;
+    virtual bool setUseBuffering(bool useBuffering) = 0;
+    virtual bool getUseBuffering(bool &useBuffering) = 0;
 };
 } // namespace firebolt::rialto::client

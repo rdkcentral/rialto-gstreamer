@@ -96,7 +96,8 @@ static void rialto_web_audio_sink_rialto_state_changed_handler(RialtoWebAudioSin
                      gst_element_state_get_name(next), gst_element_state_get_name(pending),
                      gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
 
-    if (sink->priv->m_isStateCommitNeeded &&
+    RialtoWebAudioSinkPrivate *priv = sink->priv;
+    if (priv->m_isStateCommitNeeded &&
         ((state == firebolt::rialto::WebAudioPlayerState::PAUSED && next == GST_STATE_PAUSED) ||
          (state == firebolt::rialto::WebAudioPlayerState::PLAYING && next == GST_STATE_PLAYING)))
     {
@@ -273,15 +274,22 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         else
         {
             result = true;
+
             if (priv->isVolumeQueued)
             {
-                priv->m_webAudioClient->setVolume(priv->volume);
-                priv->isVolumeQueued = false;
+                if (!priv->m_webAudioClient->setVolume(priv->volume))
+                {
+                    GST_ERROR_OBJECT(sink, "Failed to set volume");
+                    result = false;
+                }
+                else
+                {
+                    priv->isVolumeQueued = false;
+                }
             }
 
             if (priv->m_isPlayingDelayed)
             {
-                // kClient->isOpen() must be true before setVolume will work
                 if (!priv->m_webAudioClient->play())
                 {
                     GST_ERROR_OBJECT(sink, "Failed to play web audio");
@@ -445,6 +453,7 @@ static bool rialto_web_audio_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
 
 static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 {
+    GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 

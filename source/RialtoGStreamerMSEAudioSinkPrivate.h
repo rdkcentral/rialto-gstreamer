@@ -21,12 +21,20 @@
 #include "Constants.h"
 #include <atomic>
 #include <gst/gst.h>
+#include <mutex>
 
 G_BEGIN_DECLS
 
+struct AudioFadeConfig
+{
+    double volume;
+    uint32_t duration;
+    firebolt::rialto::EaseType easeType;
+};
+
 struct _RialtoMSEAudioSinkPrivate
 {
-    std::atomic<double> volume = kDefaultVolume;
+    std::atomic<double> targetVolume = kDefaultVolume;
     std::atomic_bool mute = kDefaultMute;
     std::atomic_bool isVolumeQueued = false;
     std::atomic_bool isMuteQueued = false;
@@ -38,6 +46,13 @@ struct _RialtoMSEAudioSinkPrivate
     std::atomic_bool isSyncOffQueued = false;
     std::atomic<int32_t> streamSyncMode = kDefaultStreamSyncMode;
     std::atomic_bool isStreamSyncModeQueued = false;
+    AudioFadeConfig audioFadeConfig;
+    std::mutex audioFadeConfigMutex;
+    std::atomic_bool isAudioFadeQueued = false;
+    std::atomic<uint32_t> bufferingLimit = kDefaultBufferingLimit;
+    std::atomic_bool isBufferingLimitQueued = false;
+    std::atomic_bool useBuffering = kDefaultUseBuffering;
+    std::atomic_bool isUseBufferingQueued = false;
 };
 
 G_END_DECLS

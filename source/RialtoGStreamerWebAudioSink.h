@@ -44,13 +44,8 @@ struct _RialtoWebAudioSinkPrivate
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
     bool m_isPlayingDelayed{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
-#if 0
     std::atomic<double> volume = kDefaultVolume;
     std::atomic<bool> isVolumeQueued = false;
-#else
-    std::atomic<double> volume = 0.0001;
-    std::atomic<bool> isVolumeQueued = true;
-#endif
 };
 
 struct _RialtoWebAudioSink

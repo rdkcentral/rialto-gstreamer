@@ -20,18 +20,17 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <gst/gst.h>
+#include <functional>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include <functional>
-#include <memory>
+#include <gst/gst.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <thread>
 #include <unistd.h>
 
 #include "BufferParser.h"
@@ -278,7 +277,7 @@ public:
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
-    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime);
+    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0);
     void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
@@ -298,7 +297,7 @@ public:
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(RialtoMSEBaseSink *sink);
-    void setVolume(double volume);
+    void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
@@ -308,10 +307,14 @@ public:
     bool setSync(bool sync);
     bool getSync(bool &sync);
     bool setSyncOff(bool syncOff);
-    bool setStreamSyncMode(int32_t streamSyncMode);
+    bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode);
     bool getStreamSyncMode(int32_t &streamSyncMode);
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
+    void setBufferingLimit(uint32_t limitBufferingMs);
+    uint32_t getBufferingLimit();
+    void setUseBuffering(bool useBuffering);
+    bool getUseBuffering();
 
 private:
     bool areAllStreamsAttached();
