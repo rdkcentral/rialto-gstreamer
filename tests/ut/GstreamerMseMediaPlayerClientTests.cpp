@@ -64,7 +64,7 @@ constexpr bool kSyncOff{true};
 constexpr int32_t kStreamSyncMode{1};
 constexpr uint32_t kBufferingLimit{12384};
 constexpr bool kUseBuffering{true};
-constexpr uint64_t kRunningTime{234};
+constexpr uint64_t kStopPosition{234};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -991,9 +991,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock,
-                setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime))
+                setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(true));
-    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime);
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
     gst_object_unref(audioSink);
 }
@@ -1006,9 +1006,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock,
-                setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime))
+                setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(false));
-    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime);
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
     gst_object_unref(audioSink);
 }
@@ -1020,7 +1020,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime, kAppliedRate, kRunningTime);
+    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
     gst_object_unref(audioSink);
 }
