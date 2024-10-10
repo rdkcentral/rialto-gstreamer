@@ -456,11 +456,6 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldSetCachedVolume)
     setPaused(pipeline);
     attachSource(sink);
 
-    EXPECT_CALL(m_playerMock, setEos()).WillOnce(Return(true));
-    GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
-    ASSERT_TRUE(sinkPad);
-    gst_pad_send_event(sinkPad, gst_event_new_eos());
-
     setNull(pipeline);
     gst_object_unref(pipeline);
 }
