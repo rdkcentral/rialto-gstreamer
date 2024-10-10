@@ -438,7 +438,7 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 }
 
 void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position, bool resetTime,
-                                                      double appliedRate)
+                                                      double appliedRate, uint64_t stopPosition)
 {
     m_backendQueue->callInEventLoop(
         [&]()
@@ -449,7 +449,7 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
                 GST_ERROR("Cannot Set Source Position - there's no attached source with id %d", sourceId);
                 return;
             }
-            if (!m_clientBackend->setSourcePosition(sourceId, position, resetTime, appliedRate))
+            if (!m_clientBackend->setSourcePosition(sourceId, position, resetTime, appliedRate, stopPosition))
             {
                 GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
                 return;
