@@ -642,7 +642,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     constexpr guint64 kPosition{1234};
     constexpr bool kResetTime{false};
     constexpr bool kAppliedRate = 1.0;
-    constexpr uint64_t kRunningTime{0};
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
 
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -658,13 +658,13 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime))
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(true));
 
     GstSegment *segment{gst_segment_new()};
     gst_segment_init(segment, GST_FORMAT_TIME);
     gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
-                        GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE, nullptr);
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_segment(segment)));
@@ -683,7 +683,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithResetTime)
     constexpr guint64 kPosition{1234};
     constexpr bool kResetTime{true};
     constexpr bool kAppliedRate = 1.0;
-    constexpr uint64_t kRunningTime{0};
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
 
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -699,13 +699,13 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithResetTime)
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime))
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(true));
 
     GstSegment *segment{gst_segment_new()};
     gst_segment_init(segment, GST_FORMAT_TIME);
     gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kPosition,
-                        GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE, nullptr);
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_segment(segment)));
@@ -724,7 +724,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     constexpr guint64 kPosition{1234};
     constexpr bool kResetTime{false};
     constexpr bool kAppliedRate = 5.0;
-    constexpr uint64_t kRunningTime{0};
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
 
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -740,56 +740,14 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime))
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(true));
 
     GstSegment *segment{gst_segment_new()};
     gst_segment_init(segment, GST_FORMAT_TIME);
     gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
-                        GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE, nullptr);
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
     segment->applied_rate = kAppliedRate;
-
-    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
-                                           gst_event_new_segment(segment)));
-    EXPECT_EQ(GST_FORMAT_TIME, audioSink->priv->m_lastSegment.format);
-
-    gst_segment_free(segment);
-
-    setNullState(pipeline, kSourceId);
-
-    gst_caps_unref(caps);
-    gst_object_unref(pipeline);
-}
-
-TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultRunningTime)
-{
-    constexpr guint64 kPosition{1234};
-    constexpr bool kResetTime{false};
-    constexpr bool kAppliedRate = 1.0;
-    constexpr uint64_t kRunningTime{234234};
-
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
-    audioSink->priv->m_isFlushOngoing = true;
-
-    setPausedState(pipeline, audioSink);
-    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
-    allSourcesWillBeAttached();
-
-    GstCaps *caps{createAudioCaps()};
-    setCaps(audioSink, caps);
-
-    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
-    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
-
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kRunningTime))
-        .WillOnce(Return(true));
-
-    GstSegment *segment{gst_segment_new()};
-    gst_segment_init(segment, GST_FORMAT_TIME);
-    gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
-                        GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE, nullptr);
-    segment->base = kRunningTime;
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_segment(segment)));
