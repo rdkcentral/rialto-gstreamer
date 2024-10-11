@@ -584,6 +584,12 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 {
                     m_clientState = ClientState::PLAYING;
                 }
+                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
+                         m_clientState == ClientState::AWAITING_PAUSED)
+                {
+                    GST_WARNING("Outdated Playback State change to PLAYING received. Discarding...");
+                    break;
+                }
 
                 for (auto &source : m_attachedSources)
                 {
