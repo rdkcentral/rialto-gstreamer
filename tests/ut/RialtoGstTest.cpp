@@ -20,10 +20,12 @@
 #include "Matchers.h"
 #include "MediaPipelineCapabilitiesMock.h"
 #include "PlaybinStub.h"
-#include "RialtoGSteamerPlugin.cpp" // urgh... disgusting!
+#include "RialtoGSteamerPlugin.cpp"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
-#include <algorithm>
+
 #include <gst/gst.h>
+
+#include <algorithm>
 #include <string>
 #include <vector>
 
