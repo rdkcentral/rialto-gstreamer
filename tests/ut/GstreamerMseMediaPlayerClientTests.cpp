@@ -763,6 +763,20 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPauseWhenLostStateFromPlayi
     gst_object_unref(m_videoSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaitingForPaused)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
+
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldLooseStateWhenLostStateFromPaused)
 {
     attachAudioVideo();
