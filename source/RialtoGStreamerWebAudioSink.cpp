@@ -314,17 +314,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
-    if (!sink)
-    {
-        GST_ERROR_OBJECT(object, "Sink not initalised");
-        return;
-    }
     RialtoWebAudioSinkPrivate *priv = sink->priv;
-    if (!priv)
-    {
-        GST_ERROR_OBJECT(object, "Private Sink not initalised");
-        return;
-    }
     const std::shared_ptr<GStreamerWebAudioPlayerClient> &kClient = priv->m_webAudioClient;
 
     switch (propId)
@@ -365,17 +355,7 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
 static void rialto_web_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
-    if (!sink)
-    {
-        GST_ERROR_OBJECT(object, "Sink not initalised");
-        return;
-    }
     RialtoWebAudioSinkPrivate *priv = sink->priv;
-    if (!priv)
-    {
-        GST_ERROR_OBJECT(object, "Private Sink not initalised");
-        return;
-    }
     const std::shared_ptr<GStreamerWebAudioPlayerClient> &kClient = priv->m_webAudioClient;
 
     switch (propId)
