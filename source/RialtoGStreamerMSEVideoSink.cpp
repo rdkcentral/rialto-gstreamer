@@ -520,9 +520,6 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
                                                          "allow frame stepping on preroll into pause", FALSE,
                                                          G_PARAM_READWRITE));
-    g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
-                                    g_param_spec_boolean("show-video-window", "make video window visible",
-                                                         "true: visible, false: hidden", TRUE, G_PARAM_WRITABLE));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
@@ -535,8 +532,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
+        const std::string kShowVideoWindowPropertyName{"show-video-window"};
         const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
-                                                              kSyncmodeStreamingPropertyName};
+                                                              kSyncmodeStreamingPropertyName,
+                                                              kShowVideoWindowPropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
                                                             kPropertyNamesToSearch)};
@@ -555,6 +554,14 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                 g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
                                                 g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
                                                                      "Enable/disable OTT streaming sync mode", FALSE,
+                                                                     G_PARAM_WRITABLE));
+            }
+            else if (kShowVideoWindowPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
+                                                g_param_spec_boolean(kShowVideoWindowPropertyName.c_str(),
+                                                                     "make video window visible",
+                                                                     "true: visible, false: hidden", TRUE,
                                                                      G_PARAM_WRITABLE));
             }
         }
