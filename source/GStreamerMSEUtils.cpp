@@ -23,19 +23,6 @@
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
-#if 0
-// The x-raw capability is disabled until a workaround is found for the following...
-//
-// Returning an x-raw capability (which would work) has the side-effect of
-// breaking the WebAudio YT cert test.
-// When WebAudio in cobalt creates the audio sink, it uses autoaudiosink which is
-// selecting the MSE sink instead of webaudio (because it supports x-raw)
-//
-// When a better fix is found, please remove this MACRO from the code
-// (NOTE: this macro is used in at least one other file, please search for it)
-#define RIALTO_ENABLE_X_RAW
-#endif
-
 void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                                           const std::vector<std::string> &supportedMimeTypes)
 {
