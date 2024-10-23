@@ -49,6 +49,7 @@ enum
     PROP_FRAME_STEP_ON_PREROLL,
     PROP_IMMEDIATE_OUTPUT,
     PROP_SYNCMODE_STREAMING,
+    PROP_SHOW_VIDEO_WINDOW,
     PROP_LAST
 };
 
@@ -213,6 +214,12 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
                     {
                         GST_ERROR_OBJECT(sink, "Could not set syncmode-streaming");
                     }
+                }
+                if (priv->showVideoWindowQueued)
+                {
+                    GST_DEBUG_OBJECT(sink, "Set queued show-video-window");
+                    priv->showVideoWindowQueued = false;
+                    client->setMute(priv->showVideoWindow, basePriv->m_sourceId);
                 }
             }
         }
@@ -422,6 +429,23 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         break;
     }
+    case PROP_SHOW_VIDEO_WINDOW:
+    {
+        bool showVideoWindow = (g_value_get_boolean(value) == TRUE);
+        std::unique_lock lock{priv->propertyMutex};
+        priv->showVideoWindow = showVideoWindow;
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(sink, "Show video window setting enqueued");
+            priv->showVideoWindowQueued = true;
+        }
+        else
+        {
+            lock.unlock();
+            client->setMute(showVideoWindow, basePriv->m_sourceId);
+        }
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -508,8 +532,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
+        const std::string kShowVideoWindowPropertyName{"show-video-window"};
         const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
-                                                              kSyncmodeStreamingPropertyName};
+                                                              kSyncmodeStreamingPropertyName,
+                                                              kShowVideoWindowPropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
                                                             kPropertyNamesToSearch)};
@@ -528,6 +554,14 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                 g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
                                                 g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
                                                                      "Enable/disable OTT streaming sync mode", FALSE,
+                                                                     G_PARAM_WRITABLE));
+            }
+            else if (kShowVideoWindowPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
+                                                g_param_spec_boolean(kShowVideoWindowPropertyName.c_str(),
+                                                                     "make video window visible",
+                                                                     "true: visible, false: hidden", TRUE,
                                                                      G_PARAM_WRITABLE));
             }
         }
