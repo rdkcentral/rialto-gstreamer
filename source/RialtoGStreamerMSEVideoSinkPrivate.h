@@ -40,6 +40,8 @@ struct _RialtoMSEVideoSinkPrivate
     bool immediateOutputQueued{false};
     bool syncmodeStreaming{false};
     bool syncmodeStreamingQueued{false};
+    bool showVideoWindow{true};
+    bool showVideoWindowQueued{false};
     // END of variables locked by propertyMutex
 };
 
