@@ -62,6 +62,7 @@ add_compile_definitions(TAGS="${TAGS}")
 add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
 # The x-raw capability is disabled until a workaround is found for the following...
+# Task to remove a workaround is RIALTO-683.
 # 
 # Returning an x-raw capability (which would work) has the side-effect of
 # breaking the WebAudio YT cert test.
