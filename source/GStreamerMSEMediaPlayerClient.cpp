@@ -22,6 +22,7 @@
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
+
 #include <algorithm>
 #include <chrono>
 #include <thread>
@@ -729,22 +730,11 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(targetVolume, volumeDuration, easeType); });
 }
 
-double GStreamerMSEMediaPlayerClient::getVolume()
+bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
-    double volume{0.0};
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_clientBackend->getVolume(volume))
-            {
-                m_volume = volume;
-            }
-            else
-            {
-                volume = m_volume;
-            }
-        });
-    return volume;
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    return status;
 }
 
 void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)

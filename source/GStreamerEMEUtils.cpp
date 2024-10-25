@@ -16,12 +16,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <cstdint>
+
+#include <stdio.h>
+
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
 #include "GstreamerCatLog.h"
-#include <RialtoGStreamerEMEProtectionMetadata.h>
-#include <cstdint>
-#include <stdio.h>
+#include "RialtoGStreamerEMEProtectionMetadata.h"
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 void getEncryptedFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta, BufferProtectionMetadata &metadata)

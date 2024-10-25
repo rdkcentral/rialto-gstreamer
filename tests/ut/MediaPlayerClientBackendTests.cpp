@@ -20,6 +20,7 @@
 #include "MediaPipelineClientMock.h"
 #include "MediaPipelineMock.h"
 #include "MediaPlayerClientBackend.h"
+
 #include <gtest/gtest.h>
 
 using firebolt::rialto::IMediaPipelineFactory;

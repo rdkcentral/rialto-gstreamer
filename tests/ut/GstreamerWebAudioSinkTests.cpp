@@ -384,3 +384,142 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldNotifyNewSample)
     gst_object_unref(sinkPad);
     gst_object_unref(pipeline);
 }
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldReturnDefaultVolumeValueWhenPipelineIsBelowPausedState)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+
+    gdouble volume{-1.0};
+    g_object_get(sink, "volume", &volume, nullptr);
+    EXPECT_EQ(1.0, volume); // Default value should be returned
+
+    gst_object_unref(sink);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldGetVolumeProperty)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+    GstElement *pipeline = createPipelineWithSink(sink);
+    setPaused(pipeline);
+    attachSource(sink);
+
+    gdouble volume{-1.0};
+    constexpr gdouble kVolume{0.8};
+    EXPECT_CALL(m_playerMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
+    g_object_get(sink, "volume", &volume, nullptr);
+    EXPECT_EQ(kVolume, volume);
+
+    setNull(pipeline);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBelowPausedState)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+
+    constexpr gdouble kVolume{0.8};
+    g_object_set(sink, "volume", kVolume, nullptr);
+
+    // Sink should return cached value, when get is called
+    gdouble volume{-1.0};
+    g_object_get(sink, "volume", &volume, nullptr);
+    EXPECT_EQ(kVolume, volume);
+
+    gst_object_unref(sink);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldSetVolume)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+    GstElement *pipeline = createPipelineWithSink(sink);
+    setPaused(pipeline);
+    attachSource(sink);
+
+    constexpr gdouble kVolume{0.8};
+    EXPECT_CALL(m_playerMock, setVolume(kVolume)).WillOnce(Return(true));
+    g_object_set(sink, "volume", kVolume, nullptr);
+
+    setNull(pipeline);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolume)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+    GstElement *pipeline = createPipelineWithSink(sink);
+    setPaused(pipeline);
+    attachSource(sink);
+
+    constexpr gdouble kVolume{0.8};
+    // A log message is generated due to the following
+    // false return value, but nothing else should be done...
+    EXPECT_CALL(m_playerMock, setVolume(kVolume)).WillOnce(Return(false));
+
+    g_object_set(sink, "volume", kVolume, nullptr);
+
+    setNull(pipeline);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldSetCachedVolume)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+
+    constexpr gdouble kVolume{0.8};
+    g_object_set(sink, "volume", kVolume, nullptr);
+
+    EXPECT_CALL(m_playerMock, setVolume(kVolume)).WillOnce(Return(true));
+
+    GstElement *pipeline = createPipelineWithSink(sink);
+    setPaused(pipeline);
+    attachSource(sink);
+
+    setNull(pipeline);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetCachedVolume)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+
+    constexpr gdouble kVolume{0.8};
+    g_object_set(sink, "volume", kVolume, nullptr);
+
+    // A log message is generated due to the following
+    // false return value, but nothing else should be done...
+    EXPECT_CALL(m_playerMock, setVolume(kVolume)).WillOnce(Return(false));
+
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPaused(pipeline);
+    attachSource(sink);
+
+    setNull(pipeline);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerWebAudioSinkTests, ShouldReturnLastKnownVolumeWhenOperationFails)
+{
+    RialtoWebAudioSink *sink{createWebAudioSink()};
+    GstElement *pipeline = createPipelineWithSink(sink);
+    setPaused(pipeline);
+    attachSource(sink);
+
+    constexpr gdouble kVolume{0.7};
+    {
+        EXPECT_CALL(m_playerMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
+        gdouble volume{-1.0};
+        g_object_get(sink, "volume", &volume, nullptr);
+        EXPECT_EQ(volume, kVolume);
+    }
+
+    {
+        EXPECT_CALL(m_playerMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(1.0), Return(false)));
+        gdouble volume{-1.0};
+        g_object_get(sink, "volume", &volume, nullptr);
+        EXPECT_EQ(volume, kVolume);
+    }
+
+    setNull(pipeline);
+    gst_object_unref(pipeline);
+}
