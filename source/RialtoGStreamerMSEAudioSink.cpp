@@ -74,16 +74,15 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient =
-            basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-        if (!kClient)
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
         {
             GST_ERROR_OBJECT(sink, "MediaPlayerClient is nullptr");
             return GST_STATE_CHANGE_FAILURE;
         }
         if (priv->isVolumeQueued)
         {
-            kClient->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
+            client->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
             priv->isVolumeQueued = false;
         }
         if (priv->isAudioFadeQueued)
@@ -93,7 +92,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
                 std::lock_guard<std::mutex> lock(priv->audioFadeConfigMutex);
                 audioFadeConfig = priv->audioFadeConfig;
             }
-            kClient->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
+            client->setVolume(audioFadeConfig.volume, audioFadeConfig.duration, audioFadeConfig.easeType);
             priv->isAudioFadeQueued = false;
         }
         break;
@@ -253,9 +252,9 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
             rialto_mse_audio_sink_create_media_source(sink, caps);
         if (asource)
         {
-            const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient =
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
                 sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!kClient) || (!kClient->attachSource(asource, sink)))
+            if ((!client) || (!client->attachSource(asource, sink)))
             {
                 GST_ERROR_OBJECT(sink, "Failed to attach AUDIO source");
             }
@@ -266,12 +265,12 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
 
                 if (priv->isMuteQueued)
                 {
-                    kClient->setMute(priv->mute, basePriv->m_sourceId);
+                    client->setMute(priv->mute, basePriv->m_sourceId);
                     priv->isMuteQueued = false;
                 }
                 if (priv->isLowLatencyQueued)
                 {
-                    if (!kClient->setLowLatency(priv->lowLatency))
+                    if (!client->setLowLatency(priv->lowLatency))
                     {
                         GST_ERROR_OBJECT(audioSink, "Could not set queued low-latency");
                     }
@@ -279,7 +278,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (priv->isSyncQueued)
                 {
-                    if (!kClient->setSync(priv->sync))
+                    if (!client->setSync(priv->sync))
                     {
                         GST_ERROR_OBJECT(audioSink, "Could not set queued sync");
                     }
@@ -287,7 +286,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (priv->isSyncOffQueued)
                 {
-                    if (!kClient->setSyncOff(priv->syncOff))
+                    if (!client->setSyncOff(priv->syncOff))
                     {
                         GST_ERROR_OBJECT(audioSink, "Could not set queued sync-off");
                     }
@@ -295,7 +294,7 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (priv->isStreamSyncModeQueued)
                 {
-                    if (!kClient->setStreamSyncMode(basePriv->m_sourceId, audioSink->priv->streamSyncMode))
+                    if (!client->setStreamSyncMode(basePriv->m_sourceId, audioSink->priv->streamSyncMode))
                     {
                         GST_ERROR_OBJECT(audioSink, "Could not set queued stream-sync-mode");
                     }
@@ -303,19 +302,19 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
                 }
                 if (priv->isBufferingLimitQueued)
                 {
-                    kClient->setBufferingLimit(audioSink->priv->bufferingLimit);
+                    client->setBufferingLimit(audioSink->priv->bufferingLimit);
                     priv->isBufferingLimitQueued = false;
                 }
                 if (priv->isUseBufferingQueued)
                 {
-                    kClient->setUseBuffering(audioSink->priv->useBuffering);
+                    client->setUseBuffering(audioSink->priv->useBuffering);
                     priv->isUseBufferingQueued = false;
                 }
 
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
                 {
-                    kClient->pause(sink->priv->m_sourceId);
+                    client->pause(sink->priv->m_sourceId);
                 }
             }
         }
@@ -348,16 +347,16 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         return;
     }
 
-    const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
     switch (propId)
     {
     case PROP_VOLUME:
     {
         double volume;
-        if (kClient)
+        if (client)
         {
-            if (kClient->getVolume(volume))
+            if (client->getVolume(volume))
                 priv->targetVolume = volume;
             else
                 volume = priv->targetVolume; // Use last known volume
@@ -371,24 +370,24 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_MUTE:
     {
-        if (!kClient)
+        if (!client)
         {
             g_value_set_boolean(value, priv->mute);
             return;
         }
-        g_value_set_boolean(value, kClient->getMute(basePriv->m_sourceId));
+        g_value_set_boolean(value, client->getMute(basePriv->m_sourceId));
         break;
     }
     case PROP_SYNC:
     {
-        if (!kClient)
+        if (!client)
         {
             g_value_set_boolean(value, priv->sync);
             return;
         }
 
         bool sync{kDefaultSync};
-        if (!kClient->getSync(sync))
+        if (!client->getSync(sync))
         {
             GST_ERROR_OBJECT(sink, "Could not get sync");
         }
@@ -397,14 +396,14 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_STREAM_SYNC_MODE:
     {
-        if (!kClient)
+        if (!client)
         {
             g_value_set_int(value, priv->streamSyncMode);
             return;
         }
 
         int32_t streamSyncMode{kDefaultStreamSyncMode};
-        if (!kClient->getStreamSyncMode(streamSyncMode))
+        if (!client->getStreamSyncMode(streamSyncMode))
         {
             GST_ERROR_OBJECT(sink, "Could not get stream-sync-mode");
         }
@@ -414,7 +413,7 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     case PROP_FADE_VOLUME:
     {
         double volume;
-        if (!kClient || !kClient->getVolume(volume))
+        if (!client || !client->getVolume(volume))
         {
             g_value_set_uint(value, kDefaultFadeVolume);
             return;
@@ -424,22 +423,22 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_LIMIT_BUFFERING_MS:
     {
-        if (!kClient)
+        if (!client)
         {
             g_value_set_uint(value, priv->bufferingLimit);
             return;
         }
-        g_value_set_uint(value, kClient->getBufferingLimit());
+        g_value_set_uint(value, client->getBufferingLimit());
         break;
     }
     case PROP_USE_BUFFERING:
     {
-        if (!kClient)
+        if (!client)
         {
             g_value_set_boolean(value, priv->useBuffering);
             return;
         }
-        g_value_set_boolean(value, kClient->getUseBuffering());
+        g_value_set_boolean(value, client->getUseBuffering());
         break;
     }
     default:
@@ -481,32 +480,32 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         return;
     }
 
-    const std::shared_ptr<GStreamerMSEMediaPlayerClient> &kClient = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
 
     switch (propId)
     {
     case PROP_VOLUME:
     {
         priv->targetVolume = g_value_get_double(value);
-        if (!kClient || !basePriv->m_sourceAttached)
+        if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue volume setting");
             priv->isVolumeQueued = true;
             return;
         }
-        kClient->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
+        client->setVolume(priv->targetVolume, kDefaultVolumeDuration, kDefaultEaseType);
         break;
     }
     case PROP_MUTE:
     {
         priv->mute = g_value_get_boolean(value);
-        if (!kClient || !basePriv->m_sourceAttached)
+        if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue mute setting");
             priv->isMuteQueued = true;
             return;
         }
-        kClient->setMute(priv->mute, basePriv->m_sourceId);
+        client->setMute(priv->mute, basePriv->m_sourceId);
         break;
     }
     case PROP_GAP:
@@ -534,20 +533,20 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         }
 
         GST_DEBUG_OBJECT(object, "Processing audio gap.");
-        kClient->processAudioGap(position, duration, discontinuityGap, audioAac);
+        client->processAudioGap(position, duration, discontinuityGap, audioAac);
         break;
     }
     case PROP_LOW_LATENCY:
     {
         priv->lowLatency = g_value_get_boolean(value);
-        if (!kClient)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue low latency setting");
             priv->isLowLatencyQueued = true;
             return;
         }
 
-        if (!kClient->setLowLatency(priv->lowLatency))
+        if (!client->setLowLatency(priv->lowLatency))
         {
             GST_ERROR_OBJECT(sink, "Could not set low-latency");
         }
@@ -556,14 +555,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_SYNC:
     {
         priv->sync = g_value_get_boolean(value);
-        if (!kClient)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue sync setting");
             priv->isSyncQueued = true;
             return;
         }
 
-        if (!kClient->setSync(priv->sync))
+        if (!client->setSync(priv->sync))
         {
             GST_ERROR_OBJECT(sink, "Could not set sync");
         }
@@ -572,14 +571,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_SYNC_OFF:
     {
         priv->syncOff = g_value_get_boolean(value);
-        if (!kClient)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue sync off setting");
             priv->isSyncOffQueued = true;
             return;
         }
 
-        if (!kClient->setSyncOff(priv->syncOff))
+        if (!client->setSyncOff(priv->syncOff))
         {
             GST_ERROR_OBJECT(sink, "Could not set sync-off");
         }
@@ -588,14 +587,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     case PROP_STREAM_SYNC_MODE:
     {
         priv->streamSyncMode = g_value_get_int(value);
-        if (!kClient || !basePriv->m_sourceAttached)
+        if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(object, "Enqueue stream sync mode setting");
             priv->isStreamSyncModeQueued = true;
             return;
         }
 
-        if (!kClient->setStreamSyncMode(basePriv->m_sourceId, priv->streamSyncMode))
+        if (!client->setStreamSyncMode(basePriv->m_sourceId, priv->streamSyncMode))
         {
             GST_ERROR_OBJECT(sink, "Could not set stream-sync-mode");
         }
@@ -638,40 +637,40 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
             priv->audioFadeConfig.easeType = easeType;
         }
 
-        if (!kClient)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue audio fade setting");
             priv->isAudioFadeQueued = true;
             return;
         }
 
-        kClient->setVolume(volume, duration, easeType);
+        client->setVolume(volume, duration, easeType);
         break;
     }
     case PROP_LIMIT_BUFFERING_MS:
     {
         priv->bufferingLimit = g_value_get_uint(value);
-        if (!kClient)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue buffering limit setting");
             priv->isBufferingLimitQueued = true;
             return;
         }
 
-        kClient->setBufferingLimit(priv->bufferingLimit);
+        client->setBufferingLimit(priv->bufferingLimit);
         break;
     }
     case PROP_USE_BUFFERING:
     {
         priv->useBuffering = g_value_get_boolean(value);
-        if (!kClient)
+        if (!client)
         {
             GST_DEBUG_OBJECT(object, "Enqueue use buffering setting");
             priv->isUseBufferingQueued = true;
             return;
         }
 
-        kClient->setUseBuffering(priv->useBuffering);
+        client->setUseBuffering(priv->useBuffering);
         break;
     }
     default:
