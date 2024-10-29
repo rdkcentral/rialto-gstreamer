@@ -56,6 +56,7 @@ enum
     PROP_FADE_VOLUME,
     PROP_LIMIT_BUFFERING_MS,
     PROP_USE_BUFFERING,
+    PROP_ASYNC,
     PROP_LAST
 };
 
@@ -441,6 +442,12 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
         g_value_set_boolean(value, client->getUseBuffering());
         break;
     }
+    case PROP_ASYNC:
+    {
+        // Rialto MSE Audio sink is always async
+        g_value_set_boolean(value, TRUE);
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -673,6 +680,14 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         client->setUseBuffering(priv->useBuffering);
         break;
     }
+    case PROP_ASYNC:
+    {
+        if (FALSE == g_value_get_boolean(value))
+        {
+            GST_WARNING_OBJECT(object, "Cannot set ASYNC to false - not supported");
+        }
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -738,6 +753,8 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                     g_param_spec_boolean("use-buffering",
                                                          "Use buffering", "Emit GST_MESSAGE_BUFFERING based on low-/high-percent thresholds",
                                                          kDefaultUseBuffering, G_PARAM_READWRITE));
+    g_object_class_install_property(gobjectClass, PROP_ASYNC,
+                                    g_param_spec_boolean("async", "Async", "Asynchronous mode", FALSE, G_PARAM_READWRITE));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
