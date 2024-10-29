@@ -19,6 +19,7 @@
 #include "GStreamerEMEUtils.h"
 #include "RialtoGStreamerEMEProtectionMetadata.h"
 #include "RialtoGstTest.h"
+
 #include <gst/base/gstbytewriter.h>
 #include <gst/gst.h>
 #include <gtest/gtest.h>
