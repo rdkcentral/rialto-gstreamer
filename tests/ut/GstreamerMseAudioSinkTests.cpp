@@ -1187,3 +1187,25 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldFailToGetOrSetUnknownProperty)
 
     gst_object_unref(audioSink);
 }
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldGetAsyncProperty)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    gboolean async{FALSE};
+    g_object_get(textContext.m_sink, "async", &async, nullptr);
+    EXPECT_EQ(async, TRUE);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetAsyncProperty)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    g_object_set(textContext.m_sink, "async", FALSE, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
