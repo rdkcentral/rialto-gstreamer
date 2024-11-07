@@ -746,7 +746,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAtt
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPauseWhenLostStateFromPlaying)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldLooseStateFromPlaying)
 {
     attachAudioVideo();
     allSourcesWantToPause();
@@ -754,10 +754,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPauseWhenLostStateFromPlayi
     allSourcesWantToPlay();
     serverTransitionedToPlaying();
 
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
     m_sut->notifyLostState(m_audioSourceId);
 
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
 
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
@@ -798,7 +797,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDoNothingWhenLostStateNotAttach
     EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPlayWhenRecoveringFromLostStateFromPlaying)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRecoverFromLostStateToPlaying)
 {
     attachAudioVideo();
     allSourcesWantToPause();
@@ -806,14 +805,12 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPlayWhenRecoveringFromLostS
     allSourcesWantToPlay();
     serverTransitionedToPlaying();
 
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
     m_sut->notifyLostState(m_audioSourceId);
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
 
-    serverTransitionedToPaused();
-    EXPECT_EQ(m_sut->getClientState(), ClientState::PAUSED);
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
 
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
     m_sut->play(m_audioSourceId);
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
 

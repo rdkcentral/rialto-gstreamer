@@ -305,6 +305,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
 
             result = StateChangeResult::SUCCESS_ASYNC;
+            rialto_mse_base_async_start(sourceIt->second.m_rialtoSink);
         });
 
     return result;
@@ -372,6 +373,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 }
 
                 result = StateChangeResult::SUCCESS_ASYNC;
+                rialto_mse_base_async_start(sourceIt->second.m_rialtoSink);
             }
         });
 
@@ -393,11 +395,9 @@ void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
             rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
 
             sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
-            if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
+            if (m_clientState == ClientState::PLAYING)
             {
-                GST_INFO("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
-                m_clientBackend->pause();
-                m_clientState = ClientState::AWAITING_PAUSED;
+                m_clientState = ClientState::AWAITING_PLAYING;
             }
             else if (m_clientState == ClientState::PAUSED)
             {
