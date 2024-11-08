@@ -65,7 +65,7 @@ static unsigned rialto_mse_base_sink_get_gst_play_flag(const char *nick)
     return flag ? flag->value : 0;
 }
 
-static void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
+void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
 {
     sink->priv->m_isStateCommitNeeded = true;
     gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
@@ -165,7 +165,10 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
         {
             // NOT_ATTACHED is not a problem here, because source will be attached later when GST_EVENT_CAPS is received
-            rialto_mse_base_async_start(sink);
+            if (result == StateChangeResult::NOT_ATTACHED)
+            {
+                rialto_mse_base_async_start(sink);
+            }
             status = GST_STATE_CHANGE_ASYNC;
         }
 
@@ -182,7 +185,6 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         StateChangeResult result = client->play(priv->m_sourceId);
         if (result == StateChangeResult::SUCCESS_ASYNC)
         {
-            rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
         }
         else if (result == StateChangeResult::NOT_ATTACHED)
@@ -204,7 +206,6 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         StateChangeResult result = client->pause(priv->m_sourceId);
         if (result == StateChangeResult::SUCCESS_ASYNC)
         {
-            rialto_mse_base_async_start(sink);
             status = GST_STATE_CHANGE_ASYNC;
         }
         else if (result == StateChangeResult::NOT_ATTACHED)
@@ -496,17 +497,21 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
     if (!sink->priv->m_isFlushOngoing)
     {
         GST_INFO_OBJECT(sink, "Starting flushing");
-        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-        if (client)
+        if (sink->priv->m_isEos)
         {
-            client->notifyLostState(sink->priv->m_sourceId);
+            GST_INFO_OBJECT(sink, "Rialto Client is in EOS state, request pause to reset state");
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+            if (client)
+            {
+                client->pause(sink->priv->m_sourceId);
+            }
+            else
+            {
+                GST_ERROR_OBJECT(sink, "Could not get the media player client");
+            }
+            sink->priv->m_isEos = false;
         }
-        else
-        {
-            GST_ERROR_OBJECT(sink, "Could not get the media player client");
-        }
-
-        sink->priv->m_isEos = false;
         sink->priv->m_isFlushOngoing = true;
         sink->priv->clearBuffersUnlocked();
     }
@@ -515,6 +520,15 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetTime)
 {
     GST_INFO_OBJECT(sink, "Stopping flushing");
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+    if (client)
+    {
+        client->notifyLostState(sink->priv->m_sourceId);
+    }
+    else
+    {
+        GST_ERROR_OBJECT(sink, "Could not get the media player client");
+    }
     rialto_mse_base_sink_flush_server(sink, resetTime);
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     sink->priv->m_isFlushOngoing = false;
