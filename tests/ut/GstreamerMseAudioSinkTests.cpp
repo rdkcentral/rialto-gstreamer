@@ -1232,3 +1232,19 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetAsyncProperty)
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
 }
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldHandleSwitchSourceEvent)
+{
+    GstCaps *caps{createDefaultCaps()};
+    GstStructure *structure{gst_structure_new("switch-source", "caps", GST_TYPE_CAPS, caps, nullptr)};
+
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    EXPECT_CALL(m_mediaPipelineMock, switchSource(MediaSourceAudioMatcher(createDefaultMediaSource())))
+        .WillOnce(Return(true));
+    gst_pad_send_event(textContext.m_sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(textContext.m_pipeline);
+}

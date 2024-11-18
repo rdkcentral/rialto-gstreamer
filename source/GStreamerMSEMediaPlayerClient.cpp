@@ -901,6 +901,14 @@ bool GStreamerMSEMediaPlayerClient::getUseBuffering()
     return result;
 }
 
+bool GStreamerMSEMediaPlayerClient::switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source)
+{
+    bool result = false;
+    m_backendQueue->callInEventLoop([&]() { result = m_clientBackend->switchSource(source); });
+
+    return result;
+}
+
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),

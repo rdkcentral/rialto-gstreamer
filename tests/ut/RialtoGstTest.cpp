@@ -59,39 +59,7 @@ int32_t generateSourceId()
     static int32_t sourceId{0};
     return sourceId++;
 }
-bool matchCodecData(const std::shared_ptr<firebolt::rialto::CodecData> &lhs,
-                    const std::shared_ptr<firebolt::rialto::CodecData> &rhs)
-{
-    if (lhs == rhs) // If ptrs are both null or point to the same objects
-    {
-        return true;
-    }
-    if (lhs && rhs)
-    {
-        return lhs->data == rhs->data && lhs->type == rhs->type;
-    }
-    return false;
-}
 
-MATCHER_P(MediaSourceAudioMatcher, mediaSource, "")
-{
-    try
-    {
-        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceAudio &>(*arg)};
-        return matchedSource.getType() == mediaSource.getType() &&
-               matchedSource.getMimeType() == mediaSource.getMimeType() &&
-               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
-               matchedSource.getAudioConfig() == mediaSource.getAudioConfig() &&
-               matchedSource.getSegmentAlignment() == mediaSource.getSegmentAlignment() &&
-               matchedSource.getStreamFormat() == mediaSource.getStreamFormat() &&
-               matchCodecData(matchedSource.getCodecData(), mediaSource.getCodecData()) &&
-               matchedSource.getConfigType() == mediaSource.getConfigType();
-    }
-    catch (std::exception &)
-    {
-        return false;
-    }
-}
 MATCHER_P(MediaSourceVideoMatcher, mediaSource, "")
 {
     try
