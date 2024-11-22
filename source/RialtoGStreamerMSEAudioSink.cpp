@@ -235,7 +235,6 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
     RialtoMSEAudioSink *audioSink = RIALTO_MSE_AUDIO_SINK(parent);
     RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
-    GST_INFO_OBJECT(sink, "Przed switchem");
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_CAPS:
