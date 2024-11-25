@@ -335,3 +335,13 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetUseBuffering)
     EXPECT_TRUE(m_sut.getUseBuffering(useBuffering));
     EXPECT_EQ(kUseBuffering, useBuffering);
 }
+
+TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
+{
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSourceAudio{
+        std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceAudio>("mime_type")};
+    EXPECT_CALL(*m_mediaPipelineMock, switchSource(PtrMatcher(mediaSourceAudio.get()))).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.switchSource(mediaSourceAudio));
+}

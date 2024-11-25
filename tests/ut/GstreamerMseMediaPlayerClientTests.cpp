@@ -1581,3 +1581,12 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetUseBuffering)
         .WillOnce(DoAll(SetArgReferee<0>(kUseBuffering), Return(true)));
     EXPECT_EQ(m_sut->getUseBuffering(), kUseBuffering);
 }
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSwitchSource)
+{
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSource{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, switchSource(PtrMatcher(mediaSource.get()))).WillOnce(Return(true));
+    m_sut->switchSource(mediaSource);
+}

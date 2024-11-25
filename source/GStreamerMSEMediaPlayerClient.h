@@ -316,6 +316,7 @@ public:
     uint32_t getBufferingLimit();
     void setUseBuffering(bool useBuffering);
     bool getUseBuffering();
+    bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source);
 
 private:
     bool areAllStreamsAttached();

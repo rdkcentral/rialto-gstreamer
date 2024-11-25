@@ -325,6 +325,38 @@ static gboolean rialto_mse_audio_sink_event(GstPad *pad, GstObject *parent, GstE
         }
         break;
     }
+    case GST_EVENT_CUSTOM_DOWNSTREAM:
+    case GST_EVENT_CUSTOM_DOWNSTREAM_OOB:
+    {
+        if (gst_event_has_name(event, "switch-source"))
+        {
+            GST_DEBUG_OBJECT(sink, "Switch source event received");
+            const GstStructure *structure{gst_event_get_structure(event)};
+            const GValue *value = gst_structure_get_value(structure, "caps");
+            if (!value)
+            {
+                GST_ERROR_OBJECT(sink, "Caps not available in switch-source event");
+                break;
+            }
+            const GstCaps *caps = gst_value_get_caps(value);
+            GstCaps *mutableCaps = gst_caps_copy(caps);
+            std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> asource =
+                rialto_mse_audio_sink_create_media_source(sink, mutableCaps);
+            gst_caps_unref(mutableCaps);
+            if (!asource)
+            {
+                GST_ERROR_OBJECT(sink, "Not able to parse caps");
+                break;
+            }
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+            if ((!client) || (!client->switchSource(asource)))
+            {
+                GST_ERROR_OBJECT(sink, "Failed to switch AUDIO source");
+            }
+        }
+        break;
+    }
     default:
         break;
     }

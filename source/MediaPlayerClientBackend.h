@@ -169,6 +169,11 @@ public:
 
     bool getUseBuffering(bool &useBuffering) override { return m_mediaPlayerBackend->getUseBuffering(useBuffering); }
 
+    bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) override
+    {
+        return m_mediaPlayerBackend->switchSource(source);
+    }
+
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };

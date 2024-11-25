@@ -37,4 +37,18 @@ bool operator==(const WebAudioPcmConfig &lhs, const WebAudioPcmConfig &rhs)
     return lhs.rate == rhs.rate && lhs.channels == rhs.channels && lhs.sampleSize == rhs.sampleSize &&
            lhs.isBigEndian == rhs.isBigEndian && lhs.isSigned == rhs.isSigned && lhs.isFloat == rhs.isFloat;
 }
+
+bool matchCodecData(const std::shared_ptr<firebolt::rialto::CodecData> &lhs,
+                    const std::shared_ptr<firebolt::rialto::CodecData> &rhs)
+{
+    if (lhs == rhs) // If ptrs are both null or point to the same objects
+    {
+        return true;
+    }
+    if (lhs && rhs)
+    {
+        return lhs->data == rhs->data && lhs->type == rhs->type;
+    }
+    return false;
+}
 } // namespace firebolt::rialto

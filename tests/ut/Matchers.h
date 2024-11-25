@@ -19,13 +19,37 @@
 #ifndef MATCHERS_H
 #define MATCHERS_H
 
+#include "IMediaPipeline.h"
 #include "MediaCommon.h"
+#include <gmock/gmock.h>
 
 namespace firebolt::rialto
 {
 bool operator==(const VideoRequirements &lhs, const VideoRequirements &rhs);
 bool operator==(const AudioConfig &lhs, const AudioConfig &rhs);
 bool operator==(const WebAudioPcmConfig &lhs, const WebAudioPcmConfig &rhs);
+bool matchCodecData(const std::shared_ptr<firebolt::rialto::CodecData> &lhs,
+                    const std::shared_ptr<firebolt::rialto::CodecData> &rhs);
 } // namespace firebolt::rialto
+
+MATCHER_P(MediaSourceAudioMatcher, mediaSource, "")
+{
+    try
+    {
+        auto &matchedSource{dynamic_cast<firebolt::rialto::IMediaPipeline::MediaSourceAudio &>(*arg)};
+        return matchedSource.getType() == mediaSource.getType() &&
+               matchedSource.getMimeType() == mediaSource.getMimeType() &&
+               matchedSource.getHasDrm() == mediaSource.getHasDrm() &&
+               matchedSource.getAudioConfig() == mediaSource.getAudioConfig() &&
+               matchedSource.getSegmentAlignment() == mediaSource.getSegmentAlignment() &&
+               matchedSource.getStreamFormat() == mediaSource.getStreamFormat() &&
+               firebolt::rialto::matchCodecData(matchedSource.getCodecData(), mediaSource.getCodecData()) &&
+               matchedSource.getConfigType() == mediaSource.getConfigType();
+    }
+    catch (std::exception &)
+    {
+        return false;
+    }
+}
 
 #endif // MATCHERS_H
