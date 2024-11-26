@@ -221,6 +221,41 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailu
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetShowVideoWindow)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    constexpr gboolean kShowVideoWindow{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setMute(textContext.m_sourceId, kShowVideoWindow)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "show-video-window", kShowVideoWindow, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedShowVideoWindow)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    constexpr gboolean kShowVideoWindow{TRUE};
+    g_object_set(videoSink, "show-video-window", kShowVideoWindow, nullptr);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kShowVideoWindow)).WillOnce(Return(true));
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
