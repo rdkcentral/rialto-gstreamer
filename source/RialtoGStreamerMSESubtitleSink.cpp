@@ -174,6 +174,42 @@ static gboolean rialto_mse_subtitle_sink_event(GstPad *pad, GstObject *parent, G
 
         break;
     }
+    case GST_EVENT_CUSTOM_DOWNSTREAM:
+    case GST_EVENT_CUSTOM_DOWNSTREAM_OOB:
+    {
+        if (gst_event_has_name(event, "set-pts-offset"))
+        {
+            GST_DEBUG_OBJECT(sink, "Set pts offset event received");
+            const GstStructure *structure{gst_event_get_structure(event)};
+            guint64 ptsOffset{GST_CLOCK_TIME_NONE};
+            if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
+            {
+                std::unique_lock lock{basePriv->m_sinkMutex};
+                if (!basePriv->m_initialPositionSet)
+                {
+                    GST_DEBUG_OBJECT(sink, "First segment not received yet. Queuing offset setting");
+                    basePriv->m_queuedOffset = static_cast<int64_t>(ptsOffset);
+                }
+                else
+                {
+                    std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
+                        basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+                    if (client)
+                    {
+                        GST_DEBUG_OBJECT(sink, "Setting subtitle position to: %" GST_TIME_FORMAT,
+                                         GST_TIME_ARGS(ptsOffset));
+                        client->setSourcePosition(basePriv->m_sourceId, ptsOffset, false,
+                                                  basePriv->m_lastSegment.applied_rate, sink->priv->m_lastSegment.stop);
+                    }
+                }
+            }
+            else
+            {
+                GST_WARNING_OBJECT(sink, "Unable to set pts offset. Value not present");
+            }
+        }
+        break;
+    }
     default:
         break;
     }

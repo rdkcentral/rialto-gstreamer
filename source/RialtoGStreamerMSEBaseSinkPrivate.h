@@ -28,6 +28,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 G_BEGIN_DECLS
@@ -65,6 +66,8 @@ struct _RialtoMSEBaseSinkPrivate
     bool m_isEos = false;
     std::atomic<bool> m_isFlushOngoing;
     std::atomic<bool> m_isStateCommitNeeded;
+    bool m_initialPositionSet{false};
+    std::optional<int64_t> m_queuedOffset;
     std::mutex m_sinkMutex;
 
     std::condition_variable m_needDataCondVariable;

@@ -513,6 +513,8 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
             sink->priv->m_isEos = false;
         }
         sink->priv->m_isFlushOngoing = true;
+        // We expect to receive a new gst segment after flush
+        sink->priv->m_initialPositionSet = false;
         sink->priv->clearBuffersUnlocked();
     }
 }
@@ -549,8 +551,18 @@ static void rialto_mse_base_sink_set_segment(RialtoMSEBaseSink *sink)
         return;
     }
     const bool kResetTime{sink->priv->m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
-    client->setSourcePosition(sink->priv->m_sourceId, sink->priv->m_lastSegment.start, kResetTime,
-                              sink->priv->m_lastSegment.applied_rate, sink->priv->m_lastSegment.stop);
+    int64_t position = static_cast<int64_t>(sink->priv->m_lastSegment.start);
+    {
+        std::unique_lock lock{sink->priv->m_sinkMutex};
+        sink->priv->m_initialPositionSet = true;
+        if (sink->priv->m_queuedOffset)
+        {
+            position = sink->priv->m_queuedOffset.value();
+            sink->priv->m_queuedOffset.reset();
+        }
+    }
+    client->setSourcePosition(sink->priv->m_sourceId, position, kResetTime, sink->priv->m_lastSegment.applied_rate,
+                              sink->priv->m_lastSegment.stop);
 }
 
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
