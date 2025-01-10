@@ -671,6 +671,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     EXPECT_EQ(GST_FORMAT_TIME, audioSink->priv->m_lastSegment.format);
 
     gst_segment_free(segment);
+    EXPECT_TRUE(audioSink->priv->m_initialPositionSet);
 
     setNullState(pipeline, kSourceId);
 
@@ -748,6 +749,50 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
                         GST_SEEK_TYPE_SET, kStopPosition, nullptr);
     segment->applied_rate = kAppliedRate;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+    EXPECT_EQ(GST_FORMAT_TIME, audioSink->priv->m_lastSegment.format);
+
+    gst_segment_free(segment);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithQueuedOffset)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr guint64 kOffset{5678};
+    constexpr bool kResetTime{false};
+    constexpr bool kAppliedRate = 1.0;
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    audioSink->priv->m_isFlushOngoing = true;
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    audioSink->priv->m_queuedOffset = kOffset;
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_segment(segment)));
@@ -862,10 +907,12 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
+    audioSink->priv->m_initialPositionSet = true;
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_start()));
     EXPECT_TRUE(audioSink->priv->m_isFlushOngoing);
+    EXPECT_FALSE(audioSink->priv->m_initialPositionSet);
     EXPECT_FALSE(audioSink->priv->m_isEos);
 
     setNullState(pipeline, kSourceId);
