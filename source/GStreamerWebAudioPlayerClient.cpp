@@ -81,8 +81,9 @@ GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
     std::shared_ptr<ITimerFactory> timerFactory)
     : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
-      m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0}, m_maximumFrames{0},
-      m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}}, m_callbacks{callbacks}
+      m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0},
+      m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
+      m_callbacks{callbacks}
 {
     m_backendQueue->start();
 }
