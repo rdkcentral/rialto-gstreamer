@@ -100,7 +100,11 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     bool result = false;
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     std::string audioMimeType = gst_structure_get_name(structure);
-    audioMimeType = audioMimeType.substr(0, audioMimeType.find(' '));
+    const auto spacePosition = audioMimeType.find(' ');
+    if (spacePosition != std::string::npos)
+    {
+        audioMimeType.resize(spacePosition);
+    }
     const gchar *formatCStr{gst_structure_get_string(structure, "format")};
     std::string format{formatCStr ? formatCStr : ""};
     firebolt::rialto::WebAudioPcmConfig pcm;

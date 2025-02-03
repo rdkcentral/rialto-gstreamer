@@ -148,7 +148,7 @@ AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
     gst_structure_get_int(structure, "rate", &sampleRate);
     gst_structure_get_int(structure, "channels", &numberOfChannels);
 
-    GstAudioClippingMeta *clippingMeta = gst_buffer_get_audio_clipping_meta(buffer);
+    const GstAudioClippingMeta *clippingMeta = gst_buffer_get_audio_clipping_meta(buffer);
     if (clippingMeta)
     {
         clippingStart = clippingMeta->start;

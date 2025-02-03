@@ -164,7 +164,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbcsConstantIVSize)
 
     // Create an IV buffer with 16 bytes (non-zero values)
     const int kIvSize = 16;
-    uint8_t expectedIv[kIvSize] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    const uint8_t expectedIv[kIvSize] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     // Create a GstBuffer for the IV and copy the expected IV into it
     GstBuffer *ivBuffer = gst_buffer_new_allocate(NULL, kIvSize, NULL);

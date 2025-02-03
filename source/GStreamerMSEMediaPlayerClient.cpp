@@ -625,7 +625,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::FAILURE:
             {
-                for (auto &source : m_attachedSources)
+                for (const auto &source : m_attachedSources)
                 {
                     rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
                                                                firebolt::rialto::PlaybackError::UNKNOWN);
