@@ -499,17 +499,7 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
         GST_INFO_OBJECT(sink, "Starting flushing");
         if (sink->priv->m_isEos)
         {
-            GST_INFO_OBJECT(sink, "Rialto Client is in EOS state, request pause to reset state");
-            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if (client)
-            {
-                client->pause(sink->priv->m_sourceId);
-            }
-            else
-            {
-                GST_ERROR_OBJECT(sink, "Could not get the media player client");
-            }
+            GST_DEBUG_OBJECT(sink, "Flush will clear EOS state.");
             sink->priv->m_isEos = false;
         }
         sink->priv->m_isFlushOngoing = true;
