@@ -59,8 +59,8 @@ void gst_play_bin_stub_class_init(GstPlayBinStubClass *klass)
     GObjectClass *gobject_klass;
     GstElementClass *gstelement_klass;
 
-    gobject_klass = (GObjectClass *)klass;
-    gstelement_klass = (GstElementClass *)klass;
+    gobject_klass = reinterpret_cast<GObjectClass *>(klass);
+    gstelement_klass = reinterpret_cast<GstElementClass *>(klass);
 
     gobject_klass->set_property = gst_play_bin_stub_set_property;
     gobject_klass->get_property = gst_play_bin_stub_get_property;

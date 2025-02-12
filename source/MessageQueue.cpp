@@ -136,6 +136,11 @@ bool MessageQueue::scheduleInEventLoop(const std::function<void()> &func)
 
 bool MessageQueue::callInEventLoop(const std::function<void()> &func)
 {
+    return callInEventLoopInternal(func);
+}
+
+bool MessageQueue::callInEventLoopInternal(const std::function<void()> &func)
+{
     if (std::this_thread::get_id() != m_workerThread.get_id())
     {
         auto message = std::make_shared<CallInEventLoopMessage>(func);
@@ -160,7 +165,7 @@ void MessageQueue::doStop()
         // queue is not running
         return;
     }
-    callInEventLoop([this]() { m_running = false; });
+    callInEventLoopInternal([this]() { m_running = false; });
 
     if (m_workerThread.joinable())
         m_workerThread.join();
