@@ -44,6 +44,7 @@ enum
     PROP_TEXT_TRACK_IDENTIFIER,
     PROP_WINDOW_ID,
     PROP_ASYNC,
+    PROP_PTS_OFFSET,
     PROP_LAST
 };
 
@@ -271,6 +272,11 @@ static void rialto_mse_subtitle_sink_get_property(GObject *object, guint propId,
         g_value_set_boolean(value, basePriv->m_isAsync);
         break;
     }
+    case PROP_PTS_OFFSET:
+    {
+        g_value_set_uint64(value, priv->m_ptsOffset);
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -341,6 +347,30 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
         basePriv->m_isAsync = g_value_get_boolean(value);
         break;
     }
+    case PROP_PTS_OFFSET:
+    {
+        GST_DEBUG_OBJECT(sink, "Set pts offset event received");
+        guint64 ptsOffset = g_value_get_uint64(value);
+        std::unique_lock lock{basePriv->m_sinkMutex};
+        if (!basePriv->m_initialPositionSet)
+        {
+            GST_DEBUG_OBJECT(sink, "First segment not received yet. Queuing offset setting to %" GST_TIME_FORMAT,
+                             GST_TIME_ARGS(ptsOffset));
+            basePriv->m_queuedOffset = static_cast<int64_t>(ptsOffset);
+        }
+        else
+        {
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+            if (client)
+            {
+                GST_DEBUG_OBJECT(sink, "Setting subtitle position to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
+                client->setSourcePosition(basePriv->m_sourceId, ptsOffset, false, basePriv->m_lastSegment.applied_rate,
+                                          basePriv->m_lastSegment.stop);
+                priv->m_ptsOffset = ptsOffset;
+            }
+        }
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -404,6 +434,10 @@ static void rialto_mse_subtitle_sink_class_init(RialtoMSESubtitleSinkClass *klas
 
     g_object_class_install_property(gobjectClass, PROP_ASYNC,
                                     g_param_spec_boolean("async", "Async", "Asynchronous mode", FALSE, G_PARAM_READWRITE));
+
+    g_object_class_install_property(gobjectClass, PROP_PTS_OFFSET,
+                                    g_param_spec_uint64("pts-offset", "PTS Offset", "PTS offset for subtiltes", 0,
+                                                        G_MAXUINT64, 0, GParamFlags(G_PARAM_READWRITE)));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
