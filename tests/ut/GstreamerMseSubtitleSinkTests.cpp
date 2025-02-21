@@ -429,3 +429,70 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetPropertyQueueOffsetSetting)
+{
+    constexpr guint64 kOffset{4325};
+
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(sink, caps);
+
+    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
+
+    guint64 ptsOffset{0};
+    g_object_get(sink, "pts-offset", &ptsOffset, nullptr);
+    EXPECT_EQ(ptsOffset, 0);
+
+    g_object_set(sink, "pts-offset", kOffset, nullptr);
+    g_object_get(sink, "pts-offset", &ptsOffset, nullptr);
+    EXPECT_EQ(ptsOffset, 0);
+    EXPECT_EQ(sink->priv->m_queuedOffset.value(), kOffset);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetPropertySetPosition)
+{
+    constexpr guint64 kOffset{4325};
+
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(sink, caps);
+
+    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
+    sink->priv->m_initialPositionSet = true;
+
+    guint64 ptsOffset{0};
+    g_object_get(sink, "pts-offset", &ptsOffset, nullptr);
+    EXPECT_EQ(ptsOffset, 0);
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, _, _, _)).WillOnce(Return(true));
+
+    g_object_set(sink, "pts-offset", kOffset, nullptr);
+
+    EXPECT_EQ(sink->priv->m_queuedOffset, std::nullopt);
+
+    g_object_get(sink, "pts-offset", &ptsOffset, nullptr);
+    EXPECT_EQ(ptsOffset, kOffset);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
