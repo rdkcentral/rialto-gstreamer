@@ -380,31 +380,31 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
     return result;
 }
 
-void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            auto sourceIt = m_attachedSources.find(sourceId);
-            if (sourceIt == m_attachedSources.end())
-            {
-                GST_ERROR("There's no attached source with id %d", sourceId);
-                return;
-            }
+// void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
+// {
+//     m_backendQueue->callInEventLoop(
+//         [&]()
+//         {
+//             auto sourceIt = m_attachedSources.find(sourceId);
+//             if (sourceIt == m_attachedSources.end())
+//             {
+//                 GST_ERROR("There's no attached source with id %d", sourceId);
+//                 return;
+//             }
 
-            rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
+//             rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
 
-            sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
-            if (m_clientState == ClientState::PLAYING)
-            {
-                m_clientState = ClientState::AWAITING_PLAYING;
-            }
-            else if (m_clientState == ClientState::PAUSED)
-            {
-                m_clientState = ClientState::AWAITING_PAUSED;
-            }
-        });
-}
+//             sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+//             if (m_clientState == ClientState::PLAYING)
+//             {
+//                 m_clientState = ClientState::AWAITING_PLAYING;
+//             }
+//             else if (m_clientState == ClientState::PAUSED)
+//             {
+//                 m_clientState = ClientState::AWAITING_PAUSED;
+//             }
+//         });
+// }
 
 void GStreamerMSEMediaPlayerClient::stop()
 {
@@ -421,19 +421,36 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            bool async{true};
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
                 GST_ERROR("Cannot flush - there's no attached source with id %d", sourceId);
                 return;
             }
-            if (!m_clientBackend->flush(sourceId, resetTime))
+            if (!m_clientBackend->flush(sourceId, resetTime, async))
             {
                 GST_ERROR("Flush operation failed for source with id %d", sourceId);
                 return;
             }
             sourceIt->second.m_isFlushing = true;
             sourceIt->second.m_bufferPuller->stop();
+
+            if (async)
+            {
+                GST_ERROR("Flush request sent for async source %d. Sink will lose state now", sourceId);
+                rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
+
+                sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+                if (m_clientState == ClientState::PLAYING)
+                {
+                    m_clientState = ClientState::AWAITING_PLAYING;
+                }
+                else if (m_clientState == ClientState::PAUSED)
+                {
+                    m_clientState = ClientState::AWAITING_PAUSED;
+                }
+            }
         });
 }
 

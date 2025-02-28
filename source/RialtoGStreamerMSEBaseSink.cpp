@@ -512,15 +512,6 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
 static void rialto_mse_base_sink_flush_stop(RialtoMSEBaseSink *sink, bool resetTime)
 {
     GST_INFO_OBJECT(sink, "Stopping flushing");
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-    if (client)
-    {
-        client->notifyLostState(sink->priv->m_sourceId);
-    }
-    else
-    {
-        GST_ERROR_OBJECT(sink, "Could not get the media player client");
-    }
     rialto_mse_base_sink_flush_server(sink, resetTime);
     std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
     sink->priv->m_isFlushOngoing = false;
