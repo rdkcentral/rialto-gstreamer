@@ -34,7 +34,7 @@ constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
 constexpr int kNumOfStreams{1};
-constexpr gdouble kPlaybackRate{1.0};
+constexpr gdouble kPlaybackRate{1.5};
 constexpr gint64 kStart{12};
 constexpr gint64 kStop{0};
 constexpr bool kResetTime{true};
@@ -573,6 +573,30 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSeekWithPlaybackRateChange)
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSkipHandlingInstantRateChangeWhenLastSeqnumIsTheSame)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstEvent *event{gst_event_new_instant_rate_change(1.0, GST_SEGMENT_FLAG_NONE)};
+    guint32 seqnum{1};
+    gst_event_set_seqnum(event, seqnum);
+    audioSink->priv->lastInstantRateChangeSeqnum = seqnum;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), event));
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSkipHandlingInstantRateChangeWhenCurrentSeqnumIsTheSame)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstEvent *event{gst_event_new_instant_rate_change(1.0, GST_SEGMENT_FLAG_NONE)};
+    guint32 seqnum{1};
+    gst_event_set_seqnum(event, seqnum);
+    audioSink->priv->currentInstantRateChangeSeqnum.store(seqnum);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), event));
+    gst_object_unref(audioSink);
 }
 #endif
 
