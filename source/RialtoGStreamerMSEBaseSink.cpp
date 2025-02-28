@@ -862,17 +862,11 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     case GST_EVENT_INSTANT_RATE_CHANGE:
     {
         guint32 seqnum = gst_event_get_seqnum(event);
-        if (G_UNLIKELY(sink->priv->lastInstantRateChangeSeqnum == seqnum))
-        {
-            /* Ignore repeated event */
-            GST_LOG_OBJECT(sink, "Ignoring repeated instant-rate-change event");
-            break;
-        }
-        if (sink->priv->currentInstantRateChangeSeqnum.load() == seqnum)
+        if (sink->priv->lastInstantRateChangeSeqnum == seqnum ||
+            sink->priv->currentInstantRateChangeSeqnum.load() == seqnum)
         {
             /* Ignore if we already received the instant-rate-sync-time event from the pipeline */
-            GST_LOG_OBJECT(sink,
-                           "Ignoring instant-rate-change event for which we already received instant-rate-sync-time");
+            GST_DEBUG_OBJECT(sink, "Instant rate change event with seqnum %u already handled. Ignoring...", seqnum);
             break;
         }
 
