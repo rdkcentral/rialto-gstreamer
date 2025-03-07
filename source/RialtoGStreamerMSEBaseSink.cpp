@@ -499,17 +499,7 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
         GST_INFO_OBJECT(sink, "Starting flushing");
         if (sink->priv->m_isEos)
         {
-            GST_INFO_OBJECT(sink, "Rialto Client is in EOS state, request pause to reset state");
-            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if (client)
-            {
-                client->pause(sink->priv->m_sourceId);
-            }
-            else
-            {
-                GST_ERROR_OBJECT(sink, "Could not get the media player client");
-            }
+            GST_DEBUG_OBJECT(sink, "Flush will clear EOS state.");
             sink->priv->m_isEos = false;
         }
         sink->priv->m_isFlushOngoing = true;
@@ -596,14 +586,6 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
 #if GST_CHECK_VERSION(1, 18, 0)
             else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
             {
-                std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                    sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-                if ((client) && (sink->priv->m_mediaPlayerManager.hasControl()))
-                {
-                    GST_DEBUG_OBJECT(sink, "Instant playback rate change: %.2f", rate);
-                    client->setPlaybackRate(rate);
-                }
-
                 gdouble rateMultiplier = rate / sink->priv->m_lastSegment.rate;
                 GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
                 gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
@@ -623,7 +605,26 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
                 return FALSE;
             }
         }
+        break;
     }
+#if GST_CHECK_VERSION(1, 18, 0)
+    case GST_EVENT_INSTANT_RATE_SYNC_TIME:
+    {
+        double rate{0.0};
+        GstClockTime runningTime{GST_CLOCK_TIME_NONE}, upstreamRunningTime{GST_CLOCK_TIME_NONE};
+        guint32 seqnum = gst_event_get_seqnum(event);
+        gst_event_parse_instant_rate_sync_time(event, &rate, &runningTime, &upstreamRunningTime);
+
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
+        if ((client) && (sink->priv->m_mediaPlayerManager.hasControl()))
+        {
+            GST_DEBUG_OBJECT(sink, "Instant playback rate change: %.2f", rate);
+            sink->priv->currentInstantRateChangeSeqnum = seqnum;
+            client->setPlaybackRate(rate);
+        }
+        break;
+    }
+#endif
     default:
         break;
     }
@@ -857,6 +858,28 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
         client->sendAllSourcesAttachedIfPossible();
         break;
     }
+#if GST_CHECK_VERSION(1, 18, 0)
+    case GST_EVENT_INSTANT_RATE_CHANGE:
+    {
+        guint32 seqnum = gst_event_get_seqnum(event);
+        if (sink->priv->lastInstantRateChangeSeqnum == seqnum ||
+            sink->priv->currentInstantRateChangeSeqnum.load() == seqnum)
+        {
+            /* Ignore if we already received the instant-rate-sync-time event from the pipeline */
+            GST_DEBUG_OBJECT(sink, "Instant rate change event with seqnum %u already handled. Ignoring...", seqnum);
+            break;
+        }
+
+        sink->priv->lastInstantRateChangeSeqnum = seqnum;
+        gdouble rate{0.0};
+        GstSegmentFlags flags{GST_SEGMENT_FLAG_NONE};
+        gst_event_parse_instant_rate_change(event, &rate, &flags);
+        GstMessage *msg = gst_message_new_instant_rate_request(GST_OBJECT_CAST(sink), rate);
+        gst_message_set_seqnum(msg, seqnum);
+        gst_element_post_message(GST_ELEMENT_CAST(sink), msg);
+        break;
+    }
+#endif
     default:
         break;
     }
