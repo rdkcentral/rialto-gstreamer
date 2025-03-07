@@ -68,9 +68,9 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend),
-      m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
-      m_subtitleStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -625,7 +625,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::FAILURE:
             {
-                for (auto &source : m_attachedSources)
+                for (const auto &source : m_attachedSources)
                 {
                     rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
                                                                firebolt::rialto::PlaybackError::UNKNOWN);
@@ -911,8 +911,7 @@ bool GStreamerMSEMediaPlayerClient::switchSource(const std::unique_ptr<firebolt:
 
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
-    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                       [states](const auto &source)
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [states](const auto &source)
                        { return std::find(states.begin(), states.end(), source.second.m_state) != states.end(); });
 }
 

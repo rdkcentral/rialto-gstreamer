@@ -158,15 +158,6 @@ TEST_F(MediaPlayerClientBackendTests, ShouldHaveData)
     EXPECT_TRUE(m_sut.haveData(kStatus, kNeedDataRequestId));
 }
 
-TEST_F(MediaPlayerClientBackendTests, ShouldSeek)
-{
-    constexpr int64_t position{123};
-    EXPECT_CALL(*m_mediaPipelineMock, setPosition(position)).WillOnce(Return(true));
-    initializeMediaPipeline();
-    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.seek(position));
-}
-
 TEST_F(MediaPlayerClientBackendTests, ShouldSetPlaybackRate)
 {
     constexpr double rate{1.25};

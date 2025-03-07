@@ -78,6 +78,8 @@ public:
 protected:
     void doStop();
     void doClear();
+    // We need to have a non-virtual method, which can be called in class destructor
+    bool callInEventLoopInternal(const std::function<void()> &func);
 
 protected:
     std::condition_variable m_condVar;

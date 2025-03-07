@@ -40,7 +40,6 @@ public:
     virtual bool pause() = 0;
     virtual bool stop() = 0;
     virtual bool haveData(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId) = 0;
-    virtual bool seek(int64_t seekPosition) = 0;
     virtual bool setPlaybackRate(double rate) = 0;
     virtual bool setVideoWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height) = 0;
     virtual firebolt::rialto::AddSegmentStatus
