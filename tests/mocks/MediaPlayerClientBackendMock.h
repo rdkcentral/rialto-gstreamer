@@ -40,7 +40,6 @@ public:
     MOCK_METHOD(bool, pause, (), (override));
     MOCK_METHOD(bool, stop, (), (override));
     MOCK_METHOD(bool, haveData, (firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId), (override));
-    MOCK_METHOD(bool, seek, (int64_t seekPosition), (override));
     MOCK_METHOD(bool, setPlaybackRate, (double rate), (override));
     MOCK_METHOD(bool, setVideoWindow, (unsigned int x, unsigned int y, unsigned int width, unsigned int height),
                 (override));

@@ -70,7 +70,6 @@ public:
     {
         return m_mediaPlayerBackend->haveData(status, needDataRequestId);
     }
-    bool seek(int64_t seekPosition) override { return m_mediaPlayerBackend->setPosition(seekPosition); }
     bool setPlaybackRate(double rate) override { return m_mediaPlayerBackend->setPlaybackRate(rate); }
     bool setVideoWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height) override
     {

@@ -76,7 +76,6 @@ public:
     GstBuffer *m_buffer{nullptr};
     GstSample *m_sample{nullptr};
     GstMapInfo m_mapInfo{};
-    GstBuffer *m_bufferCodecData{nullptr};
 
 private:
     void buildBuffers()
