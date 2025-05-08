@@ -497,9 +497,11 @@ static void rialto_mse_base_sink_flush_start(RialtoMSEBaseSink *sink)
     if (!sink->priv->m_isFlushOngoing)
     {
         GST_INFO_OBJECT(sink, "Starting flushing");
+        GST_ERROR_OBJECT(sink, "RialtoSink: Flush start – flushing begins, setting m_isFlushOngoing = true");
         if (sink->priv->m_isEos)
         {
             GST_DEBUG_OBJECT(sink, "Flush will clear EOS state.");
+            GST_ERROR_OBJECT(sink, "RialtoSink: Flush will clear EOS state");
             sink->priv->m_isEos = false;
         }
         sink->priv->m_isFlushOngoing = true;
@@ -753,18 +755,23 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
     GST_DEBUG_OBJECT(sink, "handling event %" GST_PTR_FORMAT, event);
+    GST_ERROR_OBJECT(sink, "RialtoSink: handling even %" GST_PTR_FORMAT, event);
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_SEGMENT:
     {
+        GST_ERROR_OBJECT(sink, "RialtoSink: Handling SEGMENT event - BEGIN");
         rialto_mse_base_sink_copy_segment(sink, event);
         rialto_mse_base_sink_set_segment(sink);
+        GST_ERROR_OBJECT(sink, "RialtoSink: Handling SEGMENT event - END");
         break;
     }
     case GST_EVENT_EOS:
     {
+        GST_ERROR_OBJECT(sink, "RialtoSink: EOS event - BEGIN");
         std::lock_guard<std::mutex> lock(sink->priv->m_sinkMutex);
         sink->priv->m_isEos = true;
+        GST_ERROR_OBJECT(sink, "RialtoSink: EOS event - END");
         break;
     }
     case GST_EVENT_CAPS:
@@ -813,6 +820,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     }
     case GST_EVENT_FLUSH_START:
     {
+        GST_ERROR_OBJECT(sink, "RialtoSink: Received FLUSH_START event");
         rialto_mse_base_sink_flush_start(sink);
         break;
     }
@@ -820,7 +828,7 @@ bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
     {
         gboolean reset_time;
         gst_event_parse_flush_stop(event, &reset_time);
-
+        GST_ERROR_OBJECT(sink, "RialtoSink: Received FLUSH_STOP event, reset_time = %d", reset_time);
         rialto_mse_base_sink_flush_stop(sink, reset_time);
         break;
     }

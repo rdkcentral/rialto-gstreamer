@@ -59,6 +59,14 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
     RialtoMSEVideoSinkPrivate *priv = sink->priv;
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
 
+    GstState current_state = GST_STATE_TRANSITION_CURRENT(transition);
+    GstState next_state = GST_STATE_TRANSITION_NEXT(transition);
+
+    GST_ERROR_OBJECT(sink,
+                     "MSEVideoSink: State transition from %s to %s",
+                     gst_element_state_get_name(current_state),
+                     gst_element_state_get_name(next_state));
+                     
     switch (transition)
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
