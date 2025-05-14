@@ -291,6 +291,40 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithXraw)
 }
 #endif
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithFlac)
+{
+    const std::vector<uint8_t> kExpectedStreamHeader{1, 2, 3, 4, 5};
+    constexpr bool kExpectedFramed{true};
+    const firebolt::rialto::AudioConfig
+        kExpectedAudioConfig{kChannels,      kRate, {}, std::nullopt, std::nullopt, std::nullopt, kExpectedStreamHeader,
+                             kExpectedFramed};
+    GstBuffer *streamHeaderBuffer{gst_buffer_new_allocate(nullptr, kExpectedStreamHeader.size(), nullptr)};
+    gst_buffer_fill(streamHeaderBuffer, 0, kExpectedStreamHeader.data(), kExpectedStreamHeader.size());
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-flac", kHasDrm,
+                                                                             kExpectedAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_simple("audio/x-flac", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
+                                      "streamheader", GST_TYPE_BUFFER, streamHeaderBuffer, "framed", G_TYPE_BOOLEAN,
+                                      kExpectedFramed, nullptr)};
+    setCaps(audioSink, caps);
+
+    EXPECT_TRUE(audioSink->priv->m_sourceAttached);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_buffer_unref(streamHeaderBuffer);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldReachPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
