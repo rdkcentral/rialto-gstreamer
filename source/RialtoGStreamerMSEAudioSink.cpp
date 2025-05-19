@@ -222,18 +222,22 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
             gint number_of_channels = 0;
             gst_structure_get_int(structure, "rate", &sample_rate);
             gst_structure_get_int(structure, "channels", &number_of_channels);
-            std::vector<uint8_t> streamHeaderVec;
+            std::vector<std::vector<uint8_t>> streamHeaderVec;
             const GValue *streamheader = gst_structure_get_value(structure, "streamheader");
             if (streamheader)
             {
-                GstBuffer *buf = gst_value_get_buffer(streamheader);
-                if (buf)
+                for (guint i = 0; i < gst_value_array_get_size(streamheader); ++i)
                 {
-                    GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
-                    if (mappedBuf)
+                    const GValue *headerValue = gst_value_array_get_value(streamheader, i);
+                    GstBuffer *headerBuffer = gst_value_get_buffer(headerValue);
+                    if (headerBuffer)
                     {
-                        streamHeaderVec =
-                            std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                        GstMappedBuffer mappedBuf(headerBuffer, GST_MAP_READ);
+                        if (mappedBuf)
+                        {
+                            streamHeaderVec.push_back(
+                                std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size()));
+                        }
                     }
                 }
             }
