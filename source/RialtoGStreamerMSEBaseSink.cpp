@@ -92,9 +92,13 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
                                  gst_message_new_error(GST_OBJECT_CAST(sink), gError, errMessage));
         g_error_free(gError);
     }
-    else
+    else if (!sink->priv->m_isFlushOngoing)
     {
         gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
+    }
+    else
+    {
+        GST_WARNING_OBJECT(sink, "Skip sending eos message - flush is ongoing...");
     }
 }
 

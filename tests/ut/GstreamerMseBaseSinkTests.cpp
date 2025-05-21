@@ -150,6 +150,38 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldSkipSendingEosWhenFlushing)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    setPlayingState(pipeline);
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    // Simulate flush
+    audioSink->priv->m_isFlushOngoing = true;
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::END_OF_STREAM);
+    EXPECT_FALSE(waitForMessage(pipeline, GST_MESSAGE_EOS));
+
+    pipelineWillGoToPausedState(audioSink);
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
