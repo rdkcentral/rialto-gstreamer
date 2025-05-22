@@ -380,32 +380,6 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
     return result;
 }
 
-// void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
-// {
-//     m_backendQueue->callInEventLoop(
-//         [&]()
-//         {
-//             auto sourceIt = m_attachedSources.find(sourceId);
-//             if (sourceIt == m_attachedSources.end())
-//             {
-//                 GST_ERROR("There's no attached source with id %d", sourceId);
-//                 return;
-//             }
-
-//             rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
-
-//             sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
-//             if (m_clientState == ClientState::PLAYING)
-//             {
-//                 m_clientState = ClientState::AWAITING_PLAYING;
-//             }
-//             else if (m_clientState == ClientState::PAUSED)
-//             {
-//                 m_clientState = ClientState::AWAITING_PAUSED;
-//             }
-//         });
-// }
-
 void GStreamerMSEMediaPlayerClient::stop()
 {
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->stop(); });
