@@ -33,6 +33,7 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"audio/x-eac3", {"audio/x-ac3", "audio/x-eac3"}},
          {"audio/x-opus", {"audio/x-opus"}},
          {"audio/b-wav", {"audio/b-wav"}},
+         {"audio/x-flac", {"audio/x-flac"}},
 #ifdef RIALTO_ENABLE_X_RAW
          {"audio/x-raw", {"audio/x-raw"}},
 #endif

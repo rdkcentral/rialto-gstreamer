@@ -141,7 +141,10 @@ public:
         return m_mediaPlayerBackend->getStreamSyncMode(streamSyncMode);
     }
 
-    bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
+    bool flush(int32_t sourceId, bool resetTime, bool &async) override
+    {
+        return m_mediaPlayerBackend->flush(sourceId, resetTime, async);
+    }
 
     bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0,
                            uint64_t stopPosition = GST_CLOCK_TIME_NONE) override

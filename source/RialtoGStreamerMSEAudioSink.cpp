@@ -215,6 +215,48 @@ rialto_mse_audio_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
                                                         layout,
                                                         channelMask};
         }
+        else if (g_str_has_prefix(strct_name, "audio/x-flac"))
+        {
+            mimeType = "audio/x-flac";
+            gint sample_rate = 0;
+            gint number_of_channels = 0;
+            gst_structure_get_int(structure, "rate", &sample_rate);
+            gst_structure_get_int(structure, "channels", &number_of_channels);
+            std::vector<std::vector<uint8_t>> streamHeaderVec;
+            const GValue *streamheader = gst_structure_get_value(structure, "streamheader");
+            if (streamheader)
+            {
+                for (guint i = 0; i < gst_value_array_get_size(streamheader); ++i)
+                {
+                    const GValue *headerValue = gst_value_array_get_value(streamheader, i);
+                    GstBuffer *headerBuffer = gst_value_get_buffer(headerValue);
+                    if (headerBuffer)
+                    {
+                        GstMappedBuffer mappedBuf(headerBuffer, GST_MAP_READ);
+                        if (mappedBuf)
+                        {
+                            streamHeaderVec.push_back(
+                                std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size()));
+                        }
+                    }
+                }
+            }
+            std::optional<bool> framed;
+            gboolean framedValue{FALSE};
+            if (gst_structure_get_boolean(structure, "framed", &framedValue))
+            {
+                framed = framedValue;
+            }
+
+            audioConfig = firebolt::rialto::AudioConfig{static_cast<uint32_t>(number_of_channels),
+                                                        static_cast<uint32_t>(sample_rate),
+                                                        {},
+                                                        std::nullopt,
+                                                        std::nullopt,
+                                                        std::nullopt,
+                                                        streamHeaderVec,
+                                                        framed};
+        }
         else
         {
             GST_INFO_OBJECT(sink, "%s audio media source created", strct_name);

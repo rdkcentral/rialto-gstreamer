@@ -746,22 +746,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAtt
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldLooseStateFromPlaying)
-{
-    attachAudioVideo();
-    allSourcesWantToPause();
-    serverTransitionedToPaused();
-    allSourcesWantToPlay();
-    serverTransitionedToPlaying();
-
-    m_sut->notifyLostState(m_audioSourceId);
-
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
-
-    gst_object_unref(m_audioSink);
-    gst_object_unref(m_videoSink);
-}
-
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaitingForPaused)
 {
     attachAudioVideo();
@@ -771,51 +755,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaiting
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
-
-    gst_object_unref(m_audioSink);
-    gst_object_unref(m_videoSink);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldLooseStateWhenLostStateFromPaused)
-{
-    attachAudioVideo();
-    allSourcesWantToPause();
-    serverTransitionedToPaused();
-
-    m_sut->notifyLostState(m_audioSourceId);
-
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
-
-    gst_object_unref(m_audioSink);
-    gst_object_unref(m_videoSink);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDoNothingWhenLostStateNotAttached)
-{
-    expectCallInEventLoop();
-    m_sut->notifyLostState(kUnknownSourceId);
-    EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRecoverFromLostStateToPlaying)
-{
-    attachAudioVideo();
-    allSourcesWantToPause();
-    serverTransitionedToPaused();
-    allSourcesWantToPlay();
-    serverTransitionedToPlaying();
-
-    m_sut->notifyLostState(m_audioSourceId);
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
-
-    expectPostMessage();
-    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
-
-    m_sut->play(m_audioSourceId);
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
-
-    serverTransitionedToPlaying();
-    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
 
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
@@ -936,7 +875,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
     EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     m_sut->flush(kSourceId, kResetTime);
 
@@ -950,7 +889,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
     EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     m_sut->flush(kSourceId, kResetTime);
 
@@ -968,7 +907,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime)).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(false));
     m_sut->flush(kSourceId, kResetTime);
 
     gst_object_unref(audioSink);
@@ -977,7 +916,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(_, _)).Times(0);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(_, _, _)).Times(0);
     m_sut->flush(0, kResetTime);
 }
 

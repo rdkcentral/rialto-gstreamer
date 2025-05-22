@@ -253,10 +253,11 @@ TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
 {
     constexpr int32_t kSourceId{12};
     constexpr bool kResetTime{false};
-    EXPECT_CALL(*m_mediaPipelineMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    bool async{false};
+    EXPECT_CALL(*m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime));
+    EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime, async));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
