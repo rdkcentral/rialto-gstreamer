@@ -29,9 +29,20 @@ struct _RialtoMSEVideoSinkPrivate
     uint32_t maxWidth = 0;
     uint32_t maxHeight = 0;
     bool stepOnPrerollEnabled = false;
-    std::mutex rectangleMutex;
+
+    std::mutex propertyMutex;
+    // START of variables locked by propertyMutex
+    // rectangle properties
     std::string videoRectangle = "0,0,1920,1080";
     bool rectangleSettingQueued = false;
+    // immediate output properties
+    bool immediateOutput{false};
+    bool immediateOutputQueued{false};
+    bool syncmodeStreaming{false};
+    bool syncmodeStreamingQueued{false};
+    bool showVideoWindow{true};
+    bool showVideoWindowQueued{false};
+    // END of variables locked by propertyMutex
 };
 
 G_END_DECLS

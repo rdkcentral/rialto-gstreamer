@@ -30,6 +30,7 @@ add_library(gstrialtosinks
         RialtoGStreamerMSEVideoSink.cpp
         RialtoGStreamerMSEAudioSink.cpp
         RialtoGStreamerWebAudioSink.cpp
+        RialtoGStreamerMSESubtitleSink.cpp
         GStreamerUtils.cpp
         GStreamerEMEUtils.cpp
         GStreamerMSEUtils.cpp

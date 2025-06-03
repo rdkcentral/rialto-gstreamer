@@ -60,6 +60,7 @@ GstRefSample rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink);
 void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink);
 bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink);
 
+void rialto_mse_base_async_start(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_state_changed(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state);
 void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sink);

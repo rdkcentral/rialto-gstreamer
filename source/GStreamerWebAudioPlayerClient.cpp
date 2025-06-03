@@ -18,10 +18,12 @@
 
 #include "GStreamerWebAudioPlayerClient.h"
 #include "GstreamerCatLog.h"
+
+#include <string.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
-#include <string.h>
 #include <thread>
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
@@ -79,8 +81,9 @@ GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
     std::shared_ptr<ITimerFactory> timerFactory)
     : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
-      m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0}, m_maximumFrames{0},
-      m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}}, m_callbacks{callbacks}
+      m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0},
+      m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
+      m_callbacks{callbacks}
 {
     m_backendQueue->start();
 }
@@ -97,7 +100,11 @@ bool GStreamerWebAudioPlayerClient::open(GstCaps *caps)
     bool result = false;
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     std::string audioMimeType = gst_structure_get_name(structure);
-    audioMimeType = audioMimeType.substr(0, audioMimeType.find(' '));
+    const auto spacePosition = audioMimeType.find(' ');
+    if (spacePosition != std::string::npos)
+    {
+        audioMimeType.resize(spacePosition);
+    }
     const gchar *formatCStr{gst_structure_get_string(structure, "format")};
     std::string format{formatCStr ? formatCStr : ""};
     firebolt::rialto::WebAudioPcmConfig pcm;
@@ -442,4 +449,18 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
         break;
     }
     }
+}
+
+bool GStreamerWebAudioPlayerClient::setVolume(double volume)
+{
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setVolume(volume); });
+    return status;
+}
+
+bool GStreamerWebAudioPlayerClient::getVolume(double &volume)
+{
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    return status;
 }

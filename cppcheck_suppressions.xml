@@ -4,6 +4,9 @@
         <id>missingInclude</id>
     </suppress>
     <suppress>
+        <id>missingIncludeSystem</id>
+    </suppress>
+    <suppress>
         <!-- MATCHER_P , symbol name doesn't work -->
         <id>syntaxError</id>
     </suppress>
@@ -95,5 +98,9 @@
     <suppress>
         <id>unusedFunction</id>
         <fileName>tests/stubs/source/PlaybinStub.cpp</fileName>
+    </suppress>
+    <suppress>
+        <id>unusedStructMember</id>
+        <symbolName>MediaPlayerManagerTests::m_mediaPipelineMockPtr</symbolName>
     </suppress>
 </suppressions>

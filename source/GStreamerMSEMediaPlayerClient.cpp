@@ -17,10 +17,12 @@
  */
 
 #include "GStreamerMSEMediaPlayerClient.h"
+#include "Constants.h"
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
+
 #include <algorithm>
 #include <chrono>
 #include <thread>
@@ -66,9 +68,9 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend),
-      m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
-      m_subtitleStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
+      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -181,6 +183,43 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return position;
 }
 
+bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setImmediateOutput(sourceId, immediateOutput); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getImmediateOutput(sourceId, immediateOutput); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]()
+                                    { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::createBackend()
 {
     bool result = false;
@@ -234,7 +273,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
 
-                if (checkIfAllAttachedSourcesInState(ClientState::PLAYING))
+                if (checkIfAllAttachedSourcesInStates({ClientState::PLAYING}))
                 {
                     m_clientState = ClientState::PLAYING;
                 }
@@ -247,7 +286,9 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
 
             if (m_clientState == ClientState::PAUSED)
             {
-                if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PLAYING))
+                // If one source is AWAITING_PLAYING, the other source can still be PLAYING.
+                // This happends when we are switching out audio.
+                if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PLAYING, ClientState::PLAYING}))
                 {
                     GST_INFO("Sending play command");
                     m_clientBackend->play();
@@ -264,6 +305,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
 
             result = StateChangeResult::SUCCESS_ASYNC;
+            rialto_mse_base_async_start(sourceIt->second.m_rialtoSink);
         });
 
     return result;
@@ -291,7 +333,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 GST_INFO("Server is already paused");
                 sourceIt->second.m_state = ClientState::PAUSED;
 
-                if (checkIfAllAttachedSourcesInState(ClientState::PAUSED))
+                if (checkIfAllAttachedSourcesInStates({ClientState::PAUSED}))
                 {
                     m_clientState = ClientState::PAUSED;
                 }
@@ -305,7 +347,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 bool shouldPause = false;
                 if (m_clientState == ClientState::READY)
                 {
-                    if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
+                    if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PAUSED}))
                     {
                         shouldPause = true;
                     }
@@ -331,38 +373,11 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 }
 
                 result = StateChangeResult::SUCCESS_ASYNC;
+                rialto_mse_base_async_start(sourceIt->second.m_rialtoSink);
             }
         });
 
     return result;
-}
-
-void GStreamerMSEMediaPlayerClient::notifyLostState(int32_t sourceId)
-{
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            auto sourceIt = m_attachedSources.find(sourceId);
-            if (sourceIt == m_attachedSources.end())
-            {
-                GST_ERROR("There's no attached source with id %d", sourceId);
-                return;
-            }
-
-            rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
-
-            sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
-            if (m_clientState == ClientState::AWAITING_PLAYING || m_clientState == ClientState::PLAYING)
-            {
-                GST_INFO("Sending pause command in %u state", static_cast<uint32_t>(m_clientState));
-                m_clientBackend->pause();
-                m_clientState = ClientState::AWAITING_PAUSED;
-            }
-            else if (m_clientState == ClientState::PAUSED)
-            {
-                m_clientState = ClientState::AWAITING_PAUSED;
-            }
-        });
 }
 
 void GStreamerMSEMediaPlayerClient::stop()
@@ -380,23 +395,41 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            bool async{true};
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
                 GST_ERROR("Cannot flush - there's no attached source with id %d", sourceId);
                 return;
             }
-            if (!m_clientBackend->flush(sourceId, resetTime))
+            if (!m_clientBackend->flush(sourceId, resetTime, async))
             {
                 GST_ERROR("Flush operation failed for source with id %d", sourceId);
                 return;
             }
             sourceIt->second.m_isFlushing = true;
             sourceIt->second.m_bufferPuller->stop();
+
+            if (async)
+            {
+                GST_ERROR("Flush request sent for async source %d. Sink will lose state now", sourceId);
+                rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
+
+                sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
+                if (m_clientState == ClientState::PLAYING)
+                {
+                    m_clientState = ClientState::AWAITING_PLAYING;
+                }
+                else if (m_clientState == ClientState::PAUSED)
+                {
+                    m_clientState = ClientState::AWAITING_PAUSED;
+                }
+            }
         });
 }
 
-void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position)
+void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position, bool resetTime,
+                                                      double appliedRate, uint64_t stopPosition)
 {
     m_backendQueue->callInEventLoop(
         [&]()
@@ -407,7 +440,7 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
                 GST_ERROR("Cannot Set Source Position - there's no attached source with id %d", sourceId);
                 return;
             }
-            if (!m_clientBackend->setSourcePosition(sourceId, position))
+            if (!m_clientBackend->setSourcePosition(sourceId, position, resetTime, appliedRate, stopPosition))
             {
                 GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
                 return;
@@ -416,11 +449,26 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
         });
 }
 
+void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap,
+                                                    bool audioAac)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            if (!m_clientBackend->processAudioGap(position, duration, discontinuityGap, audioAac))
+            {
+                GST_ERROR("Process Audio Gap operation failed");
+                return;
+            }
+        });
+}
+
 bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                                                  RialtoMSEBaseSink *rialtoSink)
 {
     if (source->getType() != firebolt::rialto::MediaSourceType::AUDIO &&
-        source->getType() != firebolt::rialto::MediaSourceType::VIDEO)
+        source->getType() != firebolt::rialto::MediaSourceType::VIDEO &&
+        source->getType() != firebolt::rialto::MediaSourceType::SUBTITLE)
     {
         GST_WARNING_OBJECT(rialtoSink, "Invalid source type %u", static_cast<uint32_t>(source->getType()));
         return false;
@@ -434,19 +482,22 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
 
             if (result)
             {
-                std::shared_ptr<BufferPuller> bufferPuller;
+                std::shared_ptr<BufferParser> bufferParser;
                 if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
                 {
-                    std::shared_ptr<AudioBufferParser> audioBufferParser = std::make_shared<AudioBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
-                                                                  audioBufferParser);
+                    bufferParser = std::make_shared<AudioBufferParser>();
                 }
                 else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
                 {
-                    std::shared_ptr<VideoBufferParser> videoBufferParser = std::make_shared<VideoBufferParser>();
-                    bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink),
-                                                                  videoBufferParser);
+                    bufferParser = std::make_shared<VideoBufferParser>();
                 }
+                else if (source->getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+                {
+                    bufferParser = std::make_shared<SubtitleBufferParser>();
+                }
+
+                std::shared_ptr<BufferPuller> bufferPuller =
+                    std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink), bufferParser);
 
                 if (m_attachedSources.find(source->getId()) == m_attachedSources.end())
                 {
@@ -482,7 +533,7 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
 
         // In playbin3 streams, confirmation about number of available sources comes after attaching the source,
         // so we need to check if all sources are ready to pause
-        if (checkIfAllAttachedSourcesInState(ClientState::AWAITING_PAUSED))
+        if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PAUSED}))
         {
             GST_INFO("Sending pause command, because all attached sources are ready to pause");
             m_clientBackend->pause();
@@ -516,6 +567,22 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             case firebolt::rialto::PlaybackState::PAUSED:
             case firebolt::rialto::PlaybackState::PLAYING:
             {
+                if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
+                {
+                    m_clientState = ClientState::PAUSED;
+                }
+                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
+                         m_clientState == ClientState::AWAITING_PLAYING)
+                {
+                    m_clientState = ClientState::PLAYING;
+                }
+                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
+                         m_clientState == ClientState::AWAITING_PAUSED)
+                {
+                    GST_WARNING("Outdated Playback State change to PLAYING received. Discarding...");
+                    break;
+                }
+
                 for (auto &source : m_attachedSources)
                 {
                     if (state == firebolt::rialto::PlaybackState::PAUSED &&
@@ -530,16 +597,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     }
 
                     rialto_mse_base_handle_rialto_server_state_changed(source.second.m_rialtoSink, state);
-                }
-
-                if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
-                {
-                    m_clientState = ClientState::PAUSED;
-                }
-                else if (state == firebolt::rialto::PlaybackState::PLAYING &&
-                         m_clientState == ClientState::AWAITING_PLAYING)
-                {
-                    m_clientState = ClientState::PLAYING;
                 }
 
                 break;
@@ -559,7 +616,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::FAILURE:
             {
-                for (auto &source : m_attachedSources)
+                for (const auto &source : m_attachedSources)
                 {
                     rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
                                                                firebolt::rialto::PlaybackError::UNKNOWN);
@@ -658,50 +715,114 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
     return result;
 }
 
-void GStreamerMSEMediaPlayerClient::setVolume(double volume)
+void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volumeDuration,
+                                              firebolt::rialto::EaseType easeType)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(volume); });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(targetVolume, volumeDuration, easeType); });
 }
 
-double GStreamerMSEMediaPlayerClient::getVolume()
+bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
-    double volume{0.0};
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_clientBackend->getVolume(volume))
-            {
-                m_volume = volume;
-            }
-            else
-            {
-                volume = m_volume;
-            }
-        });
-    return volume;
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    return status;
 }
 
-void GStreamerMSEMediaPlayerClient::setMute(bool mute)
+void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute); });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
-bool GStreamerMSEMediaPlayerClient::getMute()
+bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
 {
     bool mute{false};
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            if (m_clientBackend->getMute(mute))
-            {
-                m_mute = mute;
-            }
-            else
-            {
-                mute = m_mute;
-            }
-        });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getMute(mute, sourceId); });
+
     return mute;
+}
+
+void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string &textTrackIdentifier)
+{
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
+}
+
+std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()
+{
+    std::string getTextTrackIdentifier;
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getTextTrackIdentifier(getTextTrackIdentifier); });
+    return getTextTrackIdentifier;
+}
+
+bool GStreamerMSEMediaPlayerClient::setLowLatency(bool lowLatency)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setLowLatency(lowLatency); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::setSync(bool sync)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setSync(sync); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getSync(bool &sync)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getSync(sync); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::setSyncOff(bool syncOff)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setSyncOff(syncOff); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setStreamSyncMode(sourceId, streamSyncMode); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getStreamSyncMode(int32_t &streamSyncMode)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getStreamSyncMode(streamSyncMode); });
+    return status;
 }
 
 ClientState GStreamerMSEMediaPlayerClient::getClientState()
@@ -726,19 +847,63 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
 
             GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
                      m_audioStreams, m_subtitleStreams);
-
-            // TODO: remove below log after subtitle sink is implemented
-            if (m_subtitleStreams > 0)
-            {
-                GST_WARNING("Subtitle streams are not supported yet");
-            }
         });
 }
 
-bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInState(ClientState state)
+void GStreamerMSEMediaPlayerClient::setBufferingLimit(uint32_t limitBufferingMs)
 {
-    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                       [state](const auto &source) { return source.second.m_state == state; });
+    if (!m_clientBackend)
+    {
+        return;
+    }
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setBufferingLimit(limitBufferingMs); });
+}
+
+uint32_t GStreamerMSEMediaPlayerClient::getBufferingLimit()
+{
+    if (!m_clientBackend)
+    {
+        return kDefaultBufferingLimit;
+    }
+
+    uint32_t result{kDefaultBufferingLimit};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getBufferingLimit(result); });
+    return result;
+}
+
+void GStreamerMSEMediaPlayerClient::setUseBuffering(bool useBuffering)
+{
+    if (!m_clientBackend)
+    {
+        return;
+    }
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setUseBuffering(useBuffering); });
+}
+
+bool GStreamerMSEMediaPlayerClient::getUseBuffering()
+{
+    if (!m_clientBackend)
+    {
+        return kDefaultUseBuffering;
+    }
+
+    bool result{kDefaultUseBuffering};
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->getUseBuffering(result); });
+    return result;
+}
+
+bool GStreamerMSEMediaPlayerClient::switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source)
+{
+    bool result = false;
+    m_backendQueue->callInEventLoop([&]() { result = m_clientBackend->switchSource(source); });
+
+    return result;
+}
+
+bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
+{
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [states](const auto &source)
+                       { return std::find(states.begin(), states.end(), source.second.m_state) != states.end(); });
 }
 
 bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
@@ -936,7 +1101,7 @@ void PullBufferMessage::handle()
         GstMapInfo map;
         if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
         {
-            GST_ERROR_OBJECT(m_rialtoSink, "Could not map audio buffer");
+            GST_ERROR_OBJECT(m_rialtoSink, "Could not map buffer");
             rialto_mse_base_sink_pop_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
             continue;
         }

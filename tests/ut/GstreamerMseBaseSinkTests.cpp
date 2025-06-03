@@ -34,7 +34,7 @@ constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
 constexpr int kNumOfStreams{1};
-constexpr gdouble kPlaybackRate{1.0};
+constexpr gdouble kPlaybackRate{1.5};
 constexpr gint64 kStart{12};
 constexpr gint64 kStop{0};
 constexpr bool kResetTime{true};
@@ -150,6 +150,38 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldSkipSendingEosWhenFlushing)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    setPlayingState(pipeline);
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    // Simulate flush
+    audioSink->priv->m_isFlushOngoing = true;
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::END_OF_STREAM);
+    EXPECT_FALSE(waitForMessage(pipeline, GST_MESSAGE_EOS));
+
+    pipelineWillGoToPausedState(audioSink);
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -177,6 +209,146 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetHasDrmProperty)
     gboolean value{FALSE};
     g_object_get(audioSink, "has-drm", &value, nullptr);
     EXPECT_TRUE(value);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetImmediateOutputProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, setImmediateOutput(_, _)).WillOnce(Return(true));
+    g_object_set(videoSink, "immediate-output", TRUE, nullptr);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSetImmediateOutputPropertyDueToPipelinedFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, setImmediateOutput(_, _)).WillOnce(Return(false));
+    g_object_set(videoSink, "immediate-output", TRUE, nullptr);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSetImmediateOutputProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    // No pipeline therefore the m_mediaPipelineMock method setImmediateOutput() will not be called
+    g_object_set(videoSink, "immediate-output", TRUE, nullptr);
+
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetImmediateOutputProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getImmediateOutput(_, _)).WillOnce(DoAll(SetArgReferee<1>(true), Return(true)));
+    gboolean immediateOutput;
+    g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+    EXPECT_TRUE(immediateOutput);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetImmediateOutputPropertyDueToPipelinedFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getImmediateOutput(_, _)).WillOnce(Return(false));
+    gboolean immediateOutput{true};
+    g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+    EXPECT_FALSE(immediateOutput); // The return value for failure
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetImmediateOutputProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    // No pipeline therefore the m_mediaPipelineMock method getImmediateOutput() will not be called
+    gboolean immediateOutput;
+    g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getStats(_, _, _)).WillOnce(Return(true));
+    GstStructure *stats{nullptr};
+    g_object_get(audioSink, "stats", &stats, nullptr);
+    EXPECT_NE(stats, nullptr);
+
+    gst_structure_free(stats);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    // No pipeline therefore the stats should still be null
+    GstStructure *stats{nullptr};
+    g_object_get(audioSink, "stats", &stats, nullptr);
+    EXPECT_EQ(stats, nullptr);
+
     gst_object_unref(audioSink);
 }
 
@@ -434,6 +606,30 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSeekWithPlaybackRateChange)
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);
 }
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSkipHandlingInstantRateChangeWhenLastSeqnumIsTheSame)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstEvent *event{gst_event_new_instant_rate_change(1.0, GST_SEGMENT_FLAG_NONE)};
+    guint32 seqnum{1};
+    gst_event_set_seqnum(event, seqnum);
+    audioSink->priv->lastInstantRateChangeSeqnum = seqnum;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), event));
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSkipHandlingInstantRateChangeWhenCurrentSeqnumIsTheSame)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstEvent *event{gst_event_new_instant_rate_change(1.0, GST_SEGMENT_FLAG_NONE)};
+    guint32 seqnum{1};
+    gst_event_set_seqnum(event, seqnum);
+    audioSink->priv->currentInstantRateChangeSeqnum.store(seqnum);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), event));
+    gst_object_unref(audioSink);
+}
 #endif
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldDiscardBufferInChainFunctionWhenFlushing)
@@ -500,6 +696,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleNewSegment)
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
 {
     constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{false};
+    constexpr bool kAppliedRate = 1.0;
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
 
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -515,12 +714,141 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
 
     GstSegment *segment{gst_segment_new()};
     gst_segment_init(segment, GST_FORMAT_TIME);
     gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
-                        GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE, nullptr);
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+    EXPECT_EQ(GST_FORMAT_TIME, audioSink->priv->m_lastSegment.format);
+
+    gst_segment_free(segment);
+    EXPECT_TRUE(audioSink->priv->m_initialPositionSet);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithResetTime)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{true};
+    constexpr bool kAppliedRate = 1.0;
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    audioSink->priv->m_isFlushOngoing = true;
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+    EXPECT_EQ(GST_FORMAT_TIME, audioSink->priv->m_lastSegment.format);
+
+    gst_segment_free(segment);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRate)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{false};
+    constexpr bool kAppliedRate = 5.0;
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    audioSink->priv->m_isFlushOngoing = true;
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
+    segment->applied_rate = kAppliedRate;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+    EXPECT_EQ(GST_FORMAT_TIME, audioSink->priv->m_lastSegment.format);
+
+    gst_segment_free(segment);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithQueuedOffset)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr guint64 kOffset{5678};
+    constexpr bool kResetTime{false};
+    constexpr bool kAppliedRate = 1.0;
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    audioSink->priv->m_isFlushOngoing = true;
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    audioSink->priv->m_queuedOffset = kOffset;
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_segment(segment)));
@@ -635,6 +963,41 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
 
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
+    audioSink->priv->m_initialPositionSet = true;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+    EXPECT_TRUE(audioSink->priv->m_isFlushOngoing);
+    EXPECT_FALSE(audioSink->priv->m_initialPositionSet);
+    EXPECT_FALSE(audioSink->priv->m_isEos);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEos)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    audioSink->priv->m_isEos = true;
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    setPlayingState(pipeline);
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_start()));
@@ -645,6 +1008,19 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEosWithoutClient)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    audioSink->priv->m_isEos = true;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+    EXPECT_TRUE(audioSink->priv->m_isFlushOngoing);
+    EXPECT_FALSE(audioSink->priv->m_isEos);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopBelowPausedState)
@@ -692,7 +1068,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
 
     std::mutex flushMutex;
     std::condition_variable flushCond;
@@ -1004,6 +1380,37 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
     g_free(debug);
     g_error_free(err);
     gst_message_unref(receivedMessage);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    GST_STATE(audioSink) = GST_STATE_PAUSED;
+    GST_STATE_NEXT(audioSink) = GST_STATE_PLAYING;
+    GST_STATE_PENDING(audioSink) = GST_STATE_PLAYING;
+    GST_STATE_RETURN(audioSink) = GST_STATE_CHANGE_ASYNC;
+
+    rialto_mse_base_sink_lost_state(audioSink);
+
+    EXPECT_CALL(m_mediaPipelineMock, play()).WillOnce(Return(true));
+    audioSink->priv->m_callbacks.stateChangedCallback(firebolt::rialto::PlaybackState::PAUSED);
+
+    pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
+    gst_caps_unref(caps);
+    setNullState(pipeline, kSourceId);
     gst_object_unref(pipeline);
 }
 

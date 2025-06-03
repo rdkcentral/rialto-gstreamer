@@ -148,7 +148,7 @@ AudioBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
     gst_structure_get_int(structure, "rate", &sampleRate);
     gst_structure_get_int(structure, "channels", &numberOfChannels);
 
-    GstAudioClippingMeta *clippingMeta = gst_buffer_get_audio_clipping_meta(buffer);
+    const GstAudioClippingMeta *clippingMeta = gst_buffer_get_audio_clipping_meta(buffer);
     if (clippingMeta)
     {
         clippingStart = clippingMeta->start;
@@ -182,6 +182,16 @@ VideoBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, Gs
 
     std::unique_ptr<IMediaPipeline::MediaSegmentVideo> mseData =
         std::make_unique<IMediaPipeline::MediaSegmentVideo>(streamId, timeStamp, duration, width, height, frameRate);
+
+    return mseData;
+}
+
+std::unique_ptr<IMediaPipeline::MediaSegment>
+SubtitleBufferParser::parseSpecificPartOfBuffer(GstBuffer *buffer, int streamId, GstStructure *structure,
+                                                int64_t timeStamp, int64_t duration)
+{
+    std::unique_ptr<IMediaPipeline::MediaSegment> mseData =
+        std::make_unique<IMediaPipeline::MediaSegment>(streamId, MediaSourceType::SUBTITLE, timeStamp, duration);
 
     return mseData;
 }

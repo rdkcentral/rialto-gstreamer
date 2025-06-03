@@ -76,7 +76,6 @@ public:
     GstBuffer *m_buffer{nullptr};
     GstSample *m_sample{nullptr};
     GstMapInfo m_mapInfo{};
-    GstBuffer *m_bufferCodecData{nullptr};
 
 private:
     void buildBuffers()
@@ -228,5 +227,19 @@ TEST_F(BufferParserTests, ShouldParseVideoBuffer)
     EXPECT_EQ(videoSegment->getHeight(), kHeight);
     EXPECT_EQ(videoSegment->getFrameRate().numerator, kFrameRate.numerator);
     EXPECT_EQ(videoSegment->getFrameRate().denominator, kFrameRate.denominator);
+    gst_caps_unref(caps);
+}
+
+TEST_F(BufferParserTests, ShouldParseSubtitleBuffer)
+{
+    SubtitleBufferParser parser;
+    GstCaps *caps = gst_caps_new_empty_simple("text/ttml");
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+    ASSERT_TRUE(segment);
+    EXPECT_EQ(segment->getId(), kStreamId);
+    EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
+    EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
+    EXPECT_EQ(segment->getDuration(), kDuration);
     gst_caps_unref(caps);
 }

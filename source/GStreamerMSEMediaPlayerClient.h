@@ -18,30 +18,29 @@
 
 #pragma once
 
-#include "IMessageQueue.h"
-#include "MediaPlayerClientBackendInterface.h"
-#include <IMediaPipeline.h>
-#include <MediaCommon.h>
+#include <atomic>
 #include <condition_variable>
-#include <gst/gst.h>
+#include <functional>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
-#include <functional>
-#include <memory>
+#include <gst/gst.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <thread>
 #include <unistd.h>
 
 #include "BufferParser.h"
 #include "Constants.h"
+#include "IMediaPipeline.h"
+#include "IMessageQueue.h"
+#include "MediaCommon.h"
+#include "MediaPlayerClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
-#include <atomic>
-#include <unordered_set>
 
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
@@ -263,6 +262,10 @@ public:
 
     void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
+    bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
+    bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
+    bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
+
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
@@ -270,11 +273,12 @@ public:
     bool createBackend();
     StateChangeResult play(int32_t sourceId);
     StateChangeResult pause(int32_t sourceId);
-    void notifyLostState(int32_t sourceId);
     void stop();
     void setPlaybackRate(double rate);
     void flush(int32_t sourceId, bool resetTime);
-    void setSourcePosition(int32_t sourceId, int64_t position);
+    void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0,
+                           uint64_t stopPosition = GST_CLOCK_TIME_NONE);
+    void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
                       RialtoMSEBaseSink *rialtoSink);
@@ -293,25 +297,36 @@ public:
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(RialtoMSEBaseSink *sink);
-    void setVolume(double volume);
-    double getVolume();
-    void setMute(bool mute);
-    bool getMute();
+    void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
+    bool getVolume(double &volume);
+    void setMute(bool mute, int32_t sourceId);
+    bool getMute(int sourceId);
+    void setTextTrackIdentifier(const std::string &textTrackIdentifier);
+    std::string getTextTrackIdentifier();
+    bool setLowLatency(bool lowLatency);
+    bool setSync(bool sync);
+    bool getSync(bool &sync);
+    bool setSyncOff(bool syncOff);
+    bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode);
+    bool getStreamSyncMode(int32_t &streamSyncMode);
     ClientState getClientState();
     void handleStreamCollection(int32_t audioStreams, int32_t videoStreams, int32_t subtitleStreams);
+    void setBufferingLimit(uint32_t limitBufferingMs);
+    uint32_t getBufferingLimit();
+    void setUseBuffering(bool useBuffering);
+    bool getUseBuffering();
+    bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source);
 
 private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
-    bool checkIfAllAttachedSourcesInState(ClientState state);
+    bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
     int64_t m_position;
     int64_t m_duration;
-    double m_volume = kDefaultVolume;
-    bool m_mute = kDefaultMute;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;

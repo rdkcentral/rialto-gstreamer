@@ -22,6 +22,7 @@
 #include "MessageQueueMock.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -48,8 +49,24 @@ const std::string kUrl{"mse://1"};
 constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
 const std::string kMimeType{""};
 constexpr double kVolume{1.0};
+constexpr uint32_t kVolumeDuration{30};
+constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
+constexpr double kAppliedRate{2.0};
+constexpr uint32_t kDuration{30};
+constexpr int64_t kDiscontinuityGap{1};
+constexpr bool kAudioAac{false};
+const std::string kTextTrackIdentifier{"TextTrackId"};
+constexpr bool kImmediateOutput{true};
+constexpr bool kLowLatency{true};
+constexpr bool kSync{true};
+constexpr bool kSyncOff{true};
+constexpr int32_t kStreamSyncMode{1};
+constexpr uint32_t kBufferingLimit{12384};
+constexpr bool kUseBuffering{true};
+constexpr uint64_t kStopPosition{234};
+
 MATCHER_P(PtrMatcher, ptr, "")
 {
     return ptr == arg.get();
@@ -729,42 +746,18 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAtt
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendPauseWhenLostStateFromPlaying)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaitingForPaused)
 {
     attachAudioVideo();
     allSourcesWantToPause();
-    serverTransitionedToPaused();
-    allSourcesWantToPlay();
-    serverTransitionedToPlaying();
 
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
-    m_sut->notifyLostState(m_audioSourceId);
+    expectPostMessage();
+    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldLooseStateWhenLostStateFromPaused)
-{
-    attachAudioVideo();
-    allSourcesWantToPause();
-    serverTransitionedToPaused();
-
-    m_sut->notifyLostState(m_audioSourceId);
-
-    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
-
-    gst_object_unref(m_audioSink);
-    gst_object_unref(m_videoSink);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDoNothingWhenLostStateNotAttached)
-{
-    expectCallInEventLoop();
-    m_sut->notifyLostState(kUnknownSourceId);
-    EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlaying)
@@ -882,7 +875,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
     EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     m_sut->flush(kSourceId, kResetTime);
 
@@ -896,7 +889,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
     EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     m_sut->flush(kSourceId, kResetTime);
 
@@ -914,7 +907,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime)).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(false));
     m_sut->flush(kSourceId, kResetTime);
 
     gst_object_unref(audioSink);
@@ -923,7 +916,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(_, _)).Times(0);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(_, _, _)).Times(0);
     m_sut->flush(0, kResetTime);
 }
 
@@ -948,8 +941,10 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
-    m_sut->setSourcePosition(kSourceId, kPosition);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
     gst_object_unref(audioSink);
 }
@@ -961,8 +956,10 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(false));
-    m_sut->setSourcePosition(kSourceId, kPosition);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(false));
+    m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
     gst_object_unref(audioSink);
 }
@@ -974,11 +971,30 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
-    m_sut->setSourcePosition(kSourceId + 1, kPosition);
+    m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
     gst_object_unref(audioSink);
 }
+//
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(true));
+    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
+}
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(false));
+    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
+}
+
+//
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetPlaybackRate)
 {
     constexpr double kPlaybackRate{0.5};
@@ -1083,47 +1099,254 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVolume(kVolume)).WillOnce(Return(true));
-    m_sut->setVolume(kVolume);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
+    m_sut->setVolume(kVolume, kVolumeDuration, kEaseType);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
 {
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
-    EXPECT_EQ(m_sut->getVolume(), kVolume);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReturnLastKnownVolumeWhenOperationFails)
-{
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
-    EXPECT_EQ(m_sut->getVolume(), kVolume);
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getVolume(), kVolume);
+    double volume{-1.0};
+    EXPECT_TRUE(m_sut->getVolume(volume));
+    EXPECT_EQ(volume, kVolume);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute)).WillOnce(Return(true));
-    m_sut->setMute(kMute);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute, kAudioSourceId)).WillOnce(Return(true));
+    m_sut->setMute(kMute, kAudioSourceId);
+
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
 {
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
-    EXPECT_EQ(m_sut->getMute(), kMute);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_, kAudioSourceId))
+        .WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
+    EXPECT_EQ(m_sut->getMute(kAudioSourceId), kMute);
+
+    gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReturnLastKnownMuteWhenOperationFails)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetImmediateOutput)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setImmediateOutput(kAudioSourceId, kImmediateOutput)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setImmediateOutput(kAudioSourceId, kImmediateOutput));
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetImmediateOutputIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    const int32_t kAudioSourceId = 1;
+    EXPECT_FALSE(m_sut->setImmediateOutput(kAudioSourceId, kImmediateOutput));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetImmediateOutput)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getImmediateOutput(kAudioSourceId, _))
+        .WillOnce(DoAll(SetArgReferee<1>(kImmediateOutput), Return(true)));
+
+    bool immediateOutput = 0;
+    EXPECT_TRUE(m_sut->getImmediateOutput(kAudioSourceId, immediateOutput));
+    EXPECT_EQ(immediateOutput, kImmediateOutput);
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetImmediateOutputIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    const int32_t kAudioSourceId = 1;
+    bool immediateOutput = false;
+    EXPECT_FALSE(m_sut->getImmediateOutput(kAudioSourceId, immediateOutput));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetLowLatency)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
-    EXPECT_EQ(m_sut->getMute(), kMute);
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getMute(_)).WillOnce(Return(false));
-    EXPECT_EQ(m_sut->getMute(), kMute);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setLowLatency(kLowLatency)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setLowLatency(kLowLatency));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetLowLatencyIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    EXPECT_FALSE(m_sut->setLowLatency(kLowLatency));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSync)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSync(kSync)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setSync(kSync));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    EXPECT_FALSE(m_sut->setSync(kSync));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetSync)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getSync(_)).WillOnce(DoAll(SetArgReferee<0>(kSync), Return(true)));
+
+    bool sync = false;
+    EXPECT_TRUE(m_sut->getSync(sync));
+    EXPECT_EQ(sync, kSync);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetSyncIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    bool sync = false;
+    EXPECT_FALSE(m_sut->getSync(sync));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSyncOff)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSyncOff(kSyncOff)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setSyncOff(kSyncOff));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncOffIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    EXPECT_FALSE(m_sut->setSyncOff(kSyncOff));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetStreamSyncMode)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setStreamSyncMode(kAudioSourceId, kStreamSyncMode)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setStreamSyncMode(kAudioSourceId, kStreamSyncMode));
+
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    EXPECT_FALSE(m_sut->setStreamSyncMode(kUnknownSourceId, kStreamSyncMode));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetStreamSyncMode)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getStreamSyncMode(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kStreamSyncMode), Return(true)));
+
+    int32_t streamSyncMode = 0;
+    EXPECT_TRUE(m_sut->getStreamSyncMode(streamSyncMode));
+    EXPECT_EQ(streamSyncMode, kStreamSyncMode);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetStreamSyncModeIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    int32_t streamSyncMode = 0;
+    EXPECT_FALSE(m_sut->getStreamSyncMode(streamSyncMode));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreams)
@@ -1195,6 +1418,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachVideoSource)
     gst_object_unref(sink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachSubtitleSource)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE);
+    gst_object_unref(sink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1243,4 +1474,58 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetTextTrackIdentifier)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
+    m_sut->setTextTrackIdentifier(kTextTrackIdentifier);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetTextTrackIdentifier)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getTextTrackIdentifier(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
+    EXPECT_EQ(m_sut->getTextTrackIdentifier(), kTextTrackIdentifier);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetBufferingLimit)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setBufferingLimit(kBufferingLimit)).WillOnce(Return(true));
+    m_sut->setBufferingLimit(kBufferingLimit);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetBufferingLimit)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getBufferingLimit(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kBufferingLimit), Return(true)));
+    EXPECT_EQ(m_sut->getBufferingLimit(), kBufferingLimit);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetUseBuffering)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setUseBuffering(kUseBuffering)).WillOnce(Return(true));
+    m_sut->setUseBuffering(kUseBuffering);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetUseBuffering)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getUseBuffering(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kUseBuffering), Return(true)));
+    EXPECT_EQ(m_sut->getUseBuffering(), kUseBuffering);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSwitchSource)
+{
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSource{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, switchSource(PtrMatcher(mediaSource.get()))).WillOnce(Return(true));
+    m_sut->switchSource(mediaSource);
 }

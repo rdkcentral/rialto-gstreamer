@@ -21,11 +21,11 @@ name: build_ut
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "master" branch
+  # Triggers the workflow on push or pull request events but only for the "master" and "release/*" branches
   push:
-    branches: [ "master", "rdkcentral:master" ]
+    branches: ["master", "release/*"]
   pull_request:
-    branches: [ "master", "rdkcentral:master" ]
+    branches: ["master", "release/*"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
     name: Build and test build_ut
 
     # Runs on ubuntu
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     # Timeout after
     timeout-minutes: 60
@@ -74,11 +74,13 @@ jobs:
         id: check-branch
         shell: sh +e {0}
         run: |
-          branch=master
+          branch="${{ github.ref_name }}"
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
             if [ $? -eq 0 ]; then
               branch="${{ github.event.pull_request.head.ref }}"
+            else
+              branch="${{ github.event.pull_request.base.ref }}"
             fi
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
@@ -127,7 +129,7 @@ jobs:
     name: Checks the Coverage Report
 
     # Runs on ubuntu
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     # Timeout after
     timeout-minutes: 2
@@ -149,7 +151,7 @@ jobs:
       # Download current master coverage statistics
       - name: Download Master Coverage Statistics
         uses: dawidd6/action-download-artifact@v3
-        if: ${{ success() && github.ref != 'refs/heads/master' }}
+        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
         with:
           workflow_conclusion: success
           branch: master
@@ -158,7 +160,7 @@ jobs:
       
       # Run the process_coverage_stats script
       - name: Process Coverage Statistics
-        if: ${{ success() && github.ref != 'refs/heads/master' }}
+        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
         run: python scripts/coverage/process_coverage_stats.py ./master_artifacts/coverage_statistics.txt build/coverage_statistics.txt
       
       # Get process_coverage_stats script output

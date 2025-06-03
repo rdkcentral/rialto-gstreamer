@@ -70,7 +70,6 @@ public:
     {
         return m_mediaPlayerBackend->haveData(status, needDataRequestId);
     }
-    bool seek(int64_t seekPosition) override { return m_mediaPlayerBackend->setPosition(seekPosition); }
     bool setPlaybackRate(double rate) override { return m_mediaPlayerBackend->setPlaybackRate(rate); }
     bool setVideoWindow(unsigned int x, unsigned int y, unsigned int width, unsigned int height) override
     {
@@ -86,21 +85,95 @@ public:
 
     bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
 
+    bool setImmediateOutput(int32_t sourceId, bool immediateOutput) override
+    {
+        return m_mediaPlayerBackend->setImmediateOutput(sourceId, immediateOutput);
+    }
+
+    bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) override
+    {
+        return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);
+    }
+
+    bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override
+    {
+        return m_mediaPlayerBackend->getStats(sourceId, renderedFrames, droppedFrames);
+    }
+
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
-    bool setVolume(double volume) override { return m_mediaPlayerBackend->setVolume(volume); }
-
-    bool getVolume(double &volume) override { return m_mediaPlayerBackend->getVolume(volume); }
-
-    bool setMute(bool mute) override { return m_mediaPlayerBackend->setMute(mute); }
-
-    bool getMute(bool &mute) override { return m_mediaPlayerBackend->getMute(mute); }
-
-    bool flush(int32_t sourceId, bool resetTime) override { return m_mediaPlayerBackend->flush(sourceId, resetTime); }
-
-    bool setSourcePosition(int32_t sourceId, int64_t position) override
+    bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) override
     {
-        return m_mediaPlayerBackend->setSourcePosition(sourceId, position);
+        return m_mediaPlayerBackend->setVolume(targetVolume, volumeDuration, easeType);
+    }
+
+    bool getVolume(double &currentVolume) override { return m_mediaPlayerBackend->getVolume(currentVolume); }
+
+    bool setMute(bool mute, int sourceId) override { return m_mediaPlayerBackend->setMute(sourceId, mute); }
+
+    bool getMute(bool &mute, int sourceId) override { return m_mediaPlayerBackend->getMute(sourceId, mute); }
+
+    bool setTextTrackIdentifier(const std::string &textTrackIdentifier) override
+    {
+        return m_mediaPlayerBackend->setTextTrackIdentifier(textTrackIdentifier);
+    }
+
+    bool getTextTrackIdentifier(std::string &textTrackIdentifier) override
+    {
+        return m_mediaPlayerBackend->getTextTrackIdentifier(textTrackIdentifier);
+    }
+
+    bool setLowLatency(bool lowLatency) override { return m_mediaPlayerBackend->setLowLatency(lowLatency); }
+
+    bool setSync(bool sync) override { return m_mediaPlayerBackend->setSync(sync); }
+
+    bool getSync(bool &sync) override { return m_mediaPlayerBackend->getSync(sync); }
+
+    bool setSyncOff(bool syncOff) override { return m_mediaPlayerBackend->setSyncOff(syncOff); }
+
+    bool setStreamSyncMode(int32_t sourceId, int32_t streamSyncMode) override
+    {
+        return m_mediaPlayerBackend->setStreamSyncMode(sourceId, streamSyncMode);
+    }
+
+    bool getStreamSyncMode(int32_t &streamSyncMode) override
+    {
+        return m_mediaPlayerBackend->getStreamSyncMode(streamSyncMode);
+    }
+
+    bool flush(int32_t sourceId, bool resetTime, bool &async) override
+    {
+        return m_mediaPlayerBackend->flush(sourceId, resetTime, async);
+    }
+
+    bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0,
+                           uint64_t stopPosition = GST_CLOCK_TIME_NONE) override
+    {
+        return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime, appliedRate, stopPosition);
+    }
+
+    bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) override
+    {
+        return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);
+    }
+
+    bool setBufferingLimit(uint32_t limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->setBufferingLimit(limitBufferingMs);
+    }
+
+    bool getBufferingLimit(uint32_t &limitBufferingMs) override
+    {
+        return m_mediaPlayerBackend->getBufferingLimit(limitBufferingMs);
+    }
+
+    bool setUseBuffering(bool useBuffering) override { return m_mediaPlayerBackend->setUseBuffering(useBuffering); }
+
+    bool getUseBuffering(bool &useBuffering) override { return m_mediaPlayerBackend->getUseBuffering(useBuffering); }
+
+    bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) override
+    {
+        return m_mediaPlayerBackend->switchSource(source);
     }
 
 private:

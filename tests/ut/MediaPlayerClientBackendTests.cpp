@@ -20,6 +20,7 @@
 #include "MediaPipelineClientMock.h"
 #include "MediaPipelineMock.h"
 #include "MediaPlayerClientBackend.h"
+
 #include <gtest/gtest.h>
 
 using firebolt::rialto::IMediaPipelineFactory;
@@ -39,6 +40,8 @@ namespace
 {
 constexpr VideoRequirements kVideoRequirements{1024, 768};
 constexpr double kVolume{0.7};
+constexpr uint32_t kVolumeDuration{1000};
+constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -155,15 +158,6 @@ TEST_F(MediaPlayerClientBackendTests, ShouldHaveData)
     EXPECT_TRUE(m_sut.haveData(kStatus, kNeedDataRequestId));
 }
 
-TEST_F(MediaPlayerClientBackendTests, ShouldSeek)
-{
-    constexpr int64_t position{123};
-    EXPECT_CALL(*m_mediaPipelineMock, setPosition(position)).WillOnce(Return(true));
-    initializeMediaPipeline();
-    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.seek(position));
-}
-
 TEST_F(MediaPlayerClientBackendTests, ShouldSetPlaybackRate)
 {
     constexpr double rate{1.25};
@@ -219,10 +213,10 @@ TEST_F(MediaPlayerClientBackendTests, ShouldRenderFrame)
 
 TEST_F(MediaPlayerClientBackendTests, ShouldSetVolume)
 {
-    EXPECT_CALL(*m_mediaPipelineMock, setVolume(kVolume)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.setVolume(kVolume));
+    EXPECT_TRUE(m_sut.setVolume(kVolume, kVolumeDuration, kEaseType));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldGetVolume)
@@ -237,19 +231,21 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetVolume)
 
 TEST_F(MediaPlayerClientBackendTests, ShouldSetMute)
 {
-    EXPECT_CALL(*m_mediaPipelineMock, setMute(kMute)).WillOnce(Return(true));
+    constexpr int32_t kSourceId{12};
+    EXPECT_CALL(*m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.setMute(kMute));
+    EXPECT_TRUE(m_sut.setMute(kMute, kSourceId));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldGetMute)
 {
+    constexpr int32_t kSourceId{12};
     bool mute{false};
-    EXPECT_CALL(*m_mediaPipelineMock, getMute(_)).WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
+    EXPECT_CALL(*m_mediaPipelineMock, getMute(kSourceId, _)).WillOnce(DoAll(SetArgReferee<1>(kMute), Return(true)));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.getMute(mute));
+    EXPECT_TRUE(m_sut.getMute(mute, kSourceId));
     EXPECT_EQ(kMute, mute);
 }
 
@@ -257,18 +253,87 @@ TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
 {
     constexpr int32_t kSourceId{12};
     constexpr bool kResetTime{false};
-    EXPECT_CALL(*m_mediaPipelineMock, flush(kSourceId, kResetTime)).WillOnce(Return(true));
+    bool async{false};
+    EXPECT_CALL(*m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime));
+    EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime, async));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
 {
     constexpr int32_t kSourceId{12};
     constexpr int64_t kPosition{34};
-    EXPECT_CALL(*m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition)).WillOnce(Return(true));
+    constexpr bool kResetTime{true};
+    constexpr double kAppliedRate{2.0};
+    constexpr uint64_t kStopPosition{1234};
+    EXPECT_CALL(*m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition));
+    EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition));
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldProcessAudioGap)
+{
+    constexpr int64_t kPosition{34};
+    constexpr uint32_t kDuration{23};
+    constexpr int64_t kDiscontinuityGap{1};
+    constexpr bool kAudioAac{false};
+
+    EXPECT_CALL(*m_mediaPipelineMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+        .WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac));
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldSetBufferingLimit)
+{
+    constexpr uint32_t kBufferingLimit{123};
+    EXPECT_CALL(*m_mediaPipelineMock, setBufferingLimit(kBufferingLimit)).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.setBufferingLimit(kBufferingLimit));
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldGetBufferingLimit)
+{
+    constexpr uint32_t kBufferingLimit{123};
+    uint32_t bufferingLimit{0};
+    EXPECT_CALL(*m_mediaPipelineMock, getBufferingLimit(_)).WillOnce(DoAll(SetArgReferee<0>(kBufferingLimit), Return(true)));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.getBufferingLimit(bufferingLimit));
+    EXPECT_EQ(kBufferingLimit, bufferingLimit);
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldSetUseBuffering)
+{
+    constexpr bool kUseBuffering{true};
+    EXPECT_CALL(*m_mediaPipelineMock, setUseBuffering(kUseBuffering)).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.setUseBuffering(kUseBuffering));
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldGetUseBuffering)
+{
+    constexpr bool kUseBuffering{true};
+    bool useBuffering{false};
+    EXPECT_CALL(*m_mediaPipelineMock, getUseBuffering(_)).WillOnce(DoAll(SetArgReferee<0>(kUseBuffering), Return(true)));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.getUseBuffering(useBuffering));
+    EXPECT_EQ(kUseBuffering, useBuffering);
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
+{
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSourceAudio{
+        std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceAudio>("mime_type")};
+    EXPECT_CALL(*m_mediaPipelineMock, switchSource(PtrMatcher(mediaSourceAudio.get()))).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.switchSource(mediaSourceAudio));
 }

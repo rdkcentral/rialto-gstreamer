@@ -47,6 +47,9 @@ enum
     PROP_MAX_VIDEO_WIDTH_DEPRECATED,
     PROP_MAX_VIDEO_HEIGHT_DEPRECATED,
     PROP_FRAME_STEP_ON_PREROLL,
+    PROP_IMMEDIATE_OUTPUT,
+    PROP_SYNCMODE_STREAMING,
+    PROP_SHOW_VIDEO_WINDOW,
     PROP_LAST
 };
 
@@ -76,12 +79,12 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        std::unique_lock lock{priv->rectangleMutex};
+        std::unique_lock lock{priv->propertyMutex};
         if (priv->rectangleSettingQueued)
         {
             GST_DEBUG_OBJECT(sink, "Set queued video rectangle");
-            client->setVideoRectangle(priv->videoRectangle);
             priv->rectangleSettingQueued = false;
+            client->setVideoRectangle(priv->videoRectangle);
         }
         break;
     }
@@ -157,8 +160,8 @@ rialto_mse_video_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps
 
 static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
-    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
-    RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
+    RialtoMSEBaseSink *baseSink = RIALTO_MSE_BASE_SINK(parent);
+    RialtoMSEBaseSinkPrivate *basePriv = baseSink->priv;
     switch (GST_EVENT_TYPE(event))
     {
     case GST_EVENT_CAPS:
@@ -167,36 +170,62 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
         gst_event_parse_caps(event, &caps);
         if (basePriv->m_sourceAttached)
         {
-            GST_INFO_OBJECT(sink, "Source already attached. Skip calling attachSource");
+            GST_INFO_OBJECT(baseSink, "Source already attached. Skip calling attachSource");
             break;
         }
 
-        GST_INFO_OBJECT(sink, "Attaching VIDEO source with caps %" GST_PTR_FORMAT, caps);
+        GST_INFO_OBJECT(baseSink, "Attaching VIDEO source with caps %" GST_PTR_FORMAT, caps);
 
         std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> vsource =
-            rialto_mse_video_sink_create_media_source(sink, caps);
+            rialto_mse_video_sink_create_media_source(baseSink, caps);
         if (vsource)
         {
-            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(vsource, sink)))
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+            if ((!client) || (!client->attachSource(vsource, baseSink)))
             {
-                GST_ERROR_OBJECT(sink, "Failed to attach VIDEO source");
+                GST_ERROR_OBJECT(baseSink, "Failed to attach VIDEO source");
             }
             else
             {
                 basePriv->m_sourceAttached = true;
 
                 // check if READY -> PAUSED was requested before source was attached
-                if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
+                if (GST_STATE_NEXT(baseSink) == GST_STATE_PAUSED)
                 {
-                    client->pause(sink->priv->m_sourceId);
+                    client->pause(basePriv->m_sourceId);
+                }
+                RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(parent);
+                RialtoMSEVideoSinkPrivate *priv = sink->priv;
+                std::unique_lock lock{priv->propertyMutex};
+                if (priv->immediateOutputQueued)
+                {
+                    GST_DEBUG_OBJECT(sink, "Set queued immediate-output");
+                    priv->immediateOutputQueued = false;
+                    if (!client->setImmediateOutput(basePriv->m_sourceId, priv->immediateOutput))
+                    {
+                        GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+                    }
+                }
+                if (priv->syncmodeStreamingQueued)
+                {
+                    GST_DEBUG_OBJECT(sink, "Set queued syncmode-streaming");
+                    priv->syncmodeStreamingQueued = false;
+                    if (!client->setStreamSyncMode(basePriv->m_sourceId, priv->syncmodeStreaming))
+                    {
+                        GST_ERROR_OBJECT(sink, "Could not set syncmode-streaming");
+                    }
+                }
+                if (priv->showVideoWindowQueued)
+                {
+                    GST_DEBUG_OBJECT(sink, "Set queued show-video-window");
+                    priv->showVideoWindowQueued = false;
+                    client->setMute(priv->showVideoWindow, basePriv->m_sourceId);
                 }
             }
         }
         else
         {
-            GST_ERROR_OBJECT(sink, "Failed to create VIDEO source");
+            GST_ERROR_OBJECT(baseSink, "Failed to create VIDEO source");
         }
 
         break;
@@ -224,21 +253,29 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         return;
     }
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-
     switch (propId)
     {
     case PROP_WINDOW_SET:
+    {
+        std::unique_lock lock{priv->propertyMutex};
+        auto client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
-            std::unique_lock lock{priv->rectangleMutex};
+            // Return the default value and
+            // queue a setting event (for the default value) so that it will become true when
+            // the client connects...
+            GST_DEBUG_OBJECT(object, "Return default rectangle setting, and queue an event to set the default upon "
+                                     "client connect");
+            priv->rectangleSettingQueued = true;
             g_value_set_string(value, priv->videoRectangle.c_str());
         }
         else
         {
+            lock.unlock();
             g_value_set_string(value, client->getVideoRectangle().c_str());
         }
         break;
+    }
     case PROP_MAX_VIDEO_WIDTH_DEPRECATED:
         GST_WARNING_OBJECT(object, "MaxVideoWidth property is deprecated. Use 'max-video-width' instead");
     case PROP_MAX_VIDEO_WIDTH:
@@ -256,6 +293,32 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     case PROP_FRAME_STEP_ON_PREROLL:
     {
         g_value_set_boolean(value, priv->stepOnPrerollEnabled);
+        break;
+    }
+    case PROP_IMMEDIATE_OUTPUT:
+    {
+        std::unique_lock lock{priv->propertyMutex};
+        auto client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            // Return the default value and
+            // queue a setting event (for the default value) so that it will become true when
+            // the client connects...
+            GST_DEBUG_OBJECT(object, "Return default immediate-output setting, and queue an event to set the default "
+                                     "upon client connect");
+            priv->immediateOutputQueued = true;
+            g_value_set_boolean(value, priv->immediateOutput);
+        }
+        else
+        {
+            bool immediateOutput{priv->immediateOutput};
+            lock.unlock();
+            if (!client->getImmediateOutput(sink->parent.priv->m_sourceId, immediateOutput))
+            {
+                GST_ERROR_OBJECT(sink, "Could not get immediate-output");
+            }
+            g_value_set_boolean(value, immediateOutput);
+        }
         break;
     }
     default:
@@ -292,8 +355,9 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
             GST_WARNING_OBJECT(object, "Rectangle string not valid");
             break;
         }
-        std::unique_lock lock{priv->rectangleMutex};
-        priv->videoRectangle = std::string(rectangle);
+        std::string videoRectangle{rectangle};
+        std::unique_lock lock{priv->propertyMutex};
+        priv->videoRectangle = videoRectangle;
         if (!client)
         {
             GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
@@ -301,7 +365,8 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
         }
         else
         {
-            client->setVideoRectangle(priv->videoRectangle);
+            lock.unlock();
+            client->setVideoRectangle(videoRectangle);
         }
         break;
     }
@@ -322,6 +387,63 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
             client->renderFrame(RIALTO_MSE_BASE_SINK(sink));
         }
         priv->stepOnPrerollEnabled = stepOnPrerollEnabled;
+        break;
+    }
+    case PROP_IMMEDIATE_OUTPUT:
+    {
+        bool immediateOutput = (g_value_get_boolean(value) != FALSE);
+        std::unique_lock lock{priv->propertyMutex};
+        priv->immediateOutput = immediateOutput;
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(sink, "Immediate output setting enqueued");
+            priv->immediateOutputQueued = true;
+        }
+        else
+        {
+            lock.unlock();
+            if (!client->setImmediateOutput(basePriv->m_sourceId, immediateOutput))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set immediate-output");
+            }
+        }
+        break;
+    }
+    case PROP_SYNCMODE_STREAMING:
+    {
+        bool syncmodeStreaming = (g_value_get_boolean(value) != FALSE);
+        std::unique_lock lock{priv->propertyMutex};
+        priv->syncmodeStreaming = syncmodeStreaming;
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(sink, "Syncmode streaming setting enqueued");
+            priv->syncmodeStreamingQueued = true;
+        }
+        else
+        {
+            lock.unlock();
+            if (!client->setStreamSyncMode(basePriv->m_sourceId, syncmodeStreaming))
+            {
+                GST_ERROR_OBJECT(sink, "Could not set syncmode-streaming");
+            }
+        }
+        break;
+    }
+    case PROP_SHOW_VIDEO_WINDOW:
+    {
+        bool showVideoWindow = (g_value_get_boolean(value) == TRUE);
+        std::unique_lock lock{priv->propertyMutex};
+        priv->showVideoWindow = showVideoWindow;
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(sink, "Show video window setting enqueued");
+            priv->showVideoWindowQueued = true;
+        }
+        else
+        {
+            lock.unlock();
+            client->setMute(showVideoWindow, basePriv->m_sourceId);
+        }
         break;
     }
     default:
@@ -356,6 +478,7 @@ static void rialto_mse_video_sink_init(RialtoMSEVideoSink *sink)
     }
 
     basePriv->m_mediaSourceType = firebolt::rialto::MediaSourceType::VIDEO;
+    basePriv->m_isAsync = true;
     gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
     gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_video_sink_event);
 
@@ -406,6 +529,42 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
             mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
 
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+
+        const std::string kImmediateOutputPropertyName{"immediate-output"};
+        const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
+        const std::string kShowVideoWindowPropertyName{"show-video-window"};
+        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
+                                                              kSyncmodeStreamingPropertyName,
+                                                              kShowVideoWindowPropertyName};
+        std::vector<std::string> supportedProperties{
+            mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
+                                                            kPropertyNamesToSearch)};
+
+        for (const auto &propertyName : supportedProperties)
+        {
+            if (kImmediateOutputPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
+                                                g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
+                                                                     "immediate output", "immediate output", TRUE,
+                                                                     GParamFlags(G_PARAM_READWRITE)));
+            }
+            else if (kSyncmodeStreamingPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
+                                                g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
+                                                                     "Enable/disable OTT streaming sync mode", FALSE,
+                                                                     G_PARAM_WRITABLE));
+            }
+            else if (kShowVideoWindowPropertyName == propertyName)
+            {
+                g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
+                                                g_param_spec_boolean(kShowVideoWindowPropertyName.c_str(),
+                                                                     "make video window visible",
+                                                                     "true: visible, false: hidden", TRUE,
+                                                                     G_PARAM_WRITABLE));
+            }
+        }
     }
     else
     {

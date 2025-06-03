@@ -22,11 +22,11 @@ name: valgrind_ut
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "master" branch
+  # Triggers the workflow on push or pull request events but only for the "master" and "release/*" branches
   push:
-    branches: [ "master", "rdkcentral:master" ]
+    branches: ["master", "release/*"]
   pull_request:
-    branches: [ "master", "rdkcentral:master" ]
+    branches: ["master", "release/*"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -37,11 +37,11 @@ jobs:
   valgrind-test:
     name: Build and test build_ut with valgrind
     # Runs on ubuntu
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
-        os: [ ubuntu-22.04 ]
+        os: [ ubuntu-24.04 ]
 
     # Timeout after
     timeout-minutes: 60
@@ -81,11 +81,13 @@ jobs:
         id: check-branch
         shell: sh +e {0}
         run: |
-          branch=master
+          branch="${{ github.ref_name }}"
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
             if [ $? -eq 0 ]; then
               branch="${{ github.event.pull_request.head.ref }}"
+            else
+              branch="${{ github.event.pull_request.base.ref }}"
             fi
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"

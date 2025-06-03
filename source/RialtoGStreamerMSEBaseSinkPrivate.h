@@ -28,6 +28,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 G_BEGIN_DECLS
@@ -65,6 +66,8 @@ struct _RialtoMSEBaseSinkPrivate
     bool m_isEos = false;
     std::atomic<bool> m_isFlushOngoing;
     std::atomic<bool> m_isStateCommitNeeded;
+    bool m_initialPositionSet{false};
+    std::optional<int64_t> m_queuedOffset;
     std::mutex m_sinkMutex;
 
     std::condition_variable m_needDataCondVariable;
@@ -79,7 +82,10 @@ struct _RialtoMSEBaseSinkPrivate
     bool m_isSinglePathStream = false;
     int32_t m_numOfStreams = 1;
     std::atomic<bool> m_hasDrm;
+    std::atomic<bool> m_isAsync;
     firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
+    guint32 lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
+    std::atomic<guint32> currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
 };
 G_END_DECLS

@@ -16,12 +16,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <cstdint>
+
+#include <stdio.h>
+
 #include "GStreamerEMEUtils.h"
 #include "GStreamerUtils.h"
 #include "GstreamerCatLog.h"
-#include <RialtoGStreamerEMEProtectionMetadata.h>
-#include <cstdint>
-#include <stdio.h>
+#include "RialtoGStreamerEMEProtectionMetadata.h"
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 void getEncryptedFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta, BufferProtectionMetadata &metadata)
@@ -60,6 +62,11 @@ void getIVFromProtectionMetadata(GstRialtoProtectionMetadata *protectionMeta, Bu
 {
     unsigned ivSize = 0;
     gst_structure_get_uint(protectionMeta->info, "iv_size", &ivSize);
+    if (!ivSize && !g_strcmp0(gst_structure_get_string(protectionMeta->info, "cipher-mode"), "cbcs"))
+    {
+        // in case of cbcs, the same initialization vector is used to decrypt all the blocks
+        gst_structure_get_uint(protectionMeta->info, "constant_iv_size", &ivSize);
+    }
     const GValue *value = gst_structure_get_value(protectionMeta->info, "iv");
     if (value)
     {
@@ -200,6 +207,5 @@ void ProcessProtectionMetadata(GstBuffer *buffer, BufferProtectionMetadata &meta
             getEncryptionSchemeFromProtectionMetadata(protectionMeta, metadata);
             getEncryptionPatternFromProtectionMetadata(protectionMeta, metadata);
         }
-        gst_buffer_remove_meta(buffer, reinterpret_cast<GstMeta *>(protectionMeta));
     }
 }
