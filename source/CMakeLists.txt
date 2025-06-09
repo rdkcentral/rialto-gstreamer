@@ -23,6 +23,12 @@ add_compile_options(
 find_package(Rialto 1.0 REQUIRED)
 find_package(ocdmRialto 1.0 REQUIRED)
 
+if( CMAKE_RDK_SVP )
+    message("RDK SVP IS ENABLED")
+    add_compile_definitions( RDK_SVP )
+    set (RDK_SVP_LIBS -lgstsvpext)
+endif()
+
 add_library(gstrialtosinks
 
         SHARED
@@ -58,6 +64,7 @@ target_include_directories(gstrialtosinks
 target_link_libraries(gstrialtosinks
         PUBLIC
         ${GSTREAMER_APP_LIBRARIES}
+        ${RDK_SVP_LIBS}
 
         PRIVATE
         Rialto::ocdmRialto
