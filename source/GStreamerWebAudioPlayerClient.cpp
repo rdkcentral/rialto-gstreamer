@@ -30,6 +30,7 @@
 
 namespace
 {
+constexpr std::size_t kMaxQueueSize{40};
 bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned,
                              bool &isFloat)
 {
@@ -288,6 +289,12 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
     GST_DEBUG("entry:");
 
     bool result = false;
+
+    {
+        std::unique_lock lock{m_queueSizeMutex};
+        m_queueSizeCv.wait(lock, [&]() { return m_dataBuffers.size() < kMaxQueueSize; });
+    }
+
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -298,7 +305,10 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
                     m_pushSamplesTimer->cancel();
                     m_pushSamplesTimer.reset();
                 }
-                m_dataBuffers.push(buf);
+                {
+                    std::unique_lock lock{m_queueSizeMutex};
+                    m_dataBuffers.push(buf);
+                }
                 pushSamples();
                 result = true;
             }
@@ -323,7 +333,9 @@ void GStreamerWebAudioPlayerClient::pushSamples()
             GST_ERROR("getBufferAvailable failed, could not process the samples");
             // clear the queue if getBufferAvailable failed
             std::queue<GstBuffer *> empty;
+            std::unique_lock lock{m_queueSizeMutex};
             std::swap(m_dataBuffers, empty);
+            m_queueSizeCv.notify_one();
         }
         else if (0 != availableFrames)
         {
@@ -358,15 +370,19 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                 if ((leftoverData / m_frameSize == 0) && (m_dataBuffers.size() > 1))
                 {
                     // If the leftover data is smaller than a frame, it must be processed with the next buffer
+                    std::unique_lock lock{m_queueSizeMutex};
                     m_dataBuffers.pop();
                     m_dataBuffers.front() = gst_buffer_append(buffer, m_dataBuffers.front());
                     gst_buffer_unref(buffer);
+                    m_queueSizeCv.notify_one();
                 }
             }
             else
             {
+                std::unique_lock lock{m_queueSizeMutex};
                 m_dataBuffers.pop();
                 gst_buffer_unref(buffer);
+                m_queueSizeCv.notify_one();
             }
         }
     } while (!m_dataBuffers.empty() && availableFrames != 0);
@@ -377,7 +393,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     if (m_dataBuffers.size())
     {
         m_pushSamplesTimer =
-            m_timerFactory->createTimer(std::chrono::milliseconds(100), [this]() { notifyPushSamplesTimerExpired(); });
+            m_timerFactory->createTimer(std::chrono::milliseconds(10), [this]() { notifyPushSamplesTimerExpired(); });
     }
     else if (m_isEos)
     {

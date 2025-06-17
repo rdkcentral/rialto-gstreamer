@@ -222,6 +222,17 @@ private:
     uint32_t m_frameSize;
 
     /**
+     * @brief The mutex protecting m_dataBuffers size reads
+     */
+    std::mutex m_queueSizeMutex;
+
+    /**
+     * @brief The condition variable used to block webaudio chain function
+     *        when m_dataBuffers queue size is too large
+     */
+    std::condition_variable m_queueSizeCv;
+
+    /**
      * @brief The current web audio player mime type.
      */
     std::string m_mimeType;

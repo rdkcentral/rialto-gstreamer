@@ -43,6 +43,7 @@ std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(const Gs
 
     addCodecDataToSegment(mseData, structure);
     addProtectionMetadataToSegment(mseData, buffer, map, structure);
+    addDisplayOffsetToSegment(mseData, GST_BUFFER_OFFSET(buffer));
 
     return mseData;
 }
@@ -134,6 +135,15 @@ void BufferParser::addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMedi
             codecData->type = firebolt::rialto::CodecDataType::STRING;
             segment->setCodecData(codecData);
         }
+    }
+}
+
+void BufferParser::addDisplayOffsetToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
+                                             guint64 displayOffset)
+{
+    if (GST_BUFFER_OFFSET_NONE != displayOffset)
+    {
+        segment->setDisplayOffset(displayOffset);
     }
 }
 
