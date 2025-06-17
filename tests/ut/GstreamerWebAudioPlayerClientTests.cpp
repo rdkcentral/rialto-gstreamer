@@ -76,7 +76,7 @@ constexpr firebolt::rialto::WebAudioPcmConfig kFloatFormatConfig{kRate, kChannel
 const std::string kLittleEndian{"U12LE"};
 constexpr firebolt::rialto::WebAudioPcmConfig kLittleEndianFormatConfig{kRate, kChannels, 12, false, false, false};
 const std::vector<uint8_t> kBytes{1, 2, 3, 4, 5, 6, 7, 8};
-constexpr std::chrono::milliseconds kTimeout{100};
+constexpr std::chrono::milliseconds kTimeout{10};
 constexpr auto kTimerType{TimerType::ONE_SHOT};
 MATCHER_P(WebAudioConfigMatcher, config, "")
 {
