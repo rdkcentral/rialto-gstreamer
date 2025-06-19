@@ -45,6 +45,8 @@ private:
                                         GstBuffer *buffer, const GstMapInfo &map, GstStructure *structure);
     void addCodecDataToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
                                GstStructure *structure);
+    void addDisplayOffsetToSegment(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &segment,
+                                   guint64 displayOffset);
 };
 
 class AudioBufferParser : public BufferParser

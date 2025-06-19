@@ -45,6 +45,7 @@ const std::string kCodecDataStr{"CodecData"};
 const std::vector<uint8_t> kCodecDataVec{kCodecDataStr.begin(), kCodecDataStr.end()};
 const std::vector<uint8_t> kKeyId{1, 2};
 const std::vector<uint8_t> kInitVector{3, 4};
+constexpr guint64 kDisplayOffset{35};
 } // namespace
 
 class BufferParserTests : public RialtoGstTest
@@ -87,6 +88,7 @@ private:
         m_buffer = gst_buffer_new_allocate(nullptr, m_bufferData.size(), nullptr);
         GST_BUFFER_PTS(m_buffer) = kTimestamp;
         GST_BUFFER_DURATION(m_buffer) = kDuration;
+        GST_BUFFER_OFFSET(m_buffer) = kDisplayOffset;
         GstStructure *info = gst_structure_new("application/x-cenc", "encrypted", G_TYPE_BOOLEAN, TRUE,
                                                "crypt_byte_block", G_TYPE_UINT, kCryptByteBlock, "skip_byte_block",
                                                G_TYPE_UINT, kSkipByteBlock, "mks_id", G_TYPE_INT, kMksId, "kid",
@@ -127,6 +129,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
     EXPECT_EQ(audioSegment->getNumberOfChannels(), kChannels);
     EXPECT_EQ(audioSegment->getClippingStart(), 0);
     EXPECT_EQ(audioSegment->getClippingEnd(), 0);
+    EXPECT_EQ(audioSegment->getDisplayOffset().value(), kDisplayOffset);
     gst_caps_unref(caps);
 }
 
@@ -227,6 +230,7 @@ TEST_F(BufferParserTests, ShouldParseVideoBuffer)
     EXPECT_EQ(videoSegment->getHeight(), kHeight);
     EXPECT_EQ(videoSegment->getFrameRate().numerator, kFrameRate.numerator);
     EXPECT_EQ(videoSegment->getFrameRate().denominator, kFrameRate.denominator);
+    EXPECT_EQ(videoSegment->getDisplayOffset().value(), kDisplayOffset);
     gst_caps_unref(caps);
 }
 
@@ -241,5 +245,6 @@ TEST_F(BufferParserTests, ShouldParseSubtitleBuffer)
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
     EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
     EXPECT_EQ(segment->getDuration(), kDuration);
+    EXPECT_EQ(segment->getDisplayOffset().value(), kDisplayOffset);
     gst_caps_unref(caps);
 }
