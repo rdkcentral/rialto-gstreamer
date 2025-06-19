@@ -25,6 +25,7 @@
 
 #include "ControlBackend.h"
 #include "GStreamerUtils.h"
+#include "IClientLogControl.h"
 #include "IMediaPipeline.h"
 #include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
@@ -314,20 +315,18 @@ static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink
 static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
 {
     GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
-
-    firebolt::rialto::client::LogToGstHandler::logToGstSinkInit();
-
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
     sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
 
-    sink->priv->m_callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
-    sink->priv->m_callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
-    sink->priv->m_callbacks.stateChangedCallback =
+    RialtoGStreamerMSEBaseSinkCallbacks callbacks;
+    callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
+    callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
+    callbacks.stateChangedCallback =
         std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
-    sink->priv->m_callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
-
+    callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
+    sink->priv->m_callbacks = callbacks;
     gst_segment_init(&sink->priv->m_lastSegment, GST_FORMAT_TIME);
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
 }
@@ -340,8 +339,6 @@ static void rialto_mse_base_sink_class_finalize(GObject *object)
 
     priv->~RialtoMSEBaseSinkPrivate();
     GST_CALL_PARENT(G_OBJECT_CLASS, finalize, (object));
-
-    firebolt::rialto::client::LogToGstHandler::logToGstSinkFinalize();
 }
 
 static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
@@ -650,7 +647,14 @@ static void rialto_mse_base_sink_copy_segment(RialtoMSEBaseSink *sink, GstEvent 
 
 static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 {
-    firebolt::rialto::client::LogToGstHandler::logToGstPreRegister();
+    std::shared_ptr<firebolt::rialto::IClientLogHandler> logToGstHandler =
+        std::make_shared<firebolt::rialto::LogToGstHandler>();
+
+    if (!firebolt::rialto::IClientLogControlFactory::createFactory()->createClientLogControl().registerLogHandler(logToGstHandler,
+                                                                                                                  true))
+    {
+        GST_ERROR("Unable to preRegister log handler");
+    }
 
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);

@@ -120,13 +120,13 @@ MATCHER_P(MediaSourceSubtitleMatcher, mediaSource, "")
 
 RialtoGstTest::RialtoGstTest()
 {
-    EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl()).WillRepeatedly(ReturnRef(m_clientLogControlMock));
-    EXPECT_CALL(m_clientLogControlMock, registerLogHandler(_, _)).WillRepeatedly(Return(true));
-
     static std::once_flag onceFlag;
     std::call_once(onceFlag,
                    [this]()
                    {
+                       EXPECT_CALL(*m_clientLogControlFactoryMock, createClientLogControl())
+                           .WillOnce(ReturnRef(m_clientLogControlMock));
+                       EXPECT_CALL(m_clientLogControlMock, registerLogHandler(_, _)).WillOnce(Return(true));
                        expectSinksInitialisation();
                        gst_init(nullptr, nullptr);
                        const auto registerResult =
@@ -140,8 +140,6 @@ RialtoGstTest::RialtoGstTest()
 
 RialtoGstTest::~RialtoGstTest()
 {
-    testing::Mock::VerifyAndClearExpectations(&m_clientLogControlFactoryMock);
-    testing::Mock::VerifyAndClearExpectations(&m_clientLogControlMock);
     testing::Mock::VerifyAndClearExpectations(&m_controlFactoryMock);
 }
 

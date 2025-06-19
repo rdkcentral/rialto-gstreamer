@@ -20,7 +20,6 @@
 
 #include "ControlBackend.h"
 #include "GStreamerWebAudioPlayerClient.h"
-#include "LogToGstHandler.h"
 #include "MessageQueue.h"
 #include "RialtoGStreamerWebAudioSink.h"
 #include "WebAudioClientBackend.h"
@@ -434,10 +433,7 @@ static bool rialto_web_audio_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
 
 static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 {
-    LogToGstHandler::logToGstSinkInit();
-
     GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
-
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
@@ -470,14 +466,10 @@ static void rialto_web_audio_sink_finalize(GObject *object)
     priv->~RialtoWebAudioSinkPrivate();
 
     GST_CALL_PARENT(G_OBJECT_CLASS, finalize, (object));
-
-    LogToGstHandler::logToGstSinkFinalize();
 }
 
 static void rialto_web_audio_sink_class_init(RialtoWebAudioSinkClass *klass)
 {
-    LogToGstHandler::logToGstPreRegister();
-
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 
