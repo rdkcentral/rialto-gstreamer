@@ -331,7 +331,7 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
 }
 
-static void rialto_mse_base_sink_class_finalize(GObject *object)
+static void rialto_mse_base_sink_finalize(GObject *object)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
     RialtoMSEBaseSinkPrivate *priv = sink->priv;
@@ -661,7 +661,7 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 
     gst_element_class_set_metadata(elementClass, "Rialto MSE base sink", "Generic", "A sink for Rialto", "Sky");
 
-    gobjectClass->finalize = rialto_mse_base_sink_class_finalize;
+    gobjectClass->finalize = rialto_mse_base_sink_finalize;
     gobjectClass->get_property = rialto_mse_base_sink_get_property;
     gobjectClass->set_property = rialto_mse_base_sink_set_property;
     elementClass->query = rialto_mse_base_sink_query;
