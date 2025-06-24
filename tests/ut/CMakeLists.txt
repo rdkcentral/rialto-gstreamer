@@ -16,6 +16,7 @@
 
 if ( COVERAGE_ENABLED )
     add_compile_options(-coverage)
+    add_link_options(--coverage)
 endif()
 
 add_library(
@@ -69,14 +70,6 @@ set_target_properties(gstRialtoTestLib
         PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
         )
 
-if ( COVERAGE_ENABLED )
-    target_link_libraries(
-        gstRialtoTestLib
-
-        gcov
-        )
-endif()
-
 add_gtests (
         GstRialtoUnitTests
 
@@ -119,11 +112,3 @@ target_link_libraries(
         gstRialtoTestLib
         gstRialtoStubs
 )
-
-if ( COVERAGE_ENABLED )
-    target_link_libraries(
-        GstRialtoUnitTests
-
-        gcov
-        )
-endif()
