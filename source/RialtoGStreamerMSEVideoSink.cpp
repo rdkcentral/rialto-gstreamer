@@ -215,11 +215,11 @@ static gboolean rialto_mse_video_sink_event(GstPad *pad, GstObject *parent, GstE
                         GST_ERROR_OBJECT(sink, "Could not set syncmode-streaming");
                     }
                 }
-                if (priv->showVideoWindowQueued)
+                if (priv->videoMuteQueued)
                 {
                     GST_DEBUG_OBJECT(sink, "Set queued show-video-window");
-                    priv->showVideoWindowQueued = false;
-                    client->setMute(priv->showVideoWindow, basePriv->m_sourceId);
+                    priv->videoMuteQueued = false;
+                    client->setMute(priv->videoMute, basePriv->m_sourceId);
                 }
             }
         }
@@ -431,18 +431,18 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_SHOW_VIDEO_WINDOW:
     {
-        bool showVideoWindow = (g_value_get_boolean(value) == TRUE);
+        bool videoMute = (g_value_get_boolean(value) == FALSE);
         std::unique_lock lock{priv->propertyMutex};
-        priv->showVideoWindow = showVideoWindow;
-        if (!client)
+        priv->videoMute = videoMute;
+        if (!client || !basePriv->m_sourceAttached)
         {
             GST_DEBUG_OBJECT(sink, "Show video window setting enqueued");
-            priv->showVideoWindowQueued = true;
+            priv->videoMuteQueued = true;
         }
         else
         {
             lock.unlock();
-            client->setMute(showVideoWindow, basePriv->m_sourceId);
+            client->setMute(videoMute, basePriv->m_sourceId);
         }
         break;
     }
