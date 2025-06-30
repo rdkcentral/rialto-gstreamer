@@ -225,8 +225,9 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetShowVideoWindow)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
 
-    constexpr gboolean kShowVideoWindow{TRUE};
-    EXPECT_CALL(m_mediaPipelineMock, setMute(textContext.m_sourceId, kShowVideoWindow)).WillOnce(Return(true));
+    constexpr gboolean kShowVideoWindow{FALSE};
+    EXPECT_CALL(m_mediaPipelineMock, setMute(textContext.m_sourceId, !(static_cast<bool>(kShowVideoWindow))))
+        .WillOnce(Return(true));
     g_object_set(textContext.m_sink, "show-video-window", kShowVideoWindow, nullptr);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
@@ -245,7 +246,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedShowVideoWindow)
     const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
     allSourcesWillBeAttached();
 
-    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kShowVideoWindow)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, !(static_cast<bool>(kShowVideoWindow)))).WillOnce(Return(true));
 
     GstCaps *caps{createVideoCaps()};
     setCaps(videoSink, caps);
