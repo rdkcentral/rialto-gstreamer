@@ -17,8 +17,11 @@
  */
 
 #include "GStreamerMSEUtils.h"
+#include "GStreamerUtils.h"
 #include "GstreamerCatLog.h"
 
+#include <cstdint>
+#include <cstring>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -125,4 +128,94 @@ std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gch
         return it->second;
     }
     return std::nullopt;
+}
+
+std::shared_ptr<firebolt::rialto::CodecData> get_codec_data(const GstStructure *structure)
+{
+    const GValue *codec_data = gst_structure_get_value(structure, "codec_data");
+    if (codec_data)
+    {
+        GstBuffer *buf = gst_value_get_buffer(codec_data);
+        if (buf)
+        {
+            GstMappedBuffer mappedBuf(buf, GST_MAP_READ);
+            if (mappedBuf)
+            {
+                auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+                codecData->data = std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size());
+                codecData->type = firebolt::rialto::CodecDataType::BUFFER;
+                return codecData;
+            }
+            else
+            {
+                GST_ERROR("Failed to read codec_data");
+                return nullptr;
+            }
+        }
+        const gchar *str = g_value_get_string(codec_data);
+        if (str)
+        {
+            auto codecData = std::make_shared<firebolt::rialto::CodecData>();
+            codecData->data = std::vector<std::uint8_t>(str, str + std::strlen(str));
+            codecData->type = firebolt::rialto::CodecDataType::STRING;
+            return codecData;
+        }
+    }
+
+    return nullptr;
+}
+
+firebolt::rialto::SegmentAlignment get_segment_alignment(const GstStructure *s)
+{
+    const gchar *alignment = gst_structure_get_string(s, "alignment");
+    if (alignment)
+    {
+        GST_DEBUG("Alignment found %s", alignment);
+        if (strcmp(alignment, "au") == 0)
+        {
+            return firebolt::rialto::SegmentAlignment::AU;
+        }
+        else if (strcmp(alignment, "nal") == 0)
+        {
+            return firebolt::rialto::SegmentAlignment::NAL;
+        }
+    }
+
+    return firebolt::rialto::SegmentAlignment::UNDEFINED;
+}
+
+bool get_dv_profile(const GstStructure *s, uint32_t &dvProfile)
+{
+    gboolean isDolbyVisionEnabled = false;
+    if (gst_structure_get_boolean(s, "dovi-stream", &isDolbyVisionEnabled) && isDolbyVisionEnabled)
+    {
+        if (gst_structure_get_uint(s, "dv_profile", &dvProfile))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+firebolt::rialto::StreamFormat get_stream_format(const GstStructure *structure)
+{
+    const gchar *streamFormat = gst_structure_get_string(structure, "stream-format");
+    firebolt::rialto::StreamFormat format = firebolt::rialto::StreamFormat::UNDEFINED;
+    if (streamFormat)
+    {
+        static const std::unordered_map<std::string, firebolt::rialto::StreamFormat> stringToStreamFormatMap =
+            {{"raw", firebolt::rialto::StreamFormat::RAW},
+             {"avc", firebolt::rialto::StreamFormat::AVC},
+             {"byte-stream", firebolt::rialto::StreamFormat::BYTE_STREAM},
+             {"hvc1", firebolt::rialto::StreamFormat::HVC1},
+             {"hev1", firebolt::rialto::StreamFormat::HEV1}};
+
+        auto strToStreamFormatIt = stringToStreamFormatMap.find(streamFormat);
+        if (strToStreamFormatIt != stringToStreamFormatMap.end())
+        {
+            format = strToStreamFormatIt->second;
+        }
+    }
+
+    return format;
 }

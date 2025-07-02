@@ -34,6 +34,10 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/GStreamerMSEMediaPlayerClient.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerWebAudioPlayerClient.cpp
         ${CMAKE_SOURCE_DIR}/source/MessageQueue.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModeAudioPlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModePlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModeSubtitlePlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModeVideoPlaybackDelegate.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGSteamerPlugin.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEBaseSink.cpp
         ${CMAKE_SOURCE_DIR}/source/MediaPlayerManager.cpp

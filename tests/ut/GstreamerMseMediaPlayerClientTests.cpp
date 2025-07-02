@@ -20,6 +20,7 @@
 #include "MediaPlayerClientBackendMock.h"
 #include "MediaSourceMock.h"
 #include "MessageQueueMock.h"
+#include "PlaybackDelegateMock.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
 
@@ -215,12 +216,21 @@ public:
         return result;
     }
 
+    RialtoMSEBaseSink *createSinkWithMockedDelegate()
+    {
+        GstElement *sinkElement = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+        RialtoMSEBaseSink *audioSink = RIALTO_MSE_BASE_SINK(sinkElement);
+        rialto_mse_base_sink_initialise_delegate(audioSink, m_delegateMock);
+        return audioSink;
+    }
+
     std::shared_ptr<StrictMock<MediaPlayerClientBackendMock>> m_mediaPlayerClientBackendMock{
         std::make_shared<StrictMock<MediaPlayerClientBackendMock>>()};
     std::shared_ptr<StrictMock<MessageQueueFactoryMock>> m_messageQueueFactoryMock{
         std::make_shared<StrictMock<MessageQueueFactoryMock>>()};
     std::unique_ptr<StrictMock<MessageQueueMock>> m_messageQueue{std::make_unique<StrictMock<MessageQueueMock>>()};
     StrictMock<MessageQueueMock> &m_messageQueueMock{*m_messageQueue};
+    std::shared_ptr<StrictMock<PlaybackDelegateMock>> m_delegateMock{std::make_shared<StrictMock<PlaybackDelegateMock>>()};
     std::shared_ptr<GStreamerMSEMediaPlayerClient> m_sut;
 
 protected:
@@ -261,6 +271,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
     m_sut->destroyClientBackend();
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -295,6 +306,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePaused
     const auto kReceivedMessages{getMessages(pipeline)};
     EXPECT_TRUE(kReceivedMessages.empty());
 
+    gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
 }
 
@@ -311,6 +323,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePlayin
     const auto kReceivedMessages{getMessages(pipeline)};
     EXPECT_TRUE(kReceivedMessages.empty());
 
+    gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
 }
 
@@ -325,6 +338,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotNotifyPlaybackStateEndOfStre
 
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
 
+    gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
 }
 // EoS OK case tested in sink tests.
@@ -348,6 +362,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getPosition(_)).WillOnce(Return(false));
     EXPECT_EQ(m_sut->getPosition(kSourceId), 0);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -383,6 +398,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenBu
         .WillOnce(Return(true));
     m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -406,13 +422,17 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSample
         .WillOnce(Return(true));
     m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
-    audioSink->priv->m_isEos = true;
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), gst_event_new_eos()));
+    EXPECT_TRUE(audioSink->priv->m_delegate->isEos());
+
     auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
@@ -429,15 +449,20 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEos)
         .WillOnce(Return(true));
     m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEmptySample)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    audioSink->priv->m_samples.push(gst_sample_new(nullptr, nullptr, nullptr, nullptr));
+    RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
+
+    EXPECT_CALL(*m_delegateMock, setSourceId(_));
     auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{}; }));
+    EXPECT_CALL(*m_delegateMock, isEos()).WillOnce(Return(false));
 
     expectCallInEventLoop();
     expectPostMessage();
@@ -458,12 +483,16 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEmptySam
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
-    GstBuffer *buffer{gst_buffer_new()};
-    audioSink->priv->m_samples.push(gst_sample_new(buffer, caps, nullptr, nullptr));
+    RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
+
+    EXPECT_CALL(*m_delegateMock, setSourceId(_));
     auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    GstBuffer *buffer{gst_buffer_new()};
+    GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
+    GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
 
     expectCallInEventLoop();
     expectPostMessage();
@@ -481,19 +510,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
         .WillOnce(Return(true));
     m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 
+    gst_sample_unref(sample);
     gst_caps_unref(caps);
-    gst_buffer_unref(buffer);
     gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaData)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
-    GstBuffer *buffer{gst_buffer_new()};
-    audioSink->priv->m_samples.push(gst_sample_new(buffer, caps, nullptr, nullptr));
+    RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
+
+    EXPECT_CALL(*m_delegateMock, setSourceId(_));
     auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    GstBuffer *buffer{gst_buffer_new()};
+    GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
+    GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
+    EXPECT_CALL(*m_delegateMock, popSample());
 
     expectCallInEventLoop();
     expectPostMessage();
@@ -511,6 +545,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaData)
     m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 
     gst_caps_unref(caps);
+    gst_sample_unref(sample);
     gst_buffer_unref(buffer);
     gst_object_unref(audioSink);
 }
@@ -536,6 +571,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyQos)
 
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_QOS));
 
+    gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
 }
 
@@ -553,6 +589,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyBufferUnderflow)
     EXPECT_CALL(UnderflowSignalMock::instance(), callbackCalled());
     m_sut->notifyBufferUnderflow(kSourceId);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -578,6 +615,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackError)
     EXPECT_CALL(PlaybackErrorMock::instance(), callbackCalled());
     m_sut->notifyPlaybackError(kSourceId, firebolt::rialto::PlaybackError::DECRYPTION);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -597,6 +635,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     expectCallInEventLoop();
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -648,6 +687,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlayWhenAllAttachedPlaying)
     allSourcesWantToPlay();
     serverTransitionedToPlaying();
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -664,6 +705,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenServerAlreadyPla
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -681,6 +724,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenAlreadyPaused)
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::PAUSED);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -704,6 +749,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenNotAllSourcesA
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -721,6 +767,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotOverwriteStreamCollectionSet
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -743,6 +790,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAtt
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -756,6 +806,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaiting
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -769,6 +821,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlayin
     m_sut->play(m_audioSourceId);
     EXPECT_EQ(m_sut->getClientState(), ClientState::PAUSED);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -797,6 +851,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenClientNotInPaused)
     m_sut->play(kVideoSourceId);
     EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
     gst_object_unref(videoSink);
 }
@@ -812,6 +868,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenWaitingForPlaying)
     m_sut->pause(m_audioSourceId);
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -828,6 +886,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenPlaying)
     m_sut->pause(m_audioSourceId);
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -838,6 +898,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenAllAttachedPaused)
     allSourcesWantToPause();
     serverTransitionedToPaused();
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -850,6 +912,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAllAttachedPause
     m_sut->pause(m_audioSourceId);
     EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
 
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
     gst_object_unref(m_audioSink);
     gst_object_unref(m_videoSink);
 }
@@ -879,6 +943,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
     EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     m_sut->flush(kSourceId, kResetTime);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -897,6 +962,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
     EXPECT_CALL(bufferPullerMsgQueueMock, start()).RetiresOnSaturation();
     m_sut->notifySourceFlushed(kSourceId);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -910,6 +976,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(false));
     m_sut->flush(kSourceId, kResetTime);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -931,6 +998,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifySourceFlushedWhenSo
 
     expectPostMessage();
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -946,6 +1014,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
         .WillOnce(Return(true));
     m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -961,6 +1030,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
         .WillOnce(Return(false));
     m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -973,6 +1043,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     expectPostMessage();
     m_sut->setSourcePosition(kSourceId + 1, kPosition, kResetTime, kAppliedRate, kStopPosition);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 //
@@ -1070,6 +1141,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(false));
     EXPECT_FALSE(m_sut->renderFrame(audioSink));
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1093,6 +1166,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(true));
     EXPECT_TRUE(m_sut->renderFrame(videoSink));
 
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(videoSink);
 }
 
@@ -1122,6 +1196,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute, kAudioSourceId)).WillOnce(Return(true));
     m_sut->setMute(kMute, kAudioSourceId);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1136,6 +1211,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
         .WillOnce(DoAll(SetArgReferee<0>(kMute), Return(true)));
     EXPECT_EQ(m_sut->getMute(kAudioSourceId), kMute);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1149,6 +1225,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetImmediateOutput)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setImmediateOutput(kAudioSourceId, kImmediateOutput)).WillOnce(Return(true));
     EXPECT_TRUE(m_sut->setImmediateOutput(kAudioSourceId, kImmediateOutput));
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1182,6 +1259,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetImmediateOutput)
     EXPECT_TRUE(m_sut->getImmediateOutput(kAudioSourceId, immediateOutput));
     EXPECT_EQ(immediateOutput, kImmediateOutput);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1304,6 +1382,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetStreamSyncMode)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setStreamSyncMode(kAudioSourceId, kStreamSyncMode)).WillOnce(Return(true));
     EXPECT_TRUE(m_sut->setStreamSyncMode(kAudioSourceId, kStreamSyncMode));
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1386,6 +1465,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToAttachSourceWhenMediaType
     EXPECT_CALL(mediaSourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::UNKNOWN));
     RialtoMSEBaseSink *sink = createAudioSink();
     EXPECT_FALSE(m_sut->attachSource(mediaSource, sink));
+
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -1399,6 +1480,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToAttachSourceWhenOperation
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(mediaSource.get()))).WillOnce(Return(false));
     RialtoMSEBaseSink *sink = createAudioSink();
     EXPECT_FALSE(m_sut->attachSource(mediaSource, sink));
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -1407,6 +1489,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAudioSource)
     RialtoMSEBaseSink *sink = createAudioSink();
     bufferPullerWillBeCreated();
     attachSource(sink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -1415,6 +1499,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachVideoSource)
     RialtoMSEBaseSink *sink = createVideoSink();
     bufferPullerWillBeCreated();
     attachSource(sink, firebolt::rialto::MediaSourceType::VIDEO);
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -1423,6 +1508,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachSubtitleSource)
     RialtoMSEBaseSink *sink = createSubtitleSink();
     bufferPullerWillBeCreated();
     attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE);
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -1440,6 +1526,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
     bufferPullerWillBeCreated();
     attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
     gst_object_unref(videoSink);
 }
@@ -1453,6 +1542,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttached)
     expectPostMessage();
     m_sut->sendAllSourcesAttachedIfPossible();
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 
@@ -1473,6 +1563,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
     m_sut->sendAllSourcesAttachedIfPossible();
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
 

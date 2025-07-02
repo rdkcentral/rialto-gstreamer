@@ -34,12 +34,10 @@ G_BEGIN_DECLS
 
 typedef struct _RialtoMSEVideoSink RialtoMSEVideoSink;
 typedef struct _RialtoMSEVideoSinkClass RialtoMSEVideoSinkClass;
-typedef struct _RialtoMSEVideoSinkPrivate RialtoMSEVideoSinkPrivate;
 
 struct _RialtoMSEVideoSink
 {
     RialtoMSEBaseSink parent;
-    RialtoMSEVideoSinkPrivate *priv;
 };
 
 struct _RialtoMSEVideoSinkClass

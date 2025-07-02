@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Sky UK
+ * Copyright (C) 2025 Sky UK
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,32 +18,8 @@
 
 #pragma once
 
-#include <gst/gst.h>
-
-#include <string>
-
-#include "ControlBackendInterface.h"
-#include "IPlaybackDelegate.h"
-#include "MediaPlayerManager.h"
-#include "RialtoGStreamerMSEBaseSinkCallbacks.h"
-#include <atomic>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <optional>
-#include <queue>
-
-G_BEGIN_DECLS
-
-struct _RialtoMSEBaseSinkPrivate
+class IAudioPlaybackDelegate
 {
-    _RialtoMSEBaseSinkPrivate() = default;
-    ~_RialtoMSEBaseSinkPrivate() = default;
-
-    std::mutex m_sinkMutex;
-    std::shared_ptr<IPlaybackDelegate> m_delegate{nullptr};
-    GstPad *m_sinkPad{nullptr};
-    RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
-    std::map<IPlaybackDelegate::Property, GValue> m_queuedProperties{};
+public:
+    virtual ~IAudioPlaybackDelegate() = default;
 };
-G_END_DECLS

@@ -504,7 +504,7 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, source->getType()));
 
-                    rialtoSink->priv->m_sourceId = source->getId();
+                    rialtoSink->priv->m_delegate->setSourceId(source->getId());
                     bufferPuller->start();
                 }
             }
