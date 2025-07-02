@@ -77,10 +77,5 @@ void rialto_mse_base_sink_handle_get_property(RialtoMSEBaseSink *sink, const IPl
                                               GValue *value);
 void rialto_mse_base_sink_handle_set_property(RialtoMSEBaseSink *sink, const IPlaybackDelegate::Property &property,
                                               const GValue *value);
-
-// do wywalenia
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
-bool rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(GstElement *element,
-                                                                        const uint32_t maxVideoWidth = 0,
-                                                                        const uint32_t maxVideoHeight = 0);
 G_END_DECLS

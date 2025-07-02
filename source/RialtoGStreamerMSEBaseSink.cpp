@@ -183,16 +183,6 @@ void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
     }
 }
 
-bool rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(GstElement *element, const uint32_t maxVideoWidth,
-                                                                        const uint32_t maxVideoHeight)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(element)))
-    {
-        return delegate->attachToMediaClientAndSetStreamsNumber(maxVideoWidth, maxVideoHeight);
-    }
-    return false;
-}
-
 static void rialto_mse_base_sink_qos_handle(GstElement *element, uint64_t processed, uint64_t dropped)
 {
     if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(element)))
