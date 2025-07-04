@@ -92,10 +92,6 @@ protected:
     std::shared_ptr<testing::StrictMock<firebolt::rialto::ControlMock>> m_controlMock{
         std::make_shared<testing::StrictMock<firebolt::rialto::ControlMock>>()};
 
-    std::shared_ptr<testing::StrictMock<firebolt::rialto::ClientLogControlFactoryMock>> m_clientLogControlFactoryMock{
-        std::dynamic_pointer_cast<testing::StrictMock<firebolt::rialto::ClientLogControlFactoryMock>>(
-            firebolt::rialto::IClientLogControlFactory::createFactory())};
-
     std::shared_ptr<testing::StrictMock<firebolt::rialto::MediaPipelineFactoryMock>> m_mediaPipelineFactoryMock{
         std::dynamic_pointer_cast<testing::StrictMock<firebolt::rialto::MediaPipelineFactoryMock>>(
             firebolt::rialto::IMediaPipelineFactory::createFactory())};
