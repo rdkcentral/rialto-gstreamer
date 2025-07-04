@@ -27,7 +27,6 @@
 #include "GStreamerUtils.h"
 #include "IClientLogControl.h"
 #include "IMediaPipeline.h"
-#include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
