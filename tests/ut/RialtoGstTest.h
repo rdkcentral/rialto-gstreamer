@@ -20,7 +20,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ClientLogControlMock.h"
 #include "ControlMock.h"
 #include "MediaPipelineMock.h"
 #include "RialtoGStreamerMSEBaseSink.h"
@@ -96,7 +95,6 @@ protected:
     std::shared_ptr<testing::StrictMock<firebolt::rialto::ClientLogControlFactoryMock>> m_clientLogControlFactoryMock{
         std::dynamic_pointer_cast<testing::StrictMock<firebolt::rialto::ClientLogControlFactoryMock>>(
             firebolt::rialto::IClientLogControlFactory::createFactory())};
-    testing::StrictMock<firebolt::rialto::ClientLogControlMock> m_clientLogControlMock;
 
     std::shared_ptr<testing::StrictMock<firebolt::rialto::MediaPipelineFactoryMock>> m_mediaPipelineFactoryMock{
         std::dynamic_pointer_cast<testing::StrictMock<firebolt::rialto::MediaPipelineFactoryMock>>(

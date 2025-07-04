@@ -104,7 +104,6 @@ add_library(
     STATIC
 
     source/ControlFactory.cpp
-    source/ClientLogControlFactory.cpp
     source/MediaPipelineCapabilitiesFactory.cpp
     source/MediaPipelineFactory.cpp
     source/RialtoGStreamerEMEProtectionMetadata.cpp
