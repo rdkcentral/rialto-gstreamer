@@ -39,6 +39,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/MediaPlayerManager.cpp
         ${CMAKE_SOURCE_DIR}/source/Timer.cpp
         ${CMAKE_SOURCE_DIR}/source/BufferParser.cpp
+        ${CMAKE_SOURCE_DIR}/source/LogToGstHandler.cpp
         ${CMAKE_SOURCE_DIR}/source/GstreamerCatLog.cpp
 )
 
@@ -90,6 +91,7 @@ add_gtests (
         RialtoGstTest.cpp
         TimerTests.cpp
         WebAudioClientBackendTests.cpp
+        LogToGstHandlerTests.cpp
         GStreamerMSEUtilsTests.cpp
         GstreamerMseSubtitleSinkTests.cpp
         )

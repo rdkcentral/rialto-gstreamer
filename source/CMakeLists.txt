@@ -42,6 +42,7 @@ add_library(gstrialtosinks
         MediaPlayerManager.cpp
         Timer.cpp
         BufferParser.cpp
+        LogToGstHandler.cpp
         )
 
 target_include_directories(gstrialtosinks
@@ -74,6 +75,14 @@ target_compile_options(gstrialtosinks
 set_target_properties(gstrialtosinks
         PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
         )
+
+find_package(EthanLog)
+if (EthanLog_FOUND)
+    target_compile_definitions(gstrialtosinks PRIVATE USE_ETHANLOG)
+    target_link_libraries(gstrialtosinks PRIVATE EthanLog::EthanLog)
+else ()
+    message(STATUS "EthanLog is disabled")
+endif ()
 
 install(
        TARGETS gstrialtosinks

@@ -27,6 +27,7 @@
 #include "GStreamerUtils.h"
 #include "IClientLogControl.h"
 #include "IMediaPipeline.h"
+#include "LogToGstHandler.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
@@ -646,6 +647,17 @@ static void rialto_mse_base_sink_copy_segment(RialtoMSEBaseSink *sink, GstEvent 
 
 static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 {
+#ifndef USE_ETHANLOG
+    std::shared_ptr<firebolt::rialto::IClientLogHandler> logToGstHandler =
+        std::make_shared<firebolt::rialto::LogToGstHandler>();
+
+    if (!firebolt::rialto::IClientLogControlFactory::createFactory()->createClientLogControl().registerLogHandler(logToGstHandler,
+                                                                                                                  true))
+    {
+        GST_ERROR("Unable to preRegister log handler");
+    }
+#endif
+
     GObjectClass *gobjectClass = G_OBJECT_CLASS(klass);
     GstElementClass *elementClass = GST_ELEMENT_CLASS(klass);
 
