@@ -26,7 +26,7 @@
 class PullModeSubtitlePlaybackDelegate : public PullModePlaybackDelegate
 {
 public:
-    PullModeSubtitlePlaybackDelegate(GstElement *sink);
+    explicit PullModeSubtitlePlaybackDelegate(GstElement *sink);
     ~PullModeSubtitlePlaybackDelegate() override = default;
 
     GstStateChangeReturn changeState(GstStateChange transition) override;

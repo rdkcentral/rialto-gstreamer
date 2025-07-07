@@ -61,9 +61,9 @@ bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio
         {
             guint flags = 0;
             g_object_get(parentObject, "flags", &flags, nullptr);
-            n_video = flags & getGstPlayFlag("video") ? n_video : 0;
-            n_audio = flags & getGstPlayFlag("audio") ? n_audio : 0;
-            n_text = flags & getGstPlayFlag("text") ? n_text : 0;
+            n_video = (flags & getGstPlayFlag("video")) ? n_video : 0;
+            n_audio = (flags & getGstPlayFlag("audio")) ? n_audio : 0;
+            n_text = (flags & getGstPlayFlag("text")) ? n_text : 0;
         }
 
         return true;

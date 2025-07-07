@@ -70,7 +70,6 @@ public:
     IPlaybackDelegate &operator=(const IPlaybackDelegate &) = delete;
     IPlaybackDelegate &operator=(IPlaybackDelegate &&) = delete;
 
-    virtual void clearBuffersUnlocked() = 0;
     virtual void setSourceId(int32_t sourceId) = 0;
 
     virtual void handleEos() = 0;

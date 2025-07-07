@@ -22,7 +22,6 @@
 class PlaybackDelegateMock : public IPlaybackDelegate
 {
 public:
-    MOCK_METHOD(void, clearBuffersUnlocked, (), (override));
     MOCK_METHOD(void, setSourceId, (int32_t sourceId), (override));
     MOCK_METHOD(void, handleEos, (), (override));
     MOCK_METHOD(void, handleFlushCompleted, (), (override));

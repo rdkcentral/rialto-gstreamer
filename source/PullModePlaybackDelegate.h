@@ -35,11 +35,10 @@
 class PullModePlaybackDelegate : public IPlaybackDelegate
 {
 protected:
-    PullModePlaybackDelegate(GstElement *sink);
+    explicit PullModePlaybackDelegate(GstElement *sink);
     ~PullModePlaybackDelegate() override;
 
 public:
-    void clearBuffersUnlocked() override;
     void setSourceId(int32_t sourceId) override;
 
     void handleEos() override;
@@ -57,12 +56,13 @@ public:
     GstFlowReturn handleBuffer(GstBuffer *buffer) override;
     GstRefSample getFrontSample() const override;
     void popSample() override;
-    bool isEos() const;
+    bool isEos() const override;
     void lostState() override;
     bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0,
                                                 const uint32_t maxVideoHeight = 0) override;
 
 private:
+    void clearBuffersUnlocked();
     void postAsyncDone();
     void copySegment(GstEvent *event);
     void setSegment();

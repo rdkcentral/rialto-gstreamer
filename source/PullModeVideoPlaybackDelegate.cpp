@@ -137,7 +137,6 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstEvent *event)
 
 void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *value)
 {
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client{m_mediaPlayerManager.getMediaPlayerClient()};
     switch (type)
     {
     case Property::WindowSet:
@@ -347,9 +346,9 @@ PullModeVideoPlaybackDelegate::createMediaSource(GstCaps *caps) const
     gst_structure_get_int(structure, "width", &width);
     gst_structure_get_int(structure, "height", &height);
 
-    std::string mimeType;
     if (strct_name)
     {
+        std::string mimeType{};
         if (g_str_has_prefix(strct_name, "video/x-h264"))
         {
             mimeType = "video/h264";

@@ -30,7 +30,7 @@ struct AudioFadeConfig
 class PullModeAudioPlaybackDelegate : public PullModePlaybackDelegate
 {
 public:
-    PullModeAudioPlaybackDelegate(GstElement *sink);
+    explicit PullModeAudioPlaybackDelegate(GstElement *sink);
     ~PullModeAudioPlaybackDelegate() override = default;
 
     GstStateChangeReturn changeState(GstStateChange transition) override;

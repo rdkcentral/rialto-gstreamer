@@ -170,7 +170,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSkipSendingEosWhenFlushing)
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
     // Simulate flush
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::END_OF_STREAM);
     EXPECT_FALSE(waitForMessage(pipeline, GST_MESSAGE_EOS));
@@ -536,7 +537,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldDiscardBufferInChainFunctionWhenFlushing
     GstBuffer *buffer = gst_buffer_new();
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     EXPECT_EQ(GST_FLOW_FLUSHING,
               rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
@@ -607,7 +609,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
@@ -649,7 +652,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithResetTime)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
@@ -691,7 +695,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
@@ -735,7 +740,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithQueuedOffset)
     GstElement *pipeline = createPipelineWithSink(sink);
 
     // Set flushing
-    sink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_flush_start()));
 
     setPausedState(pipeline, sink);
     const int32_t kSourceId{
@@ -948,7 +953,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopBelowPausedState)
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_stop(kResetTime)));
@@ -968,7 +974,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopWithoutAttachedSource)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
@@ -991,7 +998,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
     GstElement *pipeline = createPipelineWithSink(audioSink);
 
     // Set flushing
-    audioSink->priv->m_delegate->clearBuffersUnlocked();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
     setPausedState(pipeline, audioSink);
     const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};

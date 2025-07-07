@@ -91,4 +91,24 @@
         <id>unusedStructMember</id>
         <symbolName>MediaPlayerManagerTests::m_mediaPipelineMockPtr</symbolName>
     </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <fileName>source/PullModePlaybackDelegate.cpp</fileName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>rialto_mse_subtitle_sink_init</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>rialto_mse_subtitle_sink_class_init</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>rialto_mse_video_sink_init</symbolName>
+    </suppress>
+    <suppress>
+        <id>unusedFunction</id>
+        <symbolName>rialto_mse_video_sink_class_init</symbolName>
+    </suppress>
 </suppressions>

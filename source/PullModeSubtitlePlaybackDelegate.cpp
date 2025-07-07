@@ -264,10 +264,9 @@ PullModeSubtitlePlaybackDelegate::createMediaSource(GstCaps *caps) const
 {
     GstStructure *structure = gst_caps_get_structure(caps, 0);
     const gchar *mimeName = gst_structure_get_name(structure);
-
-    std::string mimeType;
     if (mimeName)
     {
+        std::string mimeType{};
         if (g_str_has_prefix(mimeName, "text/vtt") || g_str_has_prefix(mimeName, "application/x-subtitle-vtt"))
         {
             mimeType = "text/vtt";

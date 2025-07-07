@@ -48,23 +48,16 @@ public:
     ControlBackend() : m_rialtoClientState{ApplicationState::UNKNOWN}
     {
         m_controlClient = std::make_shared<ControlClient>(*this);
-        if (m_controlClient)
+        m_control = IControlFactory::createFactory()->createControl();
+        if (!m_control)
         {
-            m_control = IControlFactory::createFactory()->createControl();
-            if (!m_control)
-            {
-                GST_ERROR("Unable to create control");
-                return;
-            }
-            if (!m_control->registerClient(m_controlClient, m_rialtoClientState))
-            {
-                GST_ERROR("Unable to register client");
-                return;
-            }
+            GST_ERROR("Unable to create control");
+            return;
         }
-        else
+        if (!m_control->registerClient(m_controlClient, m_rialtoClientState))
         {
-            GST_ERROR("Unable to create controlClient");
+            GST_ERROR("Unable to register client");
+            return;
         }
     }
 

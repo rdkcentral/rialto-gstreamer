@@ -23,14 +23,14 @@
 class PullModeVideoPlaybackDelegate : public PullModePlaybackDelegate
 {
 public:
-    PullModeVideoPlaybackDelegate(GstElement *sink);
+    explicit PullModeVideoPlaybackDelegate(GstElement *sink);
     ~PullModeVideoPlaybackDelegate() override = default;
 
     GstStateChangeReturn changeState(GstStateChange transition) override;
     gboolean handleEvent(GstEvent *event) override;
     void getProperty(const Property &type, GValue *value) override;
     void setProperty(const Property &type, const GValue *value) override;
-    void handleQos(uint64_t processed, uint64_t dropped) const;
+    void handleQos(uint64_t processed, uint64_t dropped) const override;
 
 private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;

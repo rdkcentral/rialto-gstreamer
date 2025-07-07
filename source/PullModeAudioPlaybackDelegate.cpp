@@ -554,10 +554,10 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
     firebolt::rialto::SegmentAlignment alignment{get_segment_alignment(structure)};
     std::shared_ptr<firebolt::rialto::CodecData> codecData{get_codec_data(structure)};
     firebolt::rialto::StreamFormat format{get_stream_format(structure)};
-    std::string mimeType{};
 
     if (structName)
     {
+        std::string mimeType{};
         if (g_str_has_prefix(structName, "audio/mpeg") || g_str_has_prefix(structName, "audio/x-eac3") ||
             g_str_has_prefix(structName, "audio/x-ac3"))
         {
@@ -623,7 +623,7 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
             gst_structure_get_int(structure, "channels", &numberOfChannels);
             std::optional<firebolt::rialto::Layout> layout =
                 rialto_mse_sink_convert_layout(gst_structure_get_string(structure, "layout"));
-            std::optional<firebolt::rialto::Format> format =
+            std::optional<firebolt::rialto::Format> rialtoFormat =
                 rialto_mse_sink_convert_format(gst_structure_get_string(structure, "format"));
             const GValue *channelMaskValue = gst_structure_get_value(structure, "channel-mask");
             if (channelMaskValue)
@@ -643,7 +643,7 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
             audioConfig = firebolt::rialto::AudioConfig{static_cast<uint32_t>(numberOfChannels),
                                                         static_cast<uint32_t>(sampleRate),
                                                         {},
-                                                        format,
+                                                        rialtoFormat,
                                                         layout,
                                                         channelMask};
         }
