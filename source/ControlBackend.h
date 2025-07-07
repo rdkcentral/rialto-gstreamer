@@ -45,10 +45,10 @@ class ControlBackend final : public ControlBackendInterface
     };
 
 public:
-    ControlBackend() : m_rialtoClientState{ApplicationState::UNKNOWN}
+    ControlBackend()
+        : m_rialtoClientState{ApplicationState::UNKNOWN}, m_controlClient{std::make_shared<ControlClient>(*this)},
+          m_control{IControlFactory::createFactory()->createControl()}
     {
-        m_controlClient = std::make_shared<ControlClient>(*this);
-        m_control = IControlFactory::createFactory()->createControl();
         if (!m_control)
         {
             GST_ERROR("Unable to create control");

@@ -512,6 +512,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
 
     gst_sample_unref(sample);
     gst_caps_unref(caps);
+    gst_buffer_unref(buffer);
     gst_object_unref(audioSink);
 }
 
