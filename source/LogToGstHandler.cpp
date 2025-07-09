@@ -24,9 +24,31 @@
 
 #include <string>
 
+#include "LogToGstHandler.h"
+
+#ifdef USE_ETHANLOG
+
+#include <ethanlog.h>
+
+#define SYSTEM_LOG_FATAL(filename, function, line, ...) ethanlog(ETHAN_LOG_FATAL, filename, function, line, __VA_ARGS__)
+#define SYSTEM_LOG_ERROR(filename, function, line, ...) ethanlog(ETHAN_LOG_ERROR, filename, function, line, __VA_ARGS__)
+#define SYSTEM_LOG_WARN(filename, function, line, ...)                                                                 \
+    ethanlog(ETHAN_LOG_WARNING, filename, function, line, __VA_ARGS__)
+#define SYSTEM_LOG_MIL(filename, function, line, ...)                                                                  \
+    ethanlog(ETHAN_LOG_MILESTONE, filename, function, line, __VA_ARGS__)
+#define SYSTEM_LOG_INFO(filename, function, line, ...) ethanlog(ETHAN_LOG_INFO, filename, function, line, __VA_ARGS__)
+#define SYSTEM_LOG_DEBUG(filename, function, line, ...) ethanlog(ETHAN_LOG_DEBUG, filename, function, line, __VA_ARGS__)
+
+#else
+
 #include <gst/gst.h>
 
-#include "LogToGstHandler.h"
+#define SYSTEM_LOG_FATAL(filename, function, line, ...) GST_CAT_ERROR(kGstRialtoCategory, __VA_ARGS__)
+#define SYSTEM_LOG_ERROR(filename, function, line, ...) GST_CAT_ERROR(kGstRialtoCategory, __VA_ARGS__)
+#define SYSTEM_LOG_WARN(filename, function, line, ...) GST_CAT_WARNING(kGstRialtoCategory, __VA_ARGS__)
+#define SYSTEM_LOG_MIL(filename, function, line, ...) GST_CAT_INFO(kGstRialtoCategory, __VA_ARGS__)
+#define SYSTEM_LOG_INFO(filename, function, line, ...) GST_CAT_INFO(kGstRialtoCategory, __VA_ARGS__)
+#define SYSTEM_LOG_DEBUG(filename, function, line, ...) GST_CAT_DEBUG(kGstRialtoCategory, __VA_ARGS__)
 
 namespace
 {
@@ -34,11 +56,15 @@ GST_DEBUG_CATEGORY_STATIC(kGstRialtoCategory);
 const char *kCategory = "rialto";
 }; // namespace
 
+#endif
+
 using namespace firebolt::rialto;
 
 LogToGstHandler::LogToGstHandler()
 {
+#ifndef USE_ETHANLOG
     GST_DEBUG_CATEGORY_INIT(kGstRialtoCategory, kCategory, 0, "Messages from rialto client library");
+#endif
 }
 
 LogToGstHandler::~LogToGstHandler() {}
@@ -55,26 +81,32 @@ void LogToGstHandler::log(Level level, const std::string &file, int line, const 
     switch (level)
     {
     case Level::Fatal:
+        SYSTEM_LOG_FATAL(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
+        break;
+
     case Level::Error:
-        GST_CAT_ERROR(kGstRialtoCategory, "%s", toReport.c_str());
+        SYSTEM_LOG_ERROR(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
         break;
 
     case Level::Warning:
-        GST_CAT_WARNING(kGstRialtoCategory, "%s", toReport.c_str());
+        SYSTEM_LOG_WARN(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
         break;
 
     case Level::Milestone:
+        SYSTEM_LOG_MIL(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
+        break;
+
     case Level::Info:
-        GST_CAT_INFO(kGstRialtoCategory, "%s", toReport.c_str());
+        SYSTEM_LOG_INFO(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
         break;
 
     case Level::Debug:
-        GST_CAT_DEBUG(kGstRialtoCategory, "%s", toReport.c_str());
+        SYSTEM_LOG_DEBUG(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
         break;
 
     case Level::External:
     default:
-        GST_CAT_LOG(kGstRialtoCategory, "%s", toReport.c_str());
+        SYSTEM_LOG_INFO(file.c_str(), function.c_str(), line, "%s", toReport.c_str());
         break;
     }
 }
