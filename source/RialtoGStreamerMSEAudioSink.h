@@ -34,12 +34,10 @@ G_BEGIN_DECLS
 
 typedef struct _RialtoMSEAudioSink RialtoMSEAudioSink;
 typedef struct _RialtoMSEAudioSinkClass RialtoMSEAudioSinkClass;
-typedef struct _RialtoMSEAudioSinkPrivate RialtoMSEAudioSinkPrivate;
 
 struct _RialtoMSEAudioSink
 {
     RialtoMSEBaseSink parent;
-    RialtoMSEAudioSinkPrivate *priv;
 };
 
 struct _RialtoMSEAudioSinkClass

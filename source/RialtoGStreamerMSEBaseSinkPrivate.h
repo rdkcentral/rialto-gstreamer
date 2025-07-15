@@ -23,9 +23,11 @@
 #include <string>
 
 #include "ControlBackendInterface.h"
+#include "IPlaybackDelegate.h"
 #include "MediaPlayerManager.h"
 #include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -35,57 +37,13 @@ G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
 {
-    _RialtoMSEBaseSinkPrivate() : m_sourceId(-1), m_isFlushOngoing(false), m_isStateCommitNeeded(false), m_hasDrm(true)
-    {
-    }
-    ~_RialtoMSEBaseSinkPrivate()
-    {
-        if (m_caps)
-            gst_caps_unref(m_caps);
-        clearBuffersUnlocked();
-    }
+    _RialtoMSEBaseSinkPrivate() = default;
+    ~_RialtoMSEBaseSinkPrivate() = default;
 
-    void clearBuffersUnlocked()
-    {
-        m_isFlushOngoing = true;
-        m_needDataCondVariable.notify_all();
-        while (!m_samples.empty())
-        {
-            GstSample *sample = m_samples.front();
-            m_samples.pop();
-            gst_sample_unref(sample);
-        }
-    }
-
-    GstPad *m_sinkPad = nullptr;
-    GstSegment m_lastSegment;
-    GstCaps *m_caps = nullptr;
-
-    std::atomic<int32_t> m_sourceId;
-    std::queue<GstSample *> m_samples;
-    bool m_isEos = false;
-    std::atomic<bool> m_isFlushOngoing;
-    std::atomic<bool> m_isStateCommitNeeded;
-    bool m_initialPositionSet{false};
-    std::optional<int64_t> m_queuedOffset;
     std::mutex m_sinkMutex;
-
-    std::condition_variable m_needDataCondVariable;
-    std::condition_variable m_flushCondVariable;
-    std::mutex m_flushMutex;
-
+    std::shared_ptr<IPlaybackDelegate> m_delegate{nullptr};
+    GstPad *m_sinkPad{nullptr};
     RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
-
-    MediaPlayerManager m_mediaPlayerManager;
-    std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
-    std::atomic<bool> m_sourceAttached{false};
-    bool m_isSinglePathStream = false;
-    int32_t m_numOfStreams = 1;
-    std::atomic<bool> m_hasDrm;
-    std::atomic<bool> m_isAsync;
-    firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
-    firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
-    guint32 lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
-    std::atomic<guint32> currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
+    std::map<IPlaybackDelegate::Property, GValue> m_queuedProperties{};
 };
 G_END_DECLS

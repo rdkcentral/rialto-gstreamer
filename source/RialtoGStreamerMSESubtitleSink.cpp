@@ -23,6 +23,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
 #include "IMediaPipelineCapabilities.h"
+#include "PullModeSubtitlePlaybackDelegate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSESubtitleSink.h"
 
@@ -33,9 +34,8 @@ GST_DEBUG_CATEGORY_STATIC(RialtoMSESubtitleSinkDebug);
 
 #define rialto_mse_subtitle_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoMSESubtitleSink, rialto_mse_subtitle_sink, RIALTO_TYPE_MSE_BASE_SINK,
-                        G_ADD_PRIVATE(RialtoMSESubtitleSink)
-                            GST_DEBUG_CATEGORY_INIT(RialtoMSESubtitleSinkDebug, "rialtomsesubtitlesink", 0,
-                                                    "rialto mse subtitle sink"));
+                        GST_DEBUG_CATEGORY_INIT(RialtoMSESubtitleSinkDebug, "rialtomsesubtitlesink", 0,
+                                                "rialto mse subtitle sink"));
 
 enum
 {
@@ -51,20 +51,11 @@ static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *el
 {
     RialtoMSESubtitleSink *sink = RIALTO_MSE_SUBTITLE_SINK(element);
 
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client;
-    switch (transition)
+    if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
-    case GST_STATE_CHANGE_READY_TO_PAUSED:
-    {
-        if (!rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(element))
-        {
-            return GST_STATE_CHANGE_FAILURE;
-        }
-
-        break;
-    }
-    default:
-        break;
+        GST_INFO_OBJECT(sink, "RialtoMSESubtitleSink state change to READY. Initializing delegate");
+        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink),
+                                                 std::make_shared<PullModeSubtitlePlaybackDelegate>(element));
     }
 
     GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
@@ -77,198 +68,34 @@ static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *el
     return result;
 }
 
-static std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource>
-rialto_mse_subtitle_sink_create_media_source(RialtoMSEBaseSink *sink, GstCaps *caps)
-{
-    RialtoMSESubtitleSink *subSink = RIALTO_MSE_SUBTITLE_SINK(sink);
-    GstStructure *structure = gst_caps_get_structure(caps, 0);
-    const gchar *mimeName = gst_structure_get_name(structure);
-
-    std::string mimeType;
-    if (mimeName)
-    {
-        if (g_str_has_prefix(mimeName, "text/vtt") || g_str_has_prefix(mimeName, "application/x-subtitle-vtt"))
-        {
-            mimeType = "text/vtt";
-        }
-        else if (g_str_has_prefix(mimeName, "application/ttml+xml"))
-        {
-            mimeType = "text/ttml";
-        }
-        else
-        {
-            mimeType = mimeName;
-        }
-
-        GST_INFO_OBJECT(sink, "%s subtitle media source created", mimeType.c_str());
-        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceSubtitle>(mimeType,
-                                                                                       subSink->priv->m_textTrackIdentifier);
-    }
-    else
-    {
-        GST_ERROR_OBJECT(sink,
-                         "Empty caps' structure name! Failed to set mime type when constructing subtitle media source");
-    }
-
-    return nullptr;
-}
-
-static gboolean rialto_mse_subtitle_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
-{
-    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(parent);
-    RialtoMSESubtitleSink *subtitleSink = RIALTO_MSE_SUBTITLE_SINK(parent);
-    RialtoMSEBaseSinkPrivate *basePriv = sink->priv;
-    switch (GST_EVENT_TYPE(event))
-    {
-    case GST_EVENT_CAPS:
-    {
-        GstCaps *caps;
-        gst_event_parse_caps(event, &caps);
-        if (basePriv->m_sourceAttached)
-        {
-            GST_INFO_OBJECT(sink, "Source already attached. Skip calling attachSource");
-            break;
-        }
-
-        GST_INFO_OBJECT(sink, "Attaching SUBTITLE source with caps %" GST_PTR_FORMAT, caps);
-
-        std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> subtitleSource =
-            rialto_mse_subtitle_sink_create_media_source(sink, caps);
-        if (subtitleSource)
-        {
-            std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                sink->priv->m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(subtitleSource, sink)))
-            {
-                GST_ERROR_OBJECT(sink, "Failed to attach SUBTITLE source");
-            }
-            else
-            {
-                basePriv->m_sourceAttached = true;
-                if (subtitleSink->priv->m_isMuteQueued)
-                {
-                    client->setMute(subtitleSink->priv->m_isMuted, basePriv->m_sourceId);
-                    subtitleSink->priv->m_isMuteQueued = false;
-                }
-
-                {
-                    std::unique_lock lock{subtitleSink->priv->m_mutex};
-                    if (subtitleSink->priv->m_isTextTrackIdentifierQueued)
-                    {
-                        client->setTextTrackIdentifier(subtitleSink->priv->m_textTrackIdentifier);
-                        subtitleSink->priv->m_isTextTrackIdentifierQueued = false;
-                    }
-                }
-
-                // check if READY -> PAUSED was requested before source was attached
-                if (GST_STATE_NEXT(sink) == GST_STATE_PAUSED)
-                {
-                    client->pause(sink->priv->m_sourceId);
-                }
-            }
-        }
-        else
-        {
-            GST_ERROR_OBJECT(sink, "Failed to create SUBTITLE source");
-        }
-
-        break;
-    }
-    case GST_EVENT_CUSTOM_DOWNSTREAM:
-    case GST_EVENT_CUSTOM_DOWNSTREAM_OOB:
-    {
-        if (gst_event_has_name(event, "set-pts-offset"))
-        {
-            GST_DEBUG_OBJECT(sink, "Set pts offset event received");
-            const GstStructure *structure{gst_event_get_structure(event)};
-            guint64 ptsOffset{GST_CLOCK_TIME_NONE};
-            if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
-            {
-                std::unique_lock lock{basePriv->m_sinkMutex};
-                if (!basePriv->m_initialPositionSet)
-                {
-                    GST_DEBUG_OBJECT(sink, "First segment not received yet. Queuing offset setting");
-                    basePriv->m_queuedOffset = static_cast<int64_t>(ptsOffset);
-                }
-                else
-                {
-                    std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
-                        basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-                    if (client)
-                    {
-                        GST_DEBUG_OBJECT(sink, "Setting subtitle position to: %" GST_TIME_FORMAT,
-                                         GST_TIME_ARGS(ptsOffset));
-                        client->setSourcePosition(basePriv->m_sourceId, ptsOffset, false,
-                                                  basePriv->m_lastSegment.applied_rate, sink->priv->m_lastSegment.stop);
-                    }
-                }
-            }
-            else
-            {
-                GST_WARNING_OBJECT(sink, "Unable to set pts offset. Value not present");
-            }
-        }
-        break;
-    }
-    default:
-        break;
-    }
-
-    return rialto_mse_base_sink_event(pad, parent, event);
-}
-
 static void rialto_mse_subtitle_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
-    RialtoMSESubtitleSink *sink = RIALTO_MSE_SUBTITLE_SINK(object);
-    if (!sink)
-    {
-        GST_ERROR_OBJECT(object, "Sink not initalised");
-        return;
-    }
-    RialtoMSESubtitleSinkPrivate *priv = sink->priv;
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!priv || !basePriv)
-    {
-        GST_ERROR_OBJECT(object, "Private Sink not initalised");
-        return;
-    }
-
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-
     switch (propId)
     {
     case PROP_MUTE:
     {
-        if (!client)
-        {
-            g_value_set_boolean(value, priv->m_isMuted);
-            return;
-        }
-        g_value_set_boolean(value, client->getMute(basePriv->m_sourceId));
+        g_value_set_boolean(value, FALSE); // Set default value first
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Mute, value);
         break;
     }
     case PROP_TEXT_TRACK_IDENTIFIER:
     {
-        {
-            std::unique_lock lock{priv->m_mutex};
-            if (!client)
-            {
-                g_value_set_string(value, priv->m_textTrackIdentifier.c_str());
-                return;
-            }
-        }
-        g_value_set_string(value, client->getTextTrackIdentifier().c_str());
-
+        g_value_set_string(value, ""); // Set default value first
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::TextTrackIdentifier, value);
         break;
     }
     case PROP_WINDOW_ID:
     {
-        g_value_set_uint(value, priv->m_videoId);
+        g_value_set_uint(value, 0); // Set default value first
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::WindowId,
+                                                 value);
         break;
     }
     case PROP_ASYNC:
     {
-        g_value_set_boolean(value, basePriv->m_isAsync);
+        g_value_set_boolean(value, FALSE); // Set default value first
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
         break;
     }
     default:
@@ -279,66 +106,26 @@ static void rialto_mse_subtitle_sink_get_property(GObject *object, guint propId,
 
 static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
-    RialtoMSESubtitleSink *sink = RIALTO_MSE_SUBTITLE_SINK(object);
-    if (!sink)
-    {
-        GST_ERROR_OBJECT(object, "Sink not initalised");
-        return;
-    }
-    RialtoMSESubtitleSinkPrivate *priv = sink->priv;
-    RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-    if (!priv || !basePriv)
-    {
-        GST_ERROR_OBJECT(object, "Private sink not initalised");
-        return;
-    }
-
-    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = basePriv->m_mediaPlayerManager.getMediaPlayerClient();
-
     switch (propId)
     {
     case PROP_MUTE:
-        priv->m_isMuted = g_value_get_boolean(value);
-        if (!client || !basePriv->m_sourceAttached)
-        {
-            priv->m_isMuteQueued = true;
-            return;
-        }
-
-        client->setMute(priv->m_isMuted, basePriv->m_sourceId);
-
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Mute, value);
         break;
     case PROP_TEXT_TRACK_IDENTIFIER:
     {
-        const gchar *textTrackIdentifier = g_value_get_string(value);
-        if (!textTrackIdentifier)
-        {
-            GST_WARNING_OBJECT(object, "TextTrackIdentifier string not valid");
-            break;
-        }
-
-        std::unique_lock lock{priv->m_mutex};
-        priv->m_textTrackIdentifier = std::string(textTrackIdentifier);
-        if (!client || !basePriv->m_sourceAttached)
-        {
-            GST_DEBUG_OBJECT(object, "Rectangle setting enqueued");
-            priv->m_isTextTrackIdentifierQueued = true;
-        }
-        else
-        {
-            client->setTextTrackIdentifier(priv->m_textTrackIdentifier);
-        }
-
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::TextTrackIdentifier, value);
         break;
     }
     case PROP_WINDOW_ID:
     {
-        priv->m_videoId = g_value_get_uint(value);
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::WindowId,
+                                                 value);
         break;
     }
     case PROP_ASYNC:
     {
-        basePriv->m_isAsync = g_value_get_boolean(value);
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
         break;
     }
     default:
@@ -347,24 +134,9 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
     }
 }
 
-static void rialto_mse_subtitle_sink_qos_handle(GstElement *element, uint64_t processed, uint64_t dropped)
-{
-    GstBus *bus = gst_element_get_bus(element);
-    /* Hardcode isLive to FALSE and set invalid timestamps */
-    GstMessage *message = gst_message_new_qos(GST_OBJECT(element), FALSE, GST_CLOCK_TIME_NONE, GST_CLOCK_TIME_NONE,
-                                              GST_CLOCK_TIME_NONE, GST_CLOCK_TIME_NONE);
-
-    gst_message_set_qos_stats(message, GST_FORMAT_BUFFERS, processed, dropped);
-    gst_bus_post(bus, message);
-    gst_object_unref(bus);
-}
-
 static void rialto_mse_subtitle_sink_init(RialtoMSESubtitleSink *sink)
 {
     RialtoMSEBaseSinkPrivate *basePriv = sink->parent.priv;
-
-    sink->priv = static_cast<RialtoMSESubtitleSinkPrivate *>(rialto_mse_subtitle_sink_get_instance_private(sink));
-    new (sink->priv) RialtoMSESubtitleSinkPrivate();
 
     if (!rialto_mse_base_sink_initialise_sinkpad(RIALTO_MSE_BASE_SINK(sink)))
     {
@@ -372,13 +144,8 @@ static void rialto_mse_subtitle_sink_init(RialtoMSESubtitleSink *sink)
         return;
     }
 
-    basePriv->m_mediaSourceType = firebolt::rialto::MediaSourceType::SUBTITLE;
-    basePriv->m_isAsync = false;
     gst_pad_set_chain_function(basePriv->m_sinkPad, rialto_mse_base_sink_chain);
-    gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_subtitle_sink_event);
-
-    basePriv->m_callbacks.qosCallback = std::bind(rialto_mse_subtitle_sink_qos_handle, GST_ELEMENT_CAST(sink),
-                                                  std::placeholders::_1, std::placeholders::_2);
+    gst_pad_set_event_function(basePriv->m_sinkPad, rialto_mse_base_sink_event);
 }
 
 static void rialto_mse_subtitle_sink_class_init(RialtoMSESubtitleSinkClass *klass)

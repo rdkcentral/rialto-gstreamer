@@ -19,6 +19,7 @@
 #pragma once
 
 #include "GStreamerUtils.h"
+#include "IPlaybackDelegate.h"
 #include <IMediaPipeline.h>
 #include <MediaCommon.h>
 #include <gst/gst.h>
@@ -56,6 +57,8 @@ class MediaPlayerBackend;
 
 GType rialto_mse_base_sink_get_type(void);
 
+void rialto_mse_base_sink_initialise_delegate(RialtoMSEBaseSink *sink,
+                                              const std::shared_ptr<IPlaybackDelegate> &delegate);
 GstRefSample rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink);
 void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink);
 bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink);
@@ -67,20 +70,12 @@ void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sin
 void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped);
 void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error);
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);
-
-bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);
-bool rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event);
-GstObject *rialto_mse_base_get_oldest_gst_bin_parent(GstElement *element);
-firebolt::rialto::SegmentAlignment rialto_mse_base_sink_get_segment_alignment(RialtoMSEBaseSink *sink,
-                                                                              const GstStructure *s);
-std::shared_ptr<firebolt::rialto::CodecData> rialto_mse_base_sink_get_codec_data(RialtoMSEBaseSink *sink,
-                                                                                 const GstStructure *structure);
-firebolt::rialto::StreamFormat rialto_mse_base_sink_get_stream_format(RialtoMSEBaseSink *sink,
-                                                                      const GstStructure *structure);
-bool rialto_mse_base_sink_get_dv_profile(RialtoMSEBaseSink *sink, const GstStructure *s, uint32_t &dvProfile);
+gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event);
 void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink);
-bool rialto_mse_base_sink_attach_to_media_client_and_set_streams_number(GstElement *element,
-                                                                        const uint32_t maxVideoWidth = 0,
-                                                                        const uint32_t maxVideoHeight = 0);
+void rialto_mse_base_sink_handle_get_property(RialtoMSEBaseSink *sink, const IPlaybackDelegate::Property &property,
+                                              GValue *value);
+void rialto_mse_base_sink_handle_set_property(RialtoMSEBaseSink *sink, const IPlaybackDelegate::Property &property,
+                                              const GValue *value);
+bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 G_END_DECLS
