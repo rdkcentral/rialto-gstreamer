@@ -464,13 +464,13 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         GstFormat format{m_lastSegment.format};
         gint64 start{static_cast<gint64>(gst_segment_to_stream_time(&m_lastSegment, format, m_lastSegment.start))};
         gint64 stop{0};
-        if ((stop = m_lastSegment.stop) == -1)
+        if (m_lastSegment.stop == GST_CLOCK_TIME_NONE)
         {
             stop = m_lastSegment.duration;
         }
         else
         {
-            stop = gst_segment_to_stream_time(&m_lastSegment, format, stop);
+            stop = gst_segment_to_stream_time(&m_lastSegment, format, m_lastSegment.stop);
         }
         gst_query_set_segment(query, m_lastSegment.rate, format, start, stop);
         return TRUE;
