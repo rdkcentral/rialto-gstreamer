@@ -501,6 +501,12 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
 
             if (flags & GST_SEEK_FLAG_FLUSH)
             {
+                if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
+                {
+                    GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
+                    gst_event_unref(event);
+                    return FALSE;
+                }
                 // Update last segment
                 if (seekFormat == GST_FORMAT_TIME)
                 {
@@ -508,12 +514,6 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
                     std::lock_guard<std::mutex> lock(m_sinkMutex);
                     gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
                                         &update);
-                }
-                if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
-                {
-                    GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
-                    gst_event_unref(event);
-                    return FALSE;
                 }
             }
 #if GST_CHECK_VERSION(1, 18, 0)
