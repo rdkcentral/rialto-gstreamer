@@ -466,6 +466,31 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
     gst_object_unref(textContext.m_pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySegmentAfterSeek)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(textContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
+
+    GstQuery *query{gst_query_new_segment(GST_FORMAT_DEFAULT)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(textContext.m_sink), query));
+
+    gdouble rate{1.0};
+    GstFormat format{GST_FORMAT_DEFAULT};
+    gint64 startValue{0};
+    gint64 stopValue{0};
+    gst_query_parse_segment(query, &rate, &format, &startValue, &stopValue);
+    EXPECT_EQ(rate, kPlaybackRate);
+    EXPECT_EQ(startValue, kStart);
+    EXPECT_EQ(format, GST_FORMAT_TIME);
+
+    gst_query_unref(query);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 #if GST_CHECK_VERSION(1, 18, 0)
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithPlaybackRateChangeWhenPipelineIsBelowPaused)
 {
@@ -634,6 +659,63 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
                                            gst_event_new_segment(segment)));
 
     gst_segment_free(segment);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySegmentAfterSetSourcePosition)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{false};
+    constexpr double kAppliedRate{1.0};
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    // Set flushing
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, kAppliedRate, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+
+    gst_segment_free(segment);
+
+    GstQuery *query{gst_query_new_segment(GST_FORMAT_DEFAULT)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    gdouble rate{1.0};
+    GstFormat format{GST_FORMAT_DEFAULT};
+    gint64 startValue{0};
+    gint64 stopValue{0};
+    gst_query_parse_segment(query, &rate, &format, &startValue, &stopValue);
+    EXPECT_EQ(kAppliedRate, rate);
+    EXPECT_EQ(startValue, kPosition);
+    EXPECT_EQ(format, GST_FORMAT_TIME);
+
+    gst_query_unref(query);
 
     setNullState(pipeline, kSourceId);
 

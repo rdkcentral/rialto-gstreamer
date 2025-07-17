@@ -458,6 +458,23 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         }
         return TRUE;
     }
+    case GST_QUERY_SEGMENT:
+    {
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        GstFormat format{m_lastSegment.format};
+        gint64 start{static_cast<gint64>(gst_segment_to_stream_time(&m_lastSegment, format, m_lastSegment.start))};
+        gint64 stop{0};
+        if (m_lastSegment.stop == GST_CLOCK_TIME_NONE)
+        {
+            stop = m_lastSegment.duration;
+        }
+        else
+        {
+            stop = gst_segment_to_stream_time(&m_lastSegment, format, m_lastSegment.stop);
+        }
+        gst_query_set_segment(query, m_lastSegment.rate, format, start, stop);
+        return TRUE;
+    }
     default:
         break;
     }
@@ -489,6 +506,14 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
                     GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
                     gst_event_unref(event);
                     return FALSE;
+                }
+                // Update last segment
+                if (seekFormat == GST_FORMAT_TIME)
+                {
+                    gboolean update{FALSE};
+                    std::lock_guard<std::mutex> lock(m_sinkMutex);
+                    gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
+                                        &update);
                 }
             }
 #if GST_CHECK_VERSION(1, 18, 0)
