@@ -35,7 +35,7 @@ GstStateChangeReturn PullModeVideoPlaybackDelegate::changeState(GstStateChange t
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
-        if (!attachToMediaClientAndSetStreamsNumber())
+        if (!attachToMediaClientAndSetStreamsNumber(m_maxWidth, m_maxHeight))
         {
             return GST_STATE_CHANGE_FAILURE;
         }
