@@ -572,7 +572,18 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
 
             if (g_str_has_prefix(structName, "audio/mpeg"))
             {
-                mimeType = "audio/mp4";
+                gint mpegversion{0};
+                gint layer{0};
+                gst_structure_get_int(structure, "mpegversion", &mpegversion);
+                gst_structure_get_int(structure, "layer", &layer);
+                if (1 == mpegversion && 3 == layer)
+                {
+                    mimeType = "audio/mp3";
+                }
+                else
+                {
+                    mimeType = "audio/mp4";
+                }
             }
             else
             {
