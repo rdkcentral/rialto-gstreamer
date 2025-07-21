@@ -135,6 +135,26 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithMpeg)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithMp3)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/mp3", kHasDrm, kAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 1, "layer", G_TYPE_INT, 3, "channels",
+                                      G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate, nullptr)};
+    setCaps(audioSink, caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithEac3)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
