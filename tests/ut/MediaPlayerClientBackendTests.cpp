@@ -337,3 +337,14 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.switchSource(mediaSourceAudio));
 }
+
+TEST_F(MediaPlayerClientBackendTests, ShouldGetIsVideoMaster)
+{
+    bool isVideoMaster{false};
+    constexpr bool kIsVideoMaster{true};
+    EXPECT_CALL(*m_mediaPipelineMock, isVideoMaster(_)).WillOnce(DoAll(SetArgReferee<0>(kIsVideoMaster), Return(true)));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.isVideoMaster(isVideoMaster));
+    EXPECT_EQ(kIsVideoMaster, isVideoMaster);
+}

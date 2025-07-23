@@ -902,6 +902,11 @@ bool GStreamerMSEMediaPlayerClient::switchSource(const std::unique_ptr<firebolt:
 
 bool GStreamerMSEMediaPlayerClient::isVideoMaster(bool &isVideoMaster)
 {
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
     bool result = false;
     m_backendQueue->callInEventLoop([&]() { result = m_clientBackend->isVideoMaster(isVideoMaster); });
     return result;
