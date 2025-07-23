@@ -201,6 +201,17 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
         }
         break;
     }
+    case Property::IsMaster:
+    {
+        bool isMaster{true};
+        auto client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client || !client->isVideoMaster(isMaster))
+        {
+            GST_ERROR_OBJECT(m_sink, "Could not check if video is master. Setting default value.");
+        }
+        g_value_set_boolean(value, isMaster);
+        break;
+    }
     default:
     {
         PullModePlaybackDelegate::getProperty(type, value);
