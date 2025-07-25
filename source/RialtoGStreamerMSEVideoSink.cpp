@@ -49,6 +49,7 @@ enum
     PROP_IMMEDIATE_OUTPUT,
     PROP_SYNCMODE_STREAMING,
     PROP_SHOW_VIDEO_WINDOW,
+    PROP_IS_MASTER,
     PROP_LAST
 };
 
@@ -112,6 +113,13 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         g_value_set_boolean(value, FALSE); // Set default value
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::ImmediateOutput, value);
+        break;
+    }
+    case PROP_IS_MASTER:
+    {
+        g_value_set_boolean(value, TRUE); // Set default value
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::IsMaster,
+                                                 value);
         break;
     }
     default:
@@ -218,6 +226,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
                                                          "allow frame stepping on preroll into pause", FALSE,
                                                          G_PARAM_READWRITE));
+    g_object_class_install_property(gobjectClass, PROP_IS_MASTER,
+                                    g_param_spec_boolean("is-master", "is master",
+                                                         "Checks if the platform is video master", TRUE,
+                                                         G_PARAM_READABLE));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();

@@ -316,6 +316,7 @@ public:
     void setUseBuffering(bool useBuffering);
     bool getUseBuffering();
     bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source);
+    bool isVideoMaster(bool &isVideoMaster);
 
 private:
     bool areAllStreamsAttached();
