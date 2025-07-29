@@ -45,14 +45,14 @@ public:
     void handleFlushCompleted() override;
     void handleStateChanged(firebolt::rialto::PlaybackState state) override;
     void handleError(firebolt::rialto::PlaybackError error) override;
-
+    void handleError(const char *message) override;
     GstStateChangeReturn changeState(GstStateChange transition) override;
     void postAsyncStart() override;
     void setProperty(const Property &type, const GValue *value) override;
     void getProperty(const Property &type, GValue *value) override;
     std::optional<gboolean> handleQuery(GstQuery *query) const override;
     gboolean handleSendEvent(GstEvent *event) override;
-    gboolean handleEvent(GstEvent *event) override;
+    gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     GstFlowReturn handleBuffer(GstBuffer *buffer) override;
     GstRefSample getFrontSample() const override;
     void popSample() override;

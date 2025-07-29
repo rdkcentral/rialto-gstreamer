@@ -52,9 +52,9 @@ public:
         EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_PAUSED));
     }
 
-    void setNull(GstElement *pipeline)
+    void setNull(GstElement *element)
     {
-        EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_NULL));
+        EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(element, GST_STATE_NULL));
     }
 
     void setPlaying(GstElement *pipeline)
@@ -65,8 +65,8 @@ public:
 
     void sendPlayingNotification(GstElement *pipeline, RialtoWebAudioSink *sink)
     {
-        ASSERT_TRUE(sink->priv->m_webAudioClient);
-        sink->priv->m_webAudioClient->notifyState(firebolt::rialto::WebAudioPlayerState::PLAYING);
+        ASSERT_TRUE(sink->priv->m_delegate);
+        sink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
         EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
     }
 
@@ -95,6 +95,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldCreateSink)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
     EXPECT_TRUE(sink);
+    setNull(GST_ELEMENT(sink));
     gst_object_unref(sink);
 }
 
@@ -231,7 +232,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldSetEos)
     setPlaying(pipeline);
     sendPlayingNotification(pipeline, sink);
 
-    sink->priv->m_webAudioClient->notifyState(firebolt::rialto::WebAudioPlayerState::END_OF_STREAM);
+    sink->priv->m_delegate->handleEos();
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_EOS));
 
     willPerformPlayingToPausedTransition();
@@ -246,7 +247,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetEosWhenBelowPaused)
 
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_READY));
 
-    sink->priv->m_webAudioClient->notifyState(firebolt::rialto::WebAudioPlayerState::END_OF_STREAM);
+    sink->priv->m_delegate->handleEos();
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
 
     setNull(pipeline);
@@ -261,7 +262,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldHandleError)
     setPaused(pipeline);
     attachSource(sink);
 
-    sink->priv->m_webAudioClient->notifyState(firebolt::rialto::WebAudioPlayerState::FAILURE);
+    sink->priv->m_delegate->handleError("Playback Failed");
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
 
     setNull(pipeline);
@@ -340,6 +341,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldGetAndSetTsOffsetProperty)
     g_object_get(sink, "ts-offset", &value, nullptr);
     EXPECT_EQ(0, value); // Default value should be returned
 
+    setNull(GST_ELEMENT(sink));
     gst_object_unref(sink);
 }
 
@@ -358,6 +360,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToGetOrSetUnknownProperty)
     g_object_get(sink, "surprise", &value, nullptr);
     EXPECT_FALSE(value); // Default value should be returned
 
+    setNull(GST_ELEMENT(sink));
     gst_object_unref(sink);
 }
 
@@ -393,6 +396,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldReturnDefaultVolumeValueWhenPipelineIsB
     g_object_get(sink, "volume", &volume, nullptr);
     EXPECT_EQ(1.0, volume); // Default value should be returned
 
+    setNull(GST_ELEMENT(sink));
     gst_object_unref(sink);
 }
 
@@ -425,6 +429,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBe
     g_object_get(sink, "volume", &volume, nullptr);
     EXPECT_EQ(kVolume, volume);
 
+    setNull(GST_ELEMENT(sink));
     gst_object_unref(sink);
 }
 

@@ -61,6 +61,9 @@ public:
         // PullModeSubtitlePlaybackDelegate Properties
         TextTrackIdentifier,
         WindowId,
+
+        // PushModeAudioPlaybackDelegate Properties
+        TsOffset,
     };
 
     IPlaybackDelegate() = default;
@@ -77,6 +80,7 @@ public:
     virtual void handleFlushCompleted() = 0;
     virtual void handleStateChanged(firebolt::rialto::PlaybackState state) = 0;
     virtual void handleError(firebolt::rialto::PlaybackError error) = 0;
+    virtual void handleError(const char *message) = 0;
     virtual void handleQos(uint64_t processed, uint64_t dropped) const = 0;
 
     virtual GstStateChangeReturn changeState(GstStateChange transition) = 0;
@@ -85,7 +89,7 @@ public:
     virtual void getProperty(const Property &type, GValue *value) = 0;
     virtual std::optional<gboolean> handleQuery(GstQuery *query) const = 0;
     virtual gboolean handleSendEvent(GstEvent *event) = 0;
-    virtual gboolean handleEvent(GstEvent *event) = 0;
+    virtual gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) = 0;
     virtual GstFlowReturn handleBuffer(GstBuffer *buffer) = 0;
     virtual GstRefSample getFrontSample() const = 0;
     virtual void popSample() = 0;

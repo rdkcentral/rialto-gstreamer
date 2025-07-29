@@ -324,6 +324,11 @@ void PullModePlaybackDelegate::handleError(firebolt::rialto::PlaybackError error
     g_error_free(gError);
 }
 
+void PullModePlaybackDelegate::handleError(const char *message)
+{
+    // to be implemented
+}
+
 void PullModePlaybackDelegate::postAsyncStart()
 {
     m_isStateCommitNeeded = true;
@@ -577,7 +582,7 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
     return TRUE;
 }
 
-gboolean PullModePlaybackDelegate::handleEvent(GstEvent *event)
+gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     GST_DEBUG_OBJECT(m_sink, "handling event %" GST_PTR_FORMAT, event);
     switch (GST_EVENT_TYPE(event))

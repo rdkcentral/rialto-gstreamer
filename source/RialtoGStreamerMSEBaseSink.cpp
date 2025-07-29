@@ -135,7 +135,7 @@ gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *ev
 {
     if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(parent)))
     {
-        return delegate->handleEvent(event);
+        return delegate->handleEvent(pad, parent, event);
     }
     return FALSE;
 }

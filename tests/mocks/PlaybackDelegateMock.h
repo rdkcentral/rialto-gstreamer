@@ -27,6 +27,7 @@ public:
     MOCK_METHOD(void, handleFlushCompleted, (), (override));
     MOCK_METHOD(void, handleStateChanged, (firebolt::rialto::PlaybackState state), (override));
     MOCK_METHOD(void, handleError, (firebolt::rialto::PlaybackError error), (override));
+    MOCK_METHOD(void, handleError, (const char *message), (override));
     MOCK_METHOD(void, handleQos, (uint64_t processed, uint64_t dropped), (const, override));
     MOCK_METHOD(GstStateChangeReturn, changeState, (GstStateChange transition), (override));
     MOCK_METHOD(void, postAsyncStart, (), (override));
@@ -34,7 +35,7 @@ public:
     MOCK_METHOD(void, getProperty, (const Property &type, GValue *value), (override));
     MOCK_METHOD(std::optional<gboolean>, handleQuery, (GstQuery * query), (const, override));
     MOCK_METHOD(gboolean, handleSendEvent, (GstEvent * event), (override));
-    MOCK_METHOD(gboolean, handleEvent, (GstEvent * event), (override));
+    MOCK_METHOD(gboolean, handleEvent, (GstPad * pad, GstObject *parent, GstEvent *event), (override));
     MOCK_METHOD(GstFlowReturn, handleBuffer, (GstBuffer * buffer), (override));
     MOCK_METHOD(GstRefSample, getFrontSample, (), (const, override));
     MOCK_METHOD(void, popSample, (), (override));
