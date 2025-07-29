@@ -619,7 +619,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 for (const auto &source : m_attachedSources)
                 {
                     rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
-                                                               firebolt::rialto::PlaybackError::UNKNOWN);
+                                                               "Rialto server playback failed");
                 }
                 for (auto &source : m_attachedSources)
                 {
@@ -1022,7 +1022,17 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
             GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
                       toString(sourceIt->second.getType()));
-            rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, error);
+            if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+            {
+                rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink,
+                                                           "Rialto dropped a frame that failed to decrypt",
+                                                           GST_STREAM_ERROR_DECRYPT);
+            }
+            else
+            {
+                rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink,
+                                                           "Rialto server playback failed");
+            }
 
             result = true;
         });

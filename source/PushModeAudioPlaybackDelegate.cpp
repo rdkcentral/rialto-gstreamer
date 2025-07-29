@@ -126,14 +126,9 @@ void PushModeAudioPlaybackDelegate::handleStateChanged(firebolt::rialto::WebAudi
     }
 }
 
-void PushModeAudioPlaybackDelegate::handleError(firebolt::rialto::PlaybackError error)
+void PushModeAudioPlaybackDelegate::handleError(const char *message, gint code)
 {
-    // not implemented
-}
-
-void PushModeAudioPlaybackDelegate::handleError(const char *message)
-{
-    GError *gError{g_error_new_literal(GST_STREAM_ERROR, 0, message)};
+    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message)};
     gst_element_post_message(GST_ELEMENT_CAST(m_sink), gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message));
     g_error_free(gError);
 }
@@ -416,7 +411,7 @@ void PushModeAudioPlaybackDelegate::lostState() {}
 bool PushModeAudioPlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth,
                                                                            const uint32_t maxVideoHeight)
 {
-    return false;
+    return true;
 }
 
 void PushModeAudioPlaybackDelegate::postAsyncDone()

@@ -97,11 +97,11 @@ static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
     }
 }
 
-static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
+static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const char *error, gint code)
 {
     if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
     {
-        delegate->handleError(error);
+        delegate->handleError(error, code);
     }
 }
 
@@ -349,11 +349,11 @@ void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint
     }
 }
 
-void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
+void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, const char *error, gint code)
 {
     if (sink->priv->m_callbacks.errorCallback)
     {
-        sink->priv->m_callbacks.errorCallback(error);
+        sink->priv->m_callbacks.errorCallback(error, code);
     }
 }
 
@@ -398,7 +398,8 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
     callbacks.stateChangedCallback =
         std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
-    callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
+    callbacks.errorCallback =
+        std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1, std::placeholders::_2);
     callbacks.qosCallback = std::bind(rialto_mse_base_sink_qos_handle, GST_ELEMENT_CAST(sink), std::placeholders::_1,
                                       std::placeholders::_2);
     sink->priv->m_callbacks = callbacks;

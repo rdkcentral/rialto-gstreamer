@@ -1372,12 +1372,17 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithNalSegmentAlignment)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
+    TestContext testContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    audioSink->priv->m_callbacks.errorCallback(firebolt::rialto::PlaybackError::DECRYPTION);
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(testContext.m_sink), kPlaybackRate, GST_FORMAT_TIME,
+                                  GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
 
-    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifyPlaybackError(testContext.m_sourceId, firebolt::rialto::PlaybackError::DECRYPTION);
+    mediaPipelineClient.reset();
+
+    GstMessage *receivedMessage{getMessage(testContext.m_pipeline, GST_MESSAGE_ERROR)};
     ASSERT_NE(receivedMessage, nullptr);
 
     GError *err = nullptr;
@@ -1391,8 +1396,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
     g_free(debug);
     g_error_free(err);
     gst_message_unref(receivedMessage);
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-    gst_object_unref(pipeline);
+    setNullState(testContext.m_pipeline, testContext.m_sourceId);
+    gst_object_unref(testContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
@@ -1428,12 +1433,14 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
+    TestContext testContext = createPipelineWithAudioSinkAndSetToPaused();
 
-    audioSink->priv->m_callbacks.errorCallback(firebolt::rialto::PlaybackError::UNKNOWN);
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifyPlaybackError(testContext.m_sourceId, firebolt::rialto::PlaybackError::UNKNOWN);
+    mediaPipelineClient.reset();
 
-    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    GstMessage *receivedMessage{getMessage(testContext.m_pipeline, GST_MESSAGE_ERROR)};
     ASSERT_NE(receivedMessage, nullptr);
 
     GError *err = nullptr;
@@ -1447,8 +1454,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
     g_free(debug);
     g_error_free(err);
     gst_message_unref(receivedMessage);
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-    gst_object_unref(pipeline);
+
+    setNullState(testContext.m_pipeline, testContext.m_sourceId);
+    gst_object_unref(testContext.m_pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleStreamCollectionEvent)

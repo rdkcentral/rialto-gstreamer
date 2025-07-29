@@ -94,11 +94,11 @@ public:
         static PlaybackErrorMock instance;
         return instance;
     }
-    MOCK_METHOD(void, callbackCalled, (), (const));
+    MOCK_METHOD(void, callbackCalled, (gint code), (const));
 };
-void playbackErrorCallback(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
+void playbackErrorCallback(RialtoMSEBaseSink *sink, const char *message, gint code)
 {
-    PlaybackErrorMock::instance().callbackCalled();
+    PlaybackErrorMock::instance().callbackCalled(code);
 }
 
 } // namespace
@@ -601,20 +601,39 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhen
     m_sut->notifyBufferUnderflow(kUnknownSourceId);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackError)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDecryptionPlaybackError)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
     RialtoGStreamerMSEBaseSinkCallbacks callbacks;
-    callbacks.errorCallback = std::bind(playbackErrorCallback, audioSink, std::placeholders::_1);
+    callbacks.errorCallback = std::bind(playbackErrorCallback, audioSink, std::placeholders::_1, std::placeholders::_2);
     audioSink->priv->m_callbacks = callbacks;
 
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
     expectPostMessage();
-    EXPECT_CALL(PlaybackErrorMock::instance(), callbackCalled());
+    EXPECT_CALL(PlaybackErrorMock::instance(), callbackCalled(GST_STREAM_ERROR_DECRYPT));
     m_sut->notifyPlaybackError(kSourceId, firebolt::rialto::PlaybackError::DECRYPTION);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyUnknownPlaybackError)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    RialtoGStreamerMSEBaseSinkCallbacks callbacks;
+    callbacks.errorCallback = std::bind(playbackErrorCallback, audioSink, std::placeholders::_1, std::placeholders::_2);
+    audioSink->priv->m_callbacks = callbacks;
+
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    EXPECT_CALL(PlaybackErrorMock::instance(), callbackCalled(0));
+    m_sut->notifyPlaybackError(kSourceId, firebolt::rialto::PlaybackError::UNKNOWN);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);

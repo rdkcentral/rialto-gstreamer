@@ -22,7 +22,7 @@
 
 struct RialtoGStreamerMSEBaseSinkCallbacks
 {
-    std::function<void(firebolt::rialto::PlaybackError)> errorCallback;
+    std::function<void(const char *, gint)> errorCallback;
     std::function<void(void)> flushCompletedCallback;
     std::function<void(void)> eosCallback;
     std::function<void(firebolt::rialto::PlaybackState)> stateChangedCallback;
