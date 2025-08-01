@@ -17,14 +17,19 @@
  */
 
 #include "Matchers.h"
+#include "MediaPipelineCapabilitiesMock.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGstTest.h"
 
+using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
+using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
+using firebolt::rialto::MediaPipelineCapabilitiesMock;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgReferee;
+using testing::StrictMock;
 
 namespace
 {
@@ -654,10 +659,15 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotRenderFrameTwice)
     gst_object_unref(textContext.m_pipeline);
 }
 
-TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetIsMasterPropertyWhenPipelineIsBelowPausedState)
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetIsMasterPropertyFromMediaPipelineWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
 
+    std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
+        std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
+            IMediaPipelineCapabilitiesFactory::createFactory())};
+    ASSERT_TRUE(capabilitiesFactoryMock);
+    EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities()).WillOnce(Return(nullptr));
     gboolean isMaster{FALSE};
     g_object_get(videoSink, "is-master", &isMaster, nullptr);
     EXPECT_EQ(isMaster, TRUE); // Default value should be returned.
@@ -666,12 +676,39 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetIsMasterPropertyWhenPipelineIs
     gst_object_unref(videoSink);
 }
 
-TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterProperty)
+TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterPropertyFromMediaPipeline)
 {
     constexpr bool kIsMaster{false};
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
 
+    std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
+        std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
+            IMediaPipelineCapabilitiesFactory::createFactory())};
+    ASSERT_TRUE(capabilitiesFactoryMock);
+    EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities()).WillOnce(Return(nullptr));
     EXPECT_CALL(m_mediaPipelineMock, isVideoMaster(_)).WillOnce(DoAll(SetArgReferee<0>(kIsMaster), Return(true)));
+    gboolean isMaster{TRUE};
+    g_object_get(textContext.m_sink, "is-master", &isMaster, nullptr);
+    EXPECT_EQ(static_cast<bool>(isMaster), kIsMaster);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterPropertyFromMediaPipelineCapabilities)
+{
+    constexpr bool kIsMaster{false};
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMock{
+        std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
+    EXPECT_CALL(*capabilitiesMock, isVideoMaster(_)).WillOnce(DoAll(SetArgReferee<0>(kIsMaster), Return(true)));
+    std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
+        std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
+            IMediaPipelineCapabilitiesFactory::createFactory())};
+    ASSERT_TRUE(capabilitiesFactoryMock);
+    EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities())
+        .WillOnce(Return(ByMove(std::move(capabilitiesMock))));
     gboolean isMaster{TRUE};
     g_object_get(textContext.m_sink, "is-master", &isMaster, nullptr);
     EXPECT_EQ(static_cast<bool>(isMaster), kIsMaster);
