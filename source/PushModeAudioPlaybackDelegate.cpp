@@ -19,19 +19,18 @@
 #include "PushModeAudioPlaybackDelegate.h"
 #include "ControlBackend.h"
 #include "GStreamerWebAudioPlayerClient.h"
+#include "GstreamerCatLog.h"
 #include "MessageQueue.h"
 #include "WebAudioClientBackend.h"
+
+#define GST_CAT_DEFAULT rialtoGStreamerCat
 
 PushModeAudioPlaybackDelegate::PushModeAudioPlaybackDelegate(GstElement *sink) : m_sink{sink}
 {
     m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-    WebAudioSinkCallbacks callbacks;
-    callbacks.eosCallback = std::bind(&PushModeAudioPlaybackDelegate::handleEos, this);
-    callbacks.stateChangedCallback = [this](firebolt::rialto::WebAudioPlayerState state) { handleStateChanged(state); };
-    callbacks.errorCallback = [this](const char *message) { handleError(message); };
     m_webAudioClient =
         std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
-                                                        std::make_unique<MessageQueue>(), callbacks,
+                                                        std::make_unique<MessageQueue>(), *this,
                                                         ITimerFactory::getFactory());
 }
 
@@ -91,38 +90,6 @@ void PushModeAudioPlaybackDelegate::handleStateChanged(firebolt::rialto::Playbac
         gst_element_post_message(GST_ELEMENT_CAST(m_sink),
                                  gst_message_new_state_changed(GST_OBJECT_CAST(m_sink), current, next, pending));
         postAsyncDone();
-    }
-}
-
-void PushModeAudioPlaybackDelegate::handleStateChanged(firebolt::rialto::WebAudioPlayerState state)
-{
-    switch (state)
-    {
-    case firebolt::rialto::WebAudioPlayerState::UNKNOWN:
-    {
-        return handleStateChanged(firebolt::rialto::PlaybackState::UNKNOWN);
-    }
-    case firebolt::rialto::WebAudioPlayerState::IDLE:
-    {
-        return handleStateChanged(firebolt::rialto::PlaybackState::IDLE);
-    }
-    case firebolt::rialto::WebAudioPlayerState::PLAYING:
-    {
-        return handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
-    }
-    case firebolt::rialto::WebAudioPlayerState::PAUSED:
-    {
-        return handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
-    }
-    case firebolt::rialto::WebAudioPlayerState::END_OF_STREAM:
-    {
-        return handleStateChanged(firebolt::rialto::PlaybackState::END_OF_STREAM);
-    }
-    case firebolt::rialto::WebAudioPlayerState::FAILURE:
-    default:
-    {
-        return handleStateChanged(firebolt::rialto::PlaybackState::FAILURE);
-    }
     }
 }
 

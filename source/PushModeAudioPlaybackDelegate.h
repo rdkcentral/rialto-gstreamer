@@ -53,7 +53,6 @@ public:
     bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth, const uint32_t maxVideoHeight) override;
 
 private:
-    void handleStateChanged(firebolt::rialto::WebAudioPlayerState state);
     void postAsyncDone();
 
 private:
