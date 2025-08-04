@@ -176,8 +176,6 @@ public:
         return m_mediaPlayerBackend->switchSource(source);
     }
 
-    bool isVideoMaster(bool &isVideoMaster) override { return m_mediaPlayerBackend->isVideoMaster(isVideoMaster); }
-
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };
