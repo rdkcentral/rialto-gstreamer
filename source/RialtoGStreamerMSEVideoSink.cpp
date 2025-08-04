@@ -125,11 +125,6 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         {
             g_value_set_boolean(value, isMaster);
         }
-        else
-        {
-            rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
-                                                     IPlaybackDelegate::Property::IsMaster, value);
-        }
         break;
     }
     default:

@@ -659,42 +659,6 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotRenderFrameTwice)
     gst_object_unref(textContext.m_pipeline);
 }
 
-TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetIsMasterPropertyFromMediaPipelineWhenPipelineIsBelowPausedState)
-{
-    RialtoMSEBaseSink *videoSink = createVideoSink();
-
-    std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
-        std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
-            IMediaPipelineCapabilitiesFactory::createFactory())};
-    ASSERT_TRUE(capabilitiesFactoryMock);
-    EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities()).WillOnce(Return(nullptr));
-    gboolean isMaster{FALSE};
-    g_object_get(videoSink, "is-master", &isMaster, nullptr);
-    EXPECT_EQ(isMaster, TRUE); // Default value should be returned.
-
-    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
-    gst_object_unref(videoSink);
-}
-
-TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterPropertyFromMediaPipeline)
-{
-    constexpr bool kIsMaster{false};
-    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
-
-    std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
-        std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
-            IMediaPipelineCapabilitiesFactory::createFactory())};
-    ASSERT_TRUE(capabilitiesFactoryMock);
-    EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities()).WillOnce(Return(nullptr));
-    EXPECT_CALL(m_mediaPipelineMock, isVideoMaster(_)).WillOnce(DoAll(SetArgReferee<0>(kIsMaster), Return(true)));
-    gboolean isMaster{TRUE};
-    g_object_get(textContext.m_sink, "is-master", &isMaster, nullptr);
-    EXPECT_EQ(static_cast<bool>(isMaster), kIsMaster);
-
-    setNullState(textContext.m_pipeline, textContext.m_sourceId);
-    gst_object_unref(textContext.m_pipeline);
-}
-
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterPropertyFromMediaPipelineCapabilities)
 {
     constexpr bool kIsMaster{false};

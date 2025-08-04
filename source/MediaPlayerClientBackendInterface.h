@@ -71,6 +71,5 @@ public:
     virtual bool setUseBuffering(bool useBuffering) = 0;
     virtual bool getUseBuffering(bool &useBuffering) = 0;
     virtual bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) = 0;
-    virtual bool isVideoMaster(bool &isVideoMaster) = 0;
 };
 } // namespace firebolt::rialto::client
