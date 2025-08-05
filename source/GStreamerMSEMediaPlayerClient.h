@@ -40,7 +40,6 @@
 #include "MediaCommon.h"
 #include "MediaPlayerClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSink.h"
-#include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160

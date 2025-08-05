@@ -81,39 +81,6 @@ static std::shared_ptr<IPlaybackDelegate> rialto_mse_base_sink_get_delegate(Rial
     return sink->priv->m_delegate;
 }
 
-static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleEos();
-    }
-}
-
-static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, const char *error, gint code)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleError(error, code);
-    }
-}
-
-static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
-                                                              firebolt::rialto::PlaybackState state)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleStateChanged(state);
-    }
-}
-
-static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleFlushCompleted();
-    }
-}
-
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
 {
     if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(element)))
@@ -139,14 +106,6 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
         return delegate->handleBuffer(buf);
     }
     return GST_FLOW_ERROR;
-}
-
-static void rialto_mse_base_sink_qos_handle(GstElement *element, uint64_t processed, uint64_t dropped)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(element)))
-    {
-        delegate->handleQos(processed, dropped);
-    }
 }
 
 static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
@@ -311,16 +270,6 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
-    RialtoGStreamerMSEBaseSinkCallbacks callbacks;
-    callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
-    callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
-    callbacks.stateChangedCallback =
-        std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
-    callbacks.errorCallback =
-        std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1, std::placeholders::_2);
-    callbacks.qosCallback = std::bind(rialto_mse_base_sink_qos_handle, GST_ELEMENT_CAST(sink), std::placeholders::_1,
-                                      std::placeholders::_2);
-    sink->priv->m_callbacks = callbacks;
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
 }
 

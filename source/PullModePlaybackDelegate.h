@@ -25,7 +25,6 @@
 
 #include "ControlBackendInterface.h"
 #include "MediaPlayerManager.h"
-#include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
