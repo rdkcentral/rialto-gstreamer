@@ -601,7 +601,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
                   }};
     EXPECT_TRUE(t.joinable());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    rialto_mse_base_sink_pop_sample(audioSink);
+    audioSink->priv->m_delegate->popSample();
     t.join();
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
@@ -1102,7 +1102,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
                   {
                       std::unique_lock<std::mutex> lock{flushMutex};
                       flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
-                      rialto_mse_base_handle_rialto_server_completed_flush(audioSink);
+                      audioSink->priv->m_delegate->handleFlushCompleted();
                   }};
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
@@ -1420,7 +1420,7 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
     GST_STATE_PENDING(audioSink) = GST_STATE_PLAYING;
     GST_STATE_RETURN(audioSink) = GST_STATE_CHANGE_ASYNC;
 
-    rialto_mse_base_sink_lost_state(audioSink);
+    audioSink->priv->m_delegate->lostState();
 
     EXPECT_CALL(m_mediaPipelineMock, play()).WillOnce(Return(true));
     audioSink->priv->m_callbacks.stateChangedCallback(firebolt::rialto::PlaybackState::PAUSED);

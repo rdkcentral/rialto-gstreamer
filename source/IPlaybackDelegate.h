@@ -74,9 +74,15 @@ public:
     IPlaybackDelegate &operator=(IPlaybackDelegate &&) = delete;
 
     virtual void setSourceId(int32_t sourceId) = 0;
+    virtual void handleFlushCompleted() = 0;
+    virtual GstRefSample getFrontSample() const = 0;
+    virtual void popSample() = 0;
+    virtual bool isEos() const = 0;
+    virtual void lostState() = 0;
+    virtual bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0,
+                                                        const uint32_t maxVideoHeight = 0) = 0;
 
     virtual void handleEos() = 0;
-    virtual void handleFlushCompleted() = 0;
     virtual void handleStateChanged(firebolt::rialto::PlaybackState state) = 0;
     virtual void handleError(const char *message, gint code = 0) = 0;
     virtual void handleQos(uint64_t processed, uint64_t dropped) const = 0;
@@ -89,10 +95,4 @@ public:
     virtual gboolean handleSendEvent(GstEvent *event) = 0;
     virtual gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) = 0;
     virtual GstFlowReturn handleBuffer(GstBuffer *buffer) = 0;
-    virtual GstRefSample getFrontSample() const = 0;
-    virtual void popSample() = 0;
-    virtual bool isEos() const = 0;
-    virtual void lostState() = 0;
-    virtual bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0,
-                                                        const uint32_t maxVideoHeight = 0) = 0;
 };

@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "IPlaybackDelegate.h"
+#include "IPullModePlaybackDelegate.h"
 #include <gst/gst.h>
 
 #include <string>
@@ -32,7 +32,7 @@
 #include <optional>
 #include <queue>
 
-class PullModePlaybackDelegate : public IPlaybackDelegate
+class PullModePlaybackDelegate : public IPullModePlaybackDelegate
 {
 protected:
     explicit PullModePlaybackDelegate(GstElement *sink);
