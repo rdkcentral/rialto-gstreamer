@@ -1640,31 +1640,3 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSwitchSource)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, switchSource(PtrMatcher(mediaSource.get()))).WillOnce(Return(true));
     m_sut->switchSource(mediaSource);
 }
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetIsVideoMaster)
-{
-    constexpr bool kIsVideoMaster{true};
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, isVideoMaster(_))
-        .WillOnce(DoAll(SetArgReferee<0>(kIsVideoMaster), Return(true)));
-
-    bool isVideoMaster = false;
-    EXPECT_TRUE(m_sut->isVideoMaster(isVideoMaster));
-    EXPECT_EQ(isVideoMaster, kIsVideoMaster);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetIsVideoMasterIfNoClientBackend)
-{
-    // Need to create a new message queue as it has been moved
-    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
-    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
-
-    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
-    EXPECT_CALL(messageQueueMock, start());
-    EXPECT_CALL(messageQueueMock, stop());
-    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
-
-    bool isVideoMaster = false;
-    EXPECT_FALSE(m_sut->isVideoMaster(isVideoMaster));
-}

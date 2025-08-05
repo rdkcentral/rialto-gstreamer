@@ -118,8 +118,13 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
     case PROP_IS_MASTER:
     {
         g_value_set_boolean(value, TRUE); // Set default value
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::IsMaster,
-                                                 value);
+        std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
+            firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
+        bool isMaster{false};
+        if (mediaPlayerCapabilities && mediaPlayerCapabilities->isVideoMaster(isMaster))
+        {
+            g_value_set_boolean(value, isMaster);
+        }
         break;
     }
     default:
