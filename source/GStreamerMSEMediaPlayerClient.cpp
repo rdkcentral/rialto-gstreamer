@@ -699,7 +699,7 @@ std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
     return std::string(rectangle);
 }
 
-bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
+bool GStreamerMSEMediaPlayerClient::renderFrame(int32_t sourceId)
 {
     bool result = false;
     m_backendQueue->callInEventLoop(
@@ -709,7 +709,11 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
             if (result)
             {
                 // RialtoServer's video sink should drop PAUSED state due to skipping prerolled buffer in PAUSED state
-                sink->priv->m_delegate->lostState();
+                auto sourceIt = m_attachedSources.find(sourceId);
+                if (sourceIt != m_attachedSources.end())
+                {
+                    sourceIt->second.m_delegate->lostState();
+                }
             }
         });
     return result;

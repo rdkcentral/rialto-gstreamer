@@ -301,7 +301,7 @@ public:
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
     void stopStreaming();
     void destroyClientBackend();
-    bool renderFrame(RialtoMSEBaseSink *sink);
+    bool renderFrame(int32_t sourceId);
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
