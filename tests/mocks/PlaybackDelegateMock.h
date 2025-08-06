@@ -34,5 +34,4 @@ public:
     MOCK_METHOD(gboolean, handleSendEvent, (GstEvent * event), (override));
     MOCK_METHOD(gboolean, handleEvent, (GstPad * pad, GstObject *parent, GstEvent *event), (override));
     MOCK_METHOD(GstFlowReturn, handleBuffer, (GstBuffer * buffer), (override));
-    MOCK_METHOD(void, lostState, (), (override));
 };

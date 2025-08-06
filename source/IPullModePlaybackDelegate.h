@@ -36,4 +36,5 @@ public:
     virtual GstRefSample getFrontSample() const = 0;
     virtual void popSample() = 0;
     virtual bool isEos() const = 0;
+    virtual void lostState() = 0;
 };

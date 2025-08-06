@@ -73,8 +73,6 @@ public:
     IPlaybackDelegate &operator=(const IPlaybackDelegate &) = delete;
     IPlaybackDelegate &operator=(IPlaybackDelegate &&) = delete;
 
-    virtual void lostState() = 0;
-
     virtual void handleEos() = 0;
     virtual void handleStateChanged(firebolt::rialto::PlaybackState state) = 0;
     virtual void handleError(const char *message, gint code = 0) = 0;

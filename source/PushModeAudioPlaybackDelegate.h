@@ -44,7 +44,6 @@ public:
     gboolean handleSendEvent(GstEvent *event) override;
     gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     GstFlowReturn handleBuffer(GstBuffer *buffer) override;
-    void lostState() override;
 
 private:
     void postAsyncDone();

@@ -1482,19 +1482,42 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
     sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
-    GST_STATE(audioSink) = GST_STATE_PAUSED;
-    GST_STATE_NEXT(audioSink) = GST_STATE_PLAYING;
-    GST_STATE_PENDING(audioSink) = GST_STATE_PLAYING;
-    GST_STATE_RETURN(audioSink) = GST_STATE_CHANGE_ASYNC;
+    setPlayingState(pipeline);
 
-    audioSink->priv->m_delegate->lostState();
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
 
-    EXPECT_CALL(m_mediaPipelineMock, play()).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+    std::mutex flushMutex;
+    std::condition_variable flushCond;
+    bool flushFlag{false};
+    std::thread t{[&]()
+                  {
+                      std::unique_lock<std::mutex> lock{flushMutex};
+                      flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
+                      auto mediaPipelineClient = m_mediaPipelineClient.lock();
+                      ASSERT_TRUE(mediaPipelineClient);
+                      mediaPipelineClient->notifySourceFlushed(kSourceId);
+                      mediaPipelineClient.reset();
+                  }};
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+    {
+        std::unique_lock<std::mutex> lock{flushMutex};
+        flushFlag = true;
+        flushCond.notify_one();
+    }
+    t.join();
+
     audioSink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
+    audioSink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
     pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
-    gst_caps_unref(caps);
     setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
 

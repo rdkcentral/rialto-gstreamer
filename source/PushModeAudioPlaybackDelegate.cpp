@@ -357,8 +357,6 @@ GstFlowReturn PushModeAudioPlaybackDelegate::handleBuffer(GstBuffer *buffer)
     }
 }
 
-void PushModeAudioPlaybackDelegate::lostState() {}
-
 void PushModeAudioPlaybackDelegate::postAsyncDone()
 {
     m_isStateCommitNeeded = false;

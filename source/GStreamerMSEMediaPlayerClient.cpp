@@ -412,7 +412,7 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 
             if (async)
             {
-                GST_ERROR("Flush request sent for async source %d. Sink will lose state now", sourceId);
+                GST_INFO("Flush request sent for async source %d. Sink will lose state now", sourceId);
                 sourceIt->second.m_delegate->lostState();
 
                 sourceIt->second.m_state = ClientState::AWAITING_PAUSED;

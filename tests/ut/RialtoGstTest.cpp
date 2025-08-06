@@ -410,7 +410,7 @@ void RialtoGstTest::setPlayingState(GstElement *pipeline) const
 
 void RialtoGstTest::setNullState(GstElement *pipeline, int32_t sourceId) const
 {
-    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillRepeatedly(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
     gst_element_set_state(pipeline, GST_STATE_NULL);
 }
