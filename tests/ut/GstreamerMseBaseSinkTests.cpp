@@ -639,6 +639,14 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAddBufferInChainFunction)
 TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
 
     for (int i = 0; i < 24; ++i)
     {
@@ -654,11 +662,22 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
                   }};
     EXPECT_TRUE(t.joinable());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    audioSink->priv->m_delegate->popSample();
+    // Start handling samples
+    constexpr int kNeedMediaDataReqId{0};
+    constexpr int kNumOfSamples{1};
+    EXPECT_CALL(m_mediaPipelineMock, addSegment(kNeedMediaDataReqId, _))
+        .WillOnce(Return(firebolt::rialto::AddSegmentStatus::OK));
+    EXPECT_CALL(m_mediaPipelineMock, haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedMediaDataReqId))
+        .WillOnce(Return(true));
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifyNeedMediaData(kSourceId, kNumOfSamples, kNeedMediaDataReqId, nullptr);
     t.join();
 
-    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
-    gst_object_unref(audioSink);
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleNewSegment)
@@ -914,7 +933,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleEos)
     RialtoMSEBaseSink *audioSink = createAudioSink();
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), gst_event_new_eos()));
-    EXPECT_TRUE(audioSink->priv->m_delegate->isEos());
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
@@ -1019,8 +1037,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
     EXPECT_EQ(GST_FLOW_FLUSHING,
               rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
 
-    EXPECT_FALSE(audioSink->priv->m_delegate->isEos());
-
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
@@ -1059,9 +1075,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEos)
     EXPECT_EQ(GST_FLOW_FLUSHING,
               rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
 
-    // EOS should be cleared
-    EXPECT_FALSE(audioSink->priv->m_delegate->isEos());
-
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
@@ -1076,8 +1089,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEosWithoutClient)
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
                                            gst_event_new_flush_start()));
-
-    EXPECT_FALSE(audioSink->priv->m_delegate->isEos());
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
@@ -1155,7 +1166,10 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
                   {
                       std::unique_lock<std::mutex> lock{flushMutex};
                       flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
-                      audioSink->priv->m_delegate->handleFlushCompleted();
+                      auto mediaPipelineClient = m_mediaPipelineClient.lock();
+                      ASSERT_TRUE(mediaPipelineClient);
+                      mediaPipelineClient->notifySourceFlushed(kSourceId);
+                      mediaPipelineClient.reset();
                   }};
 
     EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),

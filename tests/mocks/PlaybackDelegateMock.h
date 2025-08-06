@@ -22,9 +22,7 @@
 class PlaybackDelegateMock : public IPlaybackDelegate
 {
 public:
-    MOCK_METHOD(void, setSourceId, (int32_t sourceId), (override));
     MOCK_METHOD(void, handleEos, (), (override));
-    MOCK_METHOD(void, handleFlushCompleted, (), (override));
     MOCK_METHOD(void, handleStateChanged, (firebolt::rialto::PlaybackState state), (override));
     MOCK_METHOD(void, handleError, (const char *message, gint code), (override));
     MOCK_METHOD(void, handleQos, (uint64_t processed, uint64_t dropped), (const, override));
@@ -36,10 +34,5 @@ public:
     MOCK_METHOD(gboolean, handleSendEvent, (GstEvent * event), (override));
     MOCK_METHOD(gboolean, handleEvent, (GstPad * pad, GstObject *parent, GstEvent *event), (override));
     MOCK_METHOD(GstFlowReturn, handleBuffer, (GstBuffer * buffer), (override));
-    MOCK_METHOD(GstRefSample, getFrontSample, (), (const, override));
-    MOCK_METHOD(void, popSample, (), (override));
-    MOCK_METHOD(bool, isEos, (), (const, override));
     MOCK_METHOD(void, lostState, (), (override));
-    MOCK_METHOD(bool, attachToMediaClientAndSetStreamsNumber,
-                (const uint32_t maxVideoWidth, const uint32_t maxVideoHeight), (override));
 };

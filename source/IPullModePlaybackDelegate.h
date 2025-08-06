@@ -30,4 +30,10 @@ public:
     IPullModePlaybackDelegate(IPullModePlaybackDelegate &&) = delete;
     IPullModePlaybackDelegate &operator=(const IPullModePlaybackDelegate &) = delete;
     IPullModePlaybackDelegate &operator=(IPullModePlaybackDelegate &&) = delete;
+
+    virtual void setSourceId(int32_t sourceId) = 0;
+    virtual void handleFlushCompleted() = 0;
+    virtual GstRefSample getFrontSample() const = 0;
+    virtual void popSample() = 0;
+    virtual bool isEos() const = 0;
 };

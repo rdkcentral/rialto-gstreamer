@@ -32,9 +32,7 @@ public:
     explicit PushModeAudioPlaybackDelegate(GstElement *sink);
     ~PushModeAudioPlaybackDelegate() override;
 
-    void setSourceId(int32_t sourceId) override;
     void handleEos() override;
-    void handleFlushCompleted() override;
     void handleStateChanged(firebolt::rialto::PlaybackState state) override;
     void handleError(const char *message, gint code = 0) override;
     void handleQos(uint64_t processed, uint64_t dropped) const override;
@@ -46,11 +44,7 @@ public:
     gboolean handleSendEvent(GstEvent *event) override;
     gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     GstFlowReturn handleBuffer(GstBuffer *buffer) override;
-    GstRefSample getFrontSample() const override;
-    void popSample() override;
-    bool isEos() const override;
     void lostState() override;
-    bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth, const uint32_t maxVideoHeight) override;
 
 private:
     void postAsyncDone();

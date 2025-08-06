@@ -40,6 +40,4 @@ public:
     MOCK_METHOD(void, popSample, (), (override));
     MOCK_METHOD(bool, isEos, (), (const, override));
     MOCK_METHOD(void, lostState, (), (override));
-    MOCK_METHOD(bool, attachToMediaClientAndSetStreamsNumber,
-                (const uint32_t maxVideoWidth, const uint32_t maxVideoHeight), (override));
 };

@@ -56,8 +56,9 @@ public:
     void popSample() override;
     bool isEos() const override;
     void lostState() override;
-    bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0,
-                                                const uint32_t maxVideoHeight = 0) override;
+
+protected:
+    bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
 
 private:
     void clearBuffersUnlocked();

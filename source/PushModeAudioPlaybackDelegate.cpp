@@ -39,8 +39,6 @@ PushModeAudioPlaybackDelegate::~PushModeAudioPlaybackDelegate()
     m_webAudioClient.reset();
 }
 
-void PushModeAudioPlaybackDelegate::setSourceId(int32_t sourceId) {}
-
 void PushModeAudioPlaybackDelegate::handleEos()
 {
     GstState currentState = GST_STATE(m_sink);
@@ -60,8 +58,6 @@ void PushModeAudioPlaybackDelegate::handleEos()
         gst_element_post_message(GST_ELEMENT_CAST(m_sink), gst_message_new_eos(GST_OBJECT_CAST(m_sink)));
     }
 }
-
-void PushModeAudioPlaybackDelegate::handleFlushCompleted() {}
 
 void PushModeAudioPlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
 {
@@ -361,25 +357,7 @@ GstFlowReturn PushModeAudioPlaybackDelegate::handleBuffer(GstBuffer *buffer)
     }
 }
 
-GstRefSample PushModeAudioPlaybackDelegate::getFrontSample() const
-{
-    return GstRefSample{};
-}
-
-void PushModeAudioPlaybackDelegate::popSample() {}
-
-bool PushModeAudioPlaybackDelegate::isEos() const
-{
-    return false;
-}
-
 void PushModeAudioPlaybackDelegate::lostState() {}
-
-bool PushModeAudioPlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth,
-                                                                           const uint32_t maxVideoHeight)
-{
-    return true;
-}
 
 void PushModeAudioPlaybackDelegate::postAsyncDone()
 {
