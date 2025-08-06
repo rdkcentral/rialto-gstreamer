@@ -27,7 +27,8 @@ struct AudioFadeConfig
     firebolt::rialto::EaseType easeType;
 };
 
-class PullModeAudioPlaybackDelegate : public PullModePlaybackDelegate
+class PullModeAudioPlaybackDelegate : public PullModePlaybackDelegate,
+                                      public std::enable_shared_from_this<PullModeAudioPlaybackDelegate>
 {
 public:
     explicit PullModeAudioPlaybackDelegate(GstElement *sink);

@@ -23,7 +23,8 @@
 #include <mutex>
 #include <string>
 
-class PullModeSubtitlePlaybackDelegate : public PullModePlaybackDelegate
+class PullModeSubtitlePlaybackDelegate : public PullModePlaybackDelegate,
+                                         public std::enable_shared_from_this<PullModeSubtitlePlaybackDelegate>
 {
 public:
     explicit PullModeSubtitlePlaybackDelegate(GstElement *sink);

@@ -20,7 +20,8 @@
 
 #include "PullModePlaybackDelegate.h"
 
-class PullModeVideoPlaybackDelegate : public PullModePlaybackDelegate
+class PullModeVideoPlaybackDelegate : public PullModePlaybackDelegate,
+                                      public std::enable_shared_from_this<PullModeVideoPlaybackDelegate>
 {
 public:
     explicit PullModeVideoPlaybackDelegate(GstElement *sink);

@@ -39,9 +39,9 @@ struct _RialtoMSEBaseSinkPrivate
     _RialtoMSEBaseSinkPrivate() = default;
     ~_RialtoMSEBaseSinkPrivate() = default;
 
+    GstPad *m_sinkPad{nullptr};
     std::mutex m_sinkMutex;
     std::shared_ptr<IPlaybackDelegate> m_delegate{nullptr};
-    GstPad *m_sinkPad{nullptr};
     std::map<IPlaybackDelegate::Property, GValue> m_queuedProperties{};
 };
 G_END_DECLS

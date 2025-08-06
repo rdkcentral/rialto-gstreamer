@@ -150,6 +150,59 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldSendErrorWhenEosIsReportedInWrongState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::END_OF_STREAM);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSendQos)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    setPlayingState(pipeline);
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    const firebolt::rialto::QosInfo kQosInfo{1, 2};
+    mediaPipelineClient->notifyQos(kSourceId, kQosInfo);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_QOS));
+
+    pipelineWillGoToPausedState(audioSink);
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldSkipSendingEosWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
