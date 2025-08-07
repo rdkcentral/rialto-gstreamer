@@ -25,13 +25,13 @@
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
-PushModeAudioPlaybackDelegate::PushModeAudioPlaybackDelegate(GstElement *sink) : m_sink{sink}
+PushModeAudioPlaybackDelegate::PushModeAudioPlaybackDelegate(GstElement *sink)
+    : m_sink{sink}, m_rialtoControlClient{std::make_unique<firebolt::rialto::client::ControlBackend>()},
+      m_webAudioClient{
+          std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
+                                                          std::make_unique<MessageQueue>(), *this,
+                                                          ITimerFactory::getFactory())}
 {
-    m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-    m_webAudioClient =
-        std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
-                                                        std::make_unique<MessageQueue>(), *this,
-                                                        ITimerFactory::getFactory());
 }
 
 PushModeAudioPlaybackDelegate::~PushModeAudioPlaybackDelegate()

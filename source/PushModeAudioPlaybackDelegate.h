@@ -50,8 +50,8 @@ private:
 
 private:
     GstElement *m_sink;
-    std::shared_ptr<GStreamerWebAudioPlayerClient> m_webAudioClient;
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient;
+    std::shared_ptr<GStreamerWebAudioPlayerClient> m_webAudioClient;
     bool m_isPlayingDelayed{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
     std::atomic<double> m_volume{kDefaultVolume};
