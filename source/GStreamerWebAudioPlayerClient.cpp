@@ -79,12 +79,12 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
-    std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
+    std::unique_ptr<IMessageQueue> &&backendQueue, IPlaybackDelegate &delegate,
     std::shared_ptr<ITimerFactory> timerFactory)
     : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
       m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0},
       m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
-      m_callbacks{callbacks}
+      m_delegate{delegate}
 {
     m_backendQueue->start();
 }
@@ -431,10 +431,7 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     case firebolt::rialto::WebAudioPlayerState::END_OF_STREAM:
     {
         GST_INFO("Notify end of stream.");
-        if (m_callbacks.eosCallback)
-        {
-            m_callbacks.eosCallback();
-        }
+        m_delegate.handleEos();
         m_isEos = false;
         break;
     }
@@ -442,20 +439,22 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     {
         std::string errMessage = "Rialto server webaudio playback failed";
         GST_ERROR("%s", errMessage.c_str());
-        if (m_callbacks.errorCallback)
-        {
-            m_callbacks.errorCallback(errMessage.c_str());
-        }
+        m_delegate.handleError(errMessage.c_str());
         break;
     }
     case firebolt::rialto::WebAudioPlayerState::IDLE:
+    {
+        m_delegate.handleStateChanged(firebolt::rialto::PlaybackState::IDLE);
+        break;
+    }
     case firebolt::rialto::WebAudioPlayerState::PLAYING:
+    {
+        m_delegate.handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
+        break;
+    }
     case firebolt::rialto::WebAudioPlayerState::PAUSED:
     {
-        if (m_callbacks.stateChangedCallback)
-        {
-            m_callbacks.stateChangedCallback(state);
-        }
+        m_delegate.handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
         break;
     }
     case firebolt::rialto::WebAudioPlayerState::UNKNOWN:

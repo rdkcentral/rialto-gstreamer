@@ -299,28 +299,10 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
     return status;
 }
 
-void PullModePlaybackDelegate::handleError(firebolt::rialto::PlaybackError error)
+void PullModePlaybackDelegate::handleError(const char *message, gint code)
 {
-    GError *gError = nullptr;
-    std::string message;
-    switch (error)
-    {
-    case firebolt::rialto::PlaybackError::DECRYPTION:
-    {
-        message = "Rialto dropped a frame that failed to decrypt";
-        gError = g_error_new_literal(GST_STREAM_ERROR, GST_STREAM_ERROR_DECRYPT, message.c_str());
-        break;
-    }
-    case firebolt::rialto::PlaybackError::UNKNOWN:
-    default:
-    {
-        message = "Rialto server playback failed";
-        gError = g_error_new_literal(GST_STREAM_ERROR, 0, message.c_str());
-        break;
-    }
-    }
-    gst_element_post_message(GST_ELEMENT_CAST(m_sink),
-                             gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message.c_str()));
+    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message)};
+    gst_element_post_message(GST_ELEMENT_CAST(m_sink), gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message));
     g_error_free(gError);
 }
 
@@ -577,7 +559,7 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
     return TRUE;
 }
 
-gboolean PullModePlaybackDelegate::handleEvent(GstEvent *event)
+gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     GST_DEBUG_OBJECT(m_sink, "handling event %" GST_PTR_FORMAT, event);
     switch (GST_EVENT_TYPE(event))

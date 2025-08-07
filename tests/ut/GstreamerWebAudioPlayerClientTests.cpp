@@ -19,6 +19,7 @@
 #include "GStreamerWebAudioPlayerClient.h"
 #include "Matchers.h"
 #include "MessageQueueMock.h"
+#include "PlaybackDelegateMock.h"
 #include "RialtoGstTest.h"
 #include "TimerFactoryMock.h"
 #include "TimerMock.h"
@@ -38,30 +39,6 @@ using testing::StrictMock;
 
 namespace
 {
-class CallbackMock
-{
-public:
-    static CallbackMock &instance()
-    {
-        static CallbackMock callbackMock;
-        return callbackMock;
-    }
-    MOCK_METHOD(void, errorCallback, (const char *message), (const));
-    MOCK_METHOD(void, eosCallback, (), (const));
-    MOCK_METHOD(void, stateChangedCallback, (firebolt::rialto::WebAudioPlayerState), (const));
-};
-void errorCallback(const char *message)
-{
-    CallbackMock::instance().errorCallback(message);
-}
-void eosCallback()
-{
-    CallbackMock::instance().eosCallback();
-}
-void stateChangedCallback(firebolt::rialto::WebAudioPlayerState state)
-{
-    CallbackMock::instance().stateChangedCallback(state);
-}
 constexpr int kRate{12};
 constexpr int kChannels{2};
 const std::string kMimeType{"audio/x-raw"};
@@ -92,9 +69,9 @@ public:
     {
         EXPECT_CALL(m_messageQueueMock, start());
         EXPECT_CALL(m_messageQueueMock, stop());
-        WebAudioSinkCallbacks callbacks{errorCallback, eosCallback, stateChangedCallback};
         m_sut = std::make_shared<GStreamerWebAudioPlayerClient>(std::move(m_webAudioClientBackend),
-                                                                std::move(m_messageQueue), callbacks, m_timerFactoryMock);
+                                                                std::move(m_messageQueue), m_delegateMock,
+                                                                m_timerFactoryMock);
     }
 
     void expectCallInEventLoop()
@@ -139,6 +116,7 @@ protected:
     std::unique_ptr<StrictMock<MessageQueueMock>> m_messageQueue{std::make_unique<StrictMock<MessageQueueMock>>()};
     StrictMock<MessageQueueMock> &m_messageQueueMock{*m_messageQueue};
     std::shared_ptr<StrictMock<TimerFactoryMock>> m_timerFactoryMock{std::make_shared<StrictMock<TimerFactoryMock>>()};
+    StrictMock<PlaybackDelegateMock> m_delegateMock;
     std::shared_ptr<GStreamerWebAudioPlayerClient> m_sut;
 };
 
@@ -540,23 +518,23 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
 
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyEos)
 {
-    EXPECT_CALL(CallbackMock::instance(), eosCallback());
+    EXPECT_CALL(m_delegateMock, handleEos());
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::END_OF_STREAM);
 }
 
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyFailure)
 {
-    EXPECT_CALL(CallbackMock::instance(), errorCallback(_));
+    EXPECT_CALL(m_delegateMock, handleError(_, 0));
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::FAILURE);
 }
 
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyStateChange)
 {
-    EXPECT_CALL(CallbackMock::instance(), stateChangedCallback(firebolt::rialto::WebAudioPlayerState::IDLE));
+    EXPECT_CALL(m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::IDLE));
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::IDLE);
-    EXPECT_CALL(CallbackMock::instance(), stateChangedCallback(firebolt::rialto::WebAudioPlayerState::PLAYING));
+    EXPECT_CALL(m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::PLAYING);
-    EXPECT_CALL(CallbackMock::instance(), stateChangedCallback(firebolt::rialto::WebAudioPlayerState::PAUSED));
+    EXPECT_CALL(m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PAUSED));
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::PAUSED);
 }
 

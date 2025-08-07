@@ -41,6 +41,7 @@ add_library(gstrialtosinks
         PullModePlaybackDelegate.cpp
         PullModeSubtitlePlaybackDelegate.cpp
         PullModeVideoPlaybackDelegate.cpp
+        PushModeAudioPlaybackDelegate.cpp
         RialtoGSteamerPlugin.cpp
         RialtoGStreamerMSEBaseSink.cpp
         MediaPlayerManager.cpp

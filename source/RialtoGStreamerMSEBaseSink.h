@@ -59,23 +59,15 @@ GType rialto_mse_base_sink_get_type(void);
 
 void rialto_mse_base_sink_initialise_delegate(RialtoMSEBaseSink *sink,
                                               const std::shared_ptr<IPlaybackDelegate> &delegate);
-GstRefSample rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink);
-void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink);
-bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink);
-
-void rialto_mse_base_async_start(RialtoMSEBaseSink *sink);
-void rialto_mse_base_handle_rialto_server_state_changed(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state);
-void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink);
-void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sink);
-void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped);
-void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error);
-void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);
-GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);
-gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event);
-void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink);
 void rialto_mse_base_sink_handle_get_property(RialtoMSEBaseSink *sink, const IPlaybackDelegate::Property &property,
                                               GValue *value);
 void rialto_mse_base_sink_handle_set_property(RialtoMSEBaseSink *sink, const IPlaybackDelegate::Property &property,
                                               const GValue *value);
+
+GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf);
+gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *event);
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
+
+void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);
+
 G_END_DECLS

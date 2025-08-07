@@ -44,7 +44,7 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
     return PullModePlaybackDelegate::changeState(transition);
 }
 
-gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstEvent *event)
+gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     switch (GST_EVENT_TYPE(event))
     {
@@ -64,7 +64,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstEvent *event)
         if (subtitleSource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink))))
+            if ((!client) || (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink), shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source");
             }
@@ -138,7 +138,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstEvent *event)
     default:
         break;
     }
-    return PullModePlaybackDelegate::handleEvent(event);
+    return PullModePlaybackDelegate::handleEvent(pad, parent, event);
 }
 
 void PullModeSubtitlePlaybackDelegate::getProperty(const Property &type, GValue *value)

@@ -206,6 +206,7 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(webAudioSink, GST_STATE_READY));
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
 }
 
@@ -409,7 +410,7 @@ void RialtoGstTest::setPlayingState(GstElement *pipeline) const
 
 void RialtoGstTest::setNullState(GstElement *pipeline, int32_t sourceId) const
 {
-    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillRepeatedly(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
     gst_element_set_state(pipeline, GST_STATE_NULL);
 }

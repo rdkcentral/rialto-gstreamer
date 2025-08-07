@@ -88,7 +88,7 @@ GstStateChangeReturn PullModeAudioPlaybackDelegate::changeState(GstStateChange t
     return PullModePlaybackDelegate::changeState(transition);
 }
 
-gboolean PullModeAudioPlaybackDelegate::handleEvent(GstEvent *event)
+gboolean PullModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     switch (GST_EVENT_TYPE(event))
     {
@@ -108,7 +108,7 @@ gboolean PullModeAudioPlaybackDelegate::handleEvent(GstEvent *event)
         if (asource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(asource, RIALTO_MSE_BASE_SINK(m_sink))))
+            if ((!client) || (!client->attachSource(asource, RIALTO_MSE_BASE_SINK(m_sink), shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach AUDIO source");
             }
@@ -209,7 +209,7 @@ gboolean PullModeAudioPlaybackDelegate::handleEvent(GstEvent *event)
     default:
         break;
     }
-    return PullModePlaybackDelegate::handleEvent(event);
+    return PullModePlaybackDelegate::handleEvent(pad, parent, event);
 }
 
 void PullModeAudioPlaybackDelegate::getProperty(const Property &type, GValue *value)
