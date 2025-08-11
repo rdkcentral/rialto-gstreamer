@@ -18,21 +18,20 @@
 
 #pragma once
 
-#include "IPlaybackDelegate.h"
+#include "IPullModePlaybackDelegate.h"
 #include <gst/gst.h>
 
 #include <string>
 
 #include "ControlBackendInterface.h"
 #include "MediaPlayerManager.h"
-#include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <queue>
 
-class PullModePlaybackDelegate : public IPlaybackDelegate
+class PullModePlaybackDelegate : public IPullModePlaybackDelegate
 {
 protected:
     explicit PullModePlaybackDelegate(GstElement *sink);
@@ -44,22 +43,22 @@ public:
     void handleEos() override;
     void handleFlushCompleted() override;
     void handleStateChanged(firebolt::rialto::PlaybackState state) override;
-    void handleError(firebolt::rialto::PlaybackError error) override;
-
+    void handleError(const char *message, gint code = 0) override;
     GstStateChangeReturn changeState(GstStateChange transition) override;
     void postAsyncStart() override;
     void setProperty(const Property &type, const GValue *value) override;
     void getProperty(const Property &type, GValue *value) override;
     std::optional<gboolean> handleQuery(GstQuery *query) const override;
     gboolean handleSendEvent(GstEvent *event) override;
-    gboolean handleEvent(GstEvent *event) override;
+    gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     GstFlowReturn handleBuffer(GstBuffer *buffer) override;
     GstRefSample getFrontSample() const override;
     void popSample() override;
     bool isEos() const override;
     void lostState() override;
-    bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0,
-                                                const uint32_t maxVideoHeight = 0) override;
+
+protected:
+    bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
 
 private:
     void clearBuffersUnlocked();

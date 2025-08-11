@@ -81,47 +81,6 @@ static std::shared_ptr<IPlaybackDelegate> rialto_mse_base_sink_get_delegate(Rial
     return sink->priv->m_delegate;
 }
 
-void rialto_mse_base_async_start(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->postAsyncStart();
-    }
-}
-
-static void rialto_mse_base_sink_eos_handler(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleEos();
-    }
-}
-
-static void rialto_mse_base_sink_error_handler(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleError(error);
-    }
-}
-
-static void rialto_mse_base_sink_rialto_state_changed_handler(RialtoMSEBaseSink *sink,
-                                                              firebolt::rialto::PlaybackState state)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleStateChanged(state);
-    }
-}
-
-static void rialto_mse_base_sink_flush_completed_handler(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->handleFlushCompleted();
-    }
-}
-
 static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *event)
 {
     if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(element)))
@@ -135,7 +94,7 @@ gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *ev
 {
     if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(parent)))
     {
-        return delegate->handleEvent(event);
+        return delegate->handleEvent(pad, parent, event);
     }
     return FALSE;
 }
@@ -147,48 +106,6 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
         return delegate->handleBuffer(buf);
     }
     return GST_FLOW_ERROR;
-}
-
-GstRefSample rialto_mse_base_sink_get_front_sample(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        return delegate->getFrontSample();
-    }
-    return GstRefSample{};
-}
-
-void rialto_mse_base_sink_pop_sample(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->popSample();
-    }
-}
-
-bool rialto_mse_base_sink_is_eos(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        return delegate->isEos();
-    }
-    return false;
-}
-
-void rialto_mse_base_sink_lost_state(RialtoMSEBaseSink *sink)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
-    {
-        delegate->lostState();
-    }
-}
-
-static void rialto_mse_base_sink_qos_handle(GstElement *element, uint64_t processed, uint64_t dropped)
-{
-    if (auto delegate = rialto_mse_base_sink_get_delegate(RIALTO_MSE_BASE_SINK(element)))
-    {
-        delegate->handleQos(processed, dropped);
-    }
 }
 
 static gboolean rialto_mse_base_sink_query(GstElement *element, GstQuery *query)
@@ -317,46 +234,6 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
     }
 }
 
-void rialto_mse_base_handle_rialto_server_state_changed(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackState state)
-{
-    if (sink->priv->m_callbacks.stateChangedCallback)
-    {
-        sink->priv->m_callbacks.stateChangedCallback(state);
-    }
-}
-
-void rialto_mse_base_handle_rialto_server_eos(RialtoMSEBaseSink *sink)
-{
-    if (sink->priv->m_callbacks.eosCallback)
-    {
-        sink->priv->m_callbacks.eosCallback();
-    }
-}
-
-void rialto_mse_base_handle_rialto_server_completed_flush(RialtoMSEBaseSink *sink)
-{
-    if (sink->priv->m_callbacks.flushCompletedCallback)
-    {
-        sink->priv->m_callbacks.flushCompletedCallback();
-    }
-}
-
-void rialto_mse_base_handle_rialto_server_sent_qos(RialtoMSEBaseSink *sink, uint64_t processed, uint64_t dropped)
-{
-    if (sink->priv->m_callbacks.qosCallback)
-    {
-        sink->priv->m_callbacks.qosCallback(processed, dropped);
-    }
-}
-
-void rialto_mse_base_handle_rialto_server_error(RialtoMSEBaseSink *sink, firebolt::rialto::PlaybackError error)
-{
-    if (sink->priv->m_callbacks.errorCallback)
-    {
-        sink->priv->m_callbacks.errorCallback(error);
-    }
-}
-
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink)
 {
     GST_WARNING_OBJECT(sink, "Sending underflow signal");
@@ -393,15 +270,6 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     sink->priv = static_cast<RialtoMSEBaseSinkPrivate *>(rialto_mse_base_sink_get_instance_private(sink));
     new (sink->priv) RialtoMSEBaseSinkPrivate();
 
-    RialtoGStreamerMSEBaseSinkCallbacks callbacks;
-    callbacks.eosCallback = std::bind(rialto_mse_base_sink_eos_handler, sink);
-    callbacks.flushCompletedCallback = std::bind(rialto_mse_base_sink_flush_completed_handler, sink);
-    callbacks.stateChangedCallback =
-        std::bind(rialto_mse_base_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
-    callbacks.errorCallback = std::bind(rialto_mse_base_sink_error_handler, sink, std::placeholders::_1);
-    callbacks.qosCallback = std::bind(rialto_mse_base_sink_qos_handle, GST_ELEMENT_CAST(sink), std::placeholders::_1,
-                                      std::placeholders::_2);
-    sink->priv->m_callbacks = callbacks;
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
 }
 

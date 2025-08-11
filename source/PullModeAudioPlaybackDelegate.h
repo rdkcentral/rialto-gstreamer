@@ -27,14 +27,15 @@ struct AudioFadeConfig
     firebolt::rialto::EaseType easeType;
 };
 
-class PullModeAudioPlaybackDelegate : public PullModePlaybackDelegate
+class PullModeAudioPlaybackDelegate : public PullModePlaybackDelegate,
+                                      public std::enable_shared_from_this<PullModeAudioPlaybackDelegate>
 {
 public:
     explicit PullModeAudioPlaybackDelegate(GstElement *sink);
     ~PullModeAudioPlaybackDelegate() override = default;
 
     GstStateChangeReturn changeState(GstStateChange transition) override;
-    gboolean handleEvent(GstEvent *event) override;
+    gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     void getProperty(const Property &type, GValue *value) override;
     void setProperty(const Property &type, const GValue *value) override;
     void handleQos(uint64_t processed, uint64_t dropped) const override;

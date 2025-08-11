@@ -62,7 +62,7 @@ GstStateChangeReturn PullModeVideoPlaybackDelegate::changeState(GstStateChange t
     return PullModePlaybackDelegate::changeState(transition);
 }
 
-gboolean PullModeVideoPlaybackDelegate::handleEvent(GstEvent *event)
+gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     switch (GST_EVENT_TYPE(event))
     {
@@ -82,7 +82,7 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstEvent *event)
         if (vsource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(m_sink))))
+            if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(m_sink), shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach VIDEO source");
             }
@@ -132,7 +132,7 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstEvent *event)
     default:
         break;
     }
-    return PullModePlaybackDelegate::handleEvent(event);
+    return PullModePlaybackDelegate::handleEvent(pad, parent, event);
 }
 
 void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *value)
@@ -249,7 +249,7 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
         if (client && stepOnPrerollEnabled && !m_stepOnPrerollEnabled)
         {
             GST_INFO_OBJECT(m_sink, "Frame stepping on preroll");
-            client->renderFrame(RIALTO_MSE_BASE_SINK(m_sink));
+            client->renderFrame(m_sourceId);
         }
         m_stepOnPrerollEnabled = stepOnPrerollEnabled;
         break;

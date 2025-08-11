@@ -25,7 +25,6 @@
 #include "ControlBackendInterface.h"
 #include "IPlaybackDelegate.h"
 #include "MediaPlayerManager.h"
-#include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 #include <atomic>
 #include <map>
 #include <memory>
@@ -40,10 +39,9 @@ struct _RialtoMSEBaseSinkPrivate
     _RialtoMSEBaseSinkPrivate() = default;
     ~_RialtoMSEBaseSinkPrivate() = default;
 
+    GstPad *m_sinkPad{nullptr};
     std::mutex m_sinkMutex;
     std::shared_ptr<IPlaybackDelegate> m_delegate{nullptr};
-    GstPad *m_sinkPad{nullptr};
-    RialtoGStreamerMSEBaseSinkCallbacks m_callbacks;
     std::map<IPlaybackDelegate::Property, GValue> m_queuedProperties{};
 };
 G_END_DECLS
