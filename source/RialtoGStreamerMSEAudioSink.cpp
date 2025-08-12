@@ -23,6 +23,7 @@
 #include "GStreamerMSEUtils.h"
 #include "IMediaPipelineCapabilities.h"
 #include "PullModeAudioPlaybackDelegate.h"
+#include "PushModeAudioPlaybackDelegate.h"
 #include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
@@ -52,17 +53,25 @@ enum
     PROP_LIMIT_BUFFERING_MS,
     PROP_USE_BUFFERING,
     PROP_ASYNC,
+    PROP_WEBAUDIO,
     PROP_LAST
 };
 
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
-    RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(element);
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
-        GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing delegate");
-        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink),
-                                                 std::make_shared<PullModeAudioPlaybackDelegate>(element));
+        if (PlaybackMode::Pull == sink->priv->m_playbackMode)
+        {
+            GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing Pull Mode delegate");
+            rialto_mse_base_sink_initialise_delegate(sink, std::make_shared<PullModeAudioPlaybackDelegate>(element));
+        }
+        else // Push playback mode
+        {
+            GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing Push Mode delegate");
+            rialto_mse_base_sink_initialise_delegate(sink, std::make_shared<PushModeAudioPlaybackDelegate>(element));
+        }
     }
 
     GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
@@ -130,6 +139,11 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     {
         g_value_set_boolean(value, TRUE);
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
+        break;
+    }
+    case PROP_WEBAUDIO:
+    {
+        g_value_set_boolean(value, (RIALTO_MSE_BASE_SINK(object)->priv->m_playbackMode == PlaybackMode::Push));
         break;
     }
     default:
@@ -206,6 +220,23 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
         break;
     }
+    case PROP_WEBAUDIO:
+    {
+        auto *baseSink{RIALTO_MSE_BASE_SINK(object)};
+        if (GST_STATE(baseSink) > GST_STATE_NULL)
+        {
+            GST_ERROR_OBJECT(object, "Playback mode set too late - sink is not in NULL state");
+        }
+        if (TRUE == g_value_get_boolean(value))
+        {
+            baseSink->priv->m_playbackMode = PlaybackMode::Push;
+        }
+        else
+        {
+            baseSink->priv->m_playbackMode = PlaybackMode::Pull;
+        }
+        break;
+    }
     default:
     {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -255,6 +286,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                          kDefaultUseBuffering, G_PARAM_READWRITE));
     g_object_class_install_property(gobjectClass, PROP_ASYNC,
                                     g_param_spec_boolean("async", "Async", "Asynchronous mode", FALSE, G_PARAM_READWRITE));
+    g_object_class_install_property(gobjectClass, PROP_WEBAUDIO,
+                                    g_param_spec_boolean("web-audio",
+                                                         "Webaudio mode", "Enable webaudio mode. Property should be set before NULL->READY transition",
+                                                         FALSE, G_PARAM_READWRITE));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
