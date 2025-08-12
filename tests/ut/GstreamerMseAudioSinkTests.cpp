@@ -1296,6 +1296,21 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetAsyncProperty)
     gst_object_unref(textContext.m_pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetWebAudioPropertyWhenSinkIsAboveNullState)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    g_object_set(textContext.m_sink, "web-audio", TRUE, nullptr);
+
+    // WebAudio property should still return FALSE
+    gboolean webAudioEnabled{FALSE};
+    g_object_get(textContext.m_sink, "web-audio", &webAudioEnabled, nullptr);
+    EXPECT_EQ(webAudioEnabled, FALSE);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldHandleSwitchSourceEvent)
 {
     GstCaps *caps{createDefaultCaps()};

@@ -215,6 +215,7 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         if (GST_STATE(sink) > GST_STATE_NULL)
         {
             GST_ERROR_OBJECT(object, "Playback mode set too late - sink is not in NULL state");
+            break;
         }
         if (TRUE == g_value_get_boolean(value))
         {
