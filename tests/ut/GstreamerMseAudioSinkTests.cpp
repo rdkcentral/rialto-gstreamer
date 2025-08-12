@@ -262,7 +262,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithBwav)
     gst_object_unref(pipeline);
 }
 
-#ifdef RIALTO_ENABLE_X_RAW
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithXraw)
 {
     constexpr firebolt::rialto::Format kExpectedFormat{firebolt::rialto::Format::S32BE};
@@ -291,7 +290,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithXraw)
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
-#endif
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithFlac)
 {
