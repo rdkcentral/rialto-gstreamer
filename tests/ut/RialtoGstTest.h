@@ -58,6 +58,7 @@ public:
     RialtoMSEBaseSink *createVideoSink() const;
     RialtoMSEBaseSink *createSubtitleSink() const;
     RialtoWebAudioSink *createWebAudioSink() const;
+    RialtoMSEBaseSink *createAudioSinkInWebAudioMode() const;
     GstElement *createPlaybin2WithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoWebAudioSink *sink) const;
