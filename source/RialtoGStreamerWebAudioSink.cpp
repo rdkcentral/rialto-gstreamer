@@ -102,10 +102,9 @@ static gboolean rialto_web_audio_sink_send_event(GstElement *element, GstEvent *
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(element);
     if (auto delegate = rialto_web_audio_sink_get_delegate(sink))
     {
-        delegate->handleSendEvent(event);
+        return delegate->handleSendEvent(event);
     }
-    GstElement *parent = GST_ELEMENT(&sink->parent);
-    return GST_ELEMENT_CLASS(parent_class)->send_event(parent, event);
+    return FALSE;
 }
 
 static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *element, GstStateChange transition)

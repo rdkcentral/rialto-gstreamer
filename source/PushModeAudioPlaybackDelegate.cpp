@@ -282,6 +282,7 @@ gboolean PushModeAudioPlaybackDelegate::handleSendEvent(GstEvent *event)
     default:
         break;
     }
+    gst_event_unref(event);
     return TRUE;
 }
 
@@ -294,7 +295,6 @@ gboolean PushModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
     {
         GST_DEBUG_OBJECT(m_sink, "GST_EVENT_EOS");
         result = m_webAudioClient->setEos();
-        gst_event_unref(event);
         break;
     }
     case GST_EVENT_CAPS:
@@ -335,13 +335,12 @@ gboolean PushModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                 }
             }
         }
-        gst_event_unref(event);
         break;
     }
     default:
-        result = gst_pad_event_default(pad, parent, event);
-        break;
+        return gst_pad_event_default(pad, parent, event);
     }
+    gst_event_unref(event);
     return result;
 }
 

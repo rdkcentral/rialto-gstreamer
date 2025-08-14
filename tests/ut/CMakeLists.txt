@@ -82,6 +82,7 @@ add_gtests (
         BufferParserTests.cpp
         ControlBackendTests.cpp
         GStreamerEmeUtilsTests.cpp
+        GstreamerMseAudioSinkInWebAudioModeTests.cpp
         GstreamerMseAudioSinkTests.cpp
         GstreamerMseBaseSinkTests.cpp
         GstreamerMseMediaPlayerClientTests.cpp

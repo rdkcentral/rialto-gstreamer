@@ -132,6 +132,10 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
         GstStateChangeReturn status = delegate->changeState(transition);
         if (GST_STATE_CHANGE_FAILURE != status)
         {
+            if (GST_STATE_CHANGE_READY_TO_NULL == transition)
+            {
+                sink->priv->m_delegate.reset();
+            }
             GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
             if (G_UNLIKELY(result == GST_STATE_CHANGE_FAILURE))
             {
