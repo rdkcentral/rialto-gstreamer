@@ -61,18 +61,6 @@ add_compile_definitions(TAGS="${TAGS}")
 # Preprocesser Variable
 add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
-# The x-raw capability is disabled until a workaround is found for the following...
-# Task to remove a workaround is RIALTO-683.
-# 
-# Returning an x-raw capability (which would work) has the side-effect of
-# breaking the WebAudio YT cert test.
-# When WebAudio in cobalt creates the audio sink, it uses autoaudiosink which is
-# selecting the MSE sink instead of webaudio (because it supports x-raw)
-if ( RIALTO_ENABLE_X_RAW )
-    message("RIALTO_ENABLE_X_RAW IS ENABLED")
-    add_compile_definitions( RIALTO_ENABLE_X_RAW )
-endif()
-
 # Config and target for building the unit tests
 if( NOT CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
     add_subdirectory(source)

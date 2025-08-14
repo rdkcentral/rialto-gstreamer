@@ -133,7 +133,7 @@ def main ():
 # Build the target executables
 def buildTargets (suites, outputDir, resultsFile, debug, coverage, branch):
     # Run cmake
-    cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests", "-DRIALTO_ENABLE_X_RAW=1", "-DBUILD_BRANCH=" + str(branch)]
+    cmakeCmd = ["cmake", "-B", outputDir , "-DCMAKE_BUILD_FLAG=UnitTests", "-DBUILD_BRANCH=" + str(branch)]
     # Coverage
     if coverage:
         cmakeCmd.append("-DCOVERAGE_ENABLED=1")

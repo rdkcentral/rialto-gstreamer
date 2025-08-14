@@ -89,10 +89,11 @@ void PushModeAudioPlaybackDelegate::handleStateChanged(firebolt::rialto::Playbac
     }
 }
 
-void PushModeAudioPlaybackDelegate::handleError(const char *message, gint code)
+void PushModeAudioPlaybackDelegate::handleError(const std::string &message, gint code)
 {
-    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message)};
-    gst_element_post_message(GST_ELEMENT_CAST(m_sink), gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message));
+    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message.c_str())};
+    gst_element_post_message(GST_ELEMENT_CAST(m_sink),
+                             gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message.c_str()));
     g_error_free(gError);
 }
 
@@ -281,6 +282,7 @@ gboolean PushModeAudioPlaybackDelegate::handleSendEvent(GstEvent *event)
     default:
         break;
     }
+    gst_event_unref(event);
     return TRUE;
 }
 
@@ -293,7 +295,6 @@ gboolean PushModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
     {
         GST_DEBUG_OBJECT(m_sink, "GST_EVENT_EOS");
         result = m_webAudioClient->setEos();
-        gst_event_unref(event);
         break;
     }
     case GST_EVENT_CAPS:
@@ -334,13 +335,12 @@ gboolean PushModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                 }
             }
         }
-        gst_event_unref(event);
         break;
     }
     default:
-        result = gst_pad_event_default(pad, parent, event);
-        break;
+        return gst_pad_event_default(pad, parent, event);
     }
+    gst_event_unref(event);
     return result;
 }
 
