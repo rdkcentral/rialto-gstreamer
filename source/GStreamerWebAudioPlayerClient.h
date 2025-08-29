@@ -20,6 +20,7 @@
 
 #include "Constants.h"
 #include "IMessageQueue.h"
+#include "IPlaybackDelegate.h"
 #include "ITimer.h"
 #include "MediaCommon.h"
 #include "WebAudioClientBackendInterface.h"
@@ -40,13 +41,6 @@
 #include <thread>
 #include <vector>
 
-struct WebAudioSinkCallbacks
-{
-    std::function<void(const char *message)> errorCallback;
-    std::function<void(void)> eosCallback;
-    std::function<void(firebolt::rialto::WebAudioPlayerState)> stateChangedCallback;
-};
-
 class GStreamerWebAudioPlayerClient : public firebolt::rialto::IWebAudioPlayerClient,
                                       public std::enable_shared_from_this<GStreamerWebAudioPlayerClient>
 {
@@ -58,7 +52,7 @@ public:
      */
     GStreamerWebAudioPlayerClient(
         std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
-        std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
+        std::unique_ptr<IMessageQueue> &&backendQueue, IPlaybackDelegate &delegate,
         std::shared_ptr<ITimerFactory> timerFactory);
 
     /**
@@ -222,6 +216,17 @@ private:
     uint32_t m_frameSize;
 
     /**
+     * @brief The mutex protecting m_dataBuffers size reads
+     */
+    std::mutex m_queueSizeMutex;
+
+    /**
+     * @brief The condition variable used to block webaudio chain function
+     *        when m_dataBuffers queue size is too large
+     */
+    std::condition_variable m_queueSizeCv;
+
+    /**
      * @brief The current web audio player mime type.
      */
     std::string m_mimeType;
@@ -232,7 +237,7 @@ private:
     firebolt::rialto::WebAudioConfig m_config;
 
     /**
-     * @brief The sink callbacks.
+     * @brief The reference to delegate object.
      */
-    WebAudioSinkCallbacks m_callbacks;
+    IPlaybackDelegate &m_delegate;
 };

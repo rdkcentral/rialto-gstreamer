@@ -305,7 +305,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
 
             result = StateChangeResult::SUCCESS_ASYNC;
-            rialto_mse_base_async_start(sourceIt->second.m_rialtoSink);
+            sourceIt->second.m_delegate->postAsyncStart();
         });
 
     return result;
@@ -373,7 +373,7 @@ StateChangeResult GStreamerMSEMediaPlayerClient::pause(int32_t sourceId)
                 }
 
                 result = StateChangeResult::SUCCESS_ASYNC;
-                rialto_mse_base_async_start(sourceIt->second.m_rialtoSink);
+                sourceIt->second.m_delegate->postAsyncStart();
             }
         });
 
@@ -412,8 +412,8 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 
             if (async)
             {
-                GST_ERROR("Flush request sent for async source %d. Sink will lose state now", sourceId);
-                rialto_mse_base_sink_lost_state(sourceIt->second.m_rialtoSink);
+                GST_INFO("Flush request sent for async source %d. Sink will lose state now", sourceId);
+                sourceIt->second.m_delegate->lostState();
 
                 sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
                 if (m_clientState == ClientState::PLAYING)
@@ -464,7 +464,8 @@ void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t d
 }
 
 bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
-                                                 RialtoMSEBaseSink *rialtoSink)
+                                                 RialtoMSEBaseSink *rialtoSink,
+                                                 const std::shared_ptr<IPullModePlaybackDelegate> &delegate)
 {
     if (source->getType() != firebolt::rialto::MediaSourceType::AUDIO &&
         source->getType() != firebolt::rialto::MediaSourceType::VIDEO &&
@@ -496,15 +497,16 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     bufferParser = std::make_shared<SubtitleBufferParser>();
                 }
 
-                std::shared_ptr<BufferPuller> bufferPuller =
-                    std::make_shared<BufferPuller>(m_messageQueueFactory, GST_ELEMENT_CAST(rialtoSink), bufferParser);
+                std::shared_ptr<BufferPuller> bufferPuller = std::make_shared<BufferPuller>(m_messageQueueFactory,
+                                                                                            GST_ELEMENT_CAST(rialtoSink),
+                                                                                            bufferParser, delegate);
 
                 if (m_attachedSources.find(source->getId()) == m_attachedSources.end())
                 {
                     m_attachedSources.emplace(source->getId(),
-                                              AttachedSource(rialtoSink, bufferPuller, source->getType()));
+                                              AttachedSource(rialtoSink, bufferPuller, delegate, source->getType()));
 
-                    rialtoSink->priv->m_sourceId = source->getId();
+                    delegate->setSourceId(source->getId());
                     bufferPuller->start();
                 }
             }
@@ -595,8 +597,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     {
                         source.second.m_state = ClientState::PLAYING;
                     }
-
-                    rialto_mse_base_handle_rialto_server_state_changed(source.second.m_rialtoSink, state);
+                    source.second.m_delegate->handleStateChanged(state);
                 }
 
                 break;
@@ -605,7 +606,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             {
                 for (const auto &source : m_attachedSources)
                 {
-                    rialto_mse_base_handle_rialto_server_eos(source.second.m_rialtoSink);
+                    source.second.m_delegate->handleEos();
                 }
             }
             break;
@@ -618,8 +619,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             {
                 for (const auto &source : m_attachedSources)
                 {
-                    rialto_mse_base_handle_rialto_server_error(source.second.m_rialtoSink,
-                                                               firebolt::rialto::PlaybackError::UNKNOWN);
+                    source.second.m_delegate->handleError("Rialto server playback failed");
                 }
                 for (auto &source : m_attachedSources)
                 {
@@ -653,7 +653,7 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
             }
             sourceIt->second.m_isFlushing = false;
             sourceIt->second.m_bufferPuller->start();
-            rialto_mse_base_handle_rialto_server_completed_flush(sourceIt->second.m_rialtoSink);
+            sourceIt->second.m_delegate->handleFlushCompleted();
         });
 }
 
@@ -699,7 +699,7 @@ std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
     return std::string(rectangle);
 }
 
-bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
+bool GStreamerMSEMediaPlayerClient::renderFrame(int32_t sourceId)
 {
     bool result = false;
     m_backendQueue->callInEventLoop(
@@ -709,7 +709,11 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(RialtoMSEBaseSink *sink)
             if (result)
             {
                 // RialtoServer's video sink should drop PAUSED state due to skipping prerolled buffer in PAUSED state
-                rialto_mse_base_sink_lost_state(sink);
+                auto sourceIt = m_attachedSources.find(sourceId);
+                if (sourceIt != m_attachedSources.end())
+                {
+                    sourceIt->second.m_delegate->lostState();
+                }
             }
         });
     return result;
@@ -963,10 +967,7 @@ bool GStreamerMSEMediaPlayerClient::handleQos(int sourceId, firebolt::rialto::Qo
                 result = false;
                 return;
             }
-
-            rialto_mse_base_handle_rialto_server_sent_qos(sourceIt->second.m_rialtoSink, qosInfo.processed,
-                                                          qosInfo.dropped);
-
+            sourceIt->second.m_delegate->handleQos(qosInfo.processed, qosInfo.dropped);
             result = true;
         });
 
@@ -1010,7 +1011,15 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
             GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
                       toString(sourceIt->second.getType()));
-            rialto_mse_base_handle_rialto_server_error(sourceIt->second.m_rialtoSink, error);
+            if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+            {
+                sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
+                                                         GST_STREAM_ERROR_DECRYPT);
+            }
+            else
+            {
+                sourceIt->second.m_delegate->handleError("Rialto server playback failed");
+            }
 
             result = true;
         });
@@ -1026,8 +1035,10 @@ firebolt::rialto::AddSegmentStatus GStreamerMSEMediaPlayerClient::addSegment(
 }
 
 BufferPuller::BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
-                           const std::shared_ptr<BufferParser> &bufferParser)
-    : m_queue{messageQueueFactory->createMessageQueue()}, m_rialtoSink(rialtoSink), m_bufferParser(bufferParser)
+                           const std::shared_ptr<BufferParser> &bufferParser,
+                           const std::shared_ptr<IPullModePlaybackDelegate> &delegate)
+    : m_queue{messageQueueFactory->createMessageQueue()}, m_rialtoSink(rialtoSink), m_bufferParser(bufferParser),
+      m_delegate{delegate}
 {
 }
 
@@ -1044,8 +1055,8 @@ void BufferPuller::stop()
 bool BufferPuller::requestPullBuffer(int sourceId, size_t frameCount, unsigned int needDataRequestId,
                                      GStreamerMSEMediaPlayerClient *player)
 {
-    return m_queue->postMessage(std::make_shared<PullBufferMessage>(sourceId, frameCount, needDataRequestId,
-                                                                    m_rialtoSink, m_bufferParser, *m_queue, player));
+    return m_queue->postMessage(std::make_shared<PullBufferMessage>(sourceId, frameCount, needDataRequestId, m_rialtoSink,
+                                                                    m_bufferParser, *m_queue, player, m_delegate));
 }
 
 HaveDataMessage::HaveDataMessage(firebolt::rialto::MediaSourceStatus status, int sourceId,
@@ -1067,9 +1078,10 @@ void HaveDataMessage::handle()
 
 PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
                                      GstElement *rialtoSink, const std::shared_ptr<BufferParser> &bufferParser,
-                                     IMessageQueue &pullerQueue, GStreamerMSEMediaPlayerClient *player)
+                                     IMessageQueue &pullerQueue, GStreamerMSEMediaPlayerClient *player,
+                                     const std::shared_ptr<IPullModePlaybackDelegate> &delegate)
     : m_sourceId(sourceId), m_frameCount(frameCount), m_needDataRequestId(needDataRequestId), m_rialtoSink(rialtoSink),
-      m_bufferParser(bufferParser), m_pullerQueue(pullerQueue), m_player(player)
+      m_bufferParser(bufferParser), m_pullerQueue(pullerQueue), m_player(player), m_delegate{delegate}
 {
 }
 
@@ -1080,10 +1092,10 @@ void PullBufferMessage::handle()
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
     {
-        GstRefSample sample = rialto_mse_base_sink_get_front_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
+        GstRefSample sample = m_delegate->getFrontSample();
         if (!sample)
         {
-            if (rialto_mse_base_sink_is_eos(RIALTO_MSE_BASE_SINK(m_rialtoSink)))
+            if (m_delegate->isEos())
             {
                 isEos = true;
             }
@@ -1102,7 +1114,7 @@ void PullBufferMessage::handle()
         if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
         {
             GST_ERROR_OBJECT(m_rialtoSink, "Could not map buffer");
-            rialto_mse_base_sink_pop_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
+            m_delegate->popSample();
             continue;
         }
 
@@ -1112,7 +1124,7 @@ void PullBufferMessage::handle()
         {
             GST_ERROR_OBJECT(m_rialtoSink, "No data returned from the parser");
             gst_buffer_unmap(buffer, &map);
-            rialto_mse_base_sink_pop_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
+            m_delegate->popSample();
             continue;
         }
 
@@ -1125,7 +1137,7 @@ void PullBufferMessage::handle()
         }
 
         gst_buffer_unmap(buffer, &map);
-        rialto_mse_base_sink_pop_sample(RIALTO_MSE_BASE_SINK(m_rialtoSink));
+        m_delegate->popSample();
         addedSegments++;
     }
 

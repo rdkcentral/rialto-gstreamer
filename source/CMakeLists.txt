@@ -43,6 +43,11 @@ add_library(gstrialtosinks
         GStreamerMSEMediaPlayerClient.cpp
         GStreamerWebAudioPlayerClient.cpp
         MessageQueue.cpp
+        PullModeAudioPlaybackDelegate.cpp
+        PullModePlaybackDelegate.cpp
+        PullModeSubtitlePlaybackDelegate.cpp
+        PullModeVideoPlaybackDelegate.cpp
+        PushModeAudioPlaybackDelegate.cpp
         RialtoGSteamerPlugin.cpp
         RialtoGStreamerMSEBaseSink.cpp
         MediaPlayerManager.cpp
@@ -82,6 +87,15 @@ target_compile_options(gstrialtosinks
 set_target_properties(gstrialtosinks
         PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
         )
+
+find_package(EthanLog)
+if (RIALTO_ENABLE_ETHAN_LOG AND EthanLog_FOUND)
+    message(STATUS "EthanLog is enabled")
+    target_compile_definitions(gstrialtosinks PRIVATE USE_ETHANLOG)
+    target_link_libraries(gstrialtosinks PRIVATE EthanLog::EthanLog)
+else ()
+    message(STATUS "EthanLog is disabled")
+endif ()
 
 install(
        TARGETS gstrialtosinks

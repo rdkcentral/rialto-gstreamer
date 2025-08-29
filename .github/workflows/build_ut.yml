@@ -150,7 +150,7 @@ jobs:
         
       # Download current master coverage statistics
       - name: Download Master Coverage Statistics
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v6
         if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
         with:
           workflow_conclusion: success

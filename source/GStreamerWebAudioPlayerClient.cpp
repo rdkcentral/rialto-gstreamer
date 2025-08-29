@@ -30,6 +30,7 @@
 
 namespace
 {
+constexpr std::size_t kMaxQueueSize{40};
 bool parseGstStructureFormat(const std::string &format, uint32_t &sampleSize, bool &isBigEndian, bool &isSigned,
                              bool &isFloat)
 {
@@ -78,12 +79,12 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
-    std::unique_ptr<IMessageQueue> &&backendQueue, WebAudioSinkCallbacks callbacks,
+    std::unique_ptr<IMessageQueue> &&backendQueue, IPlaybackDelegate &delegate,
     std::shared_ptr<ITimerFactory> timerFactory)
     : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
       m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0},
       m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},
-      m_callbacks{callbacks}
+      m_delegate{delegate}
 {
     m_backendQueue->start();
 }
@@ -288,6 +289,12 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
     GST_DEBUG("entry:");
 
     bool result = false;
+
+    {
+        std::unique_lock lock{m_queueSizeMutex};
+        m_queueSizeCv.wait(lock, [&]() { return m_dataBuffers.size() < kMaxQueueSize; });
+    }
+
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -298,7 +305,10 @@ bool GStreamerWebAudioPlayerClient::notifyNewSample(GstBuffer *buf)
                     m_pushSamplesTimer->cancel();
                     m_pushSamplesTimer.reset();
                 }
-                m_dataBuffers.push(buf);
+                {
+                    std::unique_lock lock{m_queueSizeMutex};
+                    m_dataBuffers.push(buf);
+                }
                 pushSamples();
                 result = true;
             }
@@ -323,7 +333,9 @@ void GStreamerWebAudioPlayerClient::pushSamples()
             GST_ERROR("getBufferAvailable failed, could not process the samples");
             // clear the queue if getBufferAvailable failed
             std::queue<GstBuffer *> empty;
+            std::unique_lock lock{m_queueSizeMutex};
             std::swap(m_dataBuffers, empty);
+            m_queueSizeCv.notify_one();
         }
         else if (0 != availableFrames)
         {
@@ -358,15 +370,19 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                 if ((leftoverData / m_frameSize == 0) && (m_dataBuffers.size() > 1))
                 {
                     // If the leftover data is smaller than a frame, it must be processed with the next buffer
+                    std::unique_lock lock{m_queueSizeMutex};
                     m_dataBuffers.pop();
                     m_dataBuffers.front() = gst_buffer_append(buffer, m_dataBuffers.front());
                     gst_buffer_unref(buffer);
+                    m_queueSizeCv.notify_one();
                 }
             }
             else
             {
+                std::unique_lock lock{m_queueSizeMutex};
                 m_dataBuffers.pop();
                 gst_buffer_unref(buffer);
+                m_queueSizeCv.notify_one();
             }
         }
     } while (!m_dataBuffers.empty() && availableFrames != 0);
@@ -377,7 +393,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
     if (m_dataBuffers.size())
     {
         m_pushSamplesTimer =
-            m_timerFactory->createTimer(std::chrono::milliseconds(100), [this]() { notifyPushSamplesTimerExpired(); });
+            m_timerFactory->createTimer(std::chrono::milliseconds(10), [this]() { notifyPushSamplesTimerExpired(); });
     }
     else if (m_isEos)
     {
@@ -415,10 +431,7 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     case firebolt::rialto::WebAudioPlayerState::END_OF_STREAM:
     {
         GST_INFO("Notify end of stream.");
-        if (m_callbacks.eosCallback)
-        {
-            m_callbacks.eosCallback();
-        }
+        m_delegate.handleEos();
         m_isEos = false;
         break;
     }
@@ -426,20 +439,22 @@ void GStreamerWebAudioPlayerClient::notifyState(firebolt::rialto::WebAudioPlayer
     {
         std::string errMessage = "Rialto server webaudio playback failed";
         GST_ERROR("%s", errMessage.c_str());
-        if (m_callbacks.errorCallback)
-        {
-            m_callbacks.errorCallback(errMessage.c_str());
-        }
+        m_delegate.handleError(errMessage.c_str());
         break;
     }
     case firebolt::rialto::WebAudioPlayerState::IDLE:
+    {
+        m_delegate.handleStateChanged(firebolt::rialto::PlaybackState::IDLE);
+        break;
+    }
     case firebolt::rialto::WebAudioPlayerState::PLAYING:
+    {
+        m_delegate.handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
+        break;
+    }
     case firebolt::rialto::WebAudioPlayerState::PAUSED:
     {
-        if (m_callbacks.stateChangedCallback)
-        {
-            m_callbacks.stateChangedCallback(state);
-        }
+        m_delegate.handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
         break;
     }
     case firebolt::rialto::WebAudioPlayerState::UNKNOWN:

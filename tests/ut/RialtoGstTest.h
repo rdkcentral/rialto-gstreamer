@@ -104,4 +104,5 @@ protected:
     std::unique_ptr<testing::StrictMock<firebolt::rialto::MediaPipelineMock>> m_mediaPipeline{
         std::make_unique<testing::StrictMock<firebolt::rialto::MediaPipelineMock>>()};
     testing::StrictMock<firebolt::rialto::MediaPipelineMock> &m_mediaPipelineMock{*m_mediaPipeline};
+    std::weak_ptr<firebolt::rialto::IMediaPipelineClient> m_mediaPipelineClient{};
 };

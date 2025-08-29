@@ -31,10 +31,10 @@ pkg_check_modules(GSTREAMER_APP REQUIRED IMPORTED_TARGET gstreamer-app-1.0 gstre
 # Retrieve the commit ID
 execute_process(
     COMMAND git rev-parse HEAD
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
-    RESULT_VARIABLE RESULT 
-    OUTPUT_VARIABLE SRCREV 
-    OUTPUT_STRIP_TRAILING_WHITESPACE 
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE RESULT
+    OUTPUT_VARIABLE SRCREV
+    OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
 if(RESULT)
@@ -44,15 +44,15 @@ endif()
 # Retrieve release tag(s)
 execute_process(
     COMMAND bash -c "git tag --points-at ${SRCREV} | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$'"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}  
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     OUTPUT_VARIABLE TAGS
-    OUTPUT_STRIP_TRAILING_WHITESPACE 
+    OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 string(REPLACE "\n" ", " TAGS "${TAGS}")
 
 if(NOT TAGS STREQUAL "")
     set(TAGS ${TAGS})
-endif() 
+endif()
 
 # Preprocesser Variable
 add_compile_definitions(SRCREV="${SRCREV}")
@@ -83,4 +83,9 @@ else() # UnitTests
     add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
     add_subdirectory( tests/stubs EXCLUDE_FROM_ALL )
     add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
+endif()
+
+if( NATIVE_BUILD )
+    message("NATIVE_BUILD is on")
+    add_compile_options(-ggdb)
 endif()
