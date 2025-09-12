@@ -89,4 +89,4 @@ protected:
     std::thread m_workerThread;
     bool m_running;
 };
-}
+} // namespace rialto
