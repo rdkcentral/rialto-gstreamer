@@ -131,6 +131,25 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithVtt)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithCC)
+{
+    const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/cc", ""}};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_empty_simple("closedcaption/x-cea-708")};
+    setCaps(sink, caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();

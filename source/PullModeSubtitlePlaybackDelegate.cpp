@@ -18,6 +18,7 @@
 
 #include "PullModeSubtitlePlaybackDelegate.h"
 #include "GstreamerCatLog.h"
+#include <stdio.h>
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
@@ -121,8 +122,6 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstEvent *event)
                     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
                     if (client)
                     {
-                        GST_DEBUG_OBJECT(m_sink, "Setting subtitle position to: %" GST_TIME_FORMAT,
-                                         GST_TIME_ARGS(ptsOffset));
                         client->setSourcePosition(m_sourceId, ptsOffset, false, m_lastSegment.applied_rate,
                                                   m_lastSegment.stop);
                     }
@@ -274,6 +273,14 @@ PullModeSubtitlePlaybackDelegate::createMediaSource(GstCaps *caps) const
         else if (g_str_has_prefix(mimeName, "application/ttml+xml"))
         {
             mimeType = "text/ttml";
+        }
+        else if (g_str_has_prefix(mimeName, "closedcaption/x-cea-608") ||
+                 g_str_has_prefix(mimeName, "closedcaption/x-cea-708") ||
+                 g_str_has_prefix(mimeName, "application/x-cea-608") ||
+                 g_str_has_prefix(mimeName, "application/x-cea-708") ||
+                 g_str_has_prefix(mimeName, "application/x-subtitle-cc"))
+        {
+            mimeType = "text/cc";
         }
         else
         {
