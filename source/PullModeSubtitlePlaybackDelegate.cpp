@@ -275,6 +275,14 @@ PullModeSubtitlePlaybackDelegate::createMediaSource(GstCaps *caps) const
         {
             mimeType = "text/ttml";
         }
+        else if (g_str_has_prefix(mimeName, "closedcaption/x-cea-608") ||
+                 g_str_has_prefix(mimeName, "closedcaption/x-cea-708") ||
+                 g_str_has_prefix(mimeName, "application/x-cea-608") ||
+                 g_str_has_prefix(mimeName, "application/x-cea-708") ||
+                 g_str_has_prefix(mimeName, "application/x-subtitle-cc"))
+        {
+            mimeType = "text/cc";
+        }
         else
         {
             mimeType = mimeName;

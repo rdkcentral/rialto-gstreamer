@@ -446,7 +446,7 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
     sink->priv->m_webAudioClient =
         std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
-                                                        std::make_unique<MessageQueue>(), callbacks,
+                                                        std::make_unique<rialto::MessageQueue>(), callbacks,
                                                         ITimerFactory::getFactory());
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))

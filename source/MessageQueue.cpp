@@ -56,9 +56,11 @@ std::shared_ptr<IMessageQueueFactory> IMessageQueueFactory::createFactory()
 
 std::unique_ptr<IMessageQueue> MessageQueueFactory::createMessageQueue() const
 {
-    return std::make_unique<MessageQueue>();
+    return std::make_unique<rialto::MessageQueue>();
 }
 
+namespace rialto
+{
 MessageQueue::MessageQueue() : m_running(false) {}
 
 MessageQueue::~MessageQueue()
@@ -182,3 +184,4 @@ void MessageQueue::doClear()
         m_queue.pop_front();
     }
 }
+} // namespace rialto
