@@ -50,7 +50,7 @@ public:
     MessageQueueTests() = default;
 
 protected:
-    MessageQueue m_sut;
+    rialto::MessageQueue m_sut;
 };
 
 TEST_F(MessageQueueTests, ShouldStartAndStop)
