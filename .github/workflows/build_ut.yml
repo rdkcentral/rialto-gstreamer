@@ -80,7 +80,12 @@ jobs:
             if [ $? -eq 0 ]; then
               branch="${{ github.event.pull_request.head.ref }}"
             else
-              branch="${{ github.event.pull_request.base.ref }}"
+              base_ref="${{ github.event.pull_request.base.ref }}"
+              if [ -n "$base_ref" ]; then
+                branch="$base_ref"
+              else
+                branch="master"
+              fi
             fi
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
