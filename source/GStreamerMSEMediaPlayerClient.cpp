@@ -449,6 +449,25 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
         });
 }
 
+void GStreamerMSEMediaPlayerClient::setSubtitleOffset(int32_t sourceId, int64_t position)
+{
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot Set Subtitle Offset - there's no attached source with id %d", sourceId);
+                return;
+            }
+            if (!m_clientBackend->setSubtitleOffset(sourceId, position))
+            {
+                GST_ERROR("Set Subtitle Offset operation failed for source with id %d", sourceId);
+                return;
+            }
+        });
+}
+
 void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap,
                                                     bool audioAac)
 {
