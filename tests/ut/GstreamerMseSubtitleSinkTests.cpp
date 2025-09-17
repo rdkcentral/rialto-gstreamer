@@ -430,7 +430,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
 
     gst_segment_free(segment);
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, _, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kOffset)).WillOnce(Return(true));
 
     GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
     gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
