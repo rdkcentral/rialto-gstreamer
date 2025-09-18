@@ -29,7 +29,7 @@ PushModeAudioPlaybackDelegate::PushModeAudioPlaybackDelegate(GstElement *sink)
     : m_sink{sink}, m_rialtoControlClient{std::make_unique<firebolt::rialto::client::ControlBackend>()},
       m_webAudioClient{
           std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
-                                                          std::make_unique<MessageQueue>(), *this,
+                                                          std::make_unique<rialto::MessageQueue>(), *this,
                                                           ITimerFactory::getFactory())}
 {
 }

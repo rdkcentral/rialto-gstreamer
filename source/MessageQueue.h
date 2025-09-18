@@ -57,7 +57,8 @@ class MessageQueueFactory : public IMessageQueueFactory
 public:
     std::unique_ptr<IMessageQueue> createMessageQueue() const override;
 };
-
+namespace rialto
+{
 class MessageQueue : public IMessageQueue
 {
 public:
@@ -88,3 +89,4 @@ protected:
     std::thread m_workerThread;
     bool m_running;
 };
+} // namespace rialto
