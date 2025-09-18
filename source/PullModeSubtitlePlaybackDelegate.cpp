@@ -85,7 +85,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                         m_isTextTrackIdentifierQueued = false;
                     }
 
-                    if(m_queuedOffset)
+                    if (m_queuedOffset)
                     {
                         GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
                                          GST_TIME_ARGS(m_queuedOffset.value()));
