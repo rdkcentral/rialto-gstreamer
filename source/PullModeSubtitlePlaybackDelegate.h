@@ -46,4 +46,5 @@ private:
     std::atomic<bool> m_isMuted{false};
     bool m_isMuteQueued{false};
     uint32_t m_videoId{0};
+    std::optional<int64_t> m_queuedOffset{};
 };

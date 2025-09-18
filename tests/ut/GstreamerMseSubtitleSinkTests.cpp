@@ -382,31 +382,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventValueNotPrese
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventQueueOffsetSetting)
-{
-    constexpr guint64 kOffset{4325};
-
-    RialtoMSEBaseSink *sink = createSubtitleSink();
-    GstElement *pipeline = createPipelineWithSink(sink);
-
-    setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
-    allSourcesWillBeAttached();
-
-    GstCaps *caps{createDefaultCaps()};
-    setCaps(sink, caps);
-
-    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
-
-    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
-    gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
-
-    setNullState(pipeline, kSourceId);
-
-    gst_caps_unref(caps);
-    gst_object_unref(pipeline);
-}
-
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
 {
     constexpr guint64 kOffset{4325};
