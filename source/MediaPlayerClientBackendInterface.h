@@ -65,6 +65,7 @@ public:
     virtual bool flush(int32_t sourceId, bool resetTime, bool &async) = 0;
     virtual bool setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0,
                                    uint64_t stopPosition = GST_CLOCK_TIME_NONE) = 0;
+    virtual bool setSubtitleOffset(int32_t sourceId, int64_t position) = 0;
     virtual bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) = 0;
     virtual bool setBufferingLimit(uint32_t limitBufferingMs) = 0;
     virtual bool getBufferingLimit(uint32_t &limitBufferingMs) = 0;
