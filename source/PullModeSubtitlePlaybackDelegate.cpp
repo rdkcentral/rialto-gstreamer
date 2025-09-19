@@ -84,6 +84,14 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                         client->setTextTrackIdentifier(m_textTrackIdentifier);
                         m_isTextTrackIdentifierQueued = false;
                     }
+
+                    if (m_queuedOffset)
+                    {
+                        GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
+                                         GST_TIME_ARGS(m_queuedOffset.value()));
+                        client->setSubtitleOffset(m_sourceId, m_queuedOffset.value());
+                        m_queuedOffset.reset();
+                    }
                 }
 
                 // check if READY -> PAUSED was requested before source was attached
@@ -111,20 +119,17 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
             {
                 std::unique_lock lock{m_sinkMutex};
-                if (!m_initialPositionSet)
+
+                std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+                if (!client || !m_sourceAttached)
                 {
-                    GST_DEBUG_OBJECT(m_sink, "First segment not received yet. Queuing offset setting");
+                    GST_DEBUG_OBJECT(m_sink, "offset setting enqueued");
                     m_queuedOffset = static_cast<int64_t>(ptsOffset);
                 }
                 else
                 {
-                    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-                    if (client)
-                    {
-                        GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
-                                         GST_TIME_ARGS(ptsOffset));
-                        client->setSubtitleOffset(m_sourceId, ptsOffset);
-                    }
+                    GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
+                    client->setSubtitleOffset(m_sourceId, ptsOffset);
                 }
             }
             else
@@ -218,7 +223,7 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         m_textTrackIdentifier = std::string(textTrackIdentifier);
         if (!client || !m_sourceAttached)
         {
-            GST_DEBUG_OBJECT(m_sink, "Rectangle setting enqueued");
+            GST_DEBUG_OBJECT(m_sink, "Text track identifier setting enqueued");
             m_isTextTrackIdentifierQueued = true;
         }
         else

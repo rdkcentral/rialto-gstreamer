@@ -82,8 +82,6 @@ protected:
     bool m_isEos{false};
     std::atomic<bool> m_isFlushOngoing{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
-    bool m_initialPositionSet{false};
-    std::optional<int64_t> m_queuedOffset{};
     mutable std::mutex m_sinkMutex{};
 
     std::condition_variable m_needDataCondVariable{};

@@ -712,15 +712,6 @@ void PullModePlaybackDelegate::setSegment()
     }
     const bool kResetTime{m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
     int64_t position = static_cast<int64_t>(m_lastSegment.start);
-    {
-        std::unique_lock lock{m_sinkMutex};
-        m_initialPositionSet = true;
-        if (m_queuedOffset)
-        {
-            position = m_queuedOffset.value();
-            m_queuedOffset.reset();
-        }
-    }
     client->setSourcePosition(m_sourceId, position, kResetTime, m_lastSegment.applied_rate, m_lastSegment.stop);
 }
 
@@ -751,8 +742,6 @@ void PullModePlaybackDelegate::startFlushing()
             m_isEos = false;
         }
         m_isFlushOngoing = true;
-        // We expect to receive a new gst segment after flush
-        m_initialPositionSet = false;
         clearBuffersUnlocked();
     }
 }
