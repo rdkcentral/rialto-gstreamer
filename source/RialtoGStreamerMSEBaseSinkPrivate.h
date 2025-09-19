@@ -32,6 +32,12 @@
 #include <optional>
 #include <queue>
 
+enum class PlaybackMode
+{
+    Pull,
+    Push
+};
+
 G_BEGIN_DECLS
 
 struct _RialtoMSEBaseSinkPrivate
@@ -43,5 +49,6 @@ struct _RialtoMSEBaseSinkPrivate
     std::mutex m_sinkMutex;
     std::shared_ptr<IPlaybackDelegate> m_delegate{nullptr};
     std::map<IPlaybackDelegate::Property, GValue> m_queuedProperties{};
+    std::atomic<PlaybackMode> m_playbackMode{PlaybackMode::Pull};
 };
 G_END_DECLS
