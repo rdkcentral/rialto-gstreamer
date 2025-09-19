@@ -408,7 +408,7 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
                 return;
             }
             sourceIt->second.m_isFlushing = true;
-            sourceIt->second.m_bufferPuller->stop();
+            // sourceIt->second.m_bufferPuller->stop();
 
             if (async)
             {
@@ -671,7 +671,7 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
                 return;
             }
             sourceIt->second.m_isFlushing = false;
-            sourceIt->second.m_bufferPuller->start();
+            // sourceIt->second.m_bufferPuller->start();
             sourceIt->second.m_delegate->handleFlushCompleted();
         });
 }
