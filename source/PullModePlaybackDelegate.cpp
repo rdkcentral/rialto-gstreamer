@@ -90,7 +90,7 @@ PullModePlaybackDelegate::~PullModePlaybackDelegate()
 
 void PullModePlaybackDelegate::clearBuffersUnlocked()
 {
-    m_isFlushOngoing = true;
+    m_isSinkFlushOngoing = true;
     m_needDataCondVariable.notify_all();
     while (!m_samples.empty())
     {
@@ -119,21 +119,25 @@ void PullModePlaybackDelegate::handleEos()
         gst_element_post_message(m_sink, gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, errMessage));
         g_error_free(gError);
     }
-    else if (!m_isFlushOngoing)
-    {
-        gst_element_post_message(m_sink, gst_message_new_eos(GST_OBJECT_CAST(m_sink)));
-    }
     else
     {
-        GST_WARNING_OBJECT(m_sink, "Skip sending eos message - flush is ongoing...");
+        std::unique_lock lock{m_sinkMutex};
+        if (!m_isSinkFlushOngoing && !m_isServerFlushOngoing)
+        {
+            gst_element_post_message(m_sink, gst_message_new_eos(GST_OBJECT_CAST(m_sink)));
+        }
+        else
+        {
+            GST_WARNING_OBJECT(m_sink, "Skip sending eos message - flush is ongoing...");
+        }
     }
 }
 
 void PullModePlaybackDelegate::handleFlushCompleted()
 {
     GST_INFO_OBJECT(m_sink, "Flush completed");
-    std::unique_lock<std::mutex> lock(m_flushMutex);
-    m_flushCondVariable.notify_all();
+    std::unique_lock<std::mutex> lock(m_sinkMutex);
+    m_isServerFlushOngoing = false;
 }
 
 void PullModePlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
@@ -209,7 +213,7 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        m_isFlushOngoing = false;
+        m_isSinkFlushOngoing = false;
 
         StateChangeResult result = client->pause(m_sourceId);
         if (result == StateChangeResult::SUCCESS_ASYNC || result == StateChangeResult::NOT_ATTACHED)
@@ -733,7 +737,7 @@ void PullModePlaybackDelegate::changePlaybackRate(GstEvent *event)
 void PullModePlaybackDelegate::startFlushing()
 {
     std::lock_guard<std::mutex> lock(m_sinkMutex);
-    if (!m_isFlushOngoing)
+    if (!m_isSinkFlushOngoing)
     {
         GST_INFO_OBJECT(m_sink, "Starting flushing");
         if (m_isEos)
@@ -741,7 +745,7 @@ void PullModePlaybackDelegate::startFlushing()
             GST_DEBUG_OBJECT(m_sink, "Flush will clear EOS state.");
             m_isEos = false;
         }
-        m_isFlushOngoing = true;
+        m_isSinkFlushOngoing = true;
         clearBuffersUnlocked();
     }
 }
@@ -751,7 +755,7 @@ void PullModePlaybackDelegate::stopFlushing(bool resetTime)
     GST_INFO_OBJECT(m_sink, "Stopping flushing");
     flushServer(resetTime);
     std::lock_guard<std::mutex> lock(m_sinkMutex);
-    m_isFlushOngoing = false;
+    m_isSinkFlushOngoing = false;
 
     if (resetTime)
     {
@@ -769,17 +773,12 @@ void PullModePlaybackDelegate::flushServer(bool resetTime)
         return;
     }
 
-    std::unique_lock<std::mutex> lock(m_flushMutex);
     GST_INFO_OBJECT(m_sink, "Flushing sink with sourceId %d", m_sourceId.load());
+    {
+        std::unique_lock<std::mutex> lock(m_sinkMutex);
+        m_isServerFlushOngoing = true;
+    }
     client->flush(m_sourceId, resetTime);
-    if (m_sourceAttached)
-    {
-        m_flushCondVariable.wait(lock);
-    }
-    else
-    {
-        GST_DEBUG_OBJECT(m_sink, "Skip waiting for flush finish - source not attached yet.");
-    }
 }
 
 GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
@@ -796,7 +795,7 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
         m_needDataCondVariable.wait(lock);
     }
 
-    if (m_isFlushOngoing)
+    if (m_isSinkFlushOngoing)
     {
         GST_DEBUG_OBJECT(m_sink, "Discarding buffer which was received during flushing");
         gst_buffer_unref(buffer);
@@ -817,6 +816,11 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
 GstRefSample PullModePlaybackDelegate::getFrontSample() const
 {
     std::lock_guard<std::mutex> lock(m_sinkMutex);
+    if (m_isServerFlushOngoing)
+    {
+        GST_WARNING_OBJECT(m_sink, "Skip pulling buffer - flush is ongoing on server side...");
+        return GstRefSample{};
+    }
     if (!m_samples.empty())
     {
         GstSample *sample = m_samples.front();
