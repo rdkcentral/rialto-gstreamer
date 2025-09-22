@@ -124,6 +124,17 @@ public:
                 }));
     }
 
+    void expectFastCallInEventLoop()
+    {
+        EXPECT_CALL(m_messageQueueMock, fastCallInEventLoop(_))
+            .WillRepeatedly(Invoke(
+                [](const auto &f)
+                {
+                    f();
+                    return true;
+                }));
+    }
+
     int32_t attachSource(RialtoMSEBaseSink *sink, const firebolt::rialto::MediaSourceType &type)
     {
         static int32_t id{0};
@@ -257,7 +268,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     expectPostMessage();
-    expectCallInEventLoop();
+    expectFastCallInEventLoop();
     m_sut->notifyPosition(kPosition);
     m_sut->destroyClientBackend();
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
@@ -347,7 +358,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     expectPostMessage();
-    expectCallInEventLoop();
+    expectFastCallInEventLoop();
     EXPECT_CALL(*m_delegateMock, handleError(_, 0));
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FAILURE);
     // Position should be set to 0
@@ -635,7 +646,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kPosition), Return(true)));
-    expectCallInEventLoop();
+    expectFastCallInEventLoop();
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);

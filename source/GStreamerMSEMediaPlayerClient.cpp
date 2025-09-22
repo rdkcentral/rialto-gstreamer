@@ -179,7 +179,7 @@ void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sou
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
     int64_t position;
-    m_backendQueue->callInEventLoop([&]() { getPositionDo(&position, sourceId); });
+    m_backendQueue->fastCallInEventLoop([&]() { getPositionDo(&position, sourceId); });
     return position;
 }
 

@@ -41,6 +41,7 @@ public:
     virtual void processMessages() = 0;
     virtual bool scheduleInEventLoop(const std::function<void()> &func) = 0;
     virtual bool callInEventLoop(const std::function<void()> &func) = 0;
+    virtual bool fastCallInEventLoop(const std::function<void()> &func) = 0;
 };
 
 class IMessageQueueFactory
