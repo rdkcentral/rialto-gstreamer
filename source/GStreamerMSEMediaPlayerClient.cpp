@@ -179,7 +179,7 @@ void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sou
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
     int64_t position;
-    m_backendQueue->callInEventLoop([&]() { getPositionDo(&position, sourceId); });
+    m_backendQueue->fastCallInEventLoop([&]() { getPositionDo(&position, sourceId); });
     return position;
 }
 
@@ -408,7 +408,6 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
                 return;
             }
             sourceIt->second.m_isFlushing = true;
-            sourceIt->second.m_bufferPuller->stop();
 
             if (async)
             {
@@ -671,7 +670,6 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
                 return;
             }
             sourceIt->second.m_isFlushing = false;
-            sourceIt->second.m_bufferPuller->start();
             sourceIt->second.m_delegate->handleFlushCompleted();
         });
 }
