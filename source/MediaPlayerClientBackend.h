@@ -152,6 +152,11 @@ public:
         return m_mediaPlayerBackend->setSourcePosition(sourceId, position, resetTime, appliedRate, stopPosition);
     }
 
+    bool setSubtitleOffset(int32_t sourceId, int64_t position) override
+    {
+        return m_mediaPlayerBackend->setSubtitleOffset(sourceId, position);
+    }
+
     bool processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac) override
     {
         return m_mediaPlayerBackend->processAudioGap(position, duration, discontinuityGap, audioAac);

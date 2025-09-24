@@ -30,6 +30,7 @@ public:
     MOCK_METHOD(void, processMessages, (), (override));
     MOCK_METHOD(bool, scheduleInEventLoop, (const std::function<void()> &func), (override));
     MOCK_METHOD(bool, callInEventLoop, (const std::function<void()> &func), (override));
+    MOCK_METHOD(bool, fastCallInEventLoop, (const std::function<void()> &func), (override));
 };
 
 class MessageQueueFactoryMock : public IMessageQueueFactory

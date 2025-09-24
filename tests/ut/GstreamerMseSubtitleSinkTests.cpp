@@ -131,6 +131,25 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithVtt)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithCC)
+{
+    const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/cc", ""}};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_empty_simple("closedcaption/x-cea-708")};
+    setCaps(sink, caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -363,31 +382,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventValueNotPrese
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventQueueOffsetSetting)
-{
-    constexpr guint64 kOffset{4325};
-
-    RialtoMSEBaseSink *sink = createSubtitleSink();
-    GstElement *pipeline = createPipelineWithSink(sink);
-
-    setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
-    allSourcesWillBeAttached();
-
-    GstCaps *caps{createDefaultCaps()};
-    setCaps(sink, caps);
-
-    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
-
-    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
-    gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
-
-    setNullState(pipeline, kSourceId);
-
-    gst_caps_unref(caps);
-    gst_object_unref(pipeline);
-}
-
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
 {
     constexpr guint64 kOffset{4325};
@@ -411,7 +405,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
 
     gst_segment_free(segment);
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, _, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kOffset)).WillOnce(Return(true));
 
     GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
     gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));

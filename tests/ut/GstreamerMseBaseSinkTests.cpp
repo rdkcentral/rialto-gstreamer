@@ -23,6 +23,7 @@
 
 using testing::_;
 using testing::DoAll;
+using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
 
@@ -882,52 +883,6 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithQueuedOffset)
-{
-    constexpr guint64 kPosition{1234};
-    constexpr guint64 kOffset{5678};
-    constexpr bool kResetTime{false};
-    constexpr bool kAppliedRate = 1.0;
-    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
-
-    RialtoMSEBaseSink *sink = createSubtitleSink();
-    GstElement *pipeline = createPipelineWithSink(sink);
-
-    // Set flushing
-    EXPECT_TRUE(rialto_mse_base_sink_event(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_flush_start()));
-
-    setPausedState(pipeline, sink);
-    const int32_t kSourceId{
-        subtitleSourceWillBeAttached(firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/ttml", ""})};
-    allSourcesWillBeAttached();
-
-    GstCaps *caps{gst_caps_new_empty_simple("application/ttml+xml")};
-    setCaps(sink, caps);
-
-    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
-    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
-
-    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
-    gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
-
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, kResetTime, kAppliedRate, kStopPosition))
-        .WillOnce(Return(true));
-
-    GstSegment *segment{gst_segment_new()};
-    gst_segment_init(segment, GST_FORMAT_TIME);
-    gst_segment_do_seek(segment, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
-                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
-
-    EXPECT_TRUE(rialto_mse_base_sink_event(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_segment(segment)));
-
-    gst_segment_free(segment);
-
-    setNullState(pipeline, kSourceId);
-
-    gst_caps_unref(caps);
-    gst_object_unref(pipeline);
-}
-
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1187,6 +1142,65 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
     }
 
     t.join();
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    // Set flushing
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+
+    // Sink should not be in FLUSHING state
+    GstBuffer *buffer{gst_buffer_new()};
+    EXPECT_NE(GST_FLOW_FLUSHING,
+              rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool haveDataFlag{false};
+
+    constexpr int kNeedMediaDataReqId{0};
+    constexpr int kNumOfSamples{1};
+    EXPECT_CALL(m_mediaPipelineMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedMediaDataReqId))
+        .WillOnce(Invoke(
+            [&](firebolt::rialto::MediaSourceStatus, int32_t)
+            {
+                std::unique_lock<std::mutex> lock{mtx};
+                haveDataFlag = true;
+                cv.notify_one();
+                return true;
+            }));
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifyNeedMediaData(kSourceId, kNumOfSamples, kNeedMediaDataReqId, nullptr);
+
+    std::unique_lock<std::mutex> lock{mtx};
+    cv.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return haveDataFlag; });
+    EXPECT_TRUE(haveDataFlag);
 
     setNullState(pipeline, kSourceId);
 

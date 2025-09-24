@@ -44,7 +44,10 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"video/x-av1", {"video/x-av1"}},
          {"video/x-vp9", {"video/x-vp9"}},
          {"text/vtt", {"text/vtt", "application/x-subtitle-vtt"}},
-         {"text/ttml", {"application/ttml+xml"}}};
+         {"text/ttml", {"application/ttml+xml"}},
+         {"text/cc",
+          {"closedcaption/x-cea-608", "closedcaption/x-cea-708", "application/x-cea-608", "application/x-cea-708",
+           "application/x-subtitle-cc"}}};
 
     std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
     GstCaps *caps = gst_caps_new_empty();
