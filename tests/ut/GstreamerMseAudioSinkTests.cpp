@@ -262,7 +262,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithBwav)
     gst_object_unref(pipeline);
 }
 
-#ifdef RIALTO_ENABLE_X_RAW
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithXraw)
 {
     constexpr firebolt::rialto::Format kExpectedFormat{firebolt::rialto::Format::S32BE};
@@ -291,7 +290,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithXraw)
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
-#endif
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithFlac)
 {
@@ -1293,6 +1291,21 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldSetAsyncProperty)
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
     g_object_set(textContext.m_sink, "async", FALSE, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetWebAudioPropertyWhenSinkIsAboveNullState)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    g_object_set(textContext.m_sink, "web-audio", TRUE, nullptr);
+
+    // WebAudio property should still return FALSE
+    gboolean webAudioEnabled{FALSE};
+    g_object_get(textContext.m_sink, "web-audio", &webAudioEnabled, nullptr);
+    EXPECT_EQ(webAudioEnabled, FALSE);
 
     setNullState(textContext.m_pipeline, textContext.m_sourceId);
     gst_object_unref(textContext.m_pipeline);

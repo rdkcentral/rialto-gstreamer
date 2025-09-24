@@ -38,9 +38,7 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"audio/x-opus", {"audio/x-opus"}},
          {"audio/b-wav", {"audio/b-wav"}},
          {"audio/x-flac", {"audio/x-flac"}},
-#ifdef RIALTO_ENABLE_X_RAW
          {"audio/x-raw", {"audio/x-raw"}},
-#endif
          {"video/h264", {"video/x-h264"}},
          {"video/h265", {"video/x-h265"}},
          {"video/x-av1", {"video/x-av1"}},

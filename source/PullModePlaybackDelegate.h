@@ -43,7 +43,7 @@ public:
     void handleEos() override;
     void handleFlushCompleted() override;
     void handleStateChanged(firebolt::rialto::PlaybackState state) override;
-    void handleError(const char *message, gint code = 0) override;
+    void handleError(const std::string &message, gint code = 0) override;
     GstStateChangeReturn changeState(GstStateChange transition) override;
     void postAsyncStart() override;
     void setProperty(const Property &type, const GValue *value) override;

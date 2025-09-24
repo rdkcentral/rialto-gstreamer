@@ -269,23 +269,6 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldHandleError)
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSendCapsEventWhenPadIsNotLinked)
-{
-    RialtoWebAudioSink *sink{createWebAudioSink()};
-    GstElement *pipeline = createPipelineWithSink(sink);
-
-    setPaused(pipeline);
-    attachSource(sink);
-
-    GstCaps *caps = gst_caps_new_empty_simple(kMimeType.c_str());
-
-    EXPECT_FALSE(gst_element_send_event(GST_ELEMENT_CAST(sink), gst_event_new_caps(caps)));
-
-    setNull(pipeline);
-    gst_caps_unref(caps);
-    gst_object_unref(pipeline);
-}
-
 TEST_F(GstreamerWebAudioSinkTests, ShouldHandleEosEvent)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};

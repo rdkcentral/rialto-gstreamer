@@ -26,7 +26,7 @@ public:
     MOCK_METHOD(void, handleEos, (), (override));
     MOCK_METHOD(void, handleFlushCompleted, (), (override));
     MOCK_METHOD(void, handleStateChanged, (firebolt::rialto::PlaybackState state), (override));
-    MOCK_METHOD(void, handleError, (const char *message, gint code), (override));
+    MOCK_METHOD(void, handleError, (const std::string &message, gint code), (override));
     MOCK_METHOD(void, handleQos, (uint64_t processed, uint64_t dropped), (const, override));
     MOCK_METHOD(GstStateChangeReturn, changeState, (GstStateChange transition), (override));
     MOCK_METHOD(void, postAsyncStart, (), (override));

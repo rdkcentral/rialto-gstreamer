@@ -303,10 +303,11 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
     return status;
 }
 
-void PullModePlaybackDelegate::handleError(const char *message, gint code)
+void PullModePlaybackDelegate::handleError(const std::string &message, gint code)
 {
-    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message)};
-    gst_element_post_message(GST_ELEMENT_CAST(m_sink), gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message));
+    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message.c_str())};
+    gst_element_post_message(GST_ELEMENT_CAST(m_sink),
+                             gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message.c_str()));
     g_error_free(gError);
 }
 

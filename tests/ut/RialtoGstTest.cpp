@@ -210,6 +210,17 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
 }
 
+RialtoMSEBaseSink *RialtoGstTest::createAudioSinkInWebAudioMode() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    g_object_set(audioSink, "web-audio", TRUE, nullptr);
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSink, GST_STATE_READY));
+    return RIALTO_MSE_BASE_SINK(audioSink);
+}
+
 GstElement *RialtoGstTest::createPlaybin2WithSink(RialtoMSEBaseSink *sink) const
 {
     GstElement *playbin = gst_element_factory_make("playbinstub", "test-playbin");

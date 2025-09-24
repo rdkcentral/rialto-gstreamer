@@ -23,6 +23,7 @@
 #include "GStreamerMSEUtils.h"
 #include "IMediaPipelineCapabilities.h"
 #include "PullModeAudioPlaybackDelegate.h"
+#include "PushModeAudioPlaybackDelegate.h"
 #include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
@@ -52,17 +53,25 @@ enum
     PROP_LIMIT_BUFFERING_MS,
     PROP_USE_BUFFERING,
     PROP_ASYNC,
+    PROP_WEBAUDIO,
     PROP_LAST
 };
 
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
-    RialtoMSEAudioSink *sink = RIALTO_MSE_AUDIO_SINK(element);
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
-        GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing delegate");
-        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink),
-                                                 std::make_shared<PullModeAudioPlaybackDelegate>(element));
+        if (PlaybackMode::Pull == sink->priv->m_playbackMode)
+        {
+            GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing Pull Mode delegate");
+            rialto_mse_base_sink_initialise_delegate(sink, std::make_shared<PullModeAudioPlaybackDelegate>(element));
+        }
+        else // Push playback mode
+        {
+            GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing Push Mode delegate");
+            rialto_mse_base_sink_initialise_delegate(sink, std::make_shared<PushModeAudioPlaybackDelegate>(element));
+        }
     }
 
     GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
@@ -77,59 +86,60 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
 
 static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
     switch (propId)
     {
     case PROP_VOLUME:
     {
         g_value_set_double(value, kDefaultVolume);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Volume,
-                                                 value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::Volume, value);
         break;
     }
     case PROP_MUTE:
     {
         g_value_set_boolean(value, kDefaultMute);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Mute, value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::Mute, value);
         break;
     }
     case PROP_SYNC:
     {
         g_value_set_boolean(value, kDefaultSync);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Sync, value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::Sync, value);
         break;
     }
     case PROP_STREAM_SYNC_MODE:
     {
         g_value_set_int(value, kDefaultStreamSyncMode);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::StreamSyncMode, value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::StreamSyncMode, value);
         break;
     }
     case PROP_FADE_VOLUME:
     {
         g_value_set_uint(value, kDefaultFadeVolume);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::FadeVolume,
-                                                 value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::FadeVolume, value);
         break;
     }
     case PROP_LIMIT_BUFFERING_MS:
     {
         g_value_set_uint(value, kDefaultBufferingLimit);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::LimitBufferingMs, value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::LimitBufferingMs, value);
         break;
     }
     case PROP_USE_BUFFERING:
     {
         g_value_set_boolean(value, kDefaultUseBuffering);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::UseBuffering, value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::UseBuffering, value);
         break;
     }
     case PROP_ASYNC:
     {
         g_value_set_boolean(value, TRUE);
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
+        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::Async, value);
+        break;
+    }
+    case PROP_WEBAUDIO:
+    {
+        g_value_set_boolean(value, (sink->priv->m_playbackMode == PlaybackMode::Push));
         break;
     }
     default:
@@ -142,68 +152,79 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
 
 static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
     switch (propId)
     {
     case PROP_VOLUME:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Volume,
-                                                 value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Volume, value);
         break;
     }
     case PROP_MUTE:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Mute, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Mute, value);
         break;
     }
     case PROP_GAP:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Gap, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Gap, value);
         break;
     }
     case PROP_LOW_LATENCY:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::LowLatency,
-                                                 value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::LowLatency, value);
         break;
     }
     case PROP_SYNC:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Sync, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Sync, value);
         break;
     }
     case PROP_SYNC_OFF:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::SyncOff,
-                                                 value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::SyncOff, value);
         break;
     }
     case PROP_STREAM_SYNC_MODE:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::StreamSyncMode, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::StreamSyncMode, value);
         break;
     }
     case PROP_AUDIO_FADE:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::AudioFade,
-                                                 value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::AudioFade, value);
         break;
     }
     case PROP_LIMIT_BUFFERING_MS:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::LimitBufferingMs, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::LimitBufferingMs, value);
         break;
     }
     case PROP_USE_BUFFERING:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::UseBuffering, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::UseBuffering, value);
         break;
     }
     case PROP_ASYNC:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Async, value);
+        break;
+    }
+    case PROP_WEBAUDIO:
+    {
+        if (GST_STATE(sink) > GST_STATE_NULL)
+        {
+            GST_ERROR_OBJECT(object, "Playback mode set too late - sink is not in NULL state");
+            break;
+        }
+        if (TRUE == g_value_get_boolean(value))
+        {
+            sink->priv->m_playbackMode = PlaybackMode::Push;
+        }
+        else
+        {
+            sink->priv->m_playbackMode = PlaybackMode::Pull;
+        }
         break;
     }
     default:
@@ -255,6 +276,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                          kDefaultUseBuffering, G_PARAM_READWRITE));
     g_object_class_install_property(gobjectClass, PROP_ASYNC,
                                     g_param_spec_boolean("async", "Async", "Asynchronous mode", FALSE, G_PARAM_READWRITE));
+    g_object_class_install_property(gobjectClass, PROP_WEBAUDIO,
+                                    g_param_spec_boolean("web-audio",
+                                                         "Webaudio mode", "Enable webaudio mode. Property should be set before NULL->READY transition",
+                                                         FALSE, G_PARAM_READWRITE));
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
