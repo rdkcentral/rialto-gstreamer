@@ -119,7 +119,7 @@ void GStreamerMSEMediaPlayerClient::notifyNetworkState(firebolt::rialto::Network
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackState(firebolt::rialto::PlaybackState state)
 {
-    m_backendQueue->postMessage(std::make_shared<PlaybackStateMessage>(state, this));
+    m_backendQueue->postPriorityMessage(std::make_shared<PlaybackStateMessage>(state, this));
 }
 
 void GStreamerMSEMediaPlayerClient::notifyVideoData(bool hasData) {}
