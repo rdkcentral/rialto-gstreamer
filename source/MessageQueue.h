@@ -57,7 +57,8 @@ class MessageQueueFactory : public IMessageQueueFactory
 public:
     std::unique_ptr<IMessageQueue> createMessageQueue() const override;
 };
-
+namespace rialto
+{
 class MessageQueue : public IMessageQueue
 {
 public:
@@ -74,12 +75,14 @@ public:
     void processMessages() override;
     bool scheduleInEventLoop(const std::function<void()> &func) override;
     bool callInEventLoop(const std::function<void()> &func) override;
+    bool fastCallInEventLoop(const std::function<void()> &func) override;
 
 protected:
     void doStop();
     void doClear();
     // We need to have a non-virtual method, which can be called in class destructor
     bool callInEventLoopInternal(const std::function<void()> &func);
+    bool postPriorityMessage(const std::shared_ptr<Message> &msg);
 
 protected:
     std::condition_variable m_condVar;
@@ -88,3 +91,4 @@ protected:
     std::thread m_workerThread;
     bool m_running;
 };
+} // namespace rialto

@@ -18,11 +18,9 @@
 
 #include <gst/gst.h>
 
-#include "ControlBackend.h"
-#include "GStreamerWebAudioPlayerClient.h"
-#include "MessageQueue.h"
+#include "Constants.h"
+#include "PushModeAudioPlaybackDelegate.h"
 #include "RialtoGStreamerWebAudioSink.h"
-#include "WebAudioClientBackend.h"
 
 using namespace firebolt::rialto::client;
 
@@ -42,305 +40,126 @@ enum
     PROP_LAST
 };
 
-static void rialto_web_audio_async_start(RialtoWebAudioSink *sink)
+void rialto_web_audio_sink_initialise_delegate(RialtoWebAudioSink *sink,
+                                               const std::shared_ptr<IPlaybackDelegate> &delegate)
 {
-    sink->priv->m_isStateCommitNeeded = true;
-    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_async_start(GST_OBJECT(sink)));
-}
+    std::unique_lock lock{sink->priv->m_sinkMutex};
+    sink->priv->m_delegate = delegate;
 
-static void rialto_web_audio_async_done(RialtoWebAudioSink *sink)
-{
-    sink->priv->m_isStateCommitNeeded = false;
-    gst_element_post_message(GST_ELEMENT_CAST(sink),
-                             gst_message_new_async_done(GST_OBJECT_CAST(sink), GST_CLOCK_TIME_NONE));
-}
-
-static void rialto_web_audio_sink_eos_handler(RialtoWebAudioSink *sink)
-{
-    GstState currentState = GST_STATE(sink);
-    if ((currentState != GST_STATE_PAUSED) && (currentState != GST_STATE_PLAYING))
+    for (auto &[type, value] : sink->priv->m_queuedProperties)
     {
-        GST_ERROR_OBJECT(sink, "Sink cannot post a EOS message in state '%s', posting an error instead",
-                         gst_element_state_get_name(currentState));
+        delegate->setProperty(type, &value);
+        g_value_unset(&value);
+    }
+    sink->priv->m_queuedProperties.clear();
+}
 
-        const char *errMessage = "Web audio sink received EOS in non-playing state";
-        GError *gError{g_error_new_literal(GST_STREAM_ERROR, 0, errMessage)};
-        gst_element_post_message(GST_ELEMENT_CAST(sink),
-                                 gst_message_new_error(GST_OBJECT_CAST(sink), gError, errMessage));
-        g_error_free(gError);
+static std::shared_ptr<IPlaybackDelegate> rialto_web_audio_sink_get_delegate(RialtoWebAudioSink *sink)
+{
+    std::unique_lock lock{sink->priv->m_sinkMutex};
+    if (!sink->priv->m_delegate)
+    {
+        GST_ERROR_OBJECT(sink, "Sink delegate not initialized");
+    }
+    return sink->priv->m_delegate;
+}
+
+static void rialto_web_audio_sink_handle_get_property(RialtoWebAudioSink *sink,
+                                                      const IPlaybackDelegate::Property &property, GValue *value)
+{
+    if (auto delegate = rialto_web_audio_sink_get_delegate(sink))
+    {
+        delegate->getProperty(property, value);
+    }
+    else // Copy queued value if present
+    {
+        std::unique_lock lock{sink->priv->m_sinkMutex};
+        if (sink->priv->m_queuedProperties.find(property) != sink->priv->m_queuedProperties.end())
+        {
+            g_value_copy(&sink->priv->m_queuedProperties[property], value);
+        }
+    }
+}
+
+static void rialto_web_audio_sink_handle_set_property(RialtoWebAudioSink *sink,
+                                                      const IPlaybackDelegate::Property &property, const GValue *value)
+{
+    if (auto delegate = rialto_web_audio_sink_get_delegate(sink))
+    {
+        delegate->setProperty(property, value);
     }
     else
     {
-        gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_eos(GST_OBJECT_CAST(sink)));
+        std::unique_lock lock{sink->priv->m_sinkMutex};
+        sink->priv->m_queuedProperties[property] = G_VALUE_INIT;
+        g_value_init(&(sink->priv->m_queuedProperties[property]), G_VALUE_TYPE(value));
+        g_value_copy(value, &(sink->priv->m_queuedProperties[property]));
     }
-}
-
-static void rialto_web_audio_sink_error_handler(RialtoWebAudioSink *sink, const char *message)
-{
-    GError *gError{g_error_new_literal(GST_STREAM_ERROR, 0, message)};
-    gst_element_post_message(GST_ELEMENT_CAST(sink), gst_message_new_error(GST_OBJECT_CAST(sink), gError, message));
-    g_error_free(gError);
-}
-
-static void rialto_web_audio_sink_rialto_state_changed_handler(RialtoWebAudioSink *sink,
-                                                               firebolt::rialto::WebAudioPlayerState state)
-{
-    GstState current = GST_STATE(sink);
-    GstState next = GST_STATE_NEXT(sink);
-    GstState pending = GST_STATE_PENDING(sink);
-
-    GST_DEBUG_OBJECT(sink,
-                     "Received server's state change to %u. Sink's states are: current state: %s next state: %s "
-                     "pending state: %s, last return state %s",
-                     static_cast<uint32_t>(state), gst_element_state_get_name(current),
-                     gst_element_state_get_name(next), gst_element_state_get_name(pending),
-                     gst_element_state_change_return_get_name(GST_STATE_RETURN(sink)));
-
-    RialtoWebAudioSinkPrivate *priv = sink->priv;
-    if (priv->m_isStateCommitNeeded &&
-        ((state == firebolt::rialto::WebAudioPlayerState::PAUSED && next == GST_STATE_PAUSED) ||
-         (state == firebolt::rialto::WebAudioPlayerState::PLAYING && next == GST_STATE_PLAYING)))
-    {
-        GstState postNext = next == pending ? GST_STATE_VOID_PENDING : pending;
-        GST_STATE(sink) = next;
-        GST_STATE_NEXT(sink) = postNext;
-        GST_STATE_PENDING(sink) = GST_STATE_VOID_PENDING;
-        GST_STATE_RETURN(sink) = GST_STATE_CHANGE_SUCCESS;
-
-        GST_INFO_OBJECT(sink, "Async state transition to state %s done", gst_element_state_get_name(next));
-
-        gst_element_post_message(GST_ELEMENT_CAST(sink),
-                                 gst_message_new_state_changed(GST_OBJECT_CAST(sink), current, next, pending));
-        rialto_web_audio_async_done(sink);
-    }
-}
-
-static void rialto_web_audio_sink_setup_supported_caps(GstElementClass *elementClass)
-{
-    GstCaps *caps = gst_caps_from_string("audio/x-raw");
-    GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
-    gst_element_class_add_pad_template(elementClass, sinktempl);
-    gst_caps_unref(caps);
 }
 
 static gboolean rialto_web_audio_sink_send_event(GstElement *element, GstEvent *event)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(element);
-    switch (GST_EVENT_TYPE(event))
+    if (auto delegate = rialto_web_audio_sink_get_delegate(sink))
     {
-    case GST_EVENT_CAPS:
-    {
-        GstCaps *caps;
-        gst_event_parse_caps(event, &caps);
-        GST_INFO_OBJECT(sink, "Attaching AUDIO source with caps %" GST_PTR_FORMAT, caps);
+        return delegate->handleSendEvent(event);
     }
-    default:
-        break;
-    }
-    GstElement *parent = GST_ELEMENT(&sink->parent);
-    return GST_ELEMENT_CLASS(parent_class)->send_event(parent, event);
+    return FALSE;
 }
 
 static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(element);
-    RialtoWebAudioSinkPrivate *priv = sink->priv;
-    const std::shared_ptr<GStreamerWebAudioPlayerClient> &kClient = priv->m_webAudioClient;
-    GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT_CAST(sink), "sink");
-
-    GstState current_state = GST_STATE_TRANSITION_CURRENT(transition);
-    GstState next_state = GST_STATE_TRANSITION_NEXT(transition);
-    GST_INFO_OBJECT(sink, "State change: (%s) -> (%s)", gst_element_state_get_name(current_state),
-                    gst_element_state_get_name(next_state));
-
-    GstStateChangeReturn result = GST_STATE_CHANGE_SUCCESS;
-    switch (transition)
+    if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
-    case GST_STATE_CHANGE_NULL_TO_READY:
-    {
-        GST_DEBUG("GST_STATE_CHANGE_NULL_TO_READY");
-
-        if (!priv->m_rialtoControlClient->waitForRunning())
-        {
-            GST_ERROR_OBJECT(sink, "Rialto client cannot reach running state");
-            result = GST_STATE_CHANGE_FAILURE;
-        }
-        break;
+        GST_INFO_OBJECT(sink, "RialtoWebAudioSink state change to READY. Initializing delegate");
+        rialto_web_audio_sink_initialise_delegate(sink, std::make_shared<PushModeAudioPlaybackDelegate>(element));
     }
-    case GST_STATE_CHANGE_READY_TO_PAUSED:
+    if (auto delegate = rialto_web_audio_sink_get_delegate(sink))
     {
-        GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
-        break;
-    }
-    case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
-    {
-        GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_PLAYING");
-        if (!kClient->isOpen())
+        GstStateChangeReturn status = delegate->changeState(transition);
+        if (GST_STATE_CHANGE_FAILURE != status)
         {
-            GST_INFO_OBJECT(sink, "Delay playing until the caps are recieved and the player is opened");
-            priv->m_isPlayingDelayed = true;
-            result = GST_STATE_CHANGE_ASYNC;
-            rialto_web_audio_async_start(sink);
-        }
-        else
-        {
-            if (!kClient->play())
+            GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
+            if (G_UNLIKELY(result == GST_STATE_CHANGE_FAILURE))
             {
-                GST_ERROR_OBJECT(sink, "Failed to play web audio");
-                result = GST_STATE_CHANGE_FAILURE;
+                GST_WARNING_OBJECT(sink, "State change failed");
+                return result;
             }
-            else
+            else if (result == GST_STATE_CHANGE_ASYNC)
             {
-                result = GST_STATE_CHANGE_ASYNC;
-                rialto_web_audio_async_start(sink);
+                return GST_STATE_CHANGE_ASYNC;
             }
         }
-        break;
+        return status;
     }
-    case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
-    {
-        GST_DEBUG("GST_STATE_CHANGE_PLAYING_TO_PAUSED");
-        if (!kClient->pause())
-        {
-            GST_ERROR_OBJECT(sink, "Failed to pause web audio");
-            result = GST_STATE_CHANGE_FAILURE;
-        }
-        else
-        {
-            result = GST_STATE_CHANGE_ASYNC;
-            rialto_web_audio_async_start(sink);
-        }
-        break;
-    }
-    case GST_STATE_CHANGE_PAUSED_TO_READY:
-    {
-        GST_DEBUG("GST_STATE_CHANGE_PAUSED_TO_READY");
-        if (!kClient->close())
-        {
-            GST_ERROR_OBJECT(sink, "Failed to close web audio");
-            result = GST_STATE_CHANGE_FAILURE;
-        }
-        break;
-    }
-    case GST_STATE_CHANGE_READY_TO_NULL:
-    {
-        GST_DEBUG("GST_STATE_CHANGE_READY_TO_NULL");
-
-        priv->m_rialtoControlClient->removeControlBackend();
-    }
-    default:
-        break;
-    }
-
-    gst_object_unref(sinkPad);
-
-    if (result == GST_STATE_CHANGE_SUCCESS)
-    {
-        GstStateChangeReturn stateChangeRet = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
-        if (G_UNLIKELY(stateChangeRet == GST_STATE_CHANGE_FAILURE))
-        {
-            GST_WARNING_OBJECT(sink, "State change failed");
-            return stateChangeRet;
-        }
-    }
-
-    return result;
+    return GST_STATE_CHANGE_FAILURE;
 }
 
 static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstEvent *event)
 {
-    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
-    RialtoWebAudioSinkPrivate *priv = sink->priv;
-    bool result = false;
-    switch (GST_EVENT_TYPE(event))
+    if (auto delegate = rialto_web_audio_sink_get_delegate(RIALTO_WEB_AUDIO_SINK(parent)))
     {
-    case GST_EVENT_EOS:
-    {
-        GST_DEBUG("GST_EVENT_EOS");
-        result = priv->m_webAudioClient->setEos();
-        gst_event_unref(event);
-        break;
+        return delegate->handleEvent(pad, parent, event);
     }
-    case GST_EVENT_CAPS:
-    {
-        GstCaps *caps;
-        gst_event_parse_caps(event, &caps);
-        GST_INFO_OBJECT(sink, "Opening WebAudio with caps %" GST_PTR_FORMAT, caps);
-
-        if (!priv->m_webAudioClient->open(caps))
-        {
-            GST_ERROR_OBJECT(sink, "Failed to open web audio");
-        }
-        else
-        {
-            result = true;
-
-            if (priv->isVolumeQueued)
-            {
-                if (!priv->m_webAudioClient->setVolume(priv->volume))
-                {
-                    GST_ERROR_OBJECT(sink, "Failed to set volume");
-                    result = false;
-                }
-                else
-                {
-                    priv->isVolumeQueued = false;
-                }
-            }
-
-            if (priv->m_isPlayingDelayed)
-            {
-                if (!priv->m_webAudioClient->play())
-                {
-                    GST_ERROR_OBJECT(sink, "Failed to play web audio");
-                    result = false;
-                }
-                else
-                {
-                    priv->m_isPlayingDelayed = false;
-                }
-            }
-        }
-        gst_event_unref(event);
-        break;
-    }
-    default:
-        result = gst_pad_event_default(pad, parent, event);
-        break;
-    }
-    return result;
+    return FALSE;
 }
 
 static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GValue *value, GParamSpec *pspec)
 {
-    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
-    RialtoWebAudioSinkPrivate *priv = sink->priv;
-    const std::shared_ptr<GStreamerWebAudioPlayerClient> &kClient = priv->m_webAudioClient;
-
     switch (propId)
     {
     case PROP_TS_OFFSET:
     {
-        GST_INFO_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
-                                "synchronisation of sources");
-        break;
+        rialto_web_audio_sink_handle_get_property(RIALTO_WEB_AUDIO_SINK(object), IPlaybackDelegate::Property::TsOffset,
+                                                  value);
     }
 
     case PROP_VOLUME:
     {
-        double volume;
-        if (kClient && kClient->isOpen())
-        {
-            if (kClient->getVolume(volume))
-                priv->volume = volume;
-            else
-                volume = priv->volume; // Use last known volume
-        }
-        else
-        {
-            volume = priv->volume;
-        }
-        g_value_set_double(value, volume);
+        g_value_set_double(value, kDefaultVolume);
+        rialto_web_audio_sink_handle_get_property(RIALTO_WEB_AUDIO_SINK(object), IPlaybackDelegate::Property::Volume,
+                                                  value);
         break;
     }
 
@@ -354,32 +173,19 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
 
 static void rialto_web_audio_sink_set_property(GObject *object, guint propId, const GValue *value, GParamSpec *pspec)
 {
-    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
-    RialtoWebAudioSinkPrivate *priv = sink->priv;
-    const std::shared_ptr<GStreamerWebAudioPlayerClient> &kClient = priv->m_webAudioClient;
-
     switch (propId)
     {
     case PROP_TS_OFFSET:
     {
-        GST_INFO_OBJECT(object, "ts-offset property not supported, RialtoWebAudioSink does not require the "
-                                "synchronisation of sources");
+        rialto_web_audio_sink_handle_set_property(RIALTO_WEB_AUDIO_SINK(object), IPlaybackDelegate::Property::TsOffset,
+                                                  value);
         break;
     }
 
     case PROP_VOLUME:
     {
-        priv->volume = g_value_get_double(value);
-        if (!kClient || !kClient->isOpen())
-        {
-            GST_DEBUG_OBJECT(object, "Enqueue volume setting");
-            priv->isVolumeQueued = true;
-            return;
-        }
-        if (!kClient->setVolume(priv->volume))
-        {
-            GST_ERROR_OBJECT(object, "Failed to set volume");
-        }
+        rialto_web_audio_sink_handle_set_property(RIALTO_WEB_AUDIO_SINK(object), IPlaybackDelegate::Property::Volume,
+                                                  value);
         break;
     }
 
@@ -393,17 +199,19 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
 
 static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
-    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
-    bool res = sink->priv->m_webAudioClient->notifyNewSample(buf);
-    if (res)
+    if (auto delegate = rialto_web_audio_sink_get_delegate(RIALTO_WEB_AUDIO_SINK(parent)))
     {
-        return GST_FLOW_OK;
+        return delegate->handleBuffer(buf);
     }
-    else
-    {
-        GST_ERROR_OBJECT(sink, "Failed to push sample");
-        return GST_FLOW_ERROR;
-    }
+    return GST_FLOW_ERROR;
+}
+
+static void rialto_web_audio_sink_setup_supported_caps(GstElementClass *elementClass)
+{
+    GstCaps *caps = gst_caps_from_string("audio/x-raw");
+    GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
+    gst_element_class_add_pad_template(elementClass, sinktempl);
+    gst_caps_unref(caps);
 }
 
 static bool rialto_web_audio_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
@@ -437,17 +245,6 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
-    WebAudioSinkCallbacks callbacks;
-    callbacks.eosCallback = std::bind(rialto_web_audio_sink_eos_handler, sink);
-    callbacks.stateChangedCallback =
-        std::bind(rialto_web_audio_sink_rialto_state_changed_handler, sink, std::placeholders::_1);
-    callbacks.errorCallback = std::bind(rialto_web_audio_sink_error_handler, sink, std::placeholders::_1);
-
-    sink->priv->m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
-    sink->priv->m_webAudioClient =
-        std::make_shared<GStreamerWebAudioPlayerClient>(std::make_unique<firebolt::rialto::client::WebAudioClientBackend>(),
-                                                        std::make_unique<MessageQueue>(), callbacks,
-                                                        ITimerFactory::getFactory());
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
     if (!rialto_web_audio_sink_initialise_sinkpad(sink))
     {
@@ -460,7 +257,6 @@ static void rialto_web_audio_sink_finalize(GObject *object)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(object);
     RialtoWebAudioSinkPrivate *priv = sink->priv;
-    sink->priv->m_webAudioClient = nullptr;
     GST_INFO_OBJECT(sink, "Finalize: %" GST_PTR_FORMAT " %" GST_PTR_FORMAT, sink, priv);
 
     priv->~RialtoWebAudioSinkPrivate();

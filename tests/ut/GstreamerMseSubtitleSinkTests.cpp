@@ -88,8 +88,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceWhenPipelineIsBelowPa
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
 
-    EXPECT_FALSE(sink->priv->m_sourceAttached);
-
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_NULL));
 
     gst_caps_unref(caps);
@@ -107,8 +105,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithTtml)
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
-
-    EXPECT_TRUE(sink->priv->m_sourceAttached);
 
     setNullState(pipeline, kSourceId);
 
@@ -129,7 +125,24 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithVtt)
     GstCaps *caps{gst_caps_new_empty_simple("application/x-subtitle-vtt")};
     setCaps(sink, caps);
 
-    EXPECT_TRUE(sink->priv->m_sourceAttached);
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithCC)
+{
+    const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/cc", ""}};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_empty_simple("closedcaption/x-cea-708")};
+    setCaps(sink, caps);
 
     setNullState(pipeline, kSourceId);
 
@@ -149,8 +162,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
     setCaps(sink, caps);
-
-    EXPECT_TRUE(sink->priv->m_sourceAttached);
 
     setNullState(pipeline, kSourceId);
 
@@ -177,8 +188,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
 
-    EXPECT_TRUE(sink->priv->m_sourceAttached);
-
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
@@ -196,8 +205,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
-
-    EXPECT_TRUE(sink->priv->m_sourceAttached);
 
     EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
     g_object_set(sink, "mute", kMute, nullptr);
@@ -222,6 +229,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMutePropertyWithoutSourceAt
     g_object_get(sink, "mute", &mute, nullptr);
     EXPECT_EQ(kMute, mute);
 
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -236,8 +244,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdProperty)
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
-
-    EXPECT_TRUE(sink->priv->m_sourceAttached);
 
     EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
     g_object_set(sink, "text-track-identifier", kTextTrackIdentifier.c_str(), nullptr);
@@ -266,6 +272,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdPropertyWithoutS
     EXPECT_EQ(kTextTrackIdentifier, std::string{textTrackId});
     g_free(textTrackId);
 
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -275,6 +282,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotSetTextTrackIdPropertyWhenItsEmpt
 
     g_object_set(sink, "text-track-identifier", nullptr, nullptr);
 
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -288,6 +296,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetWindowIdProperty)
     g_object_get(sink, "window-id", &windowId, nullptr);
     EXPECT_EQ(kWindowId, windowId);
 
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -301,6 +310,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetAsyncProperty)
     g_object_get(sink, "async", &async, nullptr);
     EXPECT_EQ(kIsAsync, async);
 
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -316,6 +326,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotSetAndGetInvalidProperty)
     gboolean async{FALSE};
     g_object_get(sink, "surprise", &async, nullptr);
 
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
     gst_object_unref(sink);
 }
 
@@ -333,7 +344,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSendQosEvent)
 
     sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
 
-    auto mediaPlayerClient{sink->priv->m_mediaPlayerManager.getMediaPlayerClient()};
+    auto mediaPlayerClient{m_mediaPipelineClient.lock()};
     ASSERT_TRUE(mediaPlayerClient);
     const firebolt::rialto::QosInfo kQosInfo{1, 2};
     mediaPlayerClient->notifyQos(kSourceId, kQosInfo);
@@ -365,35 +376,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventValueNotPrese
     GstStructure *structure{gst_structure_new("set-pts-offset", "different-value", G_TYPE_UINT64, kOffset, nullptr)};
     gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
 
-    EXPECT_EQ(sink->priv->m_queuedOffset, std::nullopt);
-
-    setNullState(pipeline, kSourceId);
-
-    gst_caps_unref(caps);
-    gst_object_unref(pipeline);
-}
-
-TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventQueueOffsetSetting)
-{
-    constexpr guint64 kOffset{4325};
-
-    RialtoMSEBaseSink *sink = createSubtitleSink();
-    GstElement *pipeline = createPipelineWithSink(sink);
-
-    setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
-    allSourcesWillBeAttached();
-
-    GstCaps *caps{createDefaultCaps()};
-    setCaps(sink, caps);
-
-    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
-
-    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
-    gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
-
-    EXPECT_EQ(sink->priv->m_queuedOffset.value(), kOffset);
-
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
@@ -415,14 +397,18 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
     setCaps(sink, caps);
 
     sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
-    sink->priv->m_initialPositionSet = true;
 
-    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kOffset, _, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, 0, _, _, _)).WillOnce(Return(true));
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    EXPECT_TRUE(rialto_mse_base_sink_event(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_segment(segment)));
+
+    gst_segment_free(segment);
+
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kOffset)).WillOnce(Return(true));
 
     GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
     gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, structure));
-
-    EXPECT_EQ(sink->priv->m_queuedOffset, std::nullopt);
 
     setNullState(pipeline, kSourceId);
 

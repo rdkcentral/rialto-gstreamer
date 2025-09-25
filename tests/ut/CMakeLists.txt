@@ -16,6 +16,7 @@
 
 if ( COVERAGE_ENABLED )
     add_compile_options(-coverage)
+    add_link_options(--coverage)
 endif()
 
 add_library(
@@ -33,6 +34,11 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/GStreamerMSEMediaPlayerClient.cpp
         ${CMAKE_SOURCE_DIR}/source/GStreamerWebAudioPlayerClient.cpp
         ${CMAKE_SOURCE_DIR}/source/MessageQueue.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModeAudioPlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModePlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModeSubtitlePlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PullModeVideoPlaybackDelegate.cpp
+        ${CMAKE_SOURCE_DIR}/source/PushModeAudioPlaybackDelegate.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGSteamerPlugin.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEBaseSink.cpp
         ${CMAKE_SOURCE_DIR}/source/MediaPlayerManager.cpp
@@ -69,14 +75,6 @@ set_target_properties(gstRialtoTestLib
         PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
         )
 
-if ( COVERAGE_ENABLED )
-    target_link_libraries(
-        gstRialtoTestLib
-
-        gcov
-        )
-endif()
-
 add_gtests (
         GstRialtoUnitTests
 
@@ -84,6 +82,7 @@ add_gtests (
         BufferParserTests.cpp
         ControlBackendTests.cpp
         GStreamerEmeUtilsTests.cpp
+        GstreamerMseAudioSinkInWebAudioModeTests.cpp
         GstreamerMseAudioSinkTests.cpp
         GstreamerMseBaseSinkTests.cpp
         GstreamerMseMediaPlayerClientTests.cpp
@@ -119,11 +118,3 @@ target_link_libraries(
         gstRialtoTestLib
         gstRialtoStubs
 )
-
-if ( COVERAGE_ENABLED )
-    target_link_libraries(
-        GstRialtoUnitTests
-
-        gcov
-        )
-endif()

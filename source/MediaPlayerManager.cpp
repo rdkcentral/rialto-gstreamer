@@ -56,7 +56,7 @@ bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, 
     }
 }
 
-std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient()
+std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient() const
 {
     return m_client.lock();
 }

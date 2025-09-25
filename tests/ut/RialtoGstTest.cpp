@@ -39,6 +39,7 @@ using testing::ByMove;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
+using testing::SaveArg;
 using testing::SetArgReferee;
 using testing::StrictMock;
 
@@ -48,11 +49,11 @@ constexpr bool kHasDrm{true};
 constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
-const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",   "audio/aac",   "audio/x-eac3", "audio/x-opus",
-                                                        "audio/b-wav", "audio/x-raw", "audio/x-flac"};
+const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/mp3",   "audio/aac",   "audio/x-eac3",
+                                                        "audio/x-opus", "audio/b-wav", "audio/x-raw", "audio/x-flac"};
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
-const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml"};
+const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml", "text/cc"};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 int32_t generateSourceId()
 {
@@ -175,6 +176,7 @@ RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSink, GST_STATE_READY));
     return RIALTO_MSE_BASE_SINK(audioSink);
 }
 
@@ -184,6 +186,7 @@ RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *videoSink = gst_element_factory_make("rialtomsevideosink", "rialtomsevideosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(videoSink, GST_STATE_READY));
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
@@ -193,6 +196,7 @@ RialtoMSEBaseSink *RialtoGstTest::createSubtitleSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *videoSink = gst_element_factory_make("rialtomsesubtitlesink", "rialtomsesubtitlesink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(videoSink, GST_STATE_READY));
     return RIALTO_MSE_BASE_SINK(videoSink);
 }
 
@@ -202,7 +206,19 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
     EXPECT_CALL(*m_controlMock, registerClient(_, _))
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(webAudioSink, GST_STATE_READY));
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
+}
+
+RialtoMSEBaseSink *RialtoGstTest::createAudioSinkInWebAudioMode() const
+{
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    g_object_set(audioSink, "web-audio", TRUE, nullptr);
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSink, GST_STATE_READY));
+    return RIALTO_MSE_BASE_SINK(audioSink);
 }
 
 GstElement *RialtoGstTest::createPlaybin2WithSink(RialtoMSEBaseSink *sink) const
@@ -387,7 +403,7 @@ void RialtoGstTest::load(GstElement *pipeline)
     const std::string kUrl{"mse://1"};
     EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
-        .WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+        .WillOnce(DoAll(SaveArg<0>(&m_mediaPipelineClient), Return(ByMove(std::move(m_mediaPipeline)))));
 }
 
 void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink)
@@ -405,7 +421,7 @@ void RialtoGstTest::setPlayingState(GstElement *pipeline) const
 
 void RialtoGstTest::setNullState(GstElement *pipeline, int32_t sourceId) const
 {
-    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(sourceId)).WillRepeatedly(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
     gst_element_set_state(pipeline, GST_STATE_NULL);
 }
@@ -437,9 +453,9 @@ void RialtoGstTest::setCaps(RialtoWebAudioSink *sink, GstCaps *caps) const
 void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,
                                                   const firebolt::rialto::PlaybackState &state) const
 {
-    auto mediaPlayerClient{sink->priv->m_mediaPlayerManager.getMediaPlayerClient()};
-    ASSERT_TRUE(mediaPlayerClient);
-    mediaPlayerClient->handlePlaybackStateChange(state);
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifyPlaybackState(state);
 }
 
 void RialtoGstTest::expectSinksInitialisation() const

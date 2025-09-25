@@ -37,10 +37,10 @@
 #include "Constants.h"
 #include "IMediaPipeline.h"
 #include "IMessageQueue.h"
+#include "IPullModePlaybackDelegate.h"
 #include "MediaCommon.h"
 #include "MediaPlayerClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSink.h"
-#include "RialtoGStreamerMSEBaseSinkCallbacks.h"
 
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
@@ -61,7 +61,8 @@ class BufferPuller
 {
 public:
     BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
-                 const std::shared_ptr<BufferParser> &bufferParser);
+                 const std::shared_ptr<BufferParser> &bufferParser,
+                 const std::shared_ptr<IPullModePlaybackDelegate> &delegate);
 
     void start();
     void stop();
@@ -72,6 +73,7 @@ private:
     std::unique_ptr<IMessageQueue> m_queue;
     GstElement *m_rialtoSink;
     std::shared_ptr<BufferParser> m_bufferParser;
+    std::shared_ptr<IPullModePlaybackDelegate> m_delegate;
 };
 
 class AttachedSource
@@ -80,8 +82,9 @@ class AttachedSource
 
 public:
     AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
-                   firebolt::rialto::MediaSourceType type, ClientState state = ClientState::READY)
-        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_type(type), m_state(state)
+                   const std::shared_ptr<IPullModePlaybackDelegate> &delegate, firebolt::rialto::MediaSourceType type,
+                   ClientState state = ClientState::READY)
+        : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_delegate{delegate}, m_type(type), m_state(state)
     {
     }
 
@@ -91,6 +94,7 @@ public:
 private:
     RialtoMSEBaseSink *m_rialtoSink;
     std::shared_ptr<BufferPuller> m_bufferPuller;
+    std::shared_ptr<IPullModePlaybackDelegate> m_delegate;
     std::unordered_set<uint32_t> m_ongoingNeedDataRequests;
     firebolt::rialto::MediaSourceType m_type = firebolt::rialto::MediaSourceType::UNKNOWN;
     int64_t m_position = 0;
@@ -117,7 +121,7 @@ class PullBufferMessage : public Message
 public:
     PullBufferMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId, GstElement *rialtoSink,
                       const std::shared_ptr<BufferParser> &bufferParser, IMessageQueue &pullerQueue,
-                      GStreamerMSEMediaPlayerClient *player);
+                      GStreamerMSEMediaPlayerClient *player, const std::shared_ptr<IPullModePlaybackDelegate> &delegate);
     void handle() override;
 
 private:
@@ -128,6 +132,7 @@ private:
     std::shared_ptr<BufferParser> m_bufferParser;
     IMessageQueue &m_pullerQueue;
     GStreamerMSEMediaPlayerClient *m_player;
+    std::shared_ptr<IPullModePlaybackDelegate> m_delegate;
 };
 
 class NeedDataMessage : public Message
@@ -278,10 +283,11 @@ public:
     void flush(int32_t sourceId, bool resetTime);
     void setSourcePosition(int32_t sourceId, int64_t position, bool resetTime, double appliedRate = 1.0,
                            uint64_t stopPosition = GST_CLOCK_TIME_NONE);
+    void setSubtitleOffset(int32_t sourceId, int64_t position);
     void processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap, bool audioAac);
 
     bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source,
-                      RialtoMSEBaseSink *rialtoSink);
+                      RialtoMSEBaseSink *rialtoSink, const std::shared_ptr<IPullModePlaybackDelegate> &delegate);
     void removeSource(int32_t sourceId);
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
@@ -296,7 +302,7 @@ public:
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
     void stopStreaming();
     void destroyClientBackend();
-    bool renderFrame(RialtoMSEBaseSink *sink);
+    bool renderFrame(int32_t sourceId);
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);

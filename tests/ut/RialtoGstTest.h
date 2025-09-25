@@ -58,6 +58,7 @@ public:
     RialtoMSEBaseSink *createVideoSink() const;
     RialtoMSEBaseSink *createSubtitleSink() const;
     RialtoWebAudioSink *createWebAudioSink() const;
+    RialtoMSEBaseSink *createAudioSinkInWebAudioMode() const;
     GstElement *createPlaybin2WithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoWebAudioSink *sink) const;
@@ -104,4 +105,5 @@ protected:
     std::unique_ptr<testing::StrictMock<firebolt::rialto::MediaPipelineMock>> m_mediaPipeline{
         std::make_unique<testing::StrictMock<firebolt::rialto::MediaPipelineMock>>()};
     testing::StrictMock<firebolt::rialto::MediaPipelineMock> &m_mediaPipelineMock{*m_mediaPipeline};
+    std::weak_ptr<firebolt::rialto::IMediaPipelineClient> m_mediaPipelineClient{};
 };
