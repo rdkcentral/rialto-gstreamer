@@ -331,7 +331,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPipelineIsBelowPa
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached)
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnInvalidPositionWhenSourceNotAttached)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -340,6 +340,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
 
     gint64 position{0};
+    EXPECT_CALL(m_mediaPipelineMock, getPosition(_)).WillOnce(Return(false));
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
     setNullState(pipeline, kUnknownSourceId);
