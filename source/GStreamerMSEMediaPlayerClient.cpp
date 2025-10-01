@@ -68,9 +68,9 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_clientBackend(MediaPlayerClientBackend), m_cachedPosition{-1}, m_duration(0),
+      m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
+      m_subtitleStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
 {
@@ -119,7 +119,7 @@ void GStreamerMSEMediaPlayerClient::notifyNetworkState(firebolt::rialto::Network
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackState(firebolt::rialto::PlaybackState state)
 {
-    m_backendQueue->postMessage(std::make_shared<PlaybackStateMessage>(state, this));
+    m_backendQueue->postPriorityMessage(std::make_shared<PlaybackStateMessage>(state, this));
 }
 
 void GStreamerMSEMediaPlayerClient::notifyVideoData(bool hasData) {}
@@ -157,18 +157,12 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<SourceFlushedMessage>(sourceId, this));
 }
 
-void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
+void GStreamerMSEMediaPlayerClient::getCachedPosition(int64_t *position, int32_t sourceId)
 {
     auto sourceIt = m_attachedSources.find(sourceId);
     if (sourceIt == m_attachedSources.end())
     {
-        *position = -1;
-        return;
-    }
-
-    if (m_clientBackend && m_clientBackend->getPosition(*position))
-    {
-        sourceIt->second.m_position = *position;
+        *position = m_cachedPosition;
     }
     else
     {
@@ -176,10 +170,27 @@ void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sou
     }
 }
 
+void GStreamerMSEMediaPlayerClient::storeCachedPosition(int64_t position, int32_t sourceId)
+{
+    m_cachedPosition = position;
+    auto sourceIt = m_attachedSources.find(sourceId);
+    if (sourceIt != m_attachedSources.end())
+    {
+        sourceIt->second.m_position = position;
+    }
+}
+
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
-    int64_t position;
-    m_backendQueue->fastCallInEventLoop([&]() { getPositionDo(&position, sourceId); });
+    int64_t position{-1};
+    if (m_clientBackend && m_clientBackend->getPosition(position))
+    {
+        m_backendQueue->scheduleInEventLoop([=]() { storeCachedPosition(position, sourceId); });
+    }
+    else
+    {
+        m_backendQueue->fastCallInEventLoop([&]() { getCachedPosition(&position, sourceId); });
+    }
     return position;
 }
 
@@ -578,7 +589,7 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
 void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::PlaybackState state)
 {
     GST_DEBUG("Received state change to state %u", static_cast<uint32_t>(state));
-    m_backendQueue->callInEventLoop(
+    m_backendQueue->fastCallInEventLoop(
         [&]()
         {
             m_serverPlaybackState = state;
