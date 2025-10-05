@@ -30,7 +30,7 @@
 void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                                           const std::vector<std::string> &supportedMimeTypes)
 {
-    static const std::unordered_map<std::string, std::vector<std::string>> kMimeToCaps =
+    static const std::unordered_multimap<std::string, std::vector<std::string>> kMimeToCaps =
         {{"audio/mp4", {"audio/mpeg, mpegversion=1", "audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
          {"audio/mp3", {"audio/mpeg, mpegversion=1", "audio/mpeg, mpegversion=2"}},
          {"audio/aac", {"audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
@@ -45,6 +45,16 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
          {"video/h265", {"video/x-h265"}},
          {"video/x-av1", {"video/x-av1"}},
          {"video/x-vp9", {"video/x-vp9"}},
+#if defined(RDK_SVP)
+         {"video/h264", {"video/x-h264(memory:DMABuf)"}},
+         {"video/h264", {"video/x-h264(memory:SecMem)"}},
+         {"video/h265", {"video/x-h265(memory:DMABuf)"}},
+         {"video/h265", {"video/x-h265(memory:SecMem)"}},
+         {"video/x-av1", {"video/x-av1(memory:DMABuf)"}},
+         {"video/x-av1", {"video/x-av1(memory:SecMem)"}},
+         {"video/x-vp9", {"video/x-vp9(memory:DMABuf)"}},
+         {"video/x-vp9", {"video/x-vp9(memory:SecMem)"}},
+#endif
          {"text/vtt", {"text/vtt", "application/x-subtitle-vtt"}},
          {"text/ttml", {"application/ttml+xml"}}};
 
@@ -52,17 +62,20 @@ void rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     GstCaps *caps = gst_caps_new_empty();
     for (const std::string &mime : supportedMimeTypes)
     {
-        auto mimeToCapsIt = kMimeToCaps.find(mime);
-        if (mimeToCapsIt != kMimeToCaps.end())
+        if (kMimeToCaps.find(mime) != kMimeToCaps.end())
         {
-            for (const std::string &capsStr : mimeToCapsIt->second)
+            auto mimeToCapsRange = kMimeToCaps.equal_range(mime);
+            for (auto mimeToCapsIt = mimeToCapsRange.first; mimeToCapsIt != mimeToCapsRange.second; mimeToCapsIt++)
             {
-                if (addedCaps.find(capsStr) == addedCaps.end())
+                for (const std::string &capsStr : mimeToCapsIt->second)
                 {
-                    GST_INFO("Caps '%s' is supported", capsStr.c_str());
-                    GstCaps *newCaps = gst_caps_from_string(capsStr.c_str());
-                    gst_caps_append(caps, newCaps);
-                    addedCaps.insert(capsStr);
+                    if (addedCaps.find(capsStr) == addedCaps.end())
+                    {
+                        GST_INFO("Caps '%s' is supported", capsStr.c_str());
+                        GstCaps *newCaps = gst_caps_from_string(capsStr.c_str());
+                        gst_caps_append(caps, newCaps);
+                        addedCaps.insert(capsStr);
+                    }
                 }
             }
         }
