@@ -265,8 +265,7 @@ public:
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
 
-    void getCachedPosition(int64_t *position, int32_t sourceId);
-    void storeCachedPosition(int64_t position, int32_t sourceId);
+    void getPositionDo(int64_t *position, int32_t sourceId);
     int64_t getPosition(int32_t sourceId);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
@@ -332,7 +331,7 @@ private:
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
-    int64_t m_cachedPosition;
+    int64_t m_position;
     int64_t m_duration;
     std::mutex m_playerMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
