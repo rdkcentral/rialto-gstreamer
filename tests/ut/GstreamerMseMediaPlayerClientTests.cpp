@@ -113,42 +113,9 @@ public:
                 }));
     }
 
-    void expectPostPriorityMessage()
-    {
-        EXPECT_CALL(m_messageQueueMock, postPriorityMessage(_))
-            .WillRepeatedly(Invoke(
-                [](const auto &msg)
-                {
-                    msg->handle();
-                    return true;
-                }));
-    }
-
     void expectCallInEventLoop()
     {
         EXPECT_CALL(m_messageQueueMock, callInEventLoop(_))
-            .WillRepeatedly(Invoke(
-                [](const auto &f)
-                {
-                    f();
-                    return true;
-                }));
-    }
-
-    void expectFastCallInEventLoop()
-    {
-        EXPECT_CALL(m_messageQueueMock, fastCallInEventLoop(_))
-            .WillRepeatedly(Invoke(
-                [](const auto &f)
-                {
-                    f();
-                    return true;
-                }));
-    }
-
-    void expectScheduleInEventLoop()
-    {
-        EXPECT_CALL(m_messageQueueMock, scheduleInEventLoop(_))
             .WillRepeatedly(Invoke(
                 [](const auto &f)
                 {
@@ -213,8 +180,7 @@ public:
 
     void serverTransitionedToPaused(int numSources = 2)
     {
-        expectPostPriorityMessage();
-        expectFastCallInEventLoop();
+        expectPostMessage();
         EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PAUSED)).Times(numSources);
         m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
         EXPECT_EQ(m_sut->getClientState(), ClientState::PAUSED);
@@ -222,8 +188,7 @@ public:
 
     void serverTransitionedToPlaying(int numSources = 2)
     {
-        expectPostPriorityMessage();
-        expectFastCallInEventLoop();
+        expectPostMessage();
         EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING)).Times(numSources);
         m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
         EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
@@ -292,7 +257,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     expectPostMessage();
-    expectFastCallInEventLoop();
+    expectCallInEventLoop();
     m_sut->notifyPosition(kPosition);
     m_sut->destroyClientBackend();
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
@@ -314,8 +279,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNetworkState)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackStateStopped)
 {
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
+    expectCallInEventLoop();
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::STOPPED);
 }
 
@@ -326,8 +291,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePaused
 
     bufferPullerWillBeCreated();
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
     EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PAUSED));
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
 
@@ -345,8 +309,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePlayin
 
     bufferPullerWillBeCreated();
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
     EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
 
@@ -363,8 +326,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldHandleEos)
     GstElement *pipeline = createPipelineWithSink(audioSink);
     bufferPullerWillBeCreated();
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
     EXPECT_CALL(*m_delegateMock, handleEos());
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::END_OF_STREAM);
 
@@ -374,8 +336,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldHandleEos)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveUnexpectedSeekDoneMessage)
 {
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
+    expectCallInEventLoop();
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::SEEK_DONE);
 }
 
@@ -384,8 +346,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
+    expectCallInEventLoop();
     EXPECT_CALL(*m_delegateMock, handleError(_, 0));
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::FAILURE);
     // Position should be set to 0
@@ -673,7 +635,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kPosition), Return(true)));
-    expectScheduleInEventLoop();
+    expectCallInEventLoop();
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
@@ -741,7 +703,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenServerAlreadyPla
     allSourcesWantToPause();
     serverTransitionedToPaused();
 
-    expectFastCallInEventLoop();
     EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING)).Times(kNumOfSources);
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
     m_sut->play(m_audioSourceId);
@@ -760,8 +721,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenAlreadyPaused)
     constexpr int kNumOfSources{2};
     attachAudioVideo();
 
-    expectFastCallInEventLoop();
-    expectPostPriorityMessage();
+    expectCallInEventLoop();
+    expectPostMessage();
     EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PAUSED)).Times(kNumOfSources);
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PAUSED);
 
@@ -851,8 +812,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaiting
     attachAudioVideo();
     allSourcesWantToPause();
 
-    expectPostPriorityMessage();
-    expectFastCallInEventLoop();
+    expectPostMessage();
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
 
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
@@ -991,11 +951,12 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyThatSourceFinishedF
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     EXPECT_CALL(*m_delegateMock, lostState());
     m_sut->flush(kSourceId, kResetTime);
 
@@ -1006,15 +967,17 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(bufferPullerMsgQueueMock, stop()).RetiresOnSaturation();
     EXPECT_CALL(*m_delegateMock, lostState());
     m_sut->flush(kSourceId, kResetTime);
 
     expectPostMessage();
+    EXPECT_CALL(bufferPullerMsgQueueMock, start()).RetiresOnSaturation();
     EXPECT_CALL(*m_delegateMock, handleFlushCompleted());
     m_sut->notifySourceFlushed(kSourceId);
 

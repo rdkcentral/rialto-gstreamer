@@ -72,11 +72,9 @@ public:
     std::shared_ptr<Message> waitForMessage() override;
     // Posts a message to the queue.
     bool postMessage(const std::shared_ptr<Message> &msg) override;
-    bool postPriorityMessage(const std::shared_ptr<Message> &msg) override;
     void processMessages() override;
     bool scheduleInEventLoop(const std::function<void()> &func) override;
     bool callInEventLoop(const std::function<void()> &func) override;
-    bool fastCallInEventLoop(const std::function<void()> &func) override;
 
 protected:
     void doStop();
