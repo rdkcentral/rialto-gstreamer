@@ -402,8 +402,34 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSample
 
     expectCallInEventLoop();
     expectPostMessage();
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
     EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([]() { return GstRefSample{}; }));
     EXPECT_CALL(*m_delegateMock, isEos()).WillOnce(Return(false));
+    EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &msg)
+            {
+                msg->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSamplesAvailableWhenNotReadyToSendData)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(false));
     EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
         .WillOnce(Invoke(
             [](const auto &msg)
@@ -429,6 +455,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEos)
 
     expectCallInEventLoop();
     expectPostMessage();
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
     EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([]() { return GstRefSample{}; }));
     EXPECT_CALL(*m_delegateMock, isEos()).WillOnce(Return(true));
     EXPECT_CALL(bufferPullerMsgQueueMock, postMessage(_))
@@ -453,6 +480,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEmptySam
     auto &bufferPullerMsgQueueMock{bufferPullerWillBeCreated()};
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
     EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{}; }));
     EXPECT_CALL(*m_delegateMock, isEos()).WillOnce(Return(false));
 
@@ -483,6 +511,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
     GstBuffer *buffer{gst_buffer_new()};
     GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
     GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
     EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
 
     expectCallInEventLoop();
@@ -517,6 +546,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaData)
     GstBuffer *buffer{gst_buffer_new()};
     GstCaps *caps{gst_caps_new_simple("application/x-cenc", "rate", G_TYPE_INT, 1, "channels", G_TYPE_INT, 2, nullptr)};
     GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
     EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
     EXPECT_CALL(*m_delegateMock, popSample());
 
