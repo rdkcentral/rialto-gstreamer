@@ -40,4 +40,5 @@ public:
     MOCK_METHOD(void, popSample, (), (override));
     MOCK_METHOD(bool, isEos, (), (const, override));
     MOCK_METHOD(void, lostState, (), (override));
+    MOCK_METHOD(bool, isReadyToSendData, (), (const, override));
 };

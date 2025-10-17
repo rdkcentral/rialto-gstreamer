@@ -1111,6 +1111,11 @@ void PullBufferMessage::handle()
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
     {
+        if (!m_delegate->isReadyToSendData())
+        {
+            GST_INFO_OBJECT(m_rialtoSink, "Not ready to send data - segment or eos not received yet");
+            break;
+        }
         GstRefSample sample = m_delegate->getFrontSample();
         if (!sample)
         {
