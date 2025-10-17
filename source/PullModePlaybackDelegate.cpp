@@ -713,6 +713,7 @@ void PullModePlaybackDelegate::setSegment()
     const bool kResetTime{m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
     int64_t position = static_cast<int64_t>(m_lastSegment.start);
     client->setSourcePosition(m_sourceId, position, kResetTime, m_lastSegment.applied_rate, m_lastSegment.stop);
+    m_segmentSet = true;
 }
 
 void PullModePlaybackDelegate::changePlaybackRate(GstEvent *event)
@@ -742,6 +743,7 @@ void PullModePlaybackDelegate::startFlushing()
             m_isEos = false;
         }
         m_isFlushOngoing = true;
+        m_segmentSet = false;
         clearBuffersUnlocked();
     }
 }
@@ -845,6 +847,12 @@ bool PullModePlaybackDelegate::isEos() const
 {
     std::lock_guard<std::mutex> lock(m_sinkMutex);
     return m_samples.empty() && m_isEos;
+}
+
+bool PullModePlaybackDelegate::isReadyToSendData() const
+{
+    std::lock_guard<std::mutex> lock(m_sinkMutex);
+    return m_isEos || m_segmentSet;
 }
 
 void PullModePlaybackDelegate::lostState()

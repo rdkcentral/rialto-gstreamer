@@ -56,6 +56,7 @@ public:
     void popSample() override;
     bool isEos() const override;
     void lostState() override;
+    bool isReadyToSendData() const override;
 
 protected:
     bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
@@ -80,6 +81,7 @@ protected:
     std::atomic<int32_t> m_sourceId{-1};
     std::queue<GstSample *> m_samples{};
     bool m_isEos{false};
+    std::atomic<bool> m_segmentSet{false};
     std::atomic<bool> m_isFlushOngoing{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
     mutable std::mutex m_sinkMutex{};

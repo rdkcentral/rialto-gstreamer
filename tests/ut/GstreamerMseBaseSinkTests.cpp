@@ -648,6 +648,19 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
     GstCaps *caps{createAudioCaps()};
     setCaps(audioSink, caps);
 
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+
+    constexpr guint64 kPosition{0};
+    constexpr bool kResetTime{false};
+    constexpr bool kAppliedRate = 1.0;
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+    gst_segment_free(segment);
+
     for (int i = 0; i < 24; ++i)
     {
         GstBuffer *buffer = gst_buffer_new();
