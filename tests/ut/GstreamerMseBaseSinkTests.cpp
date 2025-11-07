@@ -1162,6 +1162,85 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSecondFlushStopAfterFirstFlushStopIsCompleted)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    // Set flushing
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+
+    std::mutex flushMutex;
+    std::condition_variable flushCond;
+    bool flushFlag{false};
+    std::thread t{[&]()
+                  {
+                      std::unique_lock<std::mutex> lock{flushMutex};
+                      flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
+                  }};
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+
+    {
+        std::unique_lock<std::mutex> lock{flushMutex};
+        flushFlag = true;
+        flushCond.notify_one();
+    }
+
+    t.join();
+
+    flushFlag = false;
+    std::thread t2{[&]()
+                   {
+                       std::unique_lock<std::mutex> lock{flushMutex};
+                       flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
+
+                       // Second flush will be called after first flush is completed
+                       EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+
+                       auto mediaPipelineClient = m_mediaPipelineClient.lock();
+                       ASSERT_TRUE(mediaPipelineClient);
+                       mediaPipelineClient->notifySourceFlushed(kSourceId);
+                       mediaPipelineClient.reset();
+                   }};
+
+    // flush on IMediaPipeline should not be called yet...
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+
+    {
+        std::unique_lock<std::mutex> lock{flushMutex};
+        flushFlag = true;
+        flushCond.notify_one();
+    }
+    t2.join();
+
+    // Finish second flush
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifySourceFlushed(kSourceId);
+    mediaPipelineClient.reset();
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithBufferCodecData)
 {
     const std::vector<uint8_t> kCodecDataVec{1, 2, 3, 4};
