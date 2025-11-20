@@ -179,7 +179,7 @@ void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sou
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
     int64_t position;
-    m_backendQueue->callInEventLoop([&]() { getPositionDo(&position, sourceId); });
+    m_backendQueue->priorityCallInEventLoop([&]() { getPositionDo(&position, sourceId); });
     return position;
 }
 
@@ -738,13 +738,27 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(int32_t sourceId)
 void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volumeDuration,
                                               firebolt::rialto::EaseType easeType)
 {
-    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setVolume(targetVolume, volumeDuration, easeType); });
+    m_setVolumeInProgress = true;
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            m_clientBackend->setVolume(targetVolume, volumeDuration, easeType);
+            m_setVolumeInProgress = false;
+        });
 }
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
     bool status{false};
-    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    if (m_setVolumeInProgress)
+    {
+        m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    }
+    else
+    {
+        m_backendQueue->priorityCallInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    }
+
     return status;
 }
 

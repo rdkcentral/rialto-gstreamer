@@ -116,6 +116,20 @@ bool MessageQueue::postMessage(const std::shared_ptr<Message> &msg)
     return true;
 }
 
+bool MessageQueue::postPriorityMessage(const std::shared_ptr<Message> &msg)
+{
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_running)
+    {
+        GST_ERROR("Message queue is not running");
+        return false;
+    }
+    m_queue.push_front(msg);
+    m_condVar.notify_all();
+
+    return true;
+}
+
 void MessageQueue::processMessages()
 {
     do
@@ -147,6 +161,25 @@ bool MessageQueue::callInEventLoopInternal(const std::function<void()> &func)
     {
         auto message = std::make_shared<CallInEventLoopMessage>(func);
         if (!postMessage(message))
+        {
+            return false;
+        }
+        message->wait();
+    }
+    else
+    {
+        func();
+    }
+
+    return true;
+}
+
+bool MessageQueue::priorityCallInEventLoop(const std::function<void()> &func)
+{
+    if (std::this_thread::get_id() != m_workerThread.get_id())
+    {
+        auto message = std::make_shared<CallInEventLoopMessage>(func);
+        if (!postPriorityMessage(message))
         {
             return false;
         }

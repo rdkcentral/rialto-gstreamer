@@ -352,4 +352,6 @@ private:
 
     const uint32_t m_maxWidth;
     const uint32_t m_maxHeight;
+
+    std::atomic_bool m_setVolumeInProgress{false};
 };
