@@ -88,7 +88,7 @@ public:
     {
         if (m_lastMeasuredPosition != -1 &&
             std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now() - m_lastMeasuredPositionTime) < std::chrono::milliseconds{25})
+                std::chrono::system_clock::now() - m_lastMeasuredPositionTime) < std::chrono::milliseconds{25})
         {
             position = m_lastMeasuredPosition;
             return true;
@@ -96,7 +96,7 @@ public:
         if (m_mediaPlayerBackend->getPosition(position))
         {
             m_lastMeasuredPosition = position;
-            m_lastMeasuredPositionTime = std::chrono::steady_clock::now();
+            m_lastMeasuredPositionTime = std::chrono::system_clock::now();
             return true;
         }
         return false;
@@ -128,7 +128,7 @@ public:
     bool getVolume(double &currentVolume) override
     {
         if (m_lastMeasuredVolume != -1.0 &&
-            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() -
+            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() -
                                                              m_lastMeasuredVolumeTime) < std::chrono::seconds{1})
         {
             currentVolume = m_lastMeasuredVolume;
@@ -137,7 +137,7 @@ public:
         if (m_mediaPlayerBackend->getVolume(currentVolume))
         {
             m_lastMeasuredVolume = currentVolume;
-            m_lastMeasuredVolumeTime = std::chrono::steady_clock::now();
+            m_lastMeasuredVolumeTime = std::chrono::system_clock::now();
             return true;
         }
         return false;
@@ -217,8 +217,8 @@ public:
     }
 
 private:
-    std::chrono::steady_clock::time_point m_lastMeasuredPositionTime{};
-    std::chrono::steady_clock::time_point m_lastMeasuredVolumeTime{};
+    std::chrono::system_clock::time_point m_lastMeasuredPositionTime{};
+    std::chrono::system_clock::time_point m_lastMeasuredVolumeTime{};
     int64_t m_lastMeasuredPosition{-1};
     double m_lastMeasuredVolume{-1.0};
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;

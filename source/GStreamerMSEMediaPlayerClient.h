@@ -264,8 +264,10 @@ public:
     void notifyBufferUnderflow(int32_t sourceId) override;
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
+    void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
 
     void getPositionDo(int64_t *position, int32_t sourceId);
+    void setPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo);
     int64_t getPosition(int32_t sourceId);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
@@ -339,6 +341,7 @@ private:
     int32_t m_audioStreams;
     int32_t m_videoStreams;
     int32_t m_subtitleStreams;
+    firebolt::rialto::PlaybackInfo m_playbackInfo{-1, 1.0};
 
     struct Rectangle
     {

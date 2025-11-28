@@ -157,23 +157,34 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<SourceFlushedMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
+{
+    m_backendQueue->priorityCallInEventLoop([&]() { setPlaybackInfo(playbackInfo); });
+}
+
+void GStreamerMSEMediaPlayerClient::setPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
+{
+    m_playbackInfo = playbackInfo;
+}
+
 void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
 {
-    auto sourceIt = m_attachedSources.find(sourceId);
-    if (sourceIt == m_attachedSources.end())
-    {
-        *position = -1;
-        return;
-    }
+    *position = m_playbackInfo.currentPosition;
+    // auto sourceIt = m_attachedSources.find(sourceId);
+    // if (sourceIt == m_attachedSources.end())
+    // {
+    //     *position = -1;
+    //     return;
+    // }
 
-    if (m_clientBackend && m_clientBackend->getPosition(*position))
-    {
-        sourceIt->second.m_position = *position;
-    }
-    else
-    {
-        *position = sourceIt->second.m_position;
-    }
+    // if (m_clientBackend && m_clientBackend->getPosition(*position))
+    // {
+    //     sourceIt->second.m_position = *position;
+    // }
+    // else
+    // {
+    //     *position = sourceIt->second.m_position;
+    // }
 }
 
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
@@ -743,21 +754,22 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
         [&]()
         {
             m_clientBackend->setVolume(targetVolume, volumeDuration, easeType);
+            m_playbackInfo.volume = targetVolume;
             m_setVolumeInProgress = false;
         });
 }
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
-    bool status{false};
-    if (m_setVolumeInProgress)
-    {
-        m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
-    }
-    else
-    {
-        m_backendQueue->priorityCallInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
-    }
+    bool status{true};
+    // if (m_setVolumeInProgress)
+    // {
+    //     m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+    // }
+    // else
+    // {
+    m_backendQueue->priorityCallInEventLoop([&]() { volume = m_playbackInfo.volume; });
+    // }
 
     return status;
 }
