@@ -220,7 +220,7 @@ void PullModeAudioPlaybackDelegate::getProperty(const Property &type, GValue *va
     {
     case IPlaybackDelegate::Property::Volume:
     {
-        double volume;
+        double volume{1.0};
         if (client)
         {
             if (client->getVolume(volume))
