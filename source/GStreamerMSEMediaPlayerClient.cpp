@@ -159,40 +159,14 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
-    m_backendQueue->priorityCallInEventLoop([&]() { setPlaybackInfo(playbackInfo); });
-}
-
-void GStreamerMSEMediaPlayerClient::setPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
-{
+    std::unique_lock lock{m_playbackInfoMutex};
     m_playbackInfo = playbackInfo;
-}
-
-void GStreamerMSEMediaPlayerClient::getPositionDo(int64_t *position, int32_t sourceId)
-{
-    *position = m_playbackInfo.currentPosition;
-    // auto sourceIt = m_attachedSources.find(sourceId);
-    // if (sourceIt == m_attachedSources.end())
-    // {
-    //     *position = -1;
-    //     return;
-    // }
-
-    // if (m_clientBackend && m_clientBackend->getPosition(*position))
-    // {
-    //     sourceIt->second.m_position = *position;
-    // }
-    // else
-    // {
-    //     *position = sourceIt->second.m_position;
-    // }
 }
 
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
-    int64_t position;
-    getPositionDo(&position, sourceId);
-
-    return position;
+    std::unique_lock lock{m_playbackInfoMutex};
+    return m_playbackInfo.currentPosition;
 }
 
 bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
@@ -654,6 +628,10 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 {
                     source.second.m_position = 0;
                 }
+                {
+                    std::unique_lock lock{m_playbackInfoMutex};
+                    m_playbackInfo.currentPosition = 0;
+                }
 
                 break;
             }
@@ -750,22 +728,20 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(int32_t sourceId)
 void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volumeDuration,
                                               firebolt::rialto::EaseType easeType)
 {
-    m_setVolumeInProgress = true;
     m_backendQueue->callInEventLoop(
         [&]()
         {
             m_clientBackend->setVolume(targetVolume, volumeDuration, easeType);
+            std::unique_lock lock{m_playbackInfoMutex};
             m_playbackInfo.volume = targetVolume;
-            m_setVolumeInProgress = false;
         });
 }
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
-    bool status{true};
+    std::unique_lock lock{m_playbackInfoMutex};
     volume = m_playbackInfo.volume;
-
-    return status;
+    return true;
 }
 
 void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)

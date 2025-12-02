@@ -83,6 +83,7 @@ public:
     void setCaps(RialtoMSEBaseSink *sink, GstCaps *caps) const;
     void setCaps(RialtoWebAudioSink *sink, GstCaps *caps) const;
     void sendPlaybackStateNotification(RialtoMSEBaseSink *sink, const firebolt::rialto::PlaybackState &state) const;
+    void sendPlaybackInfoNotification(RialtoMSEBaseSink *sink, const firebolt::rialto::PlaybackInfo &info) const;
 
 private:
     void expectSinksInitialisation() const;

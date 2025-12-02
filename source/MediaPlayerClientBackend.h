@@ -20,7 +20,6 @@
 
 #include "MediaPlayerClientBackendInterface.h"
 #include <IMediaPipeline.h>
-#include <chrono>
 #include <gst/gst.h>
 #include <memory>
 
@@ -84,23 +83,7 @@ public:
         return m_mediaPlayerBackend->addSegment(needDataRequestId, mediaSegment);
     }
 
-    bool getPosition(int64_t &position) override
-    {
-        if (m_lastMeasuredPosition != -1 &&
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now() - m_lastMeasuredPositionTime) < std::chrono::milliseconds{25})
-        {
-            position = m_lastMeasuredPosition;
-            return true;
-        }
-        if (m_mediaPlayerBackend->getPosition(position))
-        {
-            m_lastMeasuredPosition = position;
-            m_lastMeasuredPositionTime = std::chrono::system_clock::now();
-            return true;
-        }
-        return false;
-    }
+    bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
 
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput) override
     {
@@ -121,27 +104,10 @@ public:
 
     bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) override
     {
-        m_lastMeasuredVolume = targetVolume;
         return m_mediaPlayerBackend->setVolume(targetVolume, volumeDuration, easeType);
     }
 
-    bool getVolume(double &currentVolume) override
-    {
-        if (m_lastMeasuredVolume != -1.0 &&
-            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() -
-                                                             m_lastMeasuredVolumeTime) < std::chrono::seconds{1})
-        {
-            currentVolume = m_lastMeasuredVolume;
-            return true;
-        }
-        if (m_mediaPlayerBackend->getVolume(currentVolume))
-        {
-            m_lastMeasuredVolume = currentVolume;
-            m_lastMeasuredVolumeTime = std::chrono::system_clock::now();
-            return true;
-        }
-        return false;
-    }
+    bool getVolume(double &currentVolume) override { return m_mediaPlayerBackend->getVolume(currentVolume); }
 
     bool setMute(bool mute, int sourceId) override { return m_mediaPlayerBackend->setMute(sourceId, mute); }
 
@@ -177,7 +143,6 @@ public:
 
     bool flush(int32_t sourceId, bool resetTime, bool &async) override
     {
-        m_lastMeasuredPosition = -1;
         return m_mediaPlayerBackend->flush(sourceId, resetTime, async);
     }
 
@@ -217,10 +182,6 @@ public:
     }
 
 private:
-    std::chrono::system_clock::time_point m_lastMeasuredPositionTime{};
-    std::chrono::system_clock::time_point m_lastMeasuredVolumeTime{};
-    int64_t m_lastMeasuredPosition{-1};
-    double m_lastMeasuredVolume{-1.0};
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };
 } // namespace firebolt::rialto::client

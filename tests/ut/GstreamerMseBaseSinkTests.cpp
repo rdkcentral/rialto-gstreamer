@@ -359,7 +359,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid
     setCaps(audioSink, caps);
 
     gint64 position{0};
-    EXPECT_CALL(m_mediaPipelineMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kInvalidPosition), Return(true)));
+    constexpr double kVolume{0.8};
+    sendPlaybackInfoNotification(audioSink, firebolt::rialto::PlaybackInfo{kInvalidPosition, kVolume});
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
     setNullState(pipeline, kSourceId);
@@ -380,7 +381,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryPosition)
     setCaps(audioSink, caps);
 
     gint64 position{0};
-    EXPECT_CALL(m_mediaPipelineMock, getPosition(_)).WillOnce(DoAll(SetArgReferee<0>(kPosition), Return(true)));
+    constexpr double kVolume{0.8};
+    sendPlaybackInfoNotification(audioSink, firebolt::rialto::PlaybackInfo{kPosition, kVolume});
     EXPECT_TRUE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
     EXPECT_EQ(position, kPosition);
 

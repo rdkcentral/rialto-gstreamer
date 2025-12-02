@@ -458,6 +458,13 @@ void RialtoGstTest::sendPlaybackStateNotification(RialtoMSEBaseSink *sink,
     mediaPipelineClient->notifyPlaybackState(state);
 }
 
+void RialtoGstTest::sendPlaybackInfoNotification(RialtoMSEBaseSink *sink, const firebolt::rialto::PlaybackInfo &info) const
+{
+    auto mediaPipelineClient = m_mediaPipelineClient.lock();
+    ASSERT_TRUE(mediaPipelineClient);
+    mediaPipelineClient->notifyPlaybackInfo(info);
+}
+
 void RialtoGstTest::expectSinksInitialisation() const
 {
     // Media Pipeline Capabilities will be created two times during class_init of audio and video sink
