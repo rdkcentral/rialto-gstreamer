@@ -26,7 +26,6 @@
 #include "ControlBackendInterface.h"
 #include "MediaPlayerManager.h"
 #include <atomic>
-#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -83,13 +82,13 @@ protected:
     std::queue<GstSample *> m_samples{};
     bool m_isEos{false};
     std::atomic<bool> m_segmentSet{false};
-    std::atomic<bool> m_isSinkFlushOngoing{false};
-    bool m_isServerFlushOngoing{false};
-    std::condition_variable m_flushCompletedCondVariable{};
+    std::atomic<bool> m_isFlushOngoing{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
     mutable std::mutex m_sinkMutex{};
 
     std::condition_variable m_needDataCondVariable{};
+    std::condition_variable m_flushCondVariable{};
+    std::mutex m_flushMutex{};
 
     MediaPlayerManager m_mediaPlayerManager{};
     std::unique_ptr<firebolt::rialto::client::ControlBackendInterface> m_rialtoControlClient{};
