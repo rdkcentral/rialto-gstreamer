@@ -786,13 +786,6 @@ void PullModePlaybackDelegate::flushServer(bool resetTime)
         }
         m_isServerFlushOngoing = true;
     }
-    if (GST_STATE(m_sink) == GST_STATE_PAUSED && GST_STATE_PENDING(m_sink) == GST_STATE_PLAYING &&
-        GST_STATE_RETURN(m_sink) == GST_STATE_CHANGE_ASYNC)
-    {
-        GST_WARNING_OBJECT(m_sink,
-                           "PAUSED->PLAYING transition is pending while flushing. Completing the transition now.");
-        handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
-    }
     client->flush(m_sourceId, resetTime);
 }
 
