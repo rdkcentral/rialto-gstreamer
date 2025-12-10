@@ -171,7 +171,7 @@ public:
 
     void allSourcesWantToPlay()
     {
-        EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).WillOnce(Return(true));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(Return(true));
         EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(2);
         m_sut->play(m_audioSourceId);
         m_sut->play(m_videoSourceId);
@@ -706,7 +706,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAttached)
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAttached)
 {
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play()).Times(0);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).Times(0);
     m_sut->play(0);
 }
 

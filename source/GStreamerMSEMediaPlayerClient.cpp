@@ -277,8 +277,17 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PLAYING, ClientState::PLAYING}))
                 {
                     GST_INFO("Sending play command");
-                    m_clientBackend->play();
+                    bool async{true};
+                    m_clientBackend->play(async);
                     m_clientState = ClientState::AWAITING_PLAYING;
+                    if (!async)
+                    {
+                        // Synchronous playing state change. Finish procedure for other sources and return SUCCESS_SYNC
+                        result = StateChangeResult::SUCCESS_SYNC;
+                        m_backendQueue->postMessage(
+                            std::make_shared<PlaybackStateMessage>(firebolt::rialto::PlaybackState::PLAYING, this));
+                        return;
+                    }
                 }
                 else
                 {
