@@ -171,11 +171,22 @@ public:
 
     void allSourcesWantToPlay()
     {
-        EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(Return(true));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
         EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(2);
         m_sut->play(m_audioSourceId);
         m_sut->play(m_videoSourceId);
         EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PLAYING);
+    }
+
+    void allSourcesWantToPlaySynchronously()
+    {
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(DoAll(SetArgReferee<0>(false), Return(true)));
+        EXPECT_CALL(*m_delegateMock, postAsyncStart());
+        expectPostMessage();
+        EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING)).Times(2);
+        m_sut->play(m_audioSourceId);
+        m_sut->play(m_videoSourceId);
+        EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
     }
 
     void serverTransitionedToPaused(int numSources = 2)
@@ -716,6 +727,20 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlayWhenAllAttachedPlaying)
     allSourcesWantToPause();
     serverTransitionedToPaused();
     allSourcesWantToPlay();
+    serverTransitionedToPlaying();
+
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlaySynchronouslyWhenAllAttachedPlaying)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+    serverTransitionedToPaused();
+    allSourcesWantToPlaySynchronously();
     serverTransitionedToPlaying();
 
     gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
