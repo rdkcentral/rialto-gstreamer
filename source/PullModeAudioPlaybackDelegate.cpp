@@ -601,23 +601,49 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
             if (gst_codec_utils_opus_parse_caps(caps, &sampleRate, &numberOfChannels, &channelMappingFamily, &streams,
                                                 &stereoStreams, channelMapping))
             {
-                GstBuffer *idHeader{};
-                idHeader = gst_codec_utils_opus_create_header(sampleRate, numberOfChannels, channelMappingFamily,
-                                                              streams, stereoStreams, channelMapping, preSkip, gain);
-                std::vector<uint8_t> codecSpecificConfig{};
-                GstMapInfo lsMap{};
-                if (gst_buffer_map(idHeader, &lsMap, GST_MAP_READ))
+                std::vector<std::vector<uint8_t>> streamHeaderVec;
+                const GValue *streamheader = gst_structure_get_value(structure, "streamheader");
+                if (streamheader)
                 {
-                    codecSpecificConfig.assign(lsMap.data, lsMap.data + lsMap.size);
-                    gst_buffer_unmap(idHeader, &lsMap);
+                    for (guint i = 0; i < gst_value_array_get_size(streamheader); ++i)
+                    {
+                        const GValue *headerValue = gst_value_array_get_value(streamheader, i);
+                        GstBuffer *headerBuffer = gst_value_get_buffer(headerValue);
+                        if (headerBuffer)
+                        {
+                            GstMappedBuffer mappedBuf(headerBuffer, GST_MAP_READ);
+                            if (mappedBuf)
+                            {
+                                streamHeaderVec.push_back(
+                                    std::vector<std::uint8_t>(mappedBuf.data(), mappedBuf.data() + mappedBuf.size()));
+                            }
+                        }
+                    }
+                }
+                if (streamHeaderVec.size() > 0)
+                {
+                    audioConfig = firebolt::rialto::AudioConfig{numberOfChannels, sampleRate, streamHeaderVec[0]};
                 }
                 else
                 {
-                    GST_ERROR_OBJECT(m_sink, "Failed to read opus header details from a GstBuffer!");
-                }
-                gst_buffer_unref(idHeader);
+                    GstBuffer *idHeader{};
+                    idHeader = gst_codec_utils_opus_create_header(sampleRate, numberOfChannels, channelMappingFamily,
+                                                                  streams, stereoStreams, channelMapping, preSkip, gain);
+                    std::vector<uint8_t> codecSpecificConfig{};
+                    GstMapInfo lsMap{};
+                    if (gst_buffer_map(idHeader, &lsMap, GST_MAP_READ))
+                    {
+                        codecSpecificConfig.assign(lsMap.data, lsMap.data + lsMap.size);
+                        gst_buffer_unmap(idHeader, &lsMap);
+                    }
+                    else
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Failed to read opus header details from a GstBuffer!");
+                    }
+                    gst_buffer_unref(idHeader);
 
-                audioConfig = firebolt::rialto::AudioConfig{numberOfChannels, sampleRate, codecSpecificConfig};
+                    audioConfig = firebolt::rialto::AudioConfig{numberOfChannels, sampleRate, codecSpecificConfig};
+                }
             }
             else
             {
