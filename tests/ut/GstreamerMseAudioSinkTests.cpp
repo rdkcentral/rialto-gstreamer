@@ -30,7 +30,7 @@ namespace
 {
 constexpr int32_t kUnknownSourceId{-1};
 constexpr bool kHasDrm{true};
-constexpr int kChannels{1};
+constexpr int kChannels{2};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
 } // namespace
@@ -229,6 +229,48 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpus)
 
     setNullState(pipeline, kSourceId);
 
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpusWithStreamHeaderCaps)
+{
+    constexpr int kStreamCount{1};
+    constexpr int kCoupledCount{1};
+    const std::vector<uint8_t> kStreamHeader{0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64, 0x01, 0x02,
+                                             0x38, 0x01, 0x80, 0xbb, 0x00, 0x00, 0x00, 0x00, 0x00};
+    const firebolt::rialto::AudioConfig kExpectedAudioConfig{kChannels, kRate, kStreamHeader};
+    GValue streamHeaderArray = G_VALUE_INIT;
+    g_value_init(&streamHeaderArray, GST_TYPE_ARRAY);
+    GstBuffer *streamHeaderBuffer{gst_buffer_new_allocate(nullptr, kStreamHeader.size(), nullptr)};
+    gst_buffer_fill(streamHeaderBuffer, 0, kStreamHeader.data(), kStreamHeader.size());
+    GST_BUFFER_FLAG_SET(streamHeaderBuffer, GST_BUFFER_FLAG_HEADER);
+    GValue value = G_VALUE_INIT;
+    g_value_init(&value, GST_TYPE_BUFFER);
+    gst_value_set_buffer(&value, streamHeaderBuffer);
+    gst_value_array_append_value(&streamHeaderArray, &value);
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+
+    const firebolt::rialto::IMediaPipeline::MediaSourceAudio kExpectedSource{"audio/x-opus", kHasDrm,
+                                                                             kExpectedAudioConfig};
+    const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
+                                      "channel-mapping-family", G_TYPE_INT, 0, "stream-count", G_TYPE_INT, kStreamCount,
+                                      "coupled-count", G_TYPE_INT, kCoupledCount, nullptr)};
+    gst_structure_set_value(gst_caps_get_structure(caps, 0), "streamheader", &streamHeaderArray);
+    setCaps(audioSink, caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_buffer_unref(streamHeaderBuffer);
+    g_value_unset(&value);
+    g_value_unset(&streamHeaderArray);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
