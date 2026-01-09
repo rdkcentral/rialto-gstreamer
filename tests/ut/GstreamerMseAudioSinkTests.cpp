@@ -260,10 +260,6 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithOpusWithStreamHeaderCap
     const int32_t kSourceId{audioSourceWillBeAttached(kExpectedSource)};
     allSourcesWillBeAttached();
 
-    // audio/x-opus, rate=(int)48000, channels=(int)2, channel-mapping-family=(int)0, stream-count=(int)1,
-    // coupled-count=(int)1, streamheader=(buffer)< 4f707573486561640102380180bb0000000000,
-    // 4f707573546167731f0000004753747265616d657220656e636f64656420766f72626973636f6d6d656e740000000001 >
-
     GstCaps *caps{gst_caps_new_simple("audio/x-opus", "channels", G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate,
                                       "channel-mapping-family", G_TYPE_INT, 0, "stream-count", G_TYPE_INT, kStreamCount,
                                       "coupled-count", G_TYPE_INT, kCoupledCount, nullptr)};
