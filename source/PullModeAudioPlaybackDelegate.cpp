@@ -596,8 +596,6 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
             guint32 sampleRate{48000};
             guint8 numberOfChannels{}, streams{}, stereoStreams{}, channelMappingFamily{};
             guint8 channelMapping[256]{};
-            guint16 preSkip{0};
-            gint16 gain{0};
             if (gst_codec_utils_opus_parse_caps(caps, &sampleRate, &numberOfChannels, &channelMappingFamily, &streams,
                                                 &stereoStreams, channelMapping))
             {
@@ -626,6 +624,9 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
                 }
                 else
                 {
+                    guint16 preSkip{0};
+                    gint16 gain{0};
+
                     GstBuffer *idHeader{};
                     idHeader = gst_codec_utils_opus_create_header(sampleRate, numberOfChannels, channelMappingFamily,
                                                                   streams, stereoStreams, channelMapping, preSkip, gain);
