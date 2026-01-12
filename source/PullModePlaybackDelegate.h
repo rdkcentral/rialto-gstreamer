@@ -72,6 +72,8 @@ private:
     void stopFlushing(bool resetTime);
     void flushServer(bool resetTime);
     bool setStreamsNumber(GstObject *parentObject);
+    GstSample *getLastSample() const;
+    void setLastBuffer(GstBuffer *buffer);
 
 protected:
     GstElement *m_sink{nullptr};
@@ -98,6 +100,8 @@ protected:
     int32_t m_numOfStreams{1};
     std::atomic<bool> m_hasDrm{true};
     std::atomic<bool> m_isAsync{false};
+    bool m_enableLastSample{false};
+    GstBuffer *m_lastBuffer{nullptr};
     firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
     guint32 m_lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
