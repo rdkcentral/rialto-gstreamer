@@ -98,6 +98,7 @@ void PullModePlaybackDelegate::clearBuffersUnlocked()
         m_samples.pop();
         gst_sample_unref(sample);
     }
+    setLastBuffer(nullptr);
 }
 
 void PullModePlaybackDelegate::setSourceId(int32_t sourceId)
@@ -346,6 +347,20 @@ void PullModePlaybackDelegate::setProperty(const Property &type, const GValue *v
         m_hasDrm = g_value_get_boolean(value) != FALSE;
         break;
     }
+    case Property::EnableLastSample:
+    {
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        m_enableLastSample = g_value_get_boolean(value) != FALSE;
+        if (!m_enableLastSample)
+        {
+            if (m_lastBuffer)
+            {
+                gst_buffer_unref(m_lastBuffer);
+                m_lastBuffer = nullptr;
+            }
+        }
+        break;
+    }
     default:
     {
         break;
@@ -397,6 +412,18 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
         {
             GST_ERROR_OBJECT(m_sink, "No stats returned from client");
         }
+    }
+    case Property::EnableLastSample:
+    {
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        g_value_set_boolean(value, m_enableLastSample ? TRUE : FALSE);
+        break;
+    }
+    case Property::LastSample:
+    {
+        // Mutex inside getLastSample function
+        gst_value_take_sample(value, getLastSample());
+        break;
     }
     default:
     {
@@ -816,6 +843,8 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
     else
         GST_ERROR_OBJECT(m_sink, "Failed to create a sample");
 
+    setLastBuffer(buffer);
+
     gst_buffer_unref(buffer);
 
     return GST_FLOW_OK;
@@ -968,4 +997,33 @@ bool PullModePlaybackDelegate::setStreamsNumber(GstObject *parentObject)
     client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
 
     return true;
+}
+
+GstSample *PullModePlaybackDelegate::getLastSample() const
+{
+    std::lock_guard<std::mutex> lock(m_sinkMutex);
+    if (m_enableLastSample && m_lastBuffer)
+    {
+        return gst_sample_new(m_lastBuffer, m_caps, &m_lastSegment, nullptr);
+    }
+    return nullptr;
+}
+
+void PullModePlaybackDelegate::setLastBuffer(GstBuffer *buffer)
+{
+    if (m_enableLastSample)
+    {
+        if (m_lastBuffer)
+        {
+            gst_buffer_unref(m_lastBuffer);
+        }
+        if (buffer)
+        {
+            m_lastBuffer = gst_buffer_ref(buffer);
+        }
+        else
+        {
+            m_lastBuffer = nullptr;
+        }
+    }
 }

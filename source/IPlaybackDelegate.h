@@ -34,6 +34,8 @@ public:
         NumberOfStreams,
         HasDrm,
         Stats,
+        EnableLastSample,
+        LastSample,
 
         // PullModeAudioPlaybackDelegate Properties
         Volume,

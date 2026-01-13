@@ -273,6 +273,59 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetLastSample)
+{
+    gboolean enabled{FALSE};
+    GstSample *lastSample{};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    // last-buffer should be disabled by default
+    g_object_get(audioSink, "enable-last-sample", &enabled, nullptr);
+    g_object_get(audioSink, "last-sample", &lastSample, nullptr);
+    EXPECT_EQ(enabled, FALSE);
+    EXPECT_EQ(lastSample, nullptr);
+
+    // Let's enable it
+    g_object_set(audioSink, "enable-last-sample", TRUE, nullptr);
+    g_object_get(audioSink, "enable-last-sample", &enabled, nullptr);
+    EXPECT_EQ(enabled, TRUE);
+    // There should be no sample yet before calling chain function:
+    g_object_get(audioSink, "last-sample", &lastSample, nullptr);
+    EXPECT_EQ(lastSample, nullptr);
+
+    GstBuffer *buffer = gst_buffer_new();
+    GstBuffer *bufferRef = gst_buffer_ref(buffer);
+
+    EXPECT_EQ(GST_FLOW_OK, rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
+
+    // Now, last-sample should hold the last sample
+    g_object_get(audioSink, "last-sample", &lastSample, nullptr);
+    EXPECT_NE(lastSample, nullptr);
+    EXPECT_EQ(gst_sample_get_buffer(lastSample), bufferRef);
+    gst_buffer_unref(bufferRef);
+    gst_sample_unref(lastSample);
+    lastSample = nullptr;
+
+    // After calling second time chain, last-sample should be updated
+    GstBuffer *secondBuffer = gst_buffer_new();
+    GstBuffer *secondBufferRef = gst_buffer_ref(secondBuffer);
+
+    EXPECT_EQ(GST_FLOW_OK,
+              rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), secondBuffer));
+
+    // Now, last-sample should hold the last sample
+    g_object_get(audioSink, "last-sample", &lastSample, nullptr);
+    EXPECT_NE(lastSample, nullptr);
+    EXPECT_EQ(gst_sample_get_buffer(lastSample), secondBufferRef);
+    gst_buffer_unref(secondBufferRef);
+    gst_sample_unref(lastSample);
+    lastSample = nullptr;
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
