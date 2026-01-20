@@ -387,6 +387,7 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
 
 void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 {
+    m_flushAndDataSynchronizer.notifyFlushStarted(sourceId);
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -519,6 +520,7 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, delegate, source->getType()));
                     delegate->setSourceId(source->getId());
+                    m_flushAndDataSynchronizer.addSource(source->getId());
                     bufferPuller->start();
                 }
             }
@@ -566,6 +568,7 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
                 GST_WARNING("Remove source %d failed", sourceId);
             }
             m_attachedSources.erase(sourceId);
+            m_flushAndDataSynchronizer.removeSource(sourceId);
         });
 }
 
@@ -669,6 +672,7 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
             }
             sourceIt->second.m_isFlushing = false;
             sourceIt->second.m_delegate->handleFlushCompleted();
+            m_flushAndDataSynchronizer.notifyFlushCompleted(sourceId);
         });
 }
 
@@ -925,6 +929,11 @@ bool GStreamerMSEMediaPlayerClient::switchSource(const std::unique_ptr<firebolt:
     return result;
 }
 
+IFlushAndDataSynchronizer &GStreamerMSEMediaPlayerClient::getFlushAndDataSynchronizer()
+{
+    return m_flushAndDataSynchronizer;
+}
+
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [states](const auto &source)
@@ -1175,6 +1184,11 @@ void PullBufferMessage::handle()
     else if (addedSegments == 0)
     {
         status = firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES;
+    }
+
+    if (firebolt::rialto::MediaSourceStatus::OK == status || firebolt::rialto::MediaSourceStatus::EOS == status)
+    {
+        m_player->getFlushAndDataSynchronizer().notifyDataPushed(m_sourceId);
     }
 
     m_player->m_backendQueue->postMessage(
