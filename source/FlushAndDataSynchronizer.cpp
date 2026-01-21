@@ -86,7 +86,7 @@ void FlushAndDataSynchronizer::waitIfRequired(int32_t sourceId)
                                       {
                                           return (state.first == sourceId &&
                                                   state.second.flushState == FlushState::FLUSHING) ||
-                                                 (state.second.flushState == FlushState::FLUSHED &&
+                                                 (state.second.flushState != FlushState::IDLE &&
                                                   state.second.dataState == DataState::DATA_RECEIVED);
                                       });
               });
