@@ -79,12 +79,13 @@ void FlushAndDataSynchronizer::waitIfRequired(int32_t sourceId)
     std::unique_lock lock(m_mutex);
     GST_INFO("FlushAndDataSynchronizer: waitIfRequired enter for source %d", sourceId);
     m_cv.wait(lock,
-              [this]()
+              [&]()
               {
                   return std::none_of(m_sourceStates.begin(), m_sourceStates.end(),
-                                      [](const auto &state)
+                                      [&](const auto &state)
                                       {
-                                          return state.second.flushState == FlushState::FLUSHING ||
+                                          return (state.first == sourceId &&
+                                                  state.second.flushState == FlushState::FLUSHING) ||
                                                  (state.second.flushState == FlushState::FLUSHED &&
                                                   state.second.dataState == DataState::DATA_RECEIVED);
                                       });
