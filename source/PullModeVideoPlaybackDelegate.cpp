@@ -254,6 +254,26 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
         m_stepOnPrerollEnabled = stepOnPrerollEnabled;
         break;
     }
+    case Property::ReportDecodeErrors:
+    {
+        bool reportDecodeErrors = g_value_get_boolean(value);
+        std::unique_lock lock{m_propertyMutex};
+        m_reportDecodeErrors = reportDecodeErrors;
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(m_sink, "Immediate output setting enqueued");
+            m_reportDecodeErrorsQueued = true;
+        }
+        else
+        {
+            lock.unlock();
+            if (!client->setReportDecodeErrors(m_sourceId, reportDecodeErrors))
+            {
+                GST_ERROR_OBJECT(m_sink, "Could not set immediate-output");
+            }
+        }
+        break;
+    }
     case Property::ImmediateOutput:
     {
         bool immediateOutput = (g_value_get_boolean(value) != FALSE);

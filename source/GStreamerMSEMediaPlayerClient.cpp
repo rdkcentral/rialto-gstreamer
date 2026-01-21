@@ -181,6 +181,18 @@ bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool im
     return status;
 }
 
+bool GStreamerMSEMediaPlayerClient::setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setReportDecodeErrors(sourceId, reportDecodeErrors); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
 {
     if (!m_clientBackend)

@@ -50,6 +50,7 @@ enum
     PROP_SYNCMODE_STREAMING,
     PROP_SHOW_VIDEO_WINDOW,
     PROP_IS_MASTER,
+    PROP_REPORT_DECODE_ERRORS,
     PROP_LAST
 };
 
@@ -159,6 +160,12 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
                                                  IPlaybackDelegate::Property::FrameStepOnPreroll, value);
         break;
     }
+    case PROP_REPORT_DECODE_ERRORS:
+    {
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::ReportDecodeErrors, value);
+        break;
+    }
     case PROP_IMMEDIATE_OUTPUT:
     {
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
@@ -230,6 +237,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_FRAME_STEP_ON_PREROLL,
                                     g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
                                                          "allow frame stepping on preroll into pause", FALSE,
+                                                         G_PARAM_READWRITE));
+    g_object_class_install_property(gobjectClass, PROP_REPORT_DECODE_ERRORS,
+                                    g_param_spec_boolean("report_decode_errors", "Report decode errors",
+                                                         "Enable reporting of decode errors", FALSE,
                                                          G_PARAM_READWRITE));
     g_object_class_install_property(gobjectClass, PROP_IS_MASTER,
                                     g_param_spec_boolean("is-master", "is master",
