@@ -101,6 +101,7 @@ add_gtests (
         LogToGstHandlerTests.cpp
         GStreamerMSEUtilsTests.cpp
         GstreamerMseSubtitleSinkTests.cpp
+        FlushAndDataSynchronizerTests.cpp
         )
 
 target_include_directories(
