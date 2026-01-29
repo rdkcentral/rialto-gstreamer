@@ -205,6 +205,18 @@ bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &i
     return status;
 }
 
+bool GStreamerMSEMediaPlayerClient::getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getQueuedFrames(sourceId, queuedFrames); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames)
 {
     if (!m_clientBackend)

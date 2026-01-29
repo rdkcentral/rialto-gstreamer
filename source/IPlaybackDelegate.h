@@ -60,6 +60,7 @@ public:
         SyncmodeStreaming,
         ShowVideoWindow,
         ReportDecodeErrors,
+        QueuedFrames,
 
         // PullModeSubtitlePlaybackDelegate Properties
         TextTrackIdentifier,

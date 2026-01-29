@@ -175,6 +175,28 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
         g_value_set_boolean(value, m_stepOnPrerollEnabled);
         break;
     }
+    case Property::QueuedFrames:
+    {
+        uint32_t queuedFrames = 0;
+
+        std::unique_lock lock{m_propertyMutex};
+        auto client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(m_sink, "Getting queued frames: no client, returning 0");
+        }
+        else
+        {
+            lock.unlock();
+            if (!client->getQueuedFrames(m_sourceId, queuedFrames))
+            {
+                GST_ERROR_OBJECT(m_sink, "Could not get queued frames");
+            }
+        }
+
+        g_value_set_uint(value, queuedFrames);
+        break;
+    }
     case Property::ImmediateOutput:
     {
         std::unique_lock lock{m_propertyMutex};

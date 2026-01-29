@@ -51,6 +51,7 @@ enum
     PROP_SHOW_VIDEO_WINDOW,
     PROP_IS_MASTER,
     PROP_REPORT_DECODE_ERRORS,
+    PROP_QUEUED_FRAMES,
     PROP_LAST
 };
 
@@ -107,6 +108,13 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         g_value_set_boolean(value, FALSE); // Set default value
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::FrameStepOnPreroll, value);
+        break;
+    }
+    case PROP_QUEUED_FRAMES:
+    {
+        g_value_set_uint(value, 0); // Set default value
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::QueuedFrames, value);
         break;
     }
     case PROP_IMMEDIATE_OUTPUT:
@@ -241,7 +249,12 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_REPORT_DECODE_ERRORS,
                                     g_param_spec_boolean("report_decode_errors", "Report decode errors",
                                                          "Enable reporting of decode errors", FALSE,
-                                                         G_PARAM_READWRITE));
+                                                         G_PARAM_WRITABLE));
+    g_object_class_install_property(gobjectClass, PROP_QUEUED_FRAMES,
+                                    g_param_spec_uint("queued_frames", "Queued frames",
+                                                         "Number of frames currently queued in decoder",
+                                                         0, G_MAXINT, 0,
+                                                         G_PARAM_READABLE));
     g_object_class_install_property(gobjectClass, PROP_IS_MASTER,
                                     g_param_spec_boolean("is-master", "is master",
                                                          "Checks if the platform is video master", TRUE,

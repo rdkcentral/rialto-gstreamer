@@ -100,6 +100,11 @@ public:
         return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);
     }
 
+    bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames) override
+    {
+        return m_mediaPlayerBackend->getQueuedFrames(sourceId, queuedFrames);
+    }
+
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override
     {
         return m_mediaPlayerBackend->getStats(sourceId, renderedFrames, droppedFrames);
