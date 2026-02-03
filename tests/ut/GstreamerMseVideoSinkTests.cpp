@@ -165,6 +165,57 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetImmediateOutputProperty)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetReportDecodeErrorsProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, setReportDecodeErrors(_, _)).WillOnce(Return(true));
+    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsPropertyDueToPipelinedFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, setReportDecodeErrors(_, _)).WillOnce(Return(false));
+    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    // No pipeline therefore the m_mediaPipelineMock method setReportDecodeErrors() will not be called
+    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetImmediateOutputPropertyDueToPipelinedFailure)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -247,6 +298,62 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetImmediateOutputProperty)
     // No pipeline therefore the m_mediaPipelineMock method getImmediateOutput() will not be called
     gboolean immediateOutput;
     g_object_get(videoSink, "immediate-output", &immediateOutput, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldGetQueuedFramesProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getQueuedFrames(_, _)).WillOnce(DoAll(SetArgReferee<1>(123), Return(true)));
+    uint32_t queuedFrames{0};
+    g_object_get(videoSink, "queued_frames", &queuedFrames, nullptr);
+    EXPECT_EQ(queuedFrames, 123u);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesPropertyDueToPipelinedFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getQueuedFrames(_, _)).WillOnce(Return(false));
+    uint32_t queuedFrames{999};
+    g_object_get(videoSink, "queued_frames", &queuedFrames, nullptr);
+    EXPECT_FALSE(queuedFrames, 0u); // The return value for failure
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    // No pipeline therefore the m_mediaPipelineMock method getQueuedFrames() will not be called
+    uint32_t queuedFrames{999};
+    g_object_get(videoSink, "queued_frames", &queuedFrames, nullptr);
 
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(videoSink);
