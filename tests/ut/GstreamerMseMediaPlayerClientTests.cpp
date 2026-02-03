@@ -1306,7 +1306,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetReportDecodeErrors)
     const int32_t kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
 
     expectCallInEventLoop();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors))
+        .WillOnce(Return(true));
     EXPECT_TRUE(m_sut->setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors));
 
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);

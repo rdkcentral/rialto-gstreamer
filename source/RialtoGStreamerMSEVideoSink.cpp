@@ -248,13 +248,12 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                          G_PARAM_READWRITE));
     g_object_class_install_property(gobjectClass, PROP_REPORT_DECODE_ERRORS,
                                     g_param_spec_boolean("report_decode_errors", "Report decode errors",
-                                                         "Enable reporting of decode errors", FALSE,
-                                                         G_PARAM_WRITABLE));
+                                                         "Enable reporting of decode errors", FALSE, G_PARAM_WRITABLE));
+
     g_object_class_install_property(gobjectClass, PROP_QUEUED_FRAMES,
                                     g_param_spec_uint("queued_frames", "Queued frames",
-                                                         "Number of frames currently queued in decoder",
-                                                         0, G_MAXINT, 0,
-                                                         G_PARAM_READABLE));
+                                                      "Number of frames currently queued in decoder", 0, G_MAXUINT, 0,
+                                                      G_PARAM_READABLE));
     g_object_class_install_property(gobjectClass, PROP_IS_MASTER,
                                     g_param_spec_boolean("is-master", "is master",
                                                          "Checks if the platform is video master", TRUE,

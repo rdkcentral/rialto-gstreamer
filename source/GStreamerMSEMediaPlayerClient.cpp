@@ -189,7 +189,8 @@ bool GStreamerMSEMediaPlayerClient::setReportDecodeErrors(int32_t sourceId, bool
     }
 
     bool status{false};
-    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setReportDecodeErrors(sourceId, reportDecodeErrors); });
+    m_backendQueue->callInEventLoop([&]()
+                                    { status = m_clientBackend->setReportDecodeErrors(sourceId, reportDecodeErrors); });
     return status;
 }
 

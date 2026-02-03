@@ -105,6 +105,15 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                         GST_ERROR_OBJECT(m_sink, "Could not set immediate-output");
                     }
                 }
+                if (m_reportDecodeErrorsQueued)
+                {
+                    GST_DEBUG_OBJECT(m_sink, "Set queued report_decode_errors");
+                    m_reportDecodeErrorsQueued = false;
+                    if (!client->setReportDecodeErrors(m_sourceId, m_reportDecodeErrors))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Could not set report_decode_errors");
+                    }
+                }
                 if (m_syncmodeStreamingQueued)
                 {
                     GST_DEBUG_OBJECT(m_sink, "Set queued syncmode-streaming");
@@ -283,7 +292,7 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
         m_reportDecodeErrors = reportDecodeErrors;
         if (!client)
         {
-            GST_DEBUG_OBJECT(m_sink, "Immediate output setting enqueued");
+            GST_DEBUG_OBJECT(m_sink, "Report decode errors setting enqueued");
             m_reportDecodeErrorsQueued = true;
         }
         else
@@ -291,7 +300,7 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
             lock.unlock();
             if (!client->setReportDecodeErrors(m_sourceId, reportDecodeErrors))
             {
-                GST_ERROR_OBJECT(m_sink, "Could not set immediate-output");
+                GST_ERROR_OBJECT(m_sink, "Could not set report_decode_errors");
             }
         }
         break;
