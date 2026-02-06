@@ -86,7 +86,9 @@ TEST_F(FlushAndDataSynchronizerTests, SecondReceivedDataShouldNotMessUpTheStateI
 {
     m_sut.waitIfRequired(kAudioSourceId);
     m_sut.notifyFlushStarted(kAudioSourceId);
+    EXPECT_TRUE(m_sut.isAnySourceFlushing());
     m_sut.notifyFlushCompleted(kAudioSourceId);
+    EXPECT_FALSE(m_sut.isAnySourceFlushing());
     m_sut.notifyDataReceived(kAudioSourceId);
     m_sut.notifyDataPushed(kAudioSourceId);
     m_sut.notifyDataReceived(kAudioSourceId); // second data received should be ignored

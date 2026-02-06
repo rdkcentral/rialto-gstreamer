@@ -92,3 +92,10 @@ void FlushAndDataSynchronizer::waitIfRequired(int32_t sourceId)
               });
     GST_INFO("FlushAndDataSynchronizer: waitIfRequired exit for source %d", sourceId);
 }
+
+bool FlushAndDataSynchronizer::isAnySourceFlushing() const
+{
+    std::unique_lock lock(m_mutex);
+    return std::any_of(m_sourceStates.begin(), m_sourceStates.end(),
+                       [](const auto &state) { return state.second.flushState == FlushState::FLUSHING; });
+}

@@ -343,6 +343,7 @@ private:
     int32_t m_subtitleStreams;
     firebolt::rialto::PlaybackInfo m_playbackInfo{-1, 1.0};
     FlushAndDataSynchronizer m_flushAndDataSynchronizer;
+    bool wasPlayingBeforeEos{false};
 
     struct Rectangle
     {

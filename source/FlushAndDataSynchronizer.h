@@ -64,9 +64,10 @@ public:
     void notifyDataReceived(int32_t sourceId) override;
     void notifyDataPushed(int32_t sourceId) override;
     void waitIfRequired(int32_t sourceId) override;
+    bool isAnySourceFlushing() const override;
 
 private:
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::condition_variable m_cv;
     std::map<int32_t, SourceState> m_sourceStates;
 };

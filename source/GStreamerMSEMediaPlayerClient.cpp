@@ -254,7 +254,8 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 return;
             }
 
-            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING)
+            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING ||
+                (m_serverPlaybackState == firebolt::rialto::PlaybackState::END_OF_STREAM && wasPlayingBeforeEos))
             {
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
@@ -296,7 +297,8 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
             else
             {
-                GST_WARNING("Not in PAUSED state in %u state", static_cast<uint32_t>(m_clientState));
+                GST_WARNING("Not in PAUSED state in client state %u state; server playback state: %u",
+                            static_cast<uint32_t>(m_clientState), static_cast<uint32_t>(m_serverPlaybackState));
             }
 
             result = StateChangeResult::SUCCESS_ASYNC;
@@ -391,6 +393,7 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            wasPlayingBeforeEos = false;
             bool async{true};
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
@@ -578,12 +581,19 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            if (firebolt::rialto::PlaybackState::FAILURE != state && m_flushAndDataSynchronizer.isAnySourceFlushing())
+            {
+                GST_WARNING("Playback state change to %u ignored - flush in progress", static_cast<uint32_t>(state));
+                return;
+            }
+            const auto kPreviousState{m_serverPlaybackState};
             m_serverPlaybackState = state;
             switch (state)
             {
             case firebolt::rialto::PlaybackState::PAUSED:
             case firebolt::rialto::PlaybackState::PLAYING:
             {
+                wasPlayingBeforeEos = false;
                 if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
                 {
                     m_clientState = ClientState::PAUSED;
@@ -619,6 +629,10 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::END_OF_STREAM:
             {
+                if (!wasPlayingBeforeEos && firebolt::rialto::PlaybackState::PLAYING == kPreviousState)
+                {
+                    wasPlayingBeforeEos = true;
+                }
                 for (const auto &source : m_attachedSources)
                 {
                     source.second.m_delegate->handleEos();
@@ -632,6 +646,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::FAILURE:
             {
+                wasPlayingBeforeEos = false;
                 for (const auto &source : m_attachedSources)
                 {
                     source.second.m_delegate->handleError("Rialto server playback failed");
