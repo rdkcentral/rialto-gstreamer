@@ -581,11 +581,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            if (firebolt::rialto::PlaybackState::FAILURE != state && m_flushAndDataSynchronizer.isAnySourceFlushing())
-            {
-                GST_WARNING("Playback state change to %u ignored - flush in progress", static_cast<uint32_t>(state));
-                return;
-            }
             const auto kPreviousState{m_serverPlaybackState};
             m_serverPlaybackState = state;
             switch (state)

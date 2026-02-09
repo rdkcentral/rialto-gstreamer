@@ -1035,24 +1035,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipStateChangeWhileFlushing)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
-    const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-
-    expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
-    EXPECT_CALL(*m_delegateMock, lostState());
-    m_sut->flush(kSourceId, kResetTime);
-
-    // No delegate call expected while flushing
-    m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::PLAYING);
-
-    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
-    gst_object_unref(audioSink);
-}
-
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
