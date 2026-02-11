@@ -139,7 +139,6 @@ void PullModePlaybackDelegate::handleFlushCompleted()
     GST_INFO_OBJECT(m_sink, "Flush completed");
     std::unique_lock<std::mutex> lock(m_sinkMutex);
     m_isServerFlushOngoing = false;
-    m_flushCompletedCondVariable.notify_one();
 }
 
 void PullModePlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
@@ -607,6 +606,11 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
     {
         std::lock_guard<std::mutex> lock(m_sinkMutex);
         m_isEos = true;
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (client)
+        {
+            client->getFlushAndDataSynchronizer().notifyDataReceived(m_sourceId);
+        }
         break;
     }
     case GST_EVENT_CAPS:
@@ -766,6 +770,11 @@ void PullModePlaybackDelegate::changePlaybackRate(GstEvent *event)
 
 void PullModePlaybackDelegate::startFlushing()
 {
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+    if (client)
+    {
+        client->getFlushAndDataSynchronizer().waitIfRequired(m_sourceId);
+    }
     std::lock_guard<std::mutex> lock(m_sinkMutex);
     if (!m_isSinkFlushOngoing)
     {
@@ -806,11 +815,6 @@ void PullModePlaybackDelegate::flushServer(bool resetTime)
 
     {
         std::unique_lock<std::mutex> lock(m_sinkMutex);
-        if (m_isServerFlushOngoing)
-        {
-            GST_DEBUG_OBJECT(m_sink, "Other flush ongoing on server side. Waiting for its completion...");
-            m_flushCompletedCondVariable.wait(lock, [this]() { return !m_isServerFlushOngoing; });
-        }
         m_isServerFlushOngoing = true;
     }
     client->flush(m_sourceId, resetTime);
@@ -842,6 +846,12 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
         m_samples.push(sample);
     else
         GST_ERROR_OBJECT(m_sink, "Failed to create a sample");
+
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+    if (client)
+    {
+        client->getFlushAndDataSynchronizer().notifyDataReceived(m_sourceId);
+    }
 
     setLastBuffer(buffer);
 
