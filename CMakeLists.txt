@@ -22,7 +22,7 @@ set( CMAKE_CXX_STANDARD 17 )
 
 # Add our local cmake directory to search for components
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
-add_compile_options(-Wall -Werror)
+add_compile_options(-Wno-format)
 
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)

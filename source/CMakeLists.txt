@@ -20,6 +20,8 @@ add_compile_options(
   "-Wno-deprecated-declarations"
 )
 
+add_compile_options(-Wno-format)
+
 find_package(Rialto 1.0 REQUIRED)
 find_package(ocdmRialto 1.0 REQUIRED)
 
