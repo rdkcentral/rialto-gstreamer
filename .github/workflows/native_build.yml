@@ -57,7 +57,7 @@ jobs:
         continue-on-error: true
         shell: sh +e {0}
         run: |
-          BRANCH=${GITHUB_HEAD_REF##*/}
+          BRANCH="master"
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
             if [ $? -eq 0 ]; then
