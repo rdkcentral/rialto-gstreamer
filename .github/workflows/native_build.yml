@@ -56,11 +56,23 @@ jobs:
       - name: Switch branch
         continue-on-error: true
         run: |
-          BRANCH=${GITHUB_HEAD_REF##*/}
+          branch="${{ github.ref_name }}"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
+            if [ $? -eq 0 ]; then
+              branch="${{ github.event.pull_request.head.ref }}"
+            else
+              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
+              if [ $? -eq 0 ]; then
+                branch="${{ github.event.pull_request.base.ref }}"
+              else
+                branch="master"
+              fi
+            fi
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
           cd rialto
-          # This will fail if there's no corresponding branch in rialto
-          # ...but that's ok since we set continue-on-error
-          git checkout $BRANCH
+          git checkout $branch
 
       - name: Native build Rialto
         run: |
