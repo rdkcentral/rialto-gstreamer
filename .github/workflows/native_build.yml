@@ -55,6 +55,7 @@ jobs:
 
       - name: Switch branch
         continue-on-error: true
+        shell: sh +e {0}
         run: |
           branch="${{ github.ref_name }}"
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
@@ -72,7 +73,7 @@ jobs:
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           cd rialto
-          git checkout $branch
+          git checkout "$branch"
 
       - name: Native build Rialto
         run: |
