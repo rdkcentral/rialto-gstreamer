@@ -35,6 +35,7 @@
 
 #include "BufferParser.h"
 #include "Constants.h"
+#include "FlushAndDataSynchronizer.h"
 #include "IMediaPipeline.h"
 #include "IMessageQueue.h"
 #include "IPullModePlaybackDelegate.h"
@@ -324,6 +325,7 @@ public:
     void setUseBuffering(bool useBuffering);
     bool getUseBuffering();
     bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source);
+    IFlushAndDataSynchronizer &getFlushAndDataSynchronizer();
 
 private:
     bool areAllStreamsAttached();
@@ -342,6 +344,8 @@ private:
     int32_t m_videoStreams;
     int32_t m_subtitleStreams;
     firebolt::rialto::PlaybackInfo m_playbackInfo{-1, 1.0};
+    FlushAndDataSynchronizer m_flushAndDataSynchronizer;
+    bool wasPlayingBeforeEos{false};
 
     struct Rectangle
     {

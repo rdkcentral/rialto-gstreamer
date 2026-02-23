@@ -1273,15 +1273,17 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSecondFlushStopAfterFirstFlushStop
                        mediaPipelineClient.reset();
                    }};
 
-    // flush on IMediaPipeline should not be called yet...
-    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
-                                           gst_event_new_flush_stop(kResetTime)));
-
     {
         std::unique_lock<std::mutex> lock{flushMutex};
         flushFlag = true;
         flushCond.notify_one();
     }
+    // flush on IMediaPipeline should not be called yet...
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+
     t2.join();
 
     // Finish second flush

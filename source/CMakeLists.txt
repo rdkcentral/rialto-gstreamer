@@ -48,6 +48,7 @@ add_library(gstrialtosinks
         Timer.cpp
         BufferParser.cpp
         LogToGstHandler.cpp
+        FlushAndDataSynchronizer.cpp
         )
 
 target_include_directories(gstrialtosinks
