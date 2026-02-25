@@ -107,11 +107,11 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                 }
                 if (m_reportDecodeErrorsQueued)
                 {
-                    GST_DEBUG_OBJECT(m_sink, "Set queued report_decode_errors");
+                    GST_DEBUG_OBJECT(m_sink, "Set queued report-decode-errors");
                     m_reportDecodeErrorsQueued = false;
                     if (!client->setReportDecodeErrors(m_sourceId, m_reportDecodeErrors))
                     {
-                        GST_ERROR_OBJECT(m_sink, "Could not set report_decode_errors");
+                        GST_ERROR_OBJECT(m_sink, "Could not set report-decode-errors");
                     }
                 }
                 if (m_syncmodeStreamingQueued)
@@ -300,7 +300,7 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
             lock.unlock();
             if (!client->setReportDecodeErrors(m_sourceId, reportDecodeErrors))
             {
-                GST_ERROR_OBJECT(m_sink, "Could not set report_decode_errors");
+                GST_ERROR_OBJECT(m_sink, "Could not set report-decode-errors");
             }
         }
         break;

@@ -169,9 +169,9 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedReportDecodeErrors)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
 
-    // Queue an report_decode_errors request
+    // Queue an report-decode-errors request
     EXPECT_CALL(m_mediaPipelineMock, setReportDecodeErrors(_, true)).WillOnce(Return(true));
-    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+    g_object_set(videoSink, "report-decode-errors", TRUE, nullptr);
 
     GstElement *pipeline = createPipelineWithSink(videoSink);
 
@@ -201,7 +201,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetReportDecodeErrorsProperty)
     setCaps(videoSink, caps);
 
     EXPECT_CALL(m_mediaPipelineMock, setReportDecodeErrors(_, _)).WillOnce(Return(true));
-    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+    g_object_set(videoSink, "report-decode-errors", TRUE, nullptr);
 
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
@@ -221,7 +221,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsPropertyDueT
     setCaps(videoSink, caps);
 
     EXPECT_CALL(m_mediaPipelineMock, setReportDecodeErrors(_, _)).WillOnce(Return(false));
-    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+    g_object_set(videoSink, "report-decode-errors", TRUE, nullptr);
 
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
@@ -233,7 +233,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsProperty)
     RialtoMSEBaseSink *videoSink = createVideoSink();
 
     // No pipeline therefore the m_mediaPipelineMock method setReportDecodeErrors() will not be called
-    g_object_set(videoSink, "report_decode_errors", TRUE, nullptr);
+    g_object_set(videoSink, "report-decode-errors", TRUE, nullptr);
 
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(videoSink);
@@ -340,7 +340,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetQueuedFramesProperty)
 
     EXPECT_CALL(m_mediaPipelineMock, getQueuedFrames(_, _)).WillOnce(DoAll(SetArgReferee<1>(123), Return(true)));
     uint32_t queuedFrames{0};
-    g_object_get(videoSink, "queued_frames", &queuedFrames, nullptr);
+    g_object_get(videoSink, "queued-frames", &queuedFrames, nullptr);
     EXPECT_EQ(queuedFrames, 123u);
 
     setNullState(pipeline, kSourceId);
@@ -362,7 +362,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesPropertyDueToPipel
 
     EXPECT_CALL(m_mediaPipelineMock, getQueuedFrames(_, _)).WillOnce(Return(false));
     uint32_t queuedFrames{999};
-    g_object_get(videoSink, "queued_frames", &queuedFrames, nullptr);
+    g_object_get(videoSink, "queued-frames", &queuedFrames, nullptr);
     EXPECT_EQ(queuedFrames, 0u);
 
     setNullState(pipeline, kSourceId);
@@ -376,7 +376,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesProperty)
 
     // No pipeline therefore the m_mediaPipelineMock method getQueuedFrames() will not be called
     uint32_t queuedFrames{999};
-    g_object_get(videoSink, "queued_frames", &queuedFrames, nullptr);
+    g_object_get(videoSink, "queued-frames", &queuedFrames, nullptr);
 
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(videoSink);
