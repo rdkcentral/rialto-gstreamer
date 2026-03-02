@@ -269,7 +269,9 @@ public:
 
     int64_t getPosition(int32_t sourceId);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
+    bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors);
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
+    bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
 
     firebolt::rialto::AddSegmentStatus
