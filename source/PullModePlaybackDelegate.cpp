@@ -391,7 +391,6 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
     }
     case Property::Stats:
     {
-        std::lock_guard<std::mutex> lock(m_sinkMutex);
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
