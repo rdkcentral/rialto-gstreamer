@@ -103,7 +103,6 @@ void PullModePlaybackDelegate::clearBuffersUnlocked()
 
 void PullModePlaybackDelegate::setSourceId(int32_t sourceId)
 {
-    std::unique_lock lock{m_sinkMutex};
     m_sourceId = sourceId;
 }
 
