@@ -103,7 +103,6 @@ void PullModePlaybackDelegate::clearBuffersUnlocked()
 
 void PullModePlaybackDelegate::setSourceId(int32_t sourceId)
 {
-    std::unique_lock lock{m_sinkMutex};
     m_sourceId = sourceId;
 }
 
@@ -391,7 +390,6 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
     }
     case Property::Stats:
     {
-        std::lock_guard<std::mutex> lock(m_sinkMutex);
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
