@@ -105,15 +105,6 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                         GST_ERROR_OBJECT(m_sink, "Could not set immediate-output");
                     }
                 }
-                if (m_reportDecodeErrorsQueued)
-                {
-                    GST_DEBUG_OBJECT(m_sink, "Set queued report-decode-errors");
-                    m_reportDecodeErrorsQueued = false;
-                    if (!client->setReportDecodeErrors(m_sourceId, m_reportDecodeErrors))
-                    {
-                        GST_ERROR_OBJECT(m_sink, "Could not set report-decode-errors");
-                    }
-                }
                 if (m_syncmodeStreamingQueued)
                 {
                     GST_DEBUG_OBJECT(m_sink, "Set queued syncmode-streaming");
@@ -182,28 +173,6 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
     case Property::FrameStepOnPreroll:
     {
         g_value_set_boolean(value, m_stepOnPrerollEnabled);
-        break;
-    }
-    case Property::QueuedFrames:
-    {
-        uint32_t queuedFrames = 0;
-
-        std::unique_lock lock{m_propertyMutex};
-        auto client = m_mediaPlayerManager.getMediaPlayerClient();
-        if (!client)
-        {
-            GST_DEBUG_OBJECT(m_sink, "Getting queued frames: no client, returning 0");
-        }
-        else
-        {
-            lock.unlock();
-            if (!client->getQueuedFrames(m_sourceId, queuedFrames))
-            {
-                GST_ERROR_OBJECT(m_sink, "Could not get queued frames");
-            }
-        }
-
-        g_value_set_uint(value, queuedFrames);
         break;
     }
     case Property::ImmediateOutput:
@@ -283,26 +252,6 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
             client->renderFrame(m_sourceId);
         }
         m_stepOnPrerollEnabled = stepOnPrerollEnabled;
-        break;
-    }
-    case Property::ReportDecodeErrors:
-    {
-        bool reportDecodeErrors = g_value_get_boolean(value);
-        std::unique_lock lock{m_propertyMutex};
-        m_reportDecodeErrors = reportDecodeErrors;
-        if (!client)
-        {
-            GST_DEBUG_OBJECT(m_sink, "Report decode errors setting enqueued");
-            m_reportDecodeErrorsQueued = true;
-        }
-        else
-        {
-            lock.unlock();
-            if (!client->setReportDecodeErrors(m_sourceId, reportDecodeErrors))
-            {
-                GST_ERROR_OBJECT(m_sink, "Could not set report-decode-errors");
-            }
-        }
         break;
     }
     case Property::ImmediateOutput:
