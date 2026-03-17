@@ -33,3 +33,4 @@ constexpr uint32_t kDefaultFadeVolume{0};
 constexpr const char *kDefaultAudioFade = "100,0,L";
 constexpr uint32_t kDefaultBufferingLimit{750};
 constexpr bool kDefaultUseBuffering{false};
+constexpr bool kDefaultLiveRateCorrection{false};

@@ -163,6 +163,14 @@ gboolean PullModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                     client->setUseBuffering(m_useBuffering);
                     m_isUseBufferingQueued = false;
                 }
+                if (m_isLiveRateCorrectionQueued)
+                {
+                    if (!client->setLiveRateCorrection(m_liveRateCorrection))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Could not set queued live-rate-correction");
+                    }
+                    m_isLiveRateCorrectionQueued = false;
+                }
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(m_sink) == GST_STATE_PAUSED)
                 {
@@ -522,6 +530,22 @@ void PullModeAudioPlaybackDelegate::setProperty(const Property &type, const GVal
         if (FALSE == g_value_get_boolean(value))
         {
             GST_WARNING_OBJECT(m_sink, "Cannot set ASYNC to false - not supported");
+        }
+        break;
+    }
+    case IPlaybackDelegate::Property::LiveRateCorrection:
+    {
+        m_liveRateCorrection = g_value_get_boolean(value);
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(m_sink, "Enqueue live rate correction setting");
+            m_isLiveRateCorrectionQueued = true;
+            return;
+        }
+
+        if (!client->setLiveRateCorrection(m_liveRateCorrection))
+        {
+            GST_ERROR_OBJECT(m_sink, "Could not set live-rate-correction");
         }
         break;
     }
