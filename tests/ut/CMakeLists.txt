@@ -46,6 +46,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/source/BufferParser.cpp
         ${CMAKE_SOURCE_DIR}/source/LogToGstHandler.cpp
         ${CMAKE_SOURCE_DIR}/source/GstreamerCatLog.cpp
+        ${CMAKE_SOURCE_DIR}/source/FlushAndDataSynchronizer.cpp
 )
 
 target_include_directories(
@@ -100,6 +101,7 @@ add_gtests (
         LogToGstHandlerTests.cpp
         GStreamerMSEUtilsTests.cpp
         GstreamerMseSubtitleSinkTests.cpp
+        FlushAndDataSynchronizerTests.cpp
         )
 
 target_include_directories(

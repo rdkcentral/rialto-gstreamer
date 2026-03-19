@@ -36,7 +36,7 @@ public:
     virtual bool removeSource(int32_t id) = 0;
     virtual bool allSourcesAttached() = 0;
     virtual bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) = 0;
-    virtual bool play() = 0;
+    virtual bool play(bool &async) = 0;
     virtual bool pause() = 0;
     virtual bool stop() = 0;
     virtual bool haveData(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId) = 0;

@@ -254,7 +254,8 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 return;
             }
 
-            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING)
+            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING ||
+                (m_serverPlaybackState == firebolt::rialto::PlaybackState::END_OF_STREAM && wasPlayingBeforeEos))
             {
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
@@ -277,8 +278,17 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 if (checkIfAllAttachedSourcesInStates({ClientState::AWAITING_PLAYING, ClientState::PLAYING}))
                 {
                     GST_INFO("Sending play command");
-                    m_clientBackend->play();
+                    bool async{true};
+                    m_clientBackend->play(async);
                     m_clientState = ClientState::AWAITING_PLAYING;
+                    if (!async)
+                    {
+                        // Synchronous playing state change. Finish procedure for other sources and return SUCCESS_SYNC
+                        result = StateChangeResult::SUCCESS_SYNC;
+                        m_backendQueue->postMessage(
+                            std::make_shared<PlaybackStateMessage>(firebolt::rialto::PlaybackState::PLAYING, this));
+                        return;
+                    }
                 }
                 else
                 {
@@ -287,7 +297,8 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
             }
             else
             {
-                GST_WARNING("Not in PAUSED state in %u state", static_cast<uint32_t>(m_clientState));
+                GST_WARNING("Not in PAUSED state in client state %u state; server playback state: %u",
+                            static_cast<uint32_t>(m_clientState), static_cast<uint32_t>(m_serverPlaybackState));
             }
 
             result = StateChangeResult::SUCCESS_ASYNC;
@@ -378,9 +389,11 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
 
 void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 {
+    m_flushAndDataSynchronizer.notifyFlushStarted(sourceId);
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            wasPlayingBeforeEos = false;
             bool async{true};
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
@@ -394,7 +407,6 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
                 return;
             }
             sourceIt->second.m_isFlushing = true;
-            sourceIt->second.m_bufferPuller->stop();
 
             if (async)
             {
@@ -511,6 +523,7 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     m_attachedSources.emplace(source->getId(),
                                               AttachedSource(rialtoSink, bufferPuller, delegate, source->getType()));
                     delegate->setSourceId(source->getId());
+                    m_flushAndDataSynchronizer.addSource(source->getId());
                     bufferPuller->start();
                 }
             }
@@ -558,6 +571,7 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
                 GST_WARNING("Remove source %d failed", sourceId);
             }
             m_attachedSources.erase(sourceId);
+            m_flushAndDataSynchronizer.removeSource(sourceId);
         });
 }
 
@@ -567,12 +581,14 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            const auto kPreviousState{m_serverPlaybackState};
             m_serverPlaybackState = state;
             switch (state)
             {
             case firebolt::rialto::PlaybackState::PAUSED:
             case firebolt::rialto::PlaybackState::PLAYING:
             {
+                wasPlayingBeforeEos = false;
                 if (state == firebolt::rialto::PlaybackState::PAUSED && m_clientState == ClientState::AWAITING_PAUSED)
                 {
                     m_clientState = ClientState::PAUSED;
@@ -608,6 +624,10 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::END_OF_STREAM:
             {
+                if (!wasPlayingBeforeEos && firebolt::rialto::PlaybackState::PLAYING == kPreviousState)
+                {
+                    wasPlayingBeforeEos = true;
+                }
                 for (const auto &source : m_attachedSources)
                 {
                     source.second.m_delegate->handleEos();
@@ -621,6 +641,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
             }
             case firebolt::rialto::PlaybackState::FAILURE:
             {
+                wasPlayingBeforeEos = false;
                 for (const auto &source : m_attachedSources)
                 {
                     source.second.m_delegate->handleError("Rialto server playback failed");
@@ -660,8 +681,8 @@ void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)
                 return;
             }
             sourceIt->second.m_isFlushing = false;
-            sourceIt->second.m_bufferPuller->start();
             sourceIt->second.m_delegate->handleFlushCompleted();
+            m_flushAndDataSynchronizer.notifyFlushCompleted(sourceId);
         });
 }
 
@@ -918,6 +939,11 @@ bool GStreamerMSEMediaPlayerClient::switchSource(const std::unique_ptr<firebolt:
     return result;
 }
 
+IFlushAndDataSynchronizer &GStreamerMSEMediaPlayerClient::getFlushAndDataSynchronizer()
+{
+    return m_flushAndDataSynchronizer;
+}
+
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [states](const auto &source)
@@ -1168,6 +1194,11 @@ void PullBufferMessage::handle()
     else if (addedSegments == 0)
     {
         status = firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES;
+    }
+
+    if (firebolt::rialto::MediaSourceStatus::OK == status || firebolt::rialto::MediaSourceStatus::EOS == status)
+    {
+        m_player->getFlushAndDataSynchronizer().notifyDataPushed(m_sourceId);
     }
 
     m_player->m_backendQueue->postMessage(

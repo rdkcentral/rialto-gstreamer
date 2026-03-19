@@ -63,7 +63,7 @@ public:
         return m_mediaPlayerBackend->load(type, mimeType, url);
     }
 
-    bool play() override { return m_mediaPlayerBackend->play(); }
+    bool play(bool &async) override { return m_mediaPlayerBackend->play(async); }
     bool pause() override { return m_mediaPlayerBackend->pause(); }
     bool stop() override { return m_mediaPlayerBackend->stop(); }
     bool haveData(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId) override

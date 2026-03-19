@@ -415,7 +415,7 @@ void RialtoGstTest::setPausedState(GstElement *pipeline, RialtoMSEBaseSink *sink
 
 void RialtoGstTest::setPlayingState(GstElement *pipeline) const
 {
-    EXPECT_CALL(m_mediaPipelineMock, play()).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, play(_)).WillOnce(Return(true));
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PLAYING));
 }
 
