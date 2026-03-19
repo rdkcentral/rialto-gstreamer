@@ -126,10 +126,11 @@ TEST_F(MediaPlayerClientBackendTests, ShouldLoad)
 
 TEST_F(MediaPlayerClientBackendTests, ShouldPlay)
 {
-    EXPECT_CALL(*m_mediaPipelineMock, play()).WillOnce(Return(true));
+    bool async{false};
+    EXPECT_CALL(*m_mediaPipelineMock, play(_)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.play());
+    EXPECT_TRUE(m_sut.play(async));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldPause)
