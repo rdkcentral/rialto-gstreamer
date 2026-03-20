@@ -63,4 +63,6 @@ private:
     std::atomic_bool m_isBufferingLimitQueued{false};
     std::atomic_bool m_useBuffering{kDefaultUseBuffering};
     std::atomic_bool m_isUseBufferingQueued{false};
+    std::atomic_bool m_liveRateCorrection{kDefaultLiveRateCorrection};
+    std::atomic_bool m_isLiveRateCorrectionQueued{false};
 };

@@ -944,6 +944,18 @@ IFlushAndDataSynchronizer &GStreamerMSEMediaPlayerClient::getFlushAndDataSynchro
     return m_flushAndDataSynchronizer;
 }
 
+bool GStreamerMSEMediaPlayerClient::setLiveRateCorrection(bool liveRateCorrection)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setLiveRateCorrection(liveRateCorrection); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
     return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [states](const auto &source)
