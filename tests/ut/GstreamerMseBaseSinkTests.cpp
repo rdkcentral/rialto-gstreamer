@@ -365,6 +365,27 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetHasDrmProperty)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetEnableLiveLatencyProperty)
+{
+    constexpr bool kEnableLiveLatency{true};
+    constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
+    const std::string kMimeType{};
+    const std::string kUrl{"mse://1"};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    g_object_set(audioSink, "enable-live-latency", kEnableLiveLatency, nullptr);
+
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl, kEnableLiveLatency)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(ByMove(std::move(m_mediaPipeline))));
+
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    setNullState(pipeline, kUnknownSourceId);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySeeking)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
