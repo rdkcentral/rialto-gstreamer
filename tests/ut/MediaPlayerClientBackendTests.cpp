@@ -43,6 +43,7 @@ constexpr double kVolume{0.7};
 constexpr uint32_t kVolumeDuration{1000};
 constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
+constexpr bool kIsLive{false};
 MATCHER_P(PtrMatcher, ptr, "")
 {
     return ptr == arg.get();
@@ -118,10 +119,10 @@ TEST_F(MediaPlayerClientBackendTests, ShouldLoad)
     constexpr firebolt::rialto::MediaType kType{firebolt::rialto::MediaType::MSE};
     const std::string kMimeType{"mime_type"};
     const std::string kUrl{"url"};
-    EXPECT_CALL(*m_mediaPipelineMock, load(kType, kMimeType, kUrl)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMock, load(kType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.load(kType, kMimeType, kUrl));
+    EXPECT_TRUE(m_sut.load(kType, kMimeType, kUrl, kIsLive));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldPlay)

@@ -67,6 +67,7 @@ constexpr int32_t kStreamSyncMode{1};
 constexpr uint32_t kBufferingLimit{12384};
 constexpr bool kUseBuffering{true};
 constexpr uint64_t kStopPosition{234};
+constexpr bool kIsLive{false};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -693,7 +694,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToLoad)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, isMediaPlayerBackendCreated()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl, kIsLive)).WillOnce(Return(false));
     expectCallInEventLoop();
     EXPECT_FALSE(m_sut->createBackend());
 }
@@ -702,7 +703,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCreateBackend)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, isMediaPlayerBackendCreated()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     expectCallInEventLoop();
     EXPECT_TRUE(m_sut->createBackend());
 }

@@ -224,7 +224,7 @@ bool GStreamerMSEMediaPlayerClient::createBackend()
             {
                 std::string utf8url = "mse://1";
                 firebolt::rialto::MediaType mediaType = firebolt::rialto::MediaType::MSE;
-                if (!m_clientBackend->load(mediaType, "", utf8url))
+                if (!m_clientBackend->load(mediaType, "", utf8url, false))
                 {
                     GST_ERROR("Could not load RialtoClient");
                     return;

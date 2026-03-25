@@ -55,6 +55,7 @@ const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h26
                                                         "video/unsupported"};
 const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml", "text/cc"};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
+constexpr bool kIsLive{false};
 int32_t generateSourceId()
 {
     static int32_t sourceId{0};
@@ -401,7 +402,7 @@ void RialtoGstTest::load(GstElement *pipeline)
     constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
     const std::string kMimeType{};
     const std::string kUrl{"mse://1"};
-    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
         .WillOnce(DoAll(SaveArg<0>(&m_mediaPipelineClient), Return(ByMove(std::move(m_mediaPipeline)))));
 }

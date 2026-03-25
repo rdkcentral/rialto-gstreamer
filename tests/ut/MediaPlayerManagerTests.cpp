@@ -59,7 +59,7 @@ TEST_F(MediaPlayerManagerTests, ShouldNotHaveControlWhenClientIsNotAttached)
 
 TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClient)
 {
-    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
@@ -77,7 +77,7 @@ TEST_F(MediaPlayerManagerTests, ShouldFailToAttachMediaPlayerClient)
 TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClientForAnotherGstObject)
 {
     // Create first object
-    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
@@ -87,7 +87,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClientForAnothe
     StrictMock<MediaPipelineMock> *mediaPipelineMockPtr = m_mediaPipelineMock.get();
     GstObject anotherObject{};
     EXPECT_CALL(*m_mediaPipelineMockPtr, stop()).WillOnce(Return(true));
-    EXPECT_CALL(*mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&anotherObject, kMaxVideoWidth, kMaxVideoHeight));
@@ -99,7 +99,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClientForAnothe
 
 TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
 {
-    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
@@ -111,7 +111,7 @@ TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
 
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachAndReleaseMediaPlayerClient)
 {
-    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
@@ -125,7 +125,7 @@ TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachAndReleaseMe
 
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldFailToAcquireControl)
 {
-    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
         .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
     EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
@@ -143,7 +143,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAcquireControl)
 {
     {
         MediaPlayerManager secondSut;
-        EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _)).WillOnce(Return(true));
+        EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
         EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
             .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
         EXPECT_TRUE(secondSut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
