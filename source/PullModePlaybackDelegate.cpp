@@ -359,6 +359,12 @@ void PullModePlaybackDelegate::setProperty(const Property &type, const GValue *v
         }
         break;
     }
+    case Property::EnableLiveLatency:
+    {
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        m_isLiveLatencyEnabled = g_value_get_boolean(value) != FALSE;
+        break;
+    }
     default:
     {
         break;
@@ -912,7 +918,7 @@ bool PullModePlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint
                                                                       const uint32_t maxVideoHeight)
 {
     GstObject *parentObject = getOldestGstBinParent(m_sink);
-    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
+    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight, m_isLiveLatencyEnabled))
     {
         GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient");
         return false;

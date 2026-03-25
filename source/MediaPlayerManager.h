@@ -30,7 +30,7 @@ public:
 
     std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient() const;
     bool attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth = 0,
-                                 const uint32_t maxVideoHeight = 0);
+                                 const uint32_t maxVideoHeight = 0, bool isLive = false);
     void releaseMediaPlayerClient();
     bool hasControl();
 
@@ -43,7 +43,7 @@ private:
     };
 
     void createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                 const uint32_t maxVideoHeight);
+                                 const uint32_t maxVideoHeight, bool isLive);
     bool acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo);
 
     std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;

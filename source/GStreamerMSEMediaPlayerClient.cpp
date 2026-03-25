@@ -66,13 +66,13 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
-    const uint32_t maxVideoWidth, const uint32_t maxVideoHeight)
+    const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
       m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
-      m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight)
+      m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight), m_isLive{isLive}
 {
     m_backendQueue->start();
 }
@@ -224,7 +224,7 @@ bool GStreamerMSEMediaPlayerClient::createBackend()
             {
                 std::string utf8url = "mse://1";
                 firebolt::rialto::MediaType mediaType = firebolt::rialto::MediaType::MSE;
-                if (!m_clientBackend->load(mediaType, "", utf8url, false))
+                if (!m_clientBackend->load(mediaType, "", utf8url, m_isLive))
                 {
                     GST_ERROR("Could not load RialtoClient");
                     return;
