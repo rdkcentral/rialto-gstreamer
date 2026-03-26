@@ -170,7 +170,7 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         }
         if (audioCapability.avs)
         {
-            capsToAdd.push_back("video/x-gst-av-avs");
+            capsToAdd.push_back("audio/x-avs");
         }
 
         std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
