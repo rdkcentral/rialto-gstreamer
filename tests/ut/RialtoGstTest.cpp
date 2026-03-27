@@ -54,6 +54,8 @@ const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/m
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
 const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml", "text/cc"};
+const firebolt::rialto::AudioDecoderCapabilities kAudioDecoderCapabilities{};
+const firebolt::rialto::VideoDecoderCapabilities kVideoDecoderCapabilities{};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 int32_t generateSourceId()
 {
@@ -474,8 +476,10 @@ void RialtoGstTest::expectSinksInitialisation() const
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
     std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockSubtitles{
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
+    EXPECT_CALL(*capabilitiesMockAudio, getSupportedAudioCapabilities()).WillOnce(Return(kAudioDecoderCapabilities));
     EXPECT_CALL(*capabilitiesMockAudio, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
         .WillOnce(Return(kSupportedAudioMimeTypes));
+    EXPECT_CALL(*capabilitiesMockVideo, getSupportedVideoCapabilities()).WillOnce(Return(kVideoDecoderCapabilities));
     EXPECT_CALL(*capabilitiesMockVideo, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
         .WillOnce(Return(kSupportedVideoMimeTypes));
     EXPECT_CALL(*capabilitiesMockSubtitles, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::SUBTITLE))

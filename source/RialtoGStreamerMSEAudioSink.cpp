@@ -285,10 +285,16 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
     if (mediaPlayerCapabilities)
     {
-        std::vector<std::string> supportedMimeTypes =
-            mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
+        const firebolt::rialto::AudioDecoderCapabilities kAudioDecoderCapabilities{
+            mediaPlayerCapabilities->getSupportedAudioCapabilities()};
+        if (!rialto_mse_sink_setup_supported_caps(elementClass, kAudioDecoderCapabilities))
+        {
+            GST_INFO("No supported audio decoder capabilities, falling back to legacy capability check");
+            std::vector<std::string> supportedMimeTypes =
+                mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
 
-        rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+            rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+        }
 
         const std::string kLowLatencyPropertyName{"low-latency"};
         const std::string kSyncPropertyName{"sync"};

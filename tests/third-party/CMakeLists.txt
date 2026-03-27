@@ -83,6 +83,8 @@ set(FILE_LIST
     IWebAudioPlayerClient.h
     IClientLogHandler.h
     IClientLogControl.h
+    AudioDecoderCapabilities.h
+    VideoDecoderCapabilities.h
 )
 
 # Loop through the list and call the function
