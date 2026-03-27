@@ -89,6 +89,7 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         return false;
     }
     GstCaps *caps = gst_caps_new_empty();
+    std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
     for (const auto &audioCapability : audioCapabilities.capabilities)
     {
         std::vector<std::string> capsToAdd;
@@ -173,7 +174,6 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
             capsToAdd.push_back("audio/x-avs");
         }
 
-        std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
         for (const std::string &capsStr : capsToAdd)
         {
             if (addedCaps.find(capsStr) == addedCaps.end())
@@ -200,6 +200,7 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         return false;
     }
     GstCaps *caps = gst_caps_new_empty();
+    std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
     for (const auto &videoCapability : videoCapabilities.capabilities)
     {
         std::vector<std::string> capsToAdd;
@@ -224,7 +225,6 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
             capsToAdd.push_back("video/x-av1");
         }
 
-        std::unordered_set<std::string> addedCaps; // keep track what caps were added to avoid duplicates
         for (const std::string &capsStr : capsToAdd)
         {
             if (addedCaps.find(capsStr) == addedCaps.end())
