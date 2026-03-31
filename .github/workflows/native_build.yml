@@ -56,11 +56,13 @@ jobs:
           echo "Using branch: ${BRANCH}"
           echo "Work dir: ${WORK_DIR}"
 
+          cd rialto-gstreamer
           sudo sh -x install_dependencies_for_native_build.sh "${BRANCH}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
 
       - name: Native build Rialto gstreamer
         run: |
           WORK_DIR=$(pwd)
+          cd rialto-gstreamer
           sh -x build_native.sh "${WORK_DIR}" &>> "${WORK_DIR}/output_file.txt"
 
       - name: Report Build Status Success
