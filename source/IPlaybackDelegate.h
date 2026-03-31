@@ -50,6 +50,7 @@ public:
         LimitBufferingMs,
         UseBuffering,
         Async,
+        LiveRateCorrection,
 
         // PullModeVideoPlaybackDelegate Properties
         WindowSet,

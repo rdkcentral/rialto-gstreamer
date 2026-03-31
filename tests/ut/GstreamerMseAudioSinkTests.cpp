@@ -967,6 +967,87 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedLowLatencyOnRialtoFailure)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetLiveRateCorrectionPropertyWhenPipelineIsBelowPausedState)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    constexpr gboolean kLiveRateCorrection{TRUE};
+    g_object_set(audioSink, "live-rate-correction", kLiveRateCorrection, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetLiveRateCorrectionPropertyOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gboolean kLiveRateCorrection{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setLiveRateCorrection(kLiveRateCorrection)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "live-rate-correction", kLiveRateCorrection, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetLiveRateCorrection)
+{
+    TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    constexpr gboolean kLiveRateCorrection{TRUE};
+    EXPECT_CALL(m_mediaPipelineMock, setLiveRateCorrection(kLiveRateCorrection)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "live-rate-correction", kLiveRateCorrection, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldSetCachedLiveRateCorrection)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kLiveRateCorrection{TRUE};
+    g_object_set(audioSink, "live-rate-correction", kLiveRateCorrection, nullptr);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setLiveRateCorrection(kLiveRateCorrection)).WillOnce(Return(true));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldNotSetCachedLiveRateCorrectionOnRialtoFailure)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    constexpr gboolean kLiveRateCorrection{TRUE};
+    g_object_set(audioSink, "live-rate-correction", kLiveRateCorrection, nullptr);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setLiveRateCorrection(kLiveRateCorrection)).WillOnce(Return(false));
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseAudioSinkTests, ShouldFailToSetSyncPropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
