@@ -109,6 +109,20 @@ TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
     m_sut.releaseMediaPlayerClient();
 }
 
+TEST_F(MediaPlayerManagerTests, ShouldHaveControlWithLiveLatencyEnabled)
+{
+    constexpr bool kLiveLatencyEnabled{true};
+    EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, kLiveLatencyEnabled)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+        .WillOnce(Return(ByMove(std::move(m_mediaPipelineMock))));
+    m_sut.setEnableLiveLatency(kLiveLatencyEnabled);
+    EXPECT_TRUE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
+    EXPECT_TRUE(m_sut.hasControl());
+
+    EXPECT_CALL(*m_mediaPipelineMockPtr, stop()).WillOnce(Return(true));
+    m_sut.releaseMediaPlayerClient();
+}
+
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachAndReleaseMediaPlayerClient)
 {
     EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));

@@ -32,17 +32,17 @@ MediaPlayerManager::~MediaPlayerManager()
 }
 
 bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                                 const uint32_t maxVideoHeight, bool isLive)
+                                                 const uint32_t maxVideoHeight)
 {
     if (!m_client.lock())
     {
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
     }
     else if (gstBinParent != m_currentGstBinParent)
     {
         // New parent gst bin, release old client and create new
         releaseMediaPlayerClient();
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
     }
 
     if (!m_client.lock())
@@ -136,7 +136,7 @@ bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo &mediaPlayerClient
 }
 
 void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                                 const uint32_t maxVideoHeight, bool isLive)
+                                                 const uint32_t maxVideoHeight)
 {
     std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
@@ -153,7 +153,7 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
             std::make_shared<firebolt::rialto::client::MediaPlayerClientBackend>();
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
             std::make_shared<GStreamerMSEMediaPlayerClient>(IMessageQueueFactory::createFactory(), clientBackend,
-                                                            maxVideoWidth, maxVideoHeight, isLive);
+                                                            maxVideoWidth, maxVideoHeight, m_isLiveLatencyEnabled);
 
         if (client->createBackend())
         {
@@ -175,4 +175,9 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
             return;
         }
     }
+}
+
+void MediaPlayerManager::setEnableLiveLatency(bool enabled)
+{
+    m_isLiveLatencyEnabled = enabled;
 }
