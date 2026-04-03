@@ -30,10 +30,9 @@ public:
 
     std::shared_ptr<GStreamerMSEMediaPlayerClient> getMediaPlayerClient() const;
     bool attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth = 0,
-                                 const uint32_t maxVideoHeight = 0);
+                                 const uint32_t maxVideoHeight = 0, bool isLive = false);
     void releaseMediaPlayerClient();
     bool hasControl();
-    void setEnableLiveLatency(bool enabled);
 
 private:
     struct MediaPlayerClientInfo
@@ -44,12 +43,11 @@ private:
     };
 
     void createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                 const uint32_t maxVideoHeight);
+                                 const uint32_t maxVideoHeight, bool isLive);
     bool acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo);
 
     std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
     const GstObject *m_currentGstBinParent;
-    bool m_isLiveLatencyEnabled{false};
 
     static std::mutex m_mediaPlayerClientsMutex;
     static std::map<const GstObject *, MediaPlayerClientInfo> m_mediaPlayerClientsInfo;
