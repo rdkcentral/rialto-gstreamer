@@ -49,7 +49,6 @@ enum
     PROP_STATS,
     PROP_LAST_SAMPLE,
     PROP_ENABLE_LAST_SAMPLE,
-    PROP_ENABLE_LIVE_LATENCY,
     PROP_LAST
 };
 
@@ -247,10 +246,6 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::EnableLastSample, value);
         break;
-    case PROP_ENABLE_LIVE_LATENCY:
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
-                                                 IPlaybackDelegate::Property::EnableLiveLatency, value);
-        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -357,9 +352,4 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                     g_param_spec_boxed("last-sample", "Last Sample",
                                                        "The last sample received in the sink", GST_TYPE_SAMPLE,
                                                        GParamFlags(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
-
-    g_object_class_install_property(gobjectClass, PROP_ENABLE_LIVE_LATENCY,
-                                    g_param_spec_boolean("enable-live-latency", "Enable Live Latency",
-                                                         "Enable the live-latency property", FALSE,
-                                                         GParamFlags(G_PARAM_WRITABLE)));
 }

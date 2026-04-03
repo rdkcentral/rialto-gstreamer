@@ -72,6 +72,7 @@ private:
     void stopFlushing(bool resetTime);
     void flushServer(bool resetTime);
     bool setStreamsNumber(GstObject *parentObject);
+    bool isLiveLatencyEnabled() const;
     GstSample *getLastSample() const;
     void setLastBuffer(GstBuffer *buffer);
 
@@ -105,5 +106,4 @@ protected:
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
     guint32 m_lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
     std::atomic<guint32> m_currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
-    bool m_isLiveLatencyEnabled{false};
 };

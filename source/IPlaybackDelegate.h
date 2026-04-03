@@ -36,7 +36,6 @@ public:
         Stats,
         EnableLastSample,
         LastSample,
-        EnableLiveLatency,
 
         // PullModeAudioPlaybackDelegate Properties
         Volume,
