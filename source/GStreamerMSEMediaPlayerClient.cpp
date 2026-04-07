@@ -721,7 +721,7 @@ std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            sprintf(rectangle, "%u,%u,%u,%u", m_videoRectangle.x, m_videoRectangle.y, m_videoRectangle.width,
+            sprintf(rectangle, "%u,%u,%u,%u", m_videoRectangle.x, m_videoRectangle.width,
                     m_videoRectangle.height);
         });
 
