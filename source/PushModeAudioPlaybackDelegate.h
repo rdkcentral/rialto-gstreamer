@@ -35,6 +35,7 @@ public:
     void handleEos() override;
     void handleStateChanged(firebolt::rialto::PlaybackState state) override;
     void handleError(const std::string &message, gint code = 0) override;
+    void handleWarning(const std::string &message, gint code = 0) override;
     void handleQos(uint64_t processed, uint64_t dropped) const override;
     GstStateChangeReturn changeState(GstStateChange transition) override;
     void postAsyncStart() override;

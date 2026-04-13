@@ -1053,8 +1053,8 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                       toString(sourceIt->second.getType()));
             if (firebolt::rialto::PlaybackError::DECRYPTION == error)
             {
-                sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
-                                                         GST_STREAM_ERROR_DECRYPT);
+                sourceIt->second.m_delegate->handleWarning("Rialto dropped a frame that failed to decrypt",
+                                                           GST_STREAM_ERROR_DECRYPT);
             }
             else
             {
