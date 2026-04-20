@@ -41,18 +41,14 @@ const char *toString(const firebolt::rialto::PlaybackError &error)
     {
     case firebolt::rialto::PlaybackError::DECRYPTION:
         return "DECRYPTION";
-	case firebolt::rialto::PlaybackError::USABLE:
-        return "usable";
-	case firebolt::rialto::PlaybackError::EXPIRED:
-        return "expired";
-	case firebolt::rialto::PlaybackError::OUTPUT_RESTRICTED:
-        return "output-restricted";
-	case firebolt::rialto::PlaybackError::PENDING:
-        return "pending";
-	case firebolt::rialto::PlaybackError::RELEASED:
-        return "released";
-	case firebolt::rialto::PlaybackError::INTERNAL_ERROR:
-        return "internal-error";
+	case firebolt::rialto::PlaybackError::KEY:
+        return "KEY-ISSUE";
+	case firebolt::rialto::PlaybackError::HDCPCOMPLIANCE:
+        return "HDCPCOMPLIANCE";
+	case firebolt::rialto::PlaybackError::HDCPPROTECTION:
+        return "OUTPUT-RESTRICTED";
+	case firebolt::rialto::PlaybackError::DRM:
+        return "DRM-ISSUE";
 	case firebolt::rialto::PlaybackError::UNKNOWN:
         return "UNKNOWN";
     }
