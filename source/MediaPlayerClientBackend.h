@@ -90,9 +90,19 @@ public:
         return m_mediaPlayerBackend->setImmediateOutput(sourceId, immediateOutput);
     }
 
+    bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors) override
+    {
+        return m_mediaPlayerBackend->setReportDecodeErrors(sourceId, reportDecodeErrors);
+    }
+
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) override
     {
         return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);
+    }
+
+    bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames) override
+    {
+        return m_mediaPlayerBackend->getQueuedFrames(sourceId, queuedFrames);
     }
 
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override
