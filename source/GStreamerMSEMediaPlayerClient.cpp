@@ -41,7 +41,19 @@ const char *toString(const firebolt::rialto::PlaybackError &error)
     {
     case firebolt::rialto::PlaybackError::DECRYPTION:
         return "DECRYPTION";
-    case firebolt::rialto::PlaybackError::UNKNOWN:
+	case firebolt::rialto::PlaybackError::USABLE:
+        return "usable";
+	case firebolt::rialto::PlaybackError::EXPIRED:
+        return "expired";
+	case firebolt::rialto::PlaybackError::OUTPUT_RESTRICTED:
+        return "output-restricted";
+	case firebolt::rialto::PlaybackError::PENDING:
+        return "pending";
+	case firebolt::rialto::PlaybackError::RELEASED:
+        return "released";
+	case firebolt::rialto::PlaybackError::INTERNAL_ERROR:
+        return "internal-error";
+	case firebolt::rialto::PlaybackError::UNKNOWN:
         return "UNKNOWN";
     }
     return "UNKNOWN";
@@ -1051,14 +1063,16 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
             GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
                       toString(sourceIt->second.getType()));
-            if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+            if (firebolt::rialto::PlaybackError::UNKNOWN == error)
             {
-                sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
-                                                         GST_STREAM_ERROR_DECRYPT);
+                sourceIt->second.m_delegate->handleError("Rialto server playback failed");
+
             }
             else
             {
-                sourceIt->second.m_delegate->handleError("Rialto server playback failed");
+                std::string errorMsg = std::string("Rialto dropped a frame due to error: ") + toString(error);
+                sourceIt->second.m_delegate->handleError(errorMsg.c_str(),
+                                         GST_STREAM_ERROR_DECRYPT);
             }
 
             result = true;
