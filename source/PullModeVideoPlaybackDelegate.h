@@ -45,9 +45,11 @@ private:
     // rectangle properties
     std::string m_videoRectangle{"0,0,1920,1080"};
     bool m_rectangleSettingQueued{false};
-    // immediate output properties
+    // immediate output & decode error reporting properties
     bool m_immediateOutput{false};
     bool m_immediateOutputQueued{false};
+    bool m_reportDecodeErrors{false};
+    bool m_reportDecodeErrorsQueued{false};
     bool m_syncmodeStreaming{false};
     bool m_syncmodeStreamingQueued{false};
     bool m_videoMute{false};
