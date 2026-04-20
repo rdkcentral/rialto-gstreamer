@@ -54,6 +54,7 @@ enum
     PROP_USE_BUFFERING,
     PROP_ASYNC,
     PROP_WEBAUDIO,
+    PROP_LIVE_RATE_CORRECTION,
     PROP_LAST
 };
 
@@ -210,6 +211,11 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
         rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Async, value);
         break;
     }
+    case PROP_LIVE_RATE_CORRECTION:
+    {
+        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::LiveRateCorrection, value);
+        break;
+    }
     case PROP_WEBAUDIO:
     {
         if (GST_STATE(sink) > GST_STATE_NULL)
@@ -297,10 +303,11 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const std::string kAudioFadePropertyName{"audio-fade"};
         const std::string kFadeVolumePropertyName{"fade-volume"};
         const std::string kBufferingLimitPropertyName{"limit-buffering-ms"};
+        const std::string kLiveRateCorrectionPropertyName{"live-rate-correction"};
         const std::vector<std::string> kPropertyNamesToSearch{kLowLatencyPropertyName,     kSyncPropertyName,
                                                               kSyncOffPropertyName,        kStreamSyncModePropertyName,
                                                               kBufferingLimitPropertyName, kAudioFadePropertyName,
-                                                              kFadeVolumePropertyName};
+                                                              kFadeVolumePropertyName,     kLiveRateCorrectionPropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
@@ -357,6 +364,15 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                                   "limit buffering ms", "Set millisecond threshold used if limit_buffering is set. Changing this value does not enable/disable limit_buffering",
                                                                   0, kMaxValue, kDefaultBufferingLimit,
                                                                   G_PARAM_READWRITE));
+            }
+            else if (kLiveRateCorrectionPropertyName == *it)
+            {
+                g_object_class_install_property(gobjectClass, PROP_LIVE_RATE_CORRECTION,
+                                                g_param_spec_boolean(kLiveRateCorrectionPropertyName.c_str(),
+                                                                     "live rate correction",
+                                                                     "Enable/disable live rate correction for clock drift compensation",
+                                                                     kDefaultLiveRateCorrection,
+                                                                     GParamFlags(G_PARAM_WRITABLE)));
             }
             else
             {

@@ -80,6 +80,7 @@ public:
     MOCK_METHOD(bool, getUseBuffering, (bool &useBuffering), (override));
     MOCK_METHOD(bool, switchSource, (const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source),
                 (override));
+    MOCK_METHOD(bool, setLiveRateCorrection, (bool liveRateCorrection), (override));
 };
 } // namespace firebolt::rialto::client
 

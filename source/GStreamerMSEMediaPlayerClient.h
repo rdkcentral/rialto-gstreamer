@@ -326,6 +326,7 @@ public:
     bool getUseBuffering();
     bool switchSource(const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source);
     IFlushAndDataSynchronizer &getFlushAndDataSynchronizer();
+    bool setLiveRateCorrection(bool liveRateCorrection);
 
 private:
     bool areAllStreamsAttached();

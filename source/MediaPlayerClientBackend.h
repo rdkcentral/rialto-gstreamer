@@ -191,6 +191,11 @@ public:
         return m_mediaPlayerBackend->switchSource(source);
     }
 
+    bool setLiveRateCorrection(bool liveRateCorrection) override
+    {
+        return m_mediaPlayerBackend->setLiveRateCorrection(liveRateCorrection);
+    }
+
 private:
     std::unique_ptr<IMediaPipeline> m_mediaPlayerBackend;
 };
