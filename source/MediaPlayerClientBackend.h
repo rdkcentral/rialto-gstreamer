@@ -85,6 +85,8 @@ public:
 
     bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
 
+    bool getDuration(int64_t &duration) override { return m_mediaPlayerBackend->getDuration(duration); }
+
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput) override
     {
         return m_mediaPlayerBackend->setImmediateOutput(sourceId, immediateOutput);

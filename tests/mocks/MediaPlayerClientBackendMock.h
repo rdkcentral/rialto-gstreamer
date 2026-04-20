@@ -48,6 +48,7 @@ public:
                  const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment),
                 (override));
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
+    MOCK_METHOD(bool, getDuration, (int64_t & duration), (override));
     MOCK_METHOD(bool, setImmediateOutput, (int32_t sourceId, bool immediateOutput), (override));
     MOCK_METHOD(bool, getImmediateOutput, (int32_t sourceId, bool &immediateOutput), (override));
     MOCK_METHOD(bool, getStats, (int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames), (override));
