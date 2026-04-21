@@ -497,7 +497,7 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         GstFormat fmt;
         int64_t duration{-1};
         gst_query_parse_duration(query, &fmt, NULL);
-        if (!client->getDuration(duration))
+        if (GST_FORMAT_TIME != fmt || !client->getDuration(duration))
         {
             return FALSE;
         }

@@ -55,7 +55,7 @@ constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_
 constexpr bool kMute{true};
 constexpr bool kResetTime{true};
 constexpr double kAppliedRate{2.0};
-constexpr uint32_t kDuration{30};
+constexpr int64_t kDuration{30};
 constexpr int64_t kDiscontinuityGap{1};
 constexpr bool kAudioAac{false};
 const std::string kTextTrackIdentifier{"TextTrackId"};
@@ -260,7 +260,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDuration)
                 msg->handle();
                 return true;
             }));
-    constexpr int64_t kDuration{1234};
     m_sut->notifyDuration(kDuration);
 }
 
@@ -1120,20 +1119,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
 //
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
 {
+    constexpr uint32_t kAudioGapDuration{435345};
     expectCallInEventLoop();
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                processAudioGap(kPosition, kAudioGapDuration, kDiscontinuityGap, kAudioAac))
         .WillOnce(Return(true));
-    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
+    m_sut->processAudioGap(kPosition, kAudioGapDuration, kDiscontinuityGap, kAudioAac);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
 {
+    constexpr uint32_t kAudioGapDuration{435345};
     expectCallInEventLoop();
     expectPostMessage();
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac))
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                processAudioGap(kPosition, kAudioGapDuration, kDiscontinuityGap, kAudioAac))
         .WillOnce(Return(false));
-    m_sut->processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac);
+    m_sut->processAudioGap(kPosition, kAudioGapDuration, kDiscontinuityGap, kAudioAac);
 }
 
 //
