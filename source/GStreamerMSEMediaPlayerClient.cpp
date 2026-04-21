@@ -169,6 +169,18 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return m_playbackInfo.currentPosition;
 }
 
+bool GStreamerMSEMediaPlayerClient::getDuration(int64_t &duration)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getDuration(duration); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
 {
     if (!m_clientBackend)

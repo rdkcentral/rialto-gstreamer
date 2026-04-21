@@ -1771,3 +1771,28 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSwitchSource)
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, switchSource(PtrMatcher(mediaSource.get()))).WillOnce(Return(true));
     m_sut->switchSource(mediaSource);
 }
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetDuration)
+{
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kDuration), Return(true)));
+    int64_t duration{-1};
+    EXPECT_TRUE(m_sut->getDuration(duration));
+    EXPECT_EQ(duration, kDuration);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToGetDurationIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight);
+
+    int64_t duration{-1};
+    EXPECT_FALSE(m_sut->getDuration(duration));
+}

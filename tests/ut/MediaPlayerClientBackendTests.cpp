@@ -338,3 +338,14 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.switchSource(mediaSourceAudio));
 }
+
+TEST_F(MediaPlayerClientBackendTests, ShouldGetDuration)
+{
+    int64_t resultDuration{0};
+    constexpr int64_t kDuration{123};
+    EXPECT_CALL(*m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kDuration), Return(true)));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.getDuration(resultDuration));
+    EXPECT_EQ(kDuration, resultDuration);
+}
