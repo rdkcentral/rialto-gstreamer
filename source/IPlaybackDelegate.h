@@ -80,6 +80,7 @@ public:
 
     virtual void handleEos() = 0;
     virtual void handleStateChanged(firebolt::rialto::PlaybackState state) = 0;
+    virtual void handleWarning(const std::string &message, gint code = 0) = 0;
     virtual void handleError(const std::string &message, gint code = 0) = 0;
     virtual void handleQos(uint64_t processed, uint64_t dropped) const = 0;
 
