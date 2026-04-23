@@ -1869,3 +1869,54 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenPipelineIsBelowPaused)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    gint64 duration{0};
+    EXPECT_FALSE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDuration)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    gint64 duration{0};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(Return(false));
+    EXPECT_FALSE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDuration)
+{
+    constexpr gint64 kDuration{1234};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    gint64 duration{0};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kDuration), Return(true)));
+    EXPECT_TRUE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+    EXPECT_EQ(duration, kDuration);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
