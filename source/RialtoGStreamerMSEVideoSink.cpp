@@ -263,10 +263,16 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
     if (mediaPlayerCapabilities)
     {
-        std::vector<std::string> supportedMimeTypes =
-            mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
+        const firebolt::rialto::VideoDecoderCapabilities kVideoDecoderCapabilities{
+            mediaPlayerCapabilities->getSupportedVideoCapabilities()};
+        if (!rialto_mse_sink_setup_supported_caps(elementClass, kVideoDecoderCapabilities))
+        {
+            GST_INFO("No supported video decoder capabilities, falling back to legacy capability check");
+            std::vector<std::string> supportedMimeTypes =
+                mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
 
-        rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+            rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+        }
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
