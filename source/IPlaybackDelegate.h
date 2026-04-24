@@ -61,6 +61,7 @@ public:
         ShowVideoWindow,
         ReportDecodeErrors,
         QueuedFrames,
+        VideoPts,
 
         // PullModeSubtitlePlaybackDelegate Properties
         TextTrackIdentifier,
