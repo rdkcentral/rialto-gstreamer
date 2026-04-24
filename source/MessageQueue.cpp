@@ -29,13 +29,6 @@ void CallInEventLoopMessage::handle()
     m_callInEventLoopCondVar.notify_all();
 }
 
-void CallInEventLoopMessage::skip()
-{
-    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
-    m_done = true;
-    m_callInEventLoopCondVar.notify_all();
-}
-
 void CallInEventLoopMessage::wait()
 {
     std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
@@ -61,7 +54,7 @@ std::unique_ptr<IMessageQueue> MessageQueueFactory::createMessageQueue() const
 
 namespace rialto
 {
-MessageQueue::MessageQueue() : m_running(false) {}
+MessageQueue::MessageQueue() : m_running(false), m_acceptingMessages{false} {}
 
 MessageQueue::~MessageQueue()
 {
@@ -76,6 +69,7 @@ void MessageQueue::start()
         return;
     }
     m_running = true;
+    m_acceptingMessages = true;
     std::thread startThread(&MessageQueue::processMessages, this);
     m_workerThread.swap(startThread);
 }
@@ -105,9 +99,9 @@ std::shared_ptr<Message> MessageQueue::waitForMessage()
 bool MessageQueue::postMessage(const std::shared_ptr<Message> &msg)
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
-    if (!m_running)
+    if (!m_running || !m_acceptingMessages)
     {
-        GST_ERROR("Message queue is not running");
+        GST_ERROR("Message queue is not running or not accepting messages");
         return false;
     }
     m_queue.push_back(msg);
@@ -167,7 +161,22 @@ void MessageQueue::doStop()
         // queue is not running
         return;
     }
-    callInEventLoopInternal([this]() { m_running = false; });
+    if (std::this_thread::get_id() == m_workerThread.get_id())
+    {
+        m_running = false;
+        return;
+    }
+    else
+    {
+        auto message = std::make_shared<CallInEventLoopMessage>([this]() { m_running = false; });
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            m_acceptingMessages = false;
+            m_queue.push_back(message);
+            m_condVar.notify_all();
+        }
+        message->wait();
+    }
 
     if (m_workerThread.joinable())
         m_workerThread.join();
@@ -178,10 +187,6 @@ void MessageQueue::doStop()
 void MessageQueue::doClear()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
-    while (!m_queue.empty())
-    {
-        m_queue.front()->skip();
-        m_queue.pop_front();
-    }
+    m_queue.clear();
 }
 } // namespace rialto

@@ -126,7 +126,7 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
     EXPECT_TRUE(callFlag);
 }
 
-TEST_F(MessageQueueTests, ShouldSkipTaskWhenCallInEventLoopIsCalledAfterStop)
+TEST_F(MessageQueueTests, ShouldDropTaskWhenCallInEventLoopIsCalledAfterStop)
 {
     std::atomic_bool t1TaskExecuted{false};
     std::atomic_bool t2TaskExecuted{false};
@@ -155,7 +155,7 @@ TEST_F(MessageQueueTests, ShouldSkipTaskWhenCallInEventLoopIsCalledAfterStop)
 
     // Third thread queues a task after stop. This task should be skipped.
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    EXPECT_TRUE(m_sut.callInEventLoop([&]() { t3TaskExecuted = true; }));
+    EXPECT_FALSE(m_sut.callInEventLoop([&]() { t3TaskExecuted = true; }));
     t1.join();
     t2.join();
 
