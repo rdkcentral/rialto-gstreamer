@@ -61,6 +61,7 @@ jobs:
           sudo sh -x install_dependencies_for_native_build.sh "${BRANCH}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
 
       - name: Native build Rialto gstreamer
+        shell: sh +e {0}
         run: |
           WORK_DIR=$(pwd)
           cd rialto-gstreamer
