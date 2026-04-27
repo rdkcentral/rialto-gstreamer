@@ -35,29 +35,36 @@ jobs:
         with:
           path: rialto-gstreamer
 
-      - name: Install Dependencies
+      # Check, from which rialto branch should we download headers
+      - name: Check if rialto branch with the same name exists
+        id: check-branch
+        shell: sh +e {0}
         run: |
-          BRANCH="master"
-          WORK_DIR=$(pwd)
+          branch="${{ github.ref_name }}"
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
             if [ $? -eq 0 ]; then
-              BRANCH="${{ github.event.pull_request.head.ref }}"
+              branch="${{ github.event.pull_request.head.ref }}"
             else
               git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
               if [ $? -eq 0 ]; then
-                BRANCH="${{ github.event.pull_request.base.ref }}"
+                branch="${{ github.event.pull_request.base.ref }}"
               else
-                BRANCH="master"
+                branch="master"
               fi
             fi
           fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
-          echo "Using branch: ${BRANCH}"
+      - name: Install Dependencies
+        run: |
+          WORK_DIR=$(pwd)
+
+          echo "Using branch: ${{ steps.check-branch.outputs.branch }}"
           echo "Work dir: ${WORK_DIR}"
 
           cd rialto-gstreamer
-          sudo sh -x -v install_dependencies_for_native_build.sh "${BRANCH}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
+          sudo sh -x -v install_dependencies_for_native_build.sh "${{ steps.check-branch.outputs.branch }}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
 
       - name: Native build Rialto gstreamer
         run: |
