@@ -126,7 +126,7 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
     EXPECT_TRUE(callFlag);
 }
 
-TEST_F(MessageQueueTests, ShouldSkipTaskWhenCallInEventLoopIsCalledAfterStop)
+TEST_F(MessageQueueTests, ShouldDropTaskWhenCallInEventLoopIsCalledAfterStop)
 {
     std::atomic_bool t1TaskExecuted{false};
     std::atomic_bool t2TaskExecuted{false};
@@ -153,13 +153,56 @@ TEST_F(MessageQueueTests, ShouldSkipTaskWhenCallInEventLoopIsCalledAfterStop)
                        t2TaskExecuted = true;
                    }};
 
-    // Third thread queues a task after stop. This task should be skipped.
+    // Third thread queues a task after stop. This task should be rejected.
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    EXPECT_TRUE(m_sut.callInEventLoop([&]() { t3TaskExecuted = true; }));
+    EXPECT_FALSE(m_sut.callInEventLoop([&]() { t3TaskExecuted = true; }));
     t1.join();
     t2.join();
 
     EXPECT_TRUE(t1TaskExecuted);
     EXPECT_TRUE(t2TaskExecuted);
+    EXPECT_FALSE(t3TaskExecuted);
+}
+
+TEST_F(MessageQueueTests, StopCalledInWorkerThread)
+{
+    m_sut.start();
+
+    EXPECT_TRUE(m_sut.callInEventLoop([&]() { m_sut.stop(); }));
+}
+
+TEST_F(MessageQueueTests, StopCalledInWorkerThreadWhenPreviousTaskIsRunning)
+{
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool t1Started{false};
+    std::atomic_bool t3TaskExecuted{false};
+
+    m_sut.start();
+
+    // First thread queues very long task
+    std::thread t1{[&]()
+                   {
+                       EXPECT_TRUE(m_sut.callInEventLoop(
+                           [&]()
+                           {
+                               {
+                                   std::unique_lock<std::mutex> lock{mtx};
+                                   t1Started = true;
+                                   cv.notify_one();
+                               }
+                               std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                           }));
+                   }};
+
+    // Second thread queues stop while first task is handled
+    {
+        std::unique_lock<std::mutex> lock{mtx};
+        cv.wait(lock, [&]() { return t1Started; });
+    }
+    EXPECT_TRUE(m_sut.scheduleInEventLoop([&]() { m_sut.stop(); }));
+    m_sut.callInEventLoop([&]() { t3TaskExecuted = true; });
+
+    t1.join();
     EXPECT_FALSE(t3TaskExecuted);
 }
