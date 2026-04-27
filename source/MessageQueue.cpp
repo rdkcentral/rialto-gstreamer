@@ -35,6 +35,13 @@ void CallInEventLoopMessage::wait()
     m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
 }
 
+void CallInEventLoopMessage::skip()
+{
+    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
+    m_done = true;
+    m_callInEventLoopCondVar.notify_all();
+}
+
 ScheduleInEventLoopMessage::ScheduleInEventLoopMessage(const std::function<void()> &func) : m_func(func) {}
 
 void ScheduleInEventLoopMessage::handle()
@@ -163,8 +170,9 @@ void MessageQueue::doStop()
     }
     if (std::this_thread::get_id() == m_workerThread.get_id())
     {
+        m_acceptingMessages = false;
         m_running = false;
-        return;
+        m_workerThread.detach();
     }
     else
     {
@@ -176,10 +184,10 @@ void MessageQueue::doStop()
             m_condVar.notify_all();
         }
         message->wait();
-    }
 
-    if (m_workerThread.joinable())
-        m_workerThread.join();
+        if (m_workerThread.joinable())
+            m_workerThread.join();
+    }
 
     doClear();
 }
@@ -187,6 +195,10 @@ void MessageQueue::doStop()
 void MessageQueue::doClear()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
-    m_queue.clear();
+    while (!m_queue.empty())
+    {
+        m_queue.front()->skip();
+        m_queue.pop_front();
+    }
 }
 } // namespace rialto

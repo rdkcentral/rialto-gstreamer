@@ -36,6 +36,7 @@ jobs:
           path: rialto-gstreamer
 
       - name: Install Dependencies
+        shell: sh +e {0}
         run: |
           BRANCH="master"
           WORK_DIR=$(pwd)

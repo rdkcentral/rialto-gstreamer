@@ -34,6 +34,7 @@ public:
     explicit CallInEventLoopMessage(const std::function<void()> &func);
     void handle() override;
     void wait();
+    void skip() override;
 
 private:
     const std::function<void()> m_func;
@@ -88,6 +89,6 @@ protected:
     std::deque<std::shared_ptr<Message>> m_queue;
     std::thread m_workerThread;
     std::atomic_bool m_running;
-    bool m_acceptingMessages;
+    std::atomic_bool m_acceptingMessages;
 };
 } // namespace rialto
