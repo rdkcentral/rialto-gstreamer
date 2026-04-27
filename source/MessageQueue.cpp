@@ -29,17 +29,17 @@ void CallInEventLoopMessage::handle()
     m_callInEventLoopCondVar.notify_all();
 }
 
-void CallInEventLoopMessage::wait()
-{
-    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
-    m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
-}
-
 void CallInEventLoopMessage::skip()
 {
     std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
     m_done = true;
     m_callInEventLoopCondVar.notify_all();
+}
+
+void CallInEventLoopMessage::wait()
+{
+    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
+    m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
 }
 
 ScheduleInEventLoopMessage::ScheduleInEventLoopMessage(const std::function<void()> &func) : m_func(func) {}
