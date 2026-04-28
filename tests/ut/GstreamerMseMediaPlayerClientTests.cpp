@@ -1328,7 +1328,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetReportDecodeErrorsIfNoCli
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     const int32_t kVideoSourceId = 1;
     EXPECT_FALSE(m_sut->setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors));
@@ -1427,7 +1427,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetQueuedFramesIfNoClientBac
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     const int32_t kVideoSourceId = 1;
     uint32_t queuedFrames = 0;
@@ -1795,7 +1795,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToGetDurationIfNoClientBack
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     int64_t duration{-1};
     EXPECT_FALSE(m_sut->getDuration(duration));
