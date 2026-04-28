@@ -49,6 +49,8 @@ private:
     // immediate output properties
     bool m_immediateOutput{false};
     bool m_immediateOutputQueued{false};
+    bool m_reportDecodeErrors{false};
+    bool m_reportDecodeErrorsQueued{false};
     bool m_syncmodeStreaming{false};
     bool m_syncmodeStreamingQueued{false};
     bool m_videoMute{false};

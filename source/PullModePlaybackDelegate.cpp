@@ -487,6 +487,23 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         gst_query_set_segment(query, m_lastSegment.rate, format, start, stop);
         return TRUE;
     }
+    case GST_QUERY_DURATION:
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            return FALSE;
+        }
+        GstFormat fmt;
+        int64_t duration{-1};
+        gst_query_parse_duration(query, &fmt, NULL);
+        if (GST_FORMAT_TIME != fmt || !client->getDuration(duration))
+        {
+            return FALSE;
+        }
+        gst_query_set_duration(query, fmt, duration);
+        return TRUE;
+    }
     default:
         break;
     }
