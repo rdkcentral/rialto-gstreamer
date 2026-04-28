@@ -455,14 +455,37 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         {
         case GST_FORMAT_TIME:
         {
-            gint64 position = client->getPosition(m_sourceId);
-            GST_DEBUG_OBJECT(m_sink, "Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
+            //gint64 position = client->getPosition(m_sourceId);
+            // Debug purpose
+            GST_WARNING_OBJECT(m_sink, "VIDHATHRI Position query requested (GST_FORMAT_TIME)");
+            int64_t position{0};
+            if (!client->getLivePosition(position))
+            {
+                // fallback to stale cache if live IPC fails
+                GST_WARNING_OBJECT(m_sink, "VIDHATHRI Live position query failed, using cached position");
+                position = client->getPosition(m_sourceId);
+                GST_WARNING_OBJECT(m_sink,
+                                 "VIDHATHRI Cached position returned: %" GST_TIME_FORMAT,
+                                 GST_TIME_ARGS(position));
+            }
+            else
+            {
+                GST_WARNING_OBJECT(m_sink,
+                                 "VIDHATHRI Live position returned: %" GST_TIME_FORMAT,
+                                 GST_TIME_ARGS(position));
+            }// Debug end
+            GST_WARNING_OBJECT(m_sink, "VIDHATHRI Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
             if (position < 0)
             {
+                GST_WARNING_OBJECT(m_sink, "VIDHATHRI Invalid position received (%" G_GINT64_FORMAT "), returning FALSE", position);
                 return FALSE;
             }
 
             gst_query_set_position(query, fmt, position);
+            GST_WARNING_OBJECT(m_sink,
+                             "VIDHATHRI Position query answered: format=%d position=%" GST_TIME_FORMAT,
+                             fmt,
+                             GST_TIME_ARGS(position));
             break;
         }
         default:

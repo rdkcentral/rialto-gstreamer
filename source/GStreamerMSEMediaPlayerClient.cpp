@@ -169,6 +169,16 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
     return m_playbackInfo.currentPosition;
 }
 
+bool GStreamerMSEMediaPlayerClient::getLivePosition(int64_t &position)
+{
+    // Debug purpose
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+    return m_clientBackend->getPosition(position);  // live IPC to server
+}
+
 bool GStreamerMSEMediaPlayerClient::getDuration(int64_t &duration)
 {
     if (!m_clientBackend)
