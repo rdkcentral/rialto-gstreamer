@@ -147,6 +147,11 @@ void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<BufferUnderflowMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyFirstFrameReceived(int32_t sourceId)
+{
+    m_backendQueue->postMessage(std::make_shared<FirstFrameReceivedMessage>(sourceId, this));
+}
+
 void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error)
 {
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
@@ -1047,6 +1052,26 @@ bool GStreamerMSEMediaPlayerClient::handleBufferUnderflow(int sourceId)
     return result;
 }
 
+bool GStreamerMSEMediaPlayerClient::handleFirstFrameReceived(int sourceId)
+{
+    bool result = false;
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                result = false;
+                return;
+            }
+            rialto_mse_base_handle_rialto_server_sent_first_frame_received(sourceIt->second.m_rialtoSink);
+
+            result = true;
+        });
+
+    return result;
+}
+
 bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error)
 {
     bool result = false;
@@ -1267,6 +1292,19 @@ void BufferUnderflowMessage::handle()
     if (!m_player->handleBufferUnderflow(m_sourceId))
     {
         GST_ERROR("Failed to handle buffer underflow for sourceId=%d", m_sourceId);
+    }
+}
+
+FirstFrameReceivedMessage::FirstFrameReceivedMessage(int sourceId, GStreamerMSEMediaPlayerClient *player)
+    : m_sourceId(sourceId), m_player(player)
+{
+}
+
+void FirstFrameReceivedMessage::handle()
+{
+    if (!m_player->handleFirstFrameReceived(m_sourceId))
+    {
+        GST_ERROR("Failed to handle first frame received for sourceId=%d", m_sourceId);
     }
 }
 
