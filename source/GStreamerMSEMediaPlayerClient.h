@@ -248,7 +248,7 @@ public:
     GStreamerMSEMediaPlayerClient(
         const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
         const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
-        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
+        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;
@@ -360,4 +360,5 @@ private:
 
     const uint32_t m_maxWidth;
     const uint32_t m_maxHeight;
+    const bool m_isLive;
 };

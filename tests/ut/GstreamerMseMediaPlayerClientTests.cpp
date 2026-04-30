@@ -69,6 +69,7 @@ constexpr int32_t kStreamSyncMode{1};
 constexpr uint32_t kBufferingLimit{12384};
 constexpr bool kUseBuffering{true};
 constexpr uint64_t kStopPosition{234};
+constexpr bool kIsLive{false};
 
 MATCHER_P(PtrMatcher, ptr, "")
 {
@@ -99,7 +100,7 @@ public:
         EXPECT_CALL(m_messageQueueMock, start());
         EXPECT_CALL(m_messageQueueMock, stop());
         m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, m_mediaPlayerClientBackendMock,
-                                                                kMaxVideoWidth, kMaxVideoHeight);
+                                                                kMaxVideoWidth, kMaxVideoHeight, kIsLive);
     }
 
     ~GstreamerMseMediaPlayerClientTests() override = default;
@@ -694,7 +695,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToLoad)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, isMediaPlayerBackendCreated()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl, kIsLive)).WillOnce(Return(false));
     expectCallInEventLoop();
     EXPECT_FALSE(m_sut->createBackend());
 }
@@ -703,7 +704,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCreateBackend)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, isMediaPlayerBackendCreated()).WillOnce(Return(true));
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, load(kMediaType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     expectCallInEventLoop();
     EXPECT_TRUE(m_sut->createBackend());
 }
@@ -1327,7 +1328,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetReportDecodeErrorsIfNoCli
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     const int32_t kVideoSourceId = 1;
     EXPECT_FALSE(m_sut->setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors));
@@ -1357,7 +1358,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetImmediateOutputIfNoClient
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     const int32_t kAudioSourceId = 1;
     EXPECT_FALSE(m_sut->setImmediateOutput(kAudioSourceId, kImmediateOutput));
@@ -1391,7 +1392,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetImmediateOutputIfNoClient
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     const int32_t kAudioSourceId = 1;
     bool immediateOutput = false;
@@ -1426,7 +1427,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetQueuedFramesIfNoClientBac
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     const int32_t kVideoSourceId = 1;
     uint32_t queuedFrames = 0;
@@ -1450,7 +1451,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetLowLatencyIfNoClientBacke
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     EXPECT_FALSE(m_sut->setLowLatency(kLowLatency));
 }
@@ -1472,7 +1473,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncIfNoClientBackend)
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     EXPECT_FALSE(m_sut->setSync(kSync));
 }
@@ -1497,7 +1498,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetSyncIfNoClientBackend)
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     bool sync = false;
     EXPECT_FALSE(m_sut->getSync(sync));
@@ -1520,7 +1521,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncOffIfNoClientBackend)
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     EXPECT_FALSE(m_sut->setSyncOff(kSyncOff));
 }
@@ -1549,7 +1550,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientB
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     EXPECT_FALSE(m_sut->setStreamSyncMode(kUnknownSourceId, kStreamSyncMode));
 }
@@ -1575,7 +1576,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetStreamSyncModeIfNoClientB
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     int32_t streamSyncMode = 0;
     EXPECT_FALSE(m_sut->getStreamSyncMode(streamSyncMode));
@@ -1794,7 +1795,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToGetDurationIfNoClientBack
     EXPECT_CALL(messageQueueMock, start());
     EXPECT_CALL(messageQueueMock, stop());
     m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
-                                                            kMaxVideoHeight);
+                                                            kMaxVideoHeight, kIsLive);
 
     int64_t duration{-1};
     EXPECT_FALSE(m_sut->getDuration(duration));

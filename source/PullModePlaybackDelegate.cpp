@@ -929,7 +929,7 @@ bool PullModePlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint
                                                                       const uint32_t maxVideoHeight)
 {
     GstObject *parentObject = getOldestGstBinParent(m_sink);
-    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
+    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight, isLiveLatencyEnabled()))
     {
         GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient");
         return false;
@@ -1022,6 +1022,24 @@ bool PullModePlaybackDelegate::setStreamsNumber(GstObject *parentObject)
     client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
 
     return true;
+}
+
+bool PullModePlaybackDelegate::isLiveLatencyEnabled() const
+{
+    GstContext *context = gst_element_get_context(m_sink, "streams-info");
+    if (context)
+    {
+        GST_DEBUG_OBJECT(m_sink, "Checking if live latency is enabled from \"streams-info\" context");
+
+        gboolean isEnabled{FALSE};
+
+        const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        gst_structure_get_boolean(streamsInfoStructure, "enable-live-latency", &isEnabled);
+
+        gst_context_unref(context);
+        return isEnabled != FALSE;
+    }
+    return false;
 }
 
 GstSample *PullModePlaybackDelegate::getLastSample() const
