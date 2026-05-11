@@ -138,6 +138,7 @@ void PullModePlaybackDelegate::handleFlushCompleted()
     GST_INFO_OBJECT(m_sink, "Flush completed");
     std::unique_lock<std::mutex> lock(m_sinkMutex);
     m_isServerFlushOngoing = false;
+    m_isTimeResetOngoing = false;
 }
 
 void PullModePlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
@@ -447,6 +448,14 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         if (!client)
         {
             return FALSE;
+        }
+        {
+            std::unique_lock<std::mutex> lock(m_sinkMutex);
+            if (m_isServerFlushOngoing && m_isTimeResetOngoing)
+            {
+                GST_WARNING_OBJECT(m_sink, "Position query during server flush and time reset, returning FALSE");
+                return FALSE;
+            }
         }
 
         GstFormat fmt;
@@ -831,6 +840,7 @@ void PullModePlaybackDelegate::flushServer(bool resetTime)
     {
         std::unique_lock<std::mutex> lock(m_sinkMutex);
         m_isServerFlushOngoing = true;
+        m_isTimeResetOngoing = true;
     }
     client->flush(m_sourceId, resetTime);
 }
