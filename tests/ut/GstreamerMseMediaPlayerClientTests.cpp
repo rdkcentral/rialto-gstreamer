@@ -88,6 +88,20 @@ void underflowSignalCallback(GstElement *, gpointer, guint, gpointer)
     UnderflowSignalMock::instance().callbackCalled();
 }
 
+class FirstFrameReceivedSignalMock
+{
+public:
+    static FirstFrameReceivedSignalMock &instance()
+    {
+        static FirstFrameReceivedSignalMock instance;
+        return instance;
+    }
+    MOCK_METHOD(void, callbackCalled, (), (const));
+};
+void firstFrameReceivedSignalCallback(GstElement *, gpointer, guint, gpointer)
+{
+    FirstFrameReceivedSignalMock::instance().callbackCalled();
+}
 } // namespace
 
 class GstreamerMseMediaPlayerClientTests : public RialtoGstTest
@@ -626,6 +640,31 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhen
     expectCallInEventLoop();
     expectPostMessage();
     m_sut->notifyBufferUnderflow(kUnknownSourceId);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstFrameReceived)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    g_signal_connect(videoSink, "first-video-frame-callback", G_CALLBACK(firstFrameReceivedSignalCallback), nullptr);
+
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
+
+    expectPostMessage();
+    // No mutex/cv needed, signal emission is synchronous
+    EXPECT_CALL(FirstFrameReceivedSignalMock::instance(), callbackCalled());
+    m_sut->notifyFirstFrameReceived(kSourceId);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyFirstFrameReceivedWhenSourceIdIsNotKnown)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->notifyFirstFrameReceived(kUnknownSourceId);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDecryptionPlaybackError)
