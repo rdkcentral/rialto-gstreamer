@@ -524,48 +524,44 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
         GstSeekFlags flags{GST_SEEK_FLAG_NONE};
         GstSeekType startType{GST_SEEK_TYPE_NONE}, stopType{GST_SEEK_TYPE_NONE};
         gint64 start{0}, stop{0};
-        if (event)
-        {
-            gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
+        gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
 
-            if (flags & GST_SEEK_FLAG_FLUSH)
+        if (flags & GST_SEEK_FLAG_FLUSH)
+        {
+            if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
             {
-                if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
-                {
-                    GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
-                    gst_event_unref(event);
-                    return FALSE;
-                }
-                // Update last segment
-                if (seekFormat == GST_FORMAT_TIME)
-                {
-                    gboolean update{FALSE};
-                    std::lock_guard<std::mutex> lock(m_sinkMutex);
-                    gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
-                                        &update);
-                }
-            }
-#if GST_CHECK_VERSION(1, 18, 0)
-            else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
-            {
-                gdouble rateMultiplier = rate / m_lastSegment.rate;
-                GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
-                gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
-                gst_event_unref(event);
-                if (gst_pad_send_event(m_sinkPad, rateChangeEvent) != TRUE)
-                {
-                    GST_ERROR_OBJECT(m_sink, "Sending instant rate change failed.");
-                    return FALSE;
-                }
-                return TRUE;
-            }
-#endif
-            else
-            {
-                GST_WARNING_OBJECT(m_sink, "Seek with flags 0x%X is not supported", flags);
+                GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
                 gst_event_unref(event);
                 return FALSE;
             }
+            // Update last segment
+            if (seekFormat == GST_FORMAT_TIME)
+            {
+                gboolean update{FALSE};
+                std::lock_guard<std::mutex> lock(m_sinkMutex);
+                gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop, &update);
+            }
+        }
+#if GST_CHECK_VERSION(1, 18, 0)
+        else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
+        {
+            gdouble rateMultiplier = rate / m_lastSegment.rate;
+            GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
+            gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
+            gst_event_unref(event);
+            if (gst_pad_send_event(m_sinkPad, rateChangeEvent) != TRUE)
+            {
+                GST_ERROR_OBJECT(m_sink, "Sending instant rate change failed.");
+                return FALSE;
+            }
+            return TRUE;
+        }
+#endif
+        else
+        {
+            GST_WARNING_OBJECT(m_sink, "Seek with flags 0x%X is not supported", flags);
+            gst_event_unref(event);
+            return FALSE;
         }
         break;
     }
