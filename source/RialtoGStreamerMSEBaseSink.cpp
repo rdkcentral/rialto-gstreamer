@@ -55,7 +55,7 @@ enum
 enum
 {
     SIGNAL_UNDERFLOW,
-    SIGNAL_FIRST_FRAME_RECEIVED,
+    SIGNAL_FIRST_VIDEO_FRAME_RECEIVED,
     SIGNAL_LAST
 };
 
@@ -260,10 +260,10 @@ void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSin
     g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0, 0, nullptr);
 }
 
-void rialto_mse_base_handle_rialto_server_sent_first_frame_received(RialtoMSEBaseSink *sink)
+void rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(RialtoMSEBaseSink *sink)
 {
     GST_INFO_OBJECT(sink, "Sending first frame received signal");
-    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_FRAME_RECEIVED], 0, 0, nullptr);
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED], 0, 0, nullptr);
 }
 
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
@@ -334,10 +334,10 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
                                                G_TYPE_POINTER);
-    g_signals[SIGNAL_FIRST_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
-                                                          (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
-                                                          g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
-                                                          G_TYPE_UINT, G_TYPE_POINTER);
+    g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
+                                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
+                                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
+                                                                G_TYPE_UINT, G_TYPE_POINTER);
     g_object_class_install_property(gobjectClass, PROP_IS_SINGLE_PATH_STREAM,
                                     g_param_spec_boolean("single-path-stream", "single path stream",
                                                          "is single path stream", FALSE, GParamFlags(G_PARAM_READWRITE)));
