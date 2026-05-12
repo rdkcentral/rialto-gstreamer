@@ -77,7 +77,11 @@ PullModePlaybackDelegate::PullModePlaybackDelegate(GstElement *sink) : m_sink{si
 {
     RialtoMSEBaseSink *baseSink = RIALTO_MSE_BASE_SINK(sink);
     m_sinkPad = baseSink->priv->m_sinkPad;
-    m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+    m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>(
+        [baseSink]() {
+            rialto_mse_base_handle_rialto_server_sent_unknown_state(baseSink);
+        }
+    );
     gst_segment_init(&m_lastSegment, GST_FORMAT_TIME);
 }
 
