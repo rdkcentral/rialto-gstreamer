@@ -35,7 +35,8 @@ public:
     virtual bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) = 0;
     virtual bool removeSource(int32_t id) = 0;
     virtual bool allSourcesAttached() = 0;
-    virtual bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) = 0;
+    virtual bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url,
+                      bool isLive) = 0;
     virtual bool play(bool &async) = 0;
     virtual bool pause() = 0;
     virtual bool stop() = 0;
@@ -48,9 +49,7 @@ public:
     virtual bool getPosition(int64_t &position) = 0;
     virtual bool getDuration(int64_t &duration) = 0;
     virtual bool setImmediateOutput(int32_t sourceId, bool immediateOutput) = 0;
-    virtual bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors) = 0;
     virtual bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) = 0;
-    virtual bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames) = 0;
     virtual bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) = 0;
     virtual bool renderFrame() = 0;
     virtual bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) = 0;

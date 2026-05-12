@@ -34,7 +34,8 @@ public:
                 (override));
     MOCK_METHOD(bool, removeSource, (int32_t id), (override));
     MOCK_METHOD(bool, allSourcesAttached, (), (override));
-    MOCK_METHOD(bool, load, (firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url),
+    MOCK_METHOD(bool, load,
+                (firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url, bool isLive),
                 (override));
     MOCK_METHOD(bool, play, (bool &async), (override));
     MOCK_METHOD(bool, pause, (), (override));
@@ -49,10 +50,8 @@ public:
                 (override));
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
     MOCK_METHOD(bool, getDuration, (int64_t & duration), (override));
-    MOCK_METHOD(bool, setReportDecodeErrors, (int32_t sourceId, bool reportDecodeErrors), (override));
     MOCK_METHOD(bool, setImmediateOutput, (int32_t sourceId, bool immediateOutput), (override));
     MOCK_METHOD(bool, getImmediateOutput, (int32_t sourceId, bool &immediateOutput), (override));
-    MOCK_METHOD(bool, getQueuedFrames, (int32_t sourceId, uint32_t &queuedFrames), (override));
     MOCK_METHOD(bool, getStats, (int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames), (override));
     MOCK_METHOD(bool, renderFrame, (), (override));
     MOCK_METHOD(bool, setVolume, (double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType type),

@@ -36,7 +36,8 @@ class MediaPipelineMock : public IMediaPipeline
 {
 public:
     MOCK_METHOD(std::weak_ptr<IMediaPipelineClient>, getClient, (), (override));
-    MOCK_METHOD(bool, load, (MediaType type, const std::string &mimeType, const std::string &url), (override));
+    MOCK_METHOD(bool, load, (MediaType type, const std::string &mimeType, const std::string &url, bool isLive),
+                (override));
     MOCK_METHOD(bool, attachSource, (const std::unique_ptr<MediaSource> &source), (override));
     MOCK_METHOD(bool, removeSource, (int32_t id), (override));
     MOCK_METHOD(bool, allSourcesAttached, (), (override));
@@ -46,10 +47,8 @@ public:
     MOCK_METHOD(bool, setPlaybackRate, (double rate), (override));
     MOCK_METHOD(bool, setPosition, (int64_t position), (override));
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
-    MOCK_METHOD(bool, setReportDecodeErrors, (int32_t sourceId, bool reportDecodeErrors), (override));
     MOCK_METHOD(bool, setImmediateOutput, (int32_t sourceId, bool immediateOutput), (override));
     MOCK_METHOD(bool, getImmediateOutput, (int32_t sourceId, bool &immediateOutput), (override));
-    MOCK_METHOD(bool, getQueuedFrames, (int32_t sourceId, uint32_t &queuedFrames), (override));
     MOCK_METHOD(bool, getStats, (int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames), (override));
     MOCK_METHOD(bool, setVideoWindow, (uint32_t x, uint32_t y, uint32_t width, uint32_t height), (override));
     MOCK_METHOD(bool, haveData, (MediaSourceStatus status, uint32_t needDataRequestId), (override));

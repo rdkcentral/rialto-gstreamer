@@ -58,9 +58,9 @@ public:
 
     bool allSourcesAttached() override { return m_mediaPlayerBackend->allSourcesAttached(); }
 
-    bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) override
+    bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url, bool isLive) override
     {
-        return m_mediaPlayerBackend->load(type, mimeType, url);
+        return m_mediaPlayerBackend->load(type, mimeType, url, isLive);
     }
 
     bool play(bool &async) override { return m_mediaPlayerBackend->play(async); }
@@ -92,19 +92,9 @@ public:
         return m_mediaPlayerBackend->setImmediateOutput(sourceId, immediateOutput);
     }
 
-    bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors) override
-    {
-        return m_mediaPlayerBackend->setReportDecodeErrors(sourceId, reportDecodeErrors);
-    }
-
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) override
     {
         return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);
-    }
-
-    bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames) override
-    {
-        return m_mediaPlayerBackend->getQueuedFrames(sourceId, queuedFrames);
     }
 
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override

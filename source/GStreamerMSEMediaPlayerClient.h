@@ -248,7 +248,7 @@ public:
     GStreamerMSEMediaPlayerClient(
         const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
         const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
-        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
+        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;
@@ -270,9 +270,7 @@ public:
     int64_t getPosition(int32_t sourceId);
     bool getDuration(int64_t &duration);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
-    bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors);
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
-    bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
 
     firebolt::rialto::AddSegmentStatus
@@ -360,4 +358,5 @@ private:
 
     const uint32_t m_maxWidth;
     const uint32_t m_maxHeight;
+    const bool m_isLive;
 };
