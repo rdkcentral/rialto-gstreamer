@@ -21,6 +21,7 @@
 #include <condition_variable>
 #include <gst/gst.h>
 #include <mutex>
+#include <functional>
 
 #include "ControlBackendInterface.h"
 #include "IControl.h"
@@ -45,9 +46,11 @@ class ControlBackend final : public ControlBackendInterface
     };
 
 public:
-    ControlBackend()
-        : m_rialtoClientState{ApplicationState::UNKNOWN}, m_controlClient{std::make_shared<ControlClient>(*this)},
-          m_control{IControlFactory::createFactory()->createControl()}
+    explicit ControlBackend(std::function<void()> unknownStateCb = nullptr)
+        : m_rialtoClientState{ApplicationState::UNKNOWN},
+          m_controlClient{std::make_shared<ControlClient>(*this)},
+          m_control{IControlFactory::createFactory()->createControl()},
+          m_unknownStateCb(unknownStateCb)
     {
         if (!m_control)
         {
@@ -82,9 +85,16 @@ private:
     {
         GST_INFO("Rialto Client application state changed to: %s",
                  state == ApplicationState::RUNNING ? "Active" : "Inactive/Unknown");
-        std::unique_lock<std::mutex> lock{m_mutex};
-        m_rialtoClientState = state;
-        m_stateCv.notify_one();
+        {
+            std::unique_lock<std::mutex> lock{m_mutex};
+            m_rialtoClientState = state;
+            m_stateCv.notify_one();
+        }
+
+        if (state == ApplicationState::UNKNOWN && m_unknownStateCb)
+        {
+            m_unknownStateCb();
+        }
     }
 
 private:
@@ -93,5 +103,6 @@ private:
     std::shared_ptr<IControl> m_control;
     std::mutex m_mutex;
     std::condition_variable m_stateCv;
+    std::function<void()> m_unknownStateCb;
 };
 } // namespace firebolt::rialto::client
