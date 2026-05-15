@@ -750,11 +750,13 @@ bool GStreamerMSEMediaPlayerClient::renderFrame(int32_t sourceId)
             if (result)
             {
                 // RialtoServer's video sink should drop PAUSED state due to skipping prerolled buffer in PAUSED state
+#if 0
                 auto sourceIt = m_attachedSources.find(sourceId);
                 if (sourceIt != m_attachedSources.end())
                 {
                     sourceIt->second.m_delegate->lostState();
                 }
+#endif                
             }
         });
     return result;
