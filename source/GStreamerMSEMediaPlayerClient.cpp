@@ -1048,7 +1048,7 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 return;
             }
 
-            // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
+            // Even though rialto has only reported a non-fatal error
             GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
                       toString(sourceIt->second.getType()));
             if (firebolt::rialto::PlaybackError::DECRYPTION == error)
