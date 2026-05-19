@@ -21,7 +21,6 @@
 #include <condition_variable>
 #include <gst/gst.h>
 #include <mutex>
-#include <functional>
 
 #include "ControlBackendInterface.h"
 #include "IControl.h"
@@ -33,24 +32,32 @@ class ControlBackend final : public ControlBackendInterface
     class ControlClient : public IControlClient
     {
     public:
-        explicit ControlClient(ControlBackend &backend) : mBackend{backend} {}
+        explicit ControlClient(ControlBackend &backend, std::weak_ptr<IControlClient> client)
+            : mBackend{backend}, mClient{std::move(client)}
+        {
+        }
         ~ControlClient() override = default;
         void notifyApplicationState(ApplicationState state) override
         {
             GST_INFO("ApplicationStateChanged received by rialto sink");
             mBackend.onApplicationStateChanged(state);
+
+            if (auto client = mClient.lock())
+            {
+                client->notifyApplicationState(state);
+            }
         }
 
     private:
         ControlBackend &mBackend;
+        std::weak_ptr<IControlClient> mClient;
     };
 
 public:
-    explicit ControlBackend(std::function<void()> unknownStateCb = nullptr)
+    explicit ControlBackend(std::weak_ptr<IControlClient> controlClient = {})
         : m_rialtoClientState{ApplicationState::UNKNOWN},
-          m_controlClient{std::make_shared<ControlClient>(*this)},
-          m_control{IControlFactory::createFactory()->createControl()},
-          m_unknownStateCb(unknownStateCb)
+          m_controlClient{std::make_shared<ControlClient>(*this, std::move(controlClient))},
+          m_control{IControlFactory::createFactory()->createControl()}
     {
         if (!m_control)
         {
@@ -90,11 +97,6 @@ private:
             m_rialtoClientState = state;
             m_stateCv.notify_one();
         }
-
-        if (state == ApplicationState::UNKNOWN && m_unknownStateCb)
-        {
-            m_unknownStateCb();
-        }
     }
 
 private:
@@ -103,6 +105,5 @@ private:
     std::shared_ptr<IControl> m_control;
     std::mutex m_mutex;
     std::condition_variable m_stateCv;
-    std::function<void()> m_unknownStateCb;
 };
 } // namespace firebolt::rialto::client

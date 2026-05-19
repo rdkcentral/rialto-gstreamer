@@ -69,6 +69,5 @@ gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *ev
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);
-void rialto_mse_base_handle_rialto_server_sent_unknown_state(RialtoMSEBaseSink *sink);
 
 G_END_DECLS

@@ -75,14 +75,16 @@ bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio
 
 PullModePlaybackDelegate::PullModePlaybackDelegate(GstElement *sink) : m_sink{sink}
 {
-    RialtoMSEBaseSink *baseSink = RIALTO_MSE_BASE_SINK(sink);
-    m_sinkPad = baseSink->priv->m_sinkPad;
-    m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>(
-        [baseSink]() {
-            rialto_mse_base_handle_rialto_server_sent_unknown_state(baseSink);
-        }
-    );
+    m_sinkPad = RIALTO_MSE_BASE_SINK(sink)->priv->m_sinkPad;
     gst_segment_init(&m_lastSegment, GST_FORMAT_TIME);
+}
+
+void PullModePlaybackDelegate::createControlBackend()
+{
+    if (!m_rialtoControlClient)
+    {
+        m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>(shared_from_this());
+    }
 }
 
 PullModePlaybackDelegate::~PullModePlaybackDelegate()
@@ -313,6 +315,15 @@ void PullModePlaybackDelegate::handleError(const std::string &message, gint code
     gst_element_post_message(GST_ELEMENT_CAST(m_sink),
                              gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message.c_str()));
     g_error_free(gError);
+}
+
+void PullModePlaybackDelegate::notifyApplicationState(firebolt::rialto::ApplicationState state)
+{
+    if (state == firebolt::rialto::ApplicationState::UNKNOWN)
+    {
+        GST_WARNING_OBJECT(m_sink, "Rialto control sent unknown application state");
+        handleError("Rialto client reached unknown application state");
+    }
 }
 
 void PullModePlaybackDelegate::postAsyncStart()

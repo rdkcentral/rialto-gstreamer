@@ -25,6 +25,7 @@ using testing::_;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
+using testing::SaveArg;
 using testing::SetArgReferee;
 
 namespace
@@ -271,6 +272,66 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldPostErrorWhenControlReportsUnknownApplicationState)
+{
+    std::weak_ptr<firebolt::rialto::IControlClient> weakControlClient;
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&weakControlClient), SetArgReferee<1>(firebolt::rialto::ApplicationState::RUNNING),
+                        Return(true)));
+
+    GstElement *audioSinkElement = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSinkElement, GST_STATE_READY));
+    auto *audioSink = RIALTO_MSE_BASE_SINK(audioSinkElement);
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    auto controlClient = weakControlClient.lock();
+    ASSERT_TRUE(controlClient);
+
+    controlClient->notifyApplicationState(firebolt::rialto::ApplicationState::UNKNOWN);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    ASSERT_NE(receivedMessage, nullptr);
+
+    GError *err = nullptr;
+    gchar *debug = nullptr;
+    gst_message_parse_error(receivedMessage, &err, &debug);
+    EXPECT_EQ(err->domain, GST_STREAM_ERROR);
+    EXPECT_EQ(err->code, 0);
+    EXPECT_NE(err->message, nullptr);
+    EXPECT_NE(debug, nullptr);
+
+    g_free(debug);
+    g_error_free(err);
+    gst_message_unref(receivedMessage);
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldNotPostErrorWhenControlReportsRunningApplicationState)
+{
+    std::weak_ptr<firebolt::rialto::IControlClient> weakControlClient;
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&weakControlClient), SetArgReferee<1>(firebolt::rialto::ApplicationState::RUNNING),
+                        Return(true)));
+
+    GstElement *audioSinkElement = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSinkElement, GST_STATE_READY));
+    auto *audioSink = RIALTO_MSE_BASE_SINK(audioSinkElement);
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    auto controlClient = weakControlClient.lock();
+    ASSERT_TRUE(controlClient);
+
+    controlClient->notifyApplicationState(firebolt::rialto::ApplicationState::RUNNING);
+    EXPECT_FALSE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetLastSample)

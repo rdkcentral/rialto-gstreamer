@@ -82,7 +82,8 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
         if (vsource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(m_sink), shared_from_this())))
+            if ((!client) || (!client->attachSource(vsource, RIALTO_MSE_BASE_SINK(m_sink),
+                                                    PullModePlaybackDelegate::shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach VIDEO source");
             }
