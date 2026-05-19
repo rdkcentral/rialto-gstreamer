@@ -615,6 +615,13 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
     {
         copySegment(event);
         setSegment();
+        // FIX: sendAllSourcesAttachedIfPossible() MUST be called AFTER
+        //      setSegment() so that when RialtoServer sends first NeedData
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (client)
+        {
+            client->sendAllSourcesAttachedIfPossible();
+        }
         break;
     }
     case GST_EVENT_EOS:
@@ -715,7 +722,9 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
         }
         gst_object_unref(streamCollection);
         client->handleStreamCollection(audioStreams, videoStreams, textStreams);
-        client->sendAllSourcesAttachedIfPossible();
+        //client->sendAllSourcesAttachedIfPossible();
+        gst_object_unref(streamCollection);
+        client->handleStreamCollection(audioStreams, videoStreams, textStreams);
         break;
     }
 #if GST_CHECK_VERSION(1, 18, 0)
