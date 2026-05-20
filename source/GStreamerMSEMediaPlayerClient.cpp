@@ -775,8 +775,11 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
     std::unique_lock lock{m_playbackInfoMutex};
-    volume = m_playbackInfo.volume;
-    return true;
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getVolume(volume); });
+
+    GST_ERROR(" Volume Query : %f", volume);
+    return status;
 }
 
 void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
