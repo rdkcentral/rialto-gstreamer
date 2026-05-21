@@ -51,7 +51,7 @@ private:
     bool m_immediateOutputQueued{false};
     bool m_syncmodeStreaming{false};
     bool m_syncmodeStreamingQueued{false};
-    bool m_videoMute{false};
+    bool m_videoMute{true};
     bool m_videoMuteQueued{false};
     // END of variables locked by propertyMutex
 };
