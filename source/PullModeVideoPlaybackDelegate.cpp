@@ -120,6 +120,13 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                     m_videoMuteQueued = false;
                     client->setMute(m_videoMute, m_sourceId);
                 }
+                else if (m_videoMute)
+                {
+                  // Default mute state is true — ensure server-side mute is applied
+                  // even if no explicit property set has been received yet
+                  GST_DEBUG_OBJECT(m_sink, "Applying default video mute on source attach");
+                  client->setMute(true, m_sourceId);
+                }
             }
         }
         else
