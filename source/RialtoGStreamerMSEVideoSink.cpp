@@ -276,7 +276,7 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                 g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
                                                 g_param_spec_boolean(kShowVideoWindowPropertyName.c_str(),
                                                                      "make video window visible",
-                                                                     "true: visible, false: hidden", TRUE,
+                                                                     "true: visible, false: hidden", FALSE,
                                                                      G_PARAM_WRITABLE));
             }
         }
