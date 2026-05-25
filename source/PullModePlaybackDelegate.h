@@ -87,6 +87,7 @@ protected:
     std::atomic<bool> m_segmentSet{false};
     std::atomic<bool> m_isSinkFlushOngoing{false};
     bool m_isServerFlushOngoing{false};
+    bool m_isTimeResetOngoing{false};
     std::atomic<bool> m_isStateCommitNeeded{false};
     mutable std::mutex m_sinkMutex{};
 
