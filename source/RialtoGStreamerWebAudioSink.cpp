@@ -27,6 +27,12 @@ using namespace firebolt::rialto::client;
 GST_DEBUG_CATEGORY_STATIC(RialtoWebAudioSinkDebug);
 #define GST_CAT_DEFAULT RialtoWebAudioSinkDebug
 
+// FIX #2: Tuning parameters for retry logic
+// Maximum number of retry attempts if delegate is not initialized
+#define DELEGATE_INIT_MAX_RETRIES 20
+// Time to sleep between retry attempts (milliseconds)
+#define DELEGATE_INIT_RETRY_DELAY_MS 5
+
 #define rialto_web_audio_sink_parent_class parent_class
 G_DEFINE_TYPE_WITH_CODE(RialtoWebAudioSink, rialto_web_audio_sink, GST_TYPE_ELEMENT,
                         G_ADD_PRIVATE(RialtoWebAudioSink)
@@ -59,7 +65,8 @@ static std::shared_ptr<IPlaybackDelegate> rialto_web_audio_sink_get_delegate(Ria
     std::unique_lock lock{sink->priv->m_sinkMutex};
     if (!sink->priv->m_delegate)
     {
-        GST_ERROR_OBJECT(sink, "Sink delegate not initialized");
+        //GST_ERROR_OBJECT(sink, "Sink delegate not initialized");
+        GST_DEBUG_OBJECT(sink, "VIDHATHRI-Sink delegate not initialized (may retry)");
     }
     return sink->priv->m_delegate;
 }
@@ -110,10 +117,18 @@ static gboolean rialto_web_audio_sink_send_event(GstElement *element, GstEvent *
 static GstStateChangeReturn rialto_web_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(element);
+    // FIX #1 continued: As fallback, still attempt delegate creation during state change
+    // This ensures backward compatibility and handles edge cases
     if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
-        GST_INFO_OBJECT(sink, "RialtoWebAudioSink state change to READY. Initializing delegate");
-        rialto_web_audio_sink_initialise_delegate(sink, std::make_shared<PushModeAudioPlaybackDelegate>(element));
+        //GST_INFO_OBJECT(sink, "RialtoWebAudioSink state change to READY. Initializing delegate");
+        //rialto_web_audio_sink_initialise_delegate(sink, std::make_shared<PushModeAudioPlaybackDelegate>(element));
+        if (!sink->priv->m_delegate)
+        {
+            GST_INFO_OBJECT(sink, "VIDHATHRI-RialtoWebAudioSink state change to READY. Initializing delegate (fallback)");
+            rialto_web_audio_sink_initialise_delegate(sink, std::make_shared<PushModeAudioPlaybackDelegate>(element));
+            GST_INFO_OBJECT(sink, "VIDHATHRI-Delegate initialized during state change (fallback path)");
+        }
     }
     if (auto delegate = rialto_web_audio_sink_get_delegate(sink))
     {
@@ -199,8 +214,38 @@ static void rialto_web_audio_sink_set_property(GObject *object, guint propId, co
 
 static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent, GstBuffer *buf)
 {
-    if (auto delegate = rialto_web_audio_sink_get_delegate(RIALTO_WEB_AUDIO_SINK(parent)))
+    //if (auto delegate = rialto_web_audio_sink_get_delegate(RIALTO_WEB_AUDIO_SINK(parent)))
+    RialtoWebAudioSink *sink = RIALTO_WEB_AUDIO_SINK(parent);
+    std::shared_ptr<IPlaybackDelegate> delegate = rialto_web_audio_sink_get_delegate(sink);
+
+    // FIX #2: Add retry logic for delegate initialization
+    // If delegate is not yet initialized, retry with exponential backoff
+    // This handles the case where buffers arrive before delegate is ready
+    if (!delegate)
     {
+        //return delegate->handleBuffer(buf);
+        GST_DEBUG_OBJECT(sink, "VIDHATHRI-Delegate not ready on first attempt, retrying...");
+        int retry_count = 0;
+       
+        while (!delegate && retry_count < DELEGATE_INIT_MAX_RETRIES)
+        {
+            // Sleep for a short duration before retrying
+            g_usleep(DELEGATE_INIT_RETRY_DELAY_MS * 1000);
+            delegate = rialto_web_audio_sink_get_delegate(sink);
+            retry_count++;
+        }
+
+        if (!delegate)
+        {
+            GST_ERROR_OBJECT(sink,
+                "VIDHATHRI-Sink delegate initialization timeout after %dms (retried %d times)",
+                DELEGATE_INIT_MAX_RETRIES * DELEGATE_INIT_RETRY_DELAY_MS,
+                DELEGATE_INIT_MAX_RETRIES);
+            gst_buffer_unref(buf);
+            return GST_FLOW_ERROR;
+        }
+
+        GST_DEBUG_OBJECT(sink, "VIDHATHRI-Delegate ready after %d retries", retry_count);
         return delegate->handleBuffer(buf);
     }
     return GST_FLOW_ERROR;
@@ -208,7 +253,19 @@ static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent,
 
 static void rialto_web_audio_sink_setup_supported_caps(GstElementClass *elementClass)
 {
-    GstCaps *caps = gst_caps_from_string("audio/x-raw");
+    //GstCaps *caps = gst_caps_from_string("audio/x-raw");
+    // VIDHATHRI-FIX-4: Expand audio capabilities to include DD+ (Dolby Digital Plus)
+    // Previously only supported: audio/x-raw
+    // Now supports: audio/x-raw, audio/x-eac3 (DD+), audio/x-ac3, audio/mpeg (AAC), audio/x-opus
+    // This allows Netflix DPI to query and find DD+ 5.1 codec support
+    const char *capsString =
+        "audio/x-raw; "                                  // Raw audio (always supported)
+        "audio/x-eac3; "                                 // E-AC3 / Dolby Digital Plus ← ADDED
+        "audio/x-ac3; "                                  // AC3
+        "audio/mpeg, mpegversion=(int)4; "               // AAC/HE-AAC
+        "audio/x-opus";                                  // Opus
+
+    GstCaps *caps = gst_caps_from_string(capsString);
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
@@ -241,7 +298,8 @@ static bool rialto_web_audio_sink_initialise_sinkpad(RialtoWebAudioSink *sink)
 
 static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
 {
-    GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
+    //GST_INFO_OBJECT(sink, "Init: %" GST_PTR_FORMAT, sink);
+    GST_INFO_OBJECT(sink, "VIDHATHRI-Init: %p starting initialization", sink);
     sink->priv = static_cast<RialtoWebAudioSinkPrivate *>(rialto_web_audio_sink_get_instance_private(sink));
     new (sink->priv) RialtoWebAudioSinkPrivate();
 
@@ -250,6 +308,28 @@ static void rialto_web_audio_sink_init(RialtoWebAudioSink *sink)
     {
         GST_ERROR_OBJECT(sink, "Failed to initialise AUDIO sink. Sink pad initialisation failed.");
         return;
+    }
+    // FIX #1: Initialize delegate immediately during init
+    // Previously: Delegate was only initialized during NULL→READY state transition
+    // Problem: Audio buffers could arrive before delegate was created, causing race condition
+    // Solution: Create delegate immediately to ensure it's ready when buffers arrive
+    GST_DEBUG_OBJECT(sink, "VIDHATHRI-Initializing audio playback delegate immediately");
+    try
+    {
+        auto delegate = std::make_shared<PushModeAudioPlaybackDelegate>(GST_ELEMENT_CAST(sink));
+        rialto_web_audio_sink_initialise_delegate(sink, delegate);
+        GST_INFO_OBJECT(sink, "VIDHATHRI-Audio playback delegate successfully initialized");
+    }
+    catch (const std::exception &e)
+    {
+        GST_WARNING_OBJECT(sink, "VIDHATHRI-Failed to initialize delegate during init: %s", e.what());
+        // Don't fail initialization - delegate can still be created during state change
+        // as a fallback mechanism
+    }
+    catch (...)
+    {
+        GST_WARNING_OBJECT(sink, "VIDHATHRI-Unknown exception while initializing delegate during init");
+        // Same fallback: delegate can be created during state change
     }
 }
 

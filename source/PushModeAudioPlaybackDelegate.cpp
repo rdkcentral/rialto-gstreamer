@@ -107,6 +107,23 @@ GstStateChangeReturn PushModeAudioPlaybackDelegate::changeState(GstStateChange t
     GstState next_state = GST_STATE_TRANSITION_NEXT(transition);
     GST_INFO_OBJECT(m_sink, "State change: (%s) -> (%s)", gst_element_state_get_name(current_state),
                     gst_element_state_get_name(next_state));
+    // FIX #4: Add synchronization point for state transitions
+    // Ensure Rialto components are ready BEFORE transitioning to higher states
+    // This prevents race conditions during DRM→non-DRM transitions
+    if (next_state > GST_STATE_READY)
+    {
+        // For PAUSED and PLAYING states, ensure web audio client is initialized
+        if (!m_webAudioClient)
+        {
+            GST_ERROR_OBJECT(m_sink, "VIDHATHRI-Web audio client is not initialized (nullptr)");
+            return GST_STATE_CHANGE_FAILURE;
+        }
+
+        GST_DEBUG_OBJECT(m_sink,
+            "VIDHATHRI-Verifying web audio client is ready for state transition to %s",
+            gst_element_state_get_name(next_state));
+    }
+
 
     GstStateChangeReturn result = GST_STATE_CHANGE_SUCCESS;
     switch (transition)
@@ -114,22 +131,48 @@ GstStateChangeReturn PushModeAudioPlaybackDelegate::changeState(GstStateChange t
     case GST_STATE_CHANGE_NULL_TO_READY:
     {
         GST_DEBUG_OBJECT(m_sink, "GST_STATE_CHANGE_NULL_TO_READY");
+        
+        // FIX #4: Verify Rialto control backend is ready
+        if (!m_rialtoControlClient)
+        {
+            GST_ERROR_OBJECT(m_sink, "VIDHATHRI-Rialto control client is not initialized");
+            return GST_STATE_CHANGE_FAILURE;
+        }
 
         if (!m_rialtoControlClient->waitForRunning())
         {
             GST_ERROR_OBJECT(m_sink, "Rialto client cannot reach running state");
+            GST_ERROR_OBJECT(m_sink,
+                "VIDHATHRI-Rialto client cannot reach running state (timeout or failed)");
             result = GST_STATE_CHANGE_FAILURE;
         }
+        GST_INFO_OBJECT(m_sink, "VIDHATHRI-Rialto control client is ready");
+        result = GST_STATE_CHANGE_FAILURE;
         break;
     }
     case GST_STATE_CHANGE_READY_TO_PAUSED:
     {
-        GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
+        //GST_DEBUG("GST_STATE_CHANGE_READY_TO_PAUSED");
+        GST_DEBUG_OBJECT(m_sink, "GST_STATE_CHANGE_READY_TO_PAUSED");
+
+        // FIX #4: Ensure web audio client exists before transitioning
+        if (!m_webAudioClient)
+        {
+            GST_ERROR_OBJECT(m_sink, "VIDHATHRI-Web audio client not available for PAUSED transition");
+            return GST_STATE_CHANGE_FAILURE;
+        }
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
     {
         GST_DEBUG_OBJECT(m_sink, "GST_STATE_CHANGE_PAUSED_TO_PLAYING");
+        // FIX #4: Additional check before playing
+        if (!m_webAudioClient)
+        {
+            GST_ERROR_OBJECT(m_sink, "VIDHATHRI-Web audio client not available for PLAYING transition");
+            return GST_STATE_CHANGE_FAILURE;
+        }
+
         if (!m_webAudioClient->isOpen())
         {
             GST_INFO_OBJECT(m_sink, "Delay playing until the caps are recieved and the player is opened");
