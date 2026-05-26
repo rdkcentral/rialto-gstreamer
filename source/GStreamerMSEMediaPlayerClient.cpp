@@ -24,6 +24,8 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 
 #include <algorithm>
+#include <cinttypes>
+#include <cstdio>
 #include <chrono>
 #include <thread>
 
@@ -110,6 +112,9 @@ void GStreamerMSEMediaPlayerClient::notifyDuration(int64_t duration)
 
 void GStreamerMSEMediaPlayerClient::notifyPosition(int64_t position)
 {
+    fprintf(stderr,
+            "[Shibu][SEEK_TRACE][10] GStreamerMSEMediaPlayerClient::notifyPosition <- position notification from server, position=%" PRId64 "\n",
+            position);
     m_backendQueue->postMessage(std::make_shared<SetPositionMessage>(position, m_attachedSources));
 }
 
@@ -429,22 +434,66 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position, bool resetTime,
                                                       double appliedRate, uint64_t stopPosition)
 {
+    fprintf(stderr,
+        "[Shibu][SEEK_TRACE][5] GStreamerMSEMediaPlayerClient::setSourcePosition ENTER -> sourceId=%d, position=%" PRId64
+        ", resetTime=%s, appliedRate=%f, stopPosition=%" PRIu64 "\n",
+        sourceId, position, resetTime ? "true" : "false", appliedRate, stopPosition);
+
+    if (position == 0)
+    {
+    fprintf(stderr,
+        "[Shibu][SEEK_TRACE][WARN] setSourcePosition called with position=0 for sourceId=%d! "
+        "Seek target may have been lost upstream. resetTime=%s, appliedRate=%f\n",
+        sourceId, resetTime ? "true" : "false", appliedRate);
+    }
+
     m_backendQueue->callInEventLoop(
         [&]()
         {
+        fprintf(stderr,
+            "[Shibu][SEEK_TRACE][5a] setSourcePosition IN EVENT LOOP -> sourceId=%d, position=%" PRId64
+            " (verify lambda capture-by-ref is valid)\n",
+            sourceId, position);
+
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
                 GST_ERROR("Cannot Set Source Position - there's no attached source with id %d", sourceId);
+        fprintf(stderr,
+            "[Shibu][SEEK_TRACE][ERR] setSourcePosition -> No attached source found for sourceId=%d\n",
+            sourceId);
                 return;
             }
+
+        int64_t prevPosition = sourceIt->second.m_position;
+        fprintf(stderr,
+            "[Shibu][SEEK_TRACE][5b] setSourcePosition -> sourceId=%d, prevPosition=%" PRId64
+            ", newPosition=%" PRId64 ", delta=%" PRId64 "ns\n",
+            sourceId, prevPosition, position, (position - prevPosition));
+
+            fprintf(stderr,
+                    "[Shibu][SEEK_TRACE][6] GStreamerMSEMediaPlayerClient::setSourcePosition -> calling m_clientBackend->setSourcePosition\n");
+
             if (!m_clientBackend->setSourcePosition(sourceId, position, resetTime, appliedRate, stopPosition))
             {
                 GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
+        fprintf(stderr,
+            "[Shibu][SEEK_TRACE][ERR] m_clientBackend->setSourcePosition FAILED -> sourceId=%d, position=%" PRId64 "\n",
+            sourceId, position);
                 return;
             }
+
+        fprintf(stderr,
+            "[Shibu][SEEK_TRACE][6a] setSourcePosition SUCCESS -> sourceId=%d, position=%" PRId64
+            ", updated m_position from %" PRId64 "\n",
+            sourceId, position, prevPosition);
+
             sourceIt->second.m_position = position;
         });
+
+    fprintf(stderr,
+        "[Shibu][SEEK_TRACE][5c] GStreamerMSEMediaPlayerClient::setSourcePosition EXIT (event enqueued) -> sourceId=%d, position=%" PRId64 "\n",
+        sourceId, position);
 }
 
 void GStreamerMSEMediaPlayerClient::setSubtitleOffset(int32_t sourceId, int64_t position)

@@ -21,6 +21,7 @@
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
+#include <cstdio>
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
@@ -502,6 +503,7 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
     {
     case GST_EVENT_SEEK:
     {
+        fprintf(stderr, "[Shibu][SEEK_TRACE][4] PullModePlaybackDelegate::handleSendEvent -> GST_EVENT_SEEK received\n");
         gdouble rate{1.0};
         GstFormat seekFormat{GST_FORMAT_UNDEFINED};
         GstSeekFlags flags{GST_SEEK_FLAG_NONE};
