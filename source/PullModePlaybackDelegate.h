@@ -72,6 +72,7 @@ private:
     void stopFlushing(bool resetTime);
     void flushServer(bool resetTime);
     bool setStreamsNumber(GstObject *parentObject);
+    bool isLiveLatencyEnabled() const;
     GstSample *getLastSample() const;
     void setLastBuffer(GstBuffer *buffer);
 

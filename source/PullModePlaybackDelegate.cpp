@@ -487,6 +487,23 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         gst_query_set_segment(query, m_lastSegment.rate, format, start, stop);
         return TRUE;
     }
+    case GST_QUERY_DURATION:
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            return FALSE;
+        }
+        GstFormat fmt;
+        int64_t duration{-1};
+        gst_query_parse_duration(query, &fmt, NULL);
+        if (GST_FORMAT_TIME != fmt || !client->getDuration(duration))
+        {
+            return FALSE;
+        }
+        gst_query_set_duration(query, fmt, duration);
+        return TRUE;
+    }
     default:
         break;
     }
@@ -925,7 +942,7 @@ bool PullModePlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint
                                                                       const uint32_t maxVideoHeight)
 {
     GstObject *parentObject = getOldestGstBinParent(m_sink);
-    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
+    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight, isLiveLatencyEnabled()))
     {
         GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient");
         return false;
@@ -1018,6 +1035,24 @@ bool PullModePlaybackDelegate::setStreamsNumber(GstObject *parentObject)
     client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
 
     return true;
+}
+
+bool PullModePlaybackDelegate::isLiveLatencyEnabled() const
+{
+    GstContext *context = gst_element_get_context(m_sink, "streams-info");
+    if (context)
+    {
+        GST_DEBUG_OBJECT(m_sink, "Checking if live latency is enabled from \"streams-info\" context");
+
+        gboolean isEnabled{FALSE};
+
+        const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        gst_structure_get_boolean(streamsInfoStructure, "enable-live-latency", &isEnabled);
+
+        gst_context_unref(context);
+        return isEnabled != FALSE;
+    }
+    return false;
 }
 
 GstSample *PullModePlaybackDelegate::getLastSample() const

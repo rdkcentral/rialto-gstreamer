@@ -36,7 +36,8 @@ class MediaPipelineMock : public IMediaPipeline
 {
 public:
     MOCK_METHOD(std::weak_ptr<IMediaPipelineClient>, getClient, (), (override));
-    MOCK_METHOD(bool, load, (MediaType type, const std::string &mimeType, const std::string &url), (override));
+    MOCK_METHOD(bool, load, (MediaType type, const std::string &mimeType, const std::string &url, bool isLive),
+                (override));
     MOCK_METHOD(bool, attachSource, (const std::unique_ptr<MediaSource> &source), (override));
     MOCK_METHOD(bool, removeSource, (int32_t id), (override));
     MOCK_METHOD(bool, allSourcesAttached, (), (override));
@@ -78,6 +79,7 @@ public:
     MOCK_METHOD(bool, getUseBuffering, (bool &useBuffering), (override));
     MOCK_METHOD(bool, switchSource, (const std::unique_ptr<MediaSource> &source), (override));
     MOCK_METHOD(bool, setSubtitleOffset, (int32_t sourceId, int64_t position), (override));
+    MOCK_METHOD(bool, getDuration, (int64_t & duration), (override));
 };
 } // namespace firebolt::rialto
 
