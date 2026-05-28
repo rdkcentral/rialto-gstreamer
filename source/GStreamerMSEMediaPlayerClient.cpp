@@ -1061,12 +1061,11 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             else if (firebolt::rialto::PlaybackError::OUTPUT_PROTECTION == error)
             {
                 GST_ERROR("HDCP output protection failure, posting HDCPProtectionFailure application message");
-                GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure",
-                                                          "message", G_TYPE_STRING,
+                GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure", "message", G_TYPE_STRING,
                                                           "HDCP Output Protection Error", NULL);
                 gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink),
-                                         gst_message_new_application(
-                                             GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), hdcpMsg));
+                                         gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink),
+                                                                     hdcpMsg));
             }
             else
             {
