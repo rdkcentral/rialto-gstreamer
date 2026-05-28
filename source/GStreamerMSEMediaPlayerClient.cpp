@@ -1060,7 +1060,7 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             }
             else if (firebolt::rialto::PlaybackError::OUTPUT_PROTECTION == error)
             {
-                GST_ERROR("HDCP output protection failure, posting HDCPProtectionFailure application message");
+                GST_WARNING("HDCP output protection failure, posting HDCPProtectionFailure application message");
                 GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure", "message", G_TYPE_STRING,
                                                           "HDCP Output Protection Error", NULL);
                 gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink),
