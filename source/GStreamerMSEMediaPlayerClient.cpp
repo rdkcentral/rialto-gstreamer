@@ -41,6 +41,8 @@ const char *toString(const firebolt::rialto::PlaybackError &error)
     {
     case firebolt::rialto::PlaybackError::DECRYPTION:
         return "DECRYPTION";
+    case firebolt::rialto::PlaybackError::OUTPUT_PROTECTION:
+        return "OUTPUT_PROTECTION";
     case firebolt::rialto::PlaybackError::UNKNOWN:
         return "UNKNOWN";
     }
@@ -1060,6 +1062,15 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
             {
                 sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
                                                          GST_STREAM_ERROR_DECRYPT);
+            }
+            else if (firebolt::rialto::PlaybackError::OUTPUT_PROTECTION == error)
+            {
+                GST_WARNING("HDCP output protection failure, posting HDCPProtectionFailure application message");
+                GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure", "message", G_TYPE_STRING,
+                                                          "HDCP Output Protection Error", NULL);
+                gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink),
+                                         gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink),
+                                                                     hdcpMsg));
             }
             else
             {
