@@ -774,6 +774,13 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
 {
+    bool success{false};
+    m_backendQueue->callInEventLoop([&]() { success = m_clientBackend->getVolume(volume); });
+    return success;
+}
+
+bool GStreamerMSEMediaPlayerClient::getCachedVolume(double &volume)
+{
     std::unique_lock lock{m_playbackInfoMutex};
     volume = m_playbackInfo.volume;
     return true;
