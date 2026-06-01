@@ -74,6 +74,7 @@ private:
     bool setStreamsNumber(GstObject *parentObject);
     GstSample *getLastSample() const;
     void setLastBuffer(GstBuffer *buffer);
+    void tryParseMp3Duration(GstBuffer *buffer);
 
 protected:
     GstElement *m_sink{nullptr};
@@ -105,4 +106,14 @@ protected:
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
     guint32 m_lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
     std::atomic<guint32> m_currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
+    std::atomic<gint64> m_cachedDuration{-1}; // [SEEK-FIX] Cached duration from GST_TAG_DURATION (nanoseconds)
+    std::atomic<gint64> m_pendingSeekTime{-1}; // [SEEK-FIX] Pending seek target time (ns) after TIME→BYTES conversion
+    std::atomic<gint64> m_lastSeekPositionNs{-1}; // [SEEK-FIX] Last seek target time (ns) - persists for position floor
+    std::atomic<bool> m_durationParseAttempted{false}; // [SEEK-FIX] Whether MP3 header parsing was attempted
+    std::atomic<gint64> m_bytesConsumedSinceSeek{0}; // [SEEK-FIX] Bytes consumed since last setSourcePosition
+    std::atomic<gint64> m_seekByteOffset{0}; // [SEEK-FIX] Byte offset at the time of last seek (segment.start)
+    std::atomic<bool> m_hasPlayedSinceSeek{false}; // [SEEK-FIX] Whether we've entered PLAYING state after seek
+    std::atomic<gint64> m_playStartMonoUs{0}; // [SEEK-FIX] Monotonic clock (µs) when last entered PLAYING
+    std::atomic<gint64> m_accumulatedPlayNs{0}; // [SEEK-FIX] Total nanoseconds of PLAYING time since last seek/resume
+    std::atomic<bool> m_isPlaying{false}; // [SEEK-FIX] Whether currently in PLAYING state
 };

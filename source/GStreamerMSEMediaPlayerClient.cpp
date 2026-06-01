@@ -429,21 +429,27 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t position, bool resetTime,
                                                       double appliedRate, uint64_t stopPosition)
 {
+    GST_INFO("[SEEK-FIX] GStreamerMSEMediaPlayerClient::setSourcePosition called: sourceId=%d, "
+             "position=%" G_GINT64_FORMAT " ns (%.3f sec), resetTime=%d, appliedRate=%.2f, stop=%" G_GUINT64_FORMAT,
+             sourceId, position, static_cast<double>(position) / 1000000000.0, resetTime, appliedRate, stopPosition);
+
     m_backendQueue->callInEventLoop(
         [&]()
         {
             auto sourceIt = m_attachedSources.find(sourceId);
             if (sourceIt == m_attachedSources.end())
             {
-                GST_ERROR("Cannot Set Source Position - there's no attached source with id %d", sourceId);
+                GST_ERROR("[SEEK-FIX] Cannot Set Source Position - there's no attached source with id %d", sourceId);
                 return;
             }
             if (!m_clientBackend->setSourcePosition(sourceId, position, resetTime, appliedRate, stopPosition))
             {
-                GST_ERROR("Set Source Position operation failed for source with id %d", sourceId);
+                GST_ERROR("[SEEK-FIX] Set Source Position operation failed for source with id %d", sourceId);
                 return;
             }
             sourceIt->second.m_position = position;
+            GST_INFO("[SEEK-FIX] setSourcePosition SUCCESS: sourceId=%d, position stored=%" G_GINT64_FORMAT " ns",
+                     sourceId, position);
         });
 }
 
