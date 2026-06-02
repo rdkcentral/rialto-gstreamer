@@ -539,10 +539,23 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
                 // Update last segment
                 if (seekFormat == GST_FORMAT_TIME)
                 {
-                    gboolean update{FALSE};
-                    std::lock_guard<std::mutex> lock(m_sinkMutex);
-                    gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
-                                        &update);
+                    gdouble previousRate{0.0};
+                    {
+                        gboolean update{FALSE};
+                        std::lock_guard<std::mutex> lock(m_sinkMutex);
+                        previousRate = m_lastSegment.rate;
+                        gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
+                                            &update);
+                    }
+                    if (rate != previousRate)
+                    {
+                        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+                        if (client && m_mediaPlayerManager.hasControl())
+                        {
+                            GST_DEBUG_OBJECT(m_sink, "Playback rate changed via flush seek: %.2f", rate);
+                            client->setPlaybackRate(rate);
+                        }
+                    }
                 }
             }
 #if GST_CHECK_VERSION(1, 18, 0)
