@@ -159,6 +159,11 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
+    if (m_flushAndDataSynchronizer.isAnySourceFlushing())
+    {
+        GST_WARNING("Not updating playback info, because flush is ongoing");
+        return;
+    }
     std::unique_lock lock{m_playbackInfoMutex};
     m_playbackInfo = playbackInfo;
 }
