@@ -1282,13 +1282,31 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
     m_sut->setVolume(kVolume, kVolumeDuration, kEaseType);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetCachedVolume)
 {
     double volume{0.0};
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
     m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition, kVolume});
+
+    EXPECT_TRUE(m_sut->getCachedVolume(volume));
+    EXPECT_EQ(volume, kVolume);
+
+    m_sut->destroyClientBackend();
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
+{
+    double volume{0.0};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getVolume(_)).WillOnce(DoAll(SetArgReferee<0>(kVolume), Return(true)));
 
     EXPECT_TRUE(m_sut->getVolume(volume));
     EXPECT_EQ(volume, kVolume);
