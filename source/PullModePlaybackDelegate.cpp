@@ -46,7 +46,9 @@ unsigned getGstPlayFlag(const char *nick)
 {
     GFlagsClass *flagsClass = static_cast<GFlagsClass *>(g_type_class_ref(g_type_from_name("GstPlayFlags")));
     GFlagsValue *flag = g_flags_get_value_by_nick(flagsClass, nick);
-    return flag ? flag->value : 0;
+    const unsigned kResult{flag ? flag->value : 0};
+    g_type_class_unref(flagsClass);
+    return kResult;
 }
 
 bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text)
@@ -410,6 +412,7 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
         {
             GST_ERROR_OBJECT(m_sink, "No stats returned from client");
         }
+        break;
     }
     case Property::EnableLastSample:
     {
