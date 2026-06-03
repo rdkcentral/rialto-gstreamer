@@ -104,6 +104,7 @@ static gboolean rialto_web_audio_sink_send_event(GstElement *element, GstEvent *
     {
         return delegate->handleSendEvent(event);
     }
+    gst_event_unref(event);
     return FALSE;
 }
 
@@ -142,6 +143,7 @@ static gboolean rialto_web_audio_sink_event(GstPad *pad, GstObject *parent, GstE
     {
         return delegate->handleEvent(pad, parent, event);
     }
+    gst_event_unref(event);
     return FALSE;
 }
 
@@ -153,6 +155,7 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
     {
         rialto_web_audio_sink_handle_get_property(RIALTO_WEB_AUDIO_SINK(object), IPlaybackDelegate::Property::TsOffset,
                                                   value);
+        break;
     }
 
     case PROP_VOLUME:
@@ -203,6 +206,7 @@ static GstFlowReturn rialto_web_audio_sink_chain(GstPad *pad, GstObject *parent,
     {
         return delegate->handleBuffer(buf);
     }
+    gst_buffer_unref(buf);
     return GST_FLOW_ERROR;
 }
 
