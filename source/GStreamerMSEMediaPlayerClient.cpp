@@ -41,6 +41,8 @@ const char *toString(const firebolt::rialto::PlaybackError &error)
     {
     case firebolt::rialto::PlaybackError::DECRYPTION:
         return "DECRYPTION";
+    case firebolt::rialto::PlaybackError::OUTPUT_PROTECTION:
+        return "OUTPUT_PROTECTION";
     case firebolt::rialto::PlaybackError::UNKNOWN:
         return "UNKNOWN";
     }
@@ -155,6 +157,11 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebo
 void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 {
     m_backendQueue->postMessage(std::make_shared<SourceFlushedMessage>(sourceId, this));
+}
+
+void GStreamerMSEMediaPlayerClient::notifyOutputProtectionRecovered(int32_t sourceId)
+{
+    m_backendQueue->postMessage(std::make_shared<OutputProtectionRecoveredMessage>(sourceId, this));
 }
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
@@ -1080,11 +1087,40 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
                                                          GST_STREAM_ERROR_DECRYPT);
             }
+            else if (firebolt::rialto::PlaybackError::OUTPUT_PROTECTION == error)
+            {
+                GST_WARNING("HDCP output protection failure, posting HDCPProtectionFailure application message");
+                GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure", "message", G_TYPE_STRING,
+                                                          "HDCP Output Protection Error", NULL);
+                gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink),
+                                         gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink),
+                                                                     hdcpMsg));
+            }
             else
             {
                 sourceIt->second.m_delegate->handleError("Rialto server playback failed");
             }
 
+            result = true;
+        });
+
+    return result;
+}
+
+bool GStreamerMSEMediaPlayerClient::handleOutputProtectionRecovered(int sourceId)
+{
+    bool result = false;
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                result = false;
+                return;
+            }
+
+            GST_INFO("Received output protection recovery notification on %s sink", toString(sourceIt->second.getType()));
             result = true;
         });
 
@@ -1327,4 +1363,17 @@ SourceFlushedMessage::SourceFlushedMessage(int32_t sourceId, GStreamerMSEMediaPl
 void SourceFlushedMessage::handle()
 {
     m_player->handleSourceFlushed(m_sourceId);
+}
+
+OutputProtectionRecoveredMessage::OutputProtectionRecoveredMessage(int32_t sourceId, GStreamerMSEMediaPlayerClient *player)
+    : m_sourceId{sourceId}, m_player{player}
+{
+}
+
+void OutputProtectionRecoveredMessage::handle()
+{
+    if (!m_player->handleOutputProtectionRecovered(m_sourceId))
+    {
+        GST_ERROR("Failed to handle output protection recovery for sourceId=%d", m_sourceId);
+    }
 }

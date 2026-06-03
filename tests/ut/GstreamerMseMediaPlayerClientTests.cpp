@@ -1028,6 +1028,26 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyThatSourceFinishedF
     m_sut->notifySourceFlushed(kUnknownSourceId);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyOutputProtectionRecovered)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectPostMessage();
+    m_sut->notifyOutputProtectionRecovered(kSourceId);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyOutputProtectionRecoveredWhenSourceIdIsNotKnown)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->notifyOutputProtectionRecovered(kUnknownSourceId);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

@@ -229,6 +229,17 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
+class OutputProtectionRecoveredMessage : public Message
+{
+public:
+    OutputProtectionRecoveredMessage(int32_t sourceId, GStreamerMSEMediaPlayerClient *player);
+    void handle() override;
+
+private:
+    int32_t m_sourceId;
+    GStreamerMSEMediaPlayerClient *m_player;
+};
+
 enum class StateChangeResult
 {
     SUCCESS_ASYNC,
@@ -265,6 +276,7 @@ public:
     void notifyBufferUnderflow(int32_t sourceId) override;
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
+    void notifyOutputProtectionRecovered(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
 
     int64_t getPosition(int32_t sourceId);
@@ -302,6 +314,7 @@ public:
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     bool handleBufferUnderflow(int sourceId);
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
+    bool handleOutputProtectionRecovered(int sourceId);
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(int32_t sourceId);
