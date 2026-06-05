@@ -725,7 +725,7 @@ PullModeAudioPlaybackDelegate::createMediaSource(GstCaps *caps) const
                                                         std::nullopt,
                                                         std::nullopt,
                                                         std::nullopt,
-                                                        streamHeaderVec,
+                                                        std::move(streamHeaderVec),
                                                         framed};
         }
         else
