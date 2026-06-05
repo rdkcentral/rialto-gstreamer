@@ -153,6 +153,7 @@ static void rialto_web_audio_sink_get_property(GObject *object, guint propId, GV
     {
         rialto_web_audio_sink_handle_get_property(RIALTO_WEB_AUDIO_SINK(object), IPlaybackDelegate::Property::TsOffset,
                                                   value);
+        break;
     }
 
     case PROP_VOLUME:
