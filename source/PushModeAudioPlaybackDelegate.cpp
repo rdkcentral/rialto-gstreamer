@@ -97,6 +97,14 @@ void PushModeAudioPlaybackDelegate::handleError(const std::string &message, gint
     g_error_free(gError);
 }
 
+void PushModeAudioPlaybackDelegate::handleWarning(const std::string &message, gint code)
+{
+    GError *gError{g_error_new_literal(GST_STREAM_ERROR, code, message.c_str())};
+    gst_element_post_message(GST_ELEMENT_CAST(m_sink),
+                             gst_message_new_warning(GST_OBJECT_CAST(m_sink), gError, message.c_str()));
+    g_error_free(gError);
+}
+
 void PushModeAudioPlaybackDelegate::handleQos(uint64_t processed, uint64_t dropped) const {}
 
 GstStateChangeReturn PushModeAudioPlaybackDelegate::changeState(GstStateChange transition)
