@@ -224,7 +224,7 @@ void PullModeAudioPlaybackDelegate::getProperty(const Property &type, GValue *va
         double volume{1.0};
         if (client)
         {
-            if (client->getVolume(volume))
+            if (client->getCachedVolume(volume))
                 m_targetVolume = volume;
             else
                 volume = m_targetVolume; // Use last known volume

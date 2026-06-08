@@ -68,7 +68,7 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+      m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
@@ -159,6 +159,11 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
+    if (m_flushAndDataSynchronizer.isAnySourceFlushing())
+    {
+        GST_WARNING("Not updating playback info, because flush is ongoing");
+        return;
+    }
     std::unique_lock lock{m_playbackInfoMutex};
     m_playbackInfo = playbackInfo;
 }
@@ -729,7 +734,7 @@ void GStreamerMSEMediaPlayerClient::setVideoRectangle(const std::string &rectang
 
 std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
 {
-    char rectangle[64];
+    char rectangle[64] = {0};
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -773,6 +778,13 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
 }
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
+{
+    bool success{false};
+    m_backendQueue->callInEventLoop([&]() { success = m_clientBackend->getVolume(volume); });
+    return success;
+}
+
+bool GStreamerMSEMediaPlayerClient::getCachedVolume(double &volume)
 {
     std::unique_lock lock{m_playbackInfoMutex};
     volume = m_playbackInfo.volume;

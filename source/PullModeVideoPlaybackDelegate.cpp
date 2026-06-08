@@ -142,23 +142,28 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
     {
     case Property::WindowSet:
     {
-        std::unique_lock lock{m_propertyMutex};
+        std::string rectangleValue;
         auto client = m_mediaPlayerManager.getMediaPlayerClient();
-        if (!client)
+
         {
-            // Return the default value and
-            // queue a setting event (for the default value) so that it will become true when
-            // the client connects...
-            GST_DEBUG_OBJECT(m_sink, "Return default rectangle setting, and queue an event to set the default upon "
-                                     "client connect");
-            m_rectangleSettingQueued = true;
-            g_value_set_string(value, m_videoRectangle.c_str());
-        }
-        else
+            std::unique_lock lock{m_propertyMutex};
+            if (!client)
+            {
+                // Return the default value and
+                // queue a setting event (for the default value) so that it will become true when
+                // the client connects...
+                GST_DEBUG_OBJECT(m_sink, "Return default rectangle setting, and queue an event to set the default upon "
+                                         "client connect");
+                m_rectangleSettingQueued = true;
+                rectangleValue = m_videoRectangle;
+            }
+        } // lock released here
+
+        if (client)
         {
-            lock.unlock();
-            g_value_set_string(value, client->getVideoRectangle().c_str());
+            rectangleValue = client->getVideoRectangle();
         }
+        g_value_set_string(value, rectangleValue.c_str());
         break;
     }
     case Property::MaxVideoWidth:
@@ -178,28 +183,36 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
     }
     case Property::ImmediateOutput:
     {
-        std::unique_lock lock{m_propertyMutex};
+        bool immediateOutputValue = false;
         auto client = m_mediaPlayerManager.getMediaPlayerClient();
-        if (!client)
+
         {
-            // Return the default value and
-            // queue a setting event (for the default value) so that it will become true when
-            // the client connects...
-            GST_DEBUG_OBJECT(m_sink, "Return default immediate-output setting, and queue an event to set the default "
-                                     "upon client connect");
-            m_immediateOutputQueued = true;
-            g_value_set_boolean(value, m_immediateOutput);
-        }
-        else
+            std::unique_lock lock{m_propertyMutex};
+            if (!client)
+            {
+                // Return the default value and
+                // queue a setting event (for the default value) so that it will become true when
+                // the client connects...
+                GST_DEBUG_OBJECT(m_sink,
+                                 "Return default immediate-output setting, and queue an event to set the default "
+                                 "upon client connect");
+                m_immediateOutputQueued = true;
+                immediateOutputValue = m_immediateOutput;
+            }
+            else
+            {
+                immediateOutputValue = m_immediateOutput;
+            }
+        } // lock released here
+
+        if (client)
         {
-            bool immediateOutput{m_immediateOutput};
-            lock.unlock();
-            if (!client->getImmediateOutput(m_sourceId, immediateOutput))
+            if (!client->getImmediateOutput(m_sourceId, immediateOutputValue))
             {
                 GST_ERROR_OBJECT(m_sink, "Could not get immediate-output");
             }
-            g_value_set_boolean(value, immediateOutput);
         }
+        g_value_set_boolean(value, immediateOutputValue);
         break;
     }
     case Property::VideoPts:
@@ -244,16 +257,23 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
             break;
         }
         std::string videoRectangle{rectangle};
-        std::unique_lock lock{m_propertyMutex};
-        m_videoRectangle = videoRectangle;
-        if (!client)
+        bool shouldSetRectangle = false;
         {
-            GST_DEBUG_OBJECT(m_sink, "Rectangle setting enqueued");
-            m_rectangleSettingQueued = true;
-        }
-        else
+            std::unique_lock lock{m_propertyMutex};
+            m_videoRectangle = videoRectangle;
+            if (!client)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Rectangle setting enqueued");
+                m_rectangleSettingQueued = true;
+            }
+            else
+            {
+                shouldSetRectangle = true;
+            }
+        } // lock released here
+
+        if (shouldSetRectangle)
         {
-            lock.unlock();
             client->setVideoRectangle(videoRectangle);
         }
         break;
@@ -278,16 +298,23 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
     case Property::ImmediateOutput:
     {
         bool immediateOutput = (g_value_get_boolean(value) != FALSE);
-        std::unique_lock lock{m_propertyMutex};
-        m_immediateOutput = immediateOutput;
-        if (!client)
+        bool shouldSetImmediateOutput = false;
         {
-            GST_DEBUG_OBJECT(m_sink, "Immediate output setting enqueued");
-            m_immediateOutputQueued = true;
-        }
-        else
+            std::unique_lock lock{m_propertyMutex};
+            m_immediateOutput = immediateOutput;
+            if (!client)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Immediate output setting enqueued");
+                m_immediateOutputQueued = true;
+            }
+            else
+            {
+                shouldSetImmediateOutput = true;
+            }
+        } // lock released here
+
+        if (shouldSetImmediateOutput)
         {
-            lock.unlock();
             if (!client->setImmediateOutput(m_sourceId, immediateOutput))
             {
                 GST_ERROR_OBJECT(m_sink, "Could not set immediate-output");
@@ -298,16 +325,23 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
     case Property::SyncmodeStreaming:
     {
         bool syncmodeStreaming = (g_value_get_boolean(value) != FALSE);
-        std::unique_lock lock{m_propertyMutex};
-        m_syncmodeStreaming = syncmodeStreaming;
-        if (!client)
+        bool shouldSetSyncMode = false;
         {
-            GST_DEBUG_OBJECT(m_sink, "Syncmode streaming setting enqueued");
-            m_syncmodeStreamingQueued = true;
-        }
-        else
+            std::unique_lock lock{m_propertyMutex};
+            m_syncmodeStreaming = syncmodeStreaming;
+            if (!client)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Syncmode streaming setting enqueued");
+                m_syncmodeStreamingQueued = true;
+            }
+            else
+            {
+                shouldSetSyncMode = true;
+            }
+        } // lock released here
+
+        if (shouldSetSyncMode)
         {
-            lock.unlock();
             if (!client->setStreamSyncMode(m_sourceId, syncmodeStreaming))
             {
                 GST_ERROR_OBJECT(m_sink, "Could not set syncmode-streaming");
@@ -318,16 +352,23 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
     case Property::ShowVideoWindow:
     {
         bool videoMute = (g_value_get_boolean(value) == FALSE);
-        std::unique_lock lock{m_propertyMutex};
-        m_videoMute = videoMute;
-        if (!client || !m_sourceAttached)
+        bool shouldSetMute = false;
         {
-            GST_DEBUG_OBJECT(m_sink, "Show video window setting enqueued");
-            m_videoMuteQueued = true;
-        }
-        else
+            std::unique_lock lock{m_propertyMutex};
+            m_videoMute = videoMute;
+            if (!client || !m_sourceAttached)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Show video window setting enqueued");
+                m_videoMuteQueued = true;
+            }
+            else
+            {
+                shouldSetMute = true;
+            }
+        } // lock released here
+
+        if (shouldSetMute)
         {
-            lock.unlock();
             client->setMute(videoMute, m_sourceId);
         }
         break;

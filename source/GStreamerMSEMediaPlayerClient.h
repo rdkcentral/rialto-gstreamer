@@ -307,6 +307,7 @@ public:
     bool renderFrame(int32_t sourceId);
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
+    bool getCachedVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
     void setTextTrackIdentifier(const std::string &textTrackIdentifier);
