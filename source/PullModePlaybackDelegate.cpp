@@ -138,6 +138,13 @@ void PullModePlaybackDelegate::handleFlushCompleted()
     GST_INFO_OBJECT(m_sink, "Flush completed");
     std::unique_lock<std::mutex> lock(m_sinkMutex);
     m_isServerFlushOngoing = false;
+    if (!m_isServerFlushOngoing && !m_isSinkFlushOngoing)
+    {
+        if (m_isSeekOngoing.exchange(false))
+        {
+            GST_INFO_OBJECT(m_sink, "Seek finished (both sink and server flushes completed)");
+        }
+    }
 }
 
 void PullModePlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
@@ -438,7 +445,22 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
     {
         GstFormat fmt;
         gst_query_parse_seeking(query, &fmt, NULL, NULL, NULL);
-        gst_query_set_seeking(query, fmt, FALSE, 0, -1);
+        if (fmt == GST_FORMAT_TIME)
+        {
+            gboolean seekable = m_isSeekOngoing.load() ? FALSE : TRUE;
+            std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+            int64_t duration{-1};
+            if (client)
+            {
+                client->getDuration(duration);
+            }
+            GST_DEBUG_OBJECT(m_sink, "Seeking query: seekable=%s", seekable ? "TRUE" : "FALSE");
+            gst_query_set_seeking(query, fmt, seekable, 0, duration > 0 ? duration : -1);
+        }
+        else
+        {
+            gst_query_set_seeking(query, fmt, FALSE, 0, -1);
+        }
         return TRUE;
     }
     case GST_QUERY_POSITION:
@@ -536,6 +558,9 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
                     gst_event_unref(event);
                     return FALSE;
                 }
+                m_isSeekOngoing = true;
+                GST_INFO_OBJECT(m_sink, "Seek started to position %" GST_TIME_FORMAT,
+                                GST_TIME_ARGS(start));
                 // Update last segment
                 if (seekFormat == GST_FORMAT_TIME)
                 {
@@ -812,6 +837,14 @@ void PullModePlaybackDelegate::stopFlushing(bool resetTime)
     std::lock_guard<std::mutex> lock(m_sinkMutex);
     m_isSinkFlushOngoing = false;
 
+    if (!m_isServerFlushOngoing && !m_isSinkFlushOngoing)
+    {
+        if (m_isSeekOngoing.exchange(false))
+        {
+            GST_INFO_OBJECT(m_sink, "Seek finished (server flush completed before sink flush stopped)");
+        }
+    }
+
     if (resetTime)
     {
         GST_DEBUG_OBJECT(m_sink, "sending reset_time message");
@@ -825,6 +858,7 @@ void PullModePlaybackDelegate::flushServer(bool resetTime)
     if (!client)
     {
         GST_ERROR_OBJECT(m_sink, "Could not get the media player client");
+        m_isSeekOngoing = false;
         return;
     }
 
