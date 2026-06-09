@@ -1069,6 +1069,11 @@ bool GStreamerMSEMediaPlayerClient::handleFirstFrameReceived(int sourceId)
                 rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(sourceIt->second.m_rialtoSink);
                 result = true;
             }
+            else if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+            {
+                rialto_mse_base_handle_rialto_server_sent_first_audio_frame_received(sourceIt->second.m_rialtoSink);
+                result = true;
+            }
         });
 
     return result;
