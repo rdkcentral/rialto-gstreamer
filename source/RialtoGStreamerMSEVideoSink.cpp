@@ -60,8 +60,9 @@ static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *eleme
     if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
         GST_INFO_OBJECT(sink, "RialtoMSEVideoSink state change to READY. Initializing delegate");
-        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink),
-                                                 std::make_shared<PullModeVideoPlaybackDelegate>(element));
+        auto delegate = std::make_shared<PullModeVideoPlaybackDelegate>(element);
+        delegate->createControlBackend();
+        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink), delegate);
     }
     GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);
     if (G_UNLIKELY(result == GST_STATE_CHANGE_FAILURE))

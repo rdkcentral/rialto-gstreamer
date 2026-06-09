@@ -87,6 +87,7 @@ void underflowSignalCallback(GstElement *, gpointer, guint, gpointer)
 {
     UnderflowSignalMock::instance().callbackCalled();
 }
+
 } // namespace
 
 class GstreamerMseMediaPlayerClientTests : public RialtoGstTest
