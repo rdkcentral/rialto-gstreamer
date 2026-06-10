@@ -32,28 +32,41 @@ MediaPlayerManager::~MediaPlayerManager()
 }
 
 bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                                 const uint32_t maxVideoHeight)
+                                                 const uint32_t maxVideoHeight, bool isLive)
 {
-    if (!m_client.lock())
+    // Read m_client and m_currentGstBinParent under mutex to avoid data race
+    std::weak_ptr<GStreamerMSEMediaPlayerClient> clientCopy;
+    const GstObject *currentParent = nullptr;
     {
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+        clientCopy = m_client;
+        currentParent = m_currentGstBinParent;
     }
-    else if (gstBinParent != m_currentGstBinParent)
+
+    if (!clientCopy.lock())
+    {
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
+    }
+    else if (gstBinParent != currentParent)
     {
         // New parent gst bin, release old client and create new
         releaseMediaPlayerClient();
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
     }
 
-    if (!m_client.lock())
+    // Verify attachment succeeded, re-read m_client since createMediaPlayerClient() modified it
+    {
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+        clientCopy = m_client;
+    }
+
+    if (!clientCopy.lock())
     {
         GST_ERROR("Failed to attach the media player client");
         return false;
     }
-    else
-    {
-        return true;
-    }
+
+    return true;
 }
 
 std::shared_ptr<GStreamerMSEMediaPlayerClient> MediaPlayerManager::getMediaPlayerClient() const
@@ -136,7 +149,7 @@ bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo &mediaPlayerClient
 }
 
 void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                                 const uint32_t maxVideoHeight)
+                                                 const uint32_t maxVideoHeight, bool isLive)
 {
     std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
@@ -153,7 +166,7 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
             std::make_shared<firebolt::rialto::client::MediaPlayerClientBackend>();
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
             std::make_shared<GStreamerMSEMediaPlayerClient>(IMessageQueueFactory::createFactory(), clientBackend,
-                                                            maxVideoWidth, maxVideoHeight);
+                                                            maxVideoWidth, maxVideoHeight, isLive);
 
         if (client->createBackend())
         {
