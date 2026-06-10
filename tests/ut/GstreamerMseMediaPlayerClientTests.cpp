@@ -699,11 +699,51 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyUnknownPlaybackError)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostHdcpProtectionFailureApplicationMessage)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    rialto_mse_base_sink_initialise_delegate(audioSink, m_delegateMock);
+
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    m_sut->notifyPlaybackError(kSourceId, firebolt::rialto::PlaybackError::OUTPUT_PROTECTION);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
+    ASSERT_NE(receivedMessage, nullptr);
+
+    const GstStructure *messageStructure = gst_message_get_structure(receivedMessage);
+    ASSERT_NE(messageStructure, nullptr);
+    EXPECT_STREQ(gst_structure_get_name(messageStructure), "HDCPProtectionFailure");
+
+    const gchar *message = gst_structure_get_string(messageStructure, "message");
+    ASSERT_NE(message, nullptr);
+    EXPECT_STREQ(message, "HDCP Output Protection Error");
+
+    const gchar *error = gst_structure_get_string(messageStructure, "error");
+    ASSERT_NE(error, nullptr);
+    EXPECT_STREQ(error, "OUTPUT_PROTECTION");
+
+    gst_message_unref(receivedMessage);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackErrorWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
     expectPostMessage();
     m_sut->notifyPlaybackError(kUnknownSourceId, firebolt::rialto::PlaybackError::DECRYPTION);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyOutputProtectionPlaybackErrorWhenSourceIdIsNotKnown)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->notifyPlaybackError(kUnknownSourceId, firebolt::rialto::PlaybackError::OUTPUT_PROTECTION);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
