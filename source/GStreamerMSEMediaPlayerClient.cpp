@@ -154,11 +154,6 @@ void GStreamerMSEMediaPlayerClient::notifyFirstFrameReceived(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<FirstFrameReceivedMessage>(sourceId, this));
 }
 
-void GStreamerMSEMediaPlayerClient::notifyFirstFrameReceived(int32_t sourceId)
-{
-    m_backendQueue->postMessage(std::make_shared<FirstFrameReceivedMessage>(sourceId, this));
-}
-
 void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error)
 {
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
