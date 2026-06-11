@@ -25,6 +25,7 @@ using testing::_;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Return;
+using testing::SaveArg;
 using testing::SetArgReferee;
 
 namespace
@@ -273,6 +274,66 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldPostErrorWhenControlReportsUnknownApplicationState)
+{
+    std::weak_ptr<firebolt::rialto::IControlClient> weakControlClient;
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&weakControlClient), SetArgReferee<1>(firebolt::rialto::ApplicationState::RUNNING),
+                        Return(true)));
+
+    GstElement *audioSinkElement = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSinkElement, GST_STATE_READY));
+    auto *audioSink = RIALTO_MSE_BASE_SINK(audioSinkElement);
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    auto controlClient = weakControlClient.lock();
+    ASSERT_TRUE(controlClient);
+
+    controlClient->notifyApplicationState(firebolt::rialto::ApplicationState::UNKNOWN);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ERROR)};
+    ASSERT_NE(receivedMessage, nullptr);
+
+    GError *err = nullptr;
+    gchar *debug = nullptr;
+    gst_message_parse_error(receivedMessage, &err, &debug);
+    EXPECT_EQ(err->domain, GST_STREAM_ERROR);
+    EXPECT_EQ(err->code, 0);
+    EXPECT_NE(err->message, nullptr);
+    EXPECT_NE(debug, nullptr);
+
+    g_free(debug);
+    g_error_free(err);
+    gst_message_unref(receivedMessage);
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldNotPostErrorWhenControlReportsRunningApplicationState)
+{
+    std::weak_ptr<firebolt::rialto::IControlClient> weakControlClient;
+    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
+    EXPECT_CALL(*m_controlMock, registerClient(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&weakControlClient), SetArgReferee<1>(firebolt::rialto::ApplicationState::RUNNING),
+                        Return(true)));
+
+    GstElement *audioSinkElement = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(audioSinkElement, GST_STATE_READY));
+    auto *audioSink = RIALTO_MSE_BASE_SINK(audioSinkElement);
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    auto controlClient = weakControlClient.lock();
+    ASSERT_TRUE(controlClient);
+
+    controlClient->notifyApplicationState(firebolt::rialto::ApplicationState::RUNNING);
+    EXPECT_FALSE(waitForMessage(pipeline, GST_MESSAGE_ERROR));
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetLastSample)
 {
     gboolean enabled{FALSE};
@@ -417,6 +478,60 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid
     EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
 
     setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenFlushing)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    // Set flushing
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+
+    std::mutex flushMutex;
+    std::condition_variable flushCond;
+    bool flushFlag{false};
+    std::thread t{[&]()
+                  {
+                      std::unique_lock<std::mutex> lock{flushMutex};
+                      flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
+                      auto mediaPipelineClient = m_mediaPipelineClient.lock();
+                      ASSERT_TRUE(mediaPipelineClient);
+                      mediaPipelineClient->notifySourceFlushed(kSourceId);
+                      mediaPipelineClient.reset();
+                  }};
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+
+    gint64 position{0};
+    EXPECT_FALSE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
+
+    {
+        std::unique_lock<std::mutex> lock{flushMutex};
+        flushFlag = true;
+        flushCond.notify_one();
+    }
+
+    t.join();
+
+    setNullState(pipeline, kSourceId);
+
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }

@@ -41,6 +41,8 @@ const char *toString(const firebolt::rialto::PlaybackError &error)
     {
     case firebolt::rialto::PlaybackError::DECRYPTION:
         return "DECRYPTION";
+    case firebolt::rialto::PlaybackError::OUTPUT_PROTECTION:
+        return "OUTPUT_PROTECTION";
     case firebolt::rialto::PlaybackError::UNKNOWN:
         return "UNKNOWN";
     }
@@ -68,7 +70,7 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+      m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
@@ -152,6 +154,11 @@ void GStreamerMSEMediaPlayerClient::notifyFirstFrameReceived(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<FirstFrameReceivedMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyFirstFrameReceived(int32_t sourceId)
+{
+    m_backendQueue->postMessage(std::make_shared<FirstFrameReceivedMessage>(sourceId, this));
+}
+
 void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error)
 {
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
@@ -164,6 +171,11 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
+    if (m_flushAndDataSynchronizer.isAnySourceFlushing())
+    {
+        GST_WARNING("Not updating playback info, because flush is ongoing");
+        return;
+    }
     std::unique_lock lock{m_playbackInfoMutex};
     m_playbackInfo = playbackInfo;
 }
@@ -734,7 +746,7 @@ void GStreamerMSEMediaPlayerClient::setVideoRectangle(const std::string &rectang
 
 std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
 {
-    char rectangle[64];
+    char rectangle[64] = {0};
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -778,6 +790,13 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
 }
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
+{
+    bool success{false};
+    m_backendQueue->callInEventLoop([&]() { success = m_clientBackend->getVolume(volume); });
+    return success;
+}
+
+bool GStreamerMSEMediaPlayerClient::getCachedVolume(double &volume)
 {
     std::unique_lock lock{m_playbackInfoMutex};
     volume = m_playbackInfo.volume;
@@ -1092,20 +1111,38 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 return;
             }
 
-            // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
-            GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
-                      toString(sourceIt->second.getType()));
-            if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+            // OUTPUT_PROTECTION is handled separately by posting an application message (not a pipeline error)
+            if (firebolt::rialto::PlaybackError::OUTPUT_PROTECTION == error)
             {
-                sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
-                                                         GST_STREAM_ERROR_DECRYPT);
+                GST_WARNING("HDCP output protection failure, posting HDCPProtectionFailure application message");
+                GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure", "message", G_TYPE_STRING,
+                                                          "HDCP Output Protection Error", "error", G_TYPE_STRING,
+                                                          toString(error), nullptr);
+                GstMessage *message =
+                    gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), hdcpMsg);
+                result = gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), message);
+                if (!result)
+                {
+                    GST_WARNING("Failed to post HDCPProtectionFailure application message");
+                }
             }
             else
             {
-                sourceIt->second.m_delegate->handleError("Rialto server playback failed");
-            }
+                // For other playback errors, fail the pipeline from rialto-gstreamer
+                GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
+                          toString(sourceIt->second.getType()));
+                if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+                {
+                    sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
+                                                             GST_STREAM_ERROR_DECRYPT);
+                }
+                else
+                {
+                    sourceIt->second.m_delegate->handleError("Rialto server playback failed");
+                }
 
-            result = true;
+                result = true;
+            }
         });
 
     return result;
