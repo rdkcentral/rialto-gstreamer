@@ -75,10 +75,16 @@ bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio
 
 PullModePlaybackDelegate::PullModePlaybackDelegate(GstElement *sink) : m_sink{sink}
 {
-    RialtoMSEBaseSink *baseSink = RIALTO_MSE_BASE_SINK(sink);
-    m_sinkPad = baseSink->priv->m_sinkPad;
-    m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+    m_sinkPad = RIALTO_MSE_BASE_SINK(sink)->priv->m_sinkPad;
     gst_segment_init(&m_lastSegment, GST_FORMAT_TIME);
+}
+
+void PullModePlaybackDelegate::createControlBackend()
+{
+    if (!m_rialtoControlClient)
+    {
+        m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>(shared_from_this());
+    }
 }
 
 PullModePlaybackDelegate::~PullModePlaybackDelegate()
@@ -312,6 +318,15 @@ void PullModePlaybackDelegate::handleError(const std::string &message, gint code
     g_error_free(gError);
 }
 
+void PullModePlaybackDelegate::notifyApplicationState(firebolt::rialto::ApplicationState state)
+{
+    if (state == firebolt::rialto::ApplicationState::UNKNOWN)
+    {
+        GST_WARNING_OBJECT(m_sink, "Rialto control sent unknown application state");
+        handleError("Rialto client reached unknown application state");
+    }
+}
+
 void PullModePlaybackDelegate::postAsyncStart()
 {
     m_isStateCommitNeeded = true;
@@ -496,6 +511,23 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         gst_query_set_segment(query, m_lastSegment.rate, format, start, stop);
         return TRUE;
     }
+    case GST_QUERY_DURATION:
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            return FALSE;
+        }
+        GstFormat fmt;
+        int64_t duration{-1};
+        gst_query_parse_duration(query, &fmt, NULL);
+        if (GST_FORMAT_TIME != fmt || !client->getDuration(duration))
+        {
+            return FALSE;
+        }
+        gst_query_set_duration(query, fmt, duration);
+        return TRUE;
+    }
     default:
         break;
     }
@@ -516,48 +548,44 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
         GstSeekFlags flags{GST_SEEK_FLAG_NONE};
         GstSeekType startType{GST_SEEK_TYPE_NONE}, stopType{GST_SEEK_TYPE_NONE};
         gint64 start{0}, stop{0};
-        if (event)
-        {
-            gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
+        gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
 
-            if (flags & GST_SEEK_FLAG_FLUSH)
+        if (flags & GST_SEEK_FLAG_FLUSH)
+        {
+            if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
             {
-                if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
-                {
-                    GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
-                    gst_event_unref(event);
-                    return FALSE;
-                }
-                // Update last segment
-                if (seekFormat == GST_FORMAT_TIME)
-                {
-                    gboolean update{FALSE};
-                    std::lock_guard<std::mutex> lock(m_sinkMutex);
-                    gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
-                                        &update);
-                }
-            }
-#if GST_CHECK_VERSION(1, 18, 0)
-            else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
-            {
-                gdouble rateMultiplier = rate / m_lastSegment.rate;
-                GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
-                gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
-                gst_event_unref(event);
-                if (gst_pad_send_event(m_sinkPad, rateChangeEvent) != TRUE)
-                {
-                    GST_ERROR_OBJECT(m_sink, "Sending instant rate change failed.");
-                    return FALSE;
-                }
-                return TRUE;
-            }
-#endif
-            else
-            {
-                GST_WARNING_OBJECT(m_sink, "Seek with flags 0x%X is not supported", flags);
+                GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
                 gst_event_unref(event);
                 return FALSE;
             }
+            // Update last segment
+            if (seekFormat == GST_FORMAT_TIME)
+            {
+                gboolean update{FALSE};
+                std::lock_guard<std::mutex> lock(m_sinkMutex);
+                gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop, &update);
+            }
+        }
+#if GST_CHECK_VERSION(1, 18, 0)
+        else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
+        {
+            gdouble rateMultiplier = rate / m_lastSegment.rate;
+            GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
+            gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
+            gst_event_unref(event);
+            if (gst_pad_send_event(m_sinkPad, rateChangeEvent) != TRUE)
+            {
+                GST_ERROR_OBJECT(m_sink, "Sending instant rate change failed.");
+                return FALSE;
+            }
+            return TRUE;
+        }
+#endif
+        else
+        {
+            GST_WARNING_OBJECT(m_sink, "Seek with flags 0x%X is not supported", flags);
+            gst_event_unref(event);
+            return FALSE;
         }
         break;
     }
@@ -922,7 +950,7 @@ bool PullModePlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint
                                                                       const uint32_t maxVideoHeight)
 {
     GstObject *parentObject = getOldestGstBinParent(m_sink);
-    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
+    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight, isLiveLatencyEnabled()))
     {
         GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient");
         return false;
@@ -1015,6 +1043,24 @@ bool PullModePlaybackDelegate::setStreamsNumber(GstObject *parentObject)
     client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
 
     return true;
+}
+
+bool PullModePlaybackDelegate::isLiveLatencyEnabled() const
+{
+    GstContext *context = gst_element_get_context(m_sink, "streams-info");
+    if (context)
+    {
+        GST_DEBUG_OBJECT(m_sink, "Checking if live latency is enabled from \"streams-info\" context");
+
+        gboolean isEnabled{FALSE};
+
+        const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        gst_structure_get_boolean(streamsInfoStructure, "enable-live-latency", &isEnabled);
+
+        gst_context_unref(context);
+        return isEnabled != FALSE;
+    }
+    return false;
 }
 
 GstSample *PullModePlaybackDelegate::getLastSample() const

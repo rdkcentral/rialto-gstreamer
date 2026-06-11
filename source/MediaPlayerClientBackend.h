@@ -58,9 +58,9 @@ public:
 
     bool allSourcesAttached() override { return m_mediaPlayerBackend->allSourcesAttached(); }
 
-    bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url) override
+    bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url, bool isLive) override
     {
-        return m_mediaPlayerBackend->load(type, mimeType, url);
+        return m_mediaPlayerBackend->load(type, mimeType, url, isLive);
     }
 
     bool play(bool &async) override { return m_mediaPlayerBackend->play(async); }
@@ -84,6 +84,8 @@ public:
     }
 
     bool getPosition(int64_t &position) override { return m_mediaPlayerBackend->getPosition(position); }
+
+    bool getDuration(int64_t &duration) override { return m_mediaPlayerBackend->getDuration(duration); }
 
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput) override
     {
