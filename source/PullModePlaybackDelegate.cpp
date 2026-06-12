@@ -864,10 +864,11 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
 
     std::unique_lock<std::mutex> lock(m_sinkMutex);
 
-    if (m_samples.size() >= kMaxInternalBuffersQueueSize)
+    const auto maxSize = kMaxInternalBuffersQueueSize;
+    if (m_samples.size() >= maxSize)
     {
-        GST_DEBUG_OBJECT(m_sink, "Waiting for more space in buffers queue\n");
-        m_needDataCondVariable.wait(lock);
+        GST_DEBUG_OBJECT(m_sink, "Waiting for more space in buffers queue");
+        m_needDataCondVariable.wait(lock, [this, maxSize]() { return m_samples.size() < maxSize; });
     }
 
     if (m_isSinkFlushOngoing)
