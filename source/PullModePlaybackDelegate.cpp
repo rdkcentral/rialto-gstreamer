@@ -748,6 +748,14 @@ void PullModePlaybackDelegate::setSegment()
     const bool kResetTime{m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
     int64_t position = static_cast<int64_t>(m_lastSegment.start);
     client->setSourcePosition(m_sourceId, position, kResetTime, m_lastSegment.applied_rate, m_lastSegment.stop);
+
+    // Send Playback Rate if rate differs
+    if (m_lastSegment.rate != 1.0 && m_mediaPlayerManager.hasControl())
+    {
+        GST_DEBUG_OBJECT(m_sink, "Setting playback rate to %.2f", m_lastSegment.rate);
+        client->setPlaybackRate(m_lastSegment.rate);
+    }
+
     m_segmentSet = true;
 }
 
