@@ -1656,6 +1656,17 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithNalSegmentAlignment)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleSendEventWhenNotInitialised)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(audioSink), kPlaybackRate, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE,
+                                  GST_SEEK_TYPE_NONE, kStart, GST_SEEK_TYPE_NONE, kStop));
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
 {
     TestContext testContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -1684,6 +1695,17 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
     gst_message_unref(receivedMessage);
     setNullState(testContext.m_pipeline, testContext.m_sourceId);
     gst_object_unref(testContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleEventWhenNotInitialised)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    EXPECT_FALSE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                            gst_event_new_flush_start()));
+
+    gst_object_unref(pipeline);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
@@ -1954,6 +1976,20 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoStreamsNumber
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToPullBufferWhenNotInitialised)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    EXPECT_FALSE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                            gst_event_new_flush_start()));
+
+    GstBuffer *buffer{gst_buffer_new()};
+    EXPECT_EQ(GST_FLOW_ERROR, rialto_mse_base_sink_chain(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink), buffer));
+
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2062,4 +2098,16 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDuration)
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldQueuePropertyWithoutDelegate)
+{
+    constexpr int32_t kStreamsNumber{2};
+    RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
+    g_object_set(audioSink, "streams-number", kStreamsNumber - 1, nullptr);
+    g_object_set(audioSink, "streams-number", kStreamsNumber, nullptr);
+    gint streamsNumber{0};
+    g_object_get(audioSink, "streams-number", &streamsNumber, nullptr);
+    EXPECT_EQ(streamsNumber, kStreamsNumber);
+    gst_object_unref(audioSink);
 }

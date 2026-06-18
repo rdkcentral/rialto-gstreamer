@@ -181,6 +181,12 @@ RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
     return RIALTO_MSE_BASE_SINK(audioSink);
 }
 
+RialtoMSEBaseSink *RialtoGstTest::createAudioSinkWithoutDelegate() const
+{
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    return RIALTO_MSE_BASE_SINK(audioSink);
+}
+
 RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -208,6 +214,12 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(webAudioSink, GST_STATE_READY));
+    return RIALTO_WEB_AUDIO_SINK(webAudioSink);
+}
+
+RialtoWebAudioSink *RialtoGstTest::createWebAudioSinkWithoutDelegate() const
+{
+    GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
 }
 
