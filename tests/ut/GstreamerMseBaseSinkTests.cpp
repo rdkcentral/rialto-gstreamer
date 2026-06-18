@@ -2063,3 +2063,209 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDuration)
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnSeekableInTimeFormat)
+{
+    // When no seek is ongoing and no client is available, GST_QUERY_SEEKING in
+    // TIME format should return seekable=TRUE with duration=-1 (no client to query)
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{FALSE};
+    gint64 segStart{0}, segEnd{0};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segEnd);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_TRUE(seekable);
+    EXPECT_EQ(segStart, 0);
+    EXPECT_EQ(segEnd, -1);
+
+    gst_query_unref(query);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnNotSeekableInNonTimeFormat)
+{
+    // GST_QUERY_SEEKING in non-TIME format should always return seekable=FALSE
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_BYTES)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{TRUE};
+    gint64 segStart{0}, segEnd{0};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segEnd);
+    EXPECT_EQ(fmt, GST_FORMAT_BYTES);
+    EXPECT_FALSE(seekable);
+    EXPECT_EQ(segStart, 0);
+    EXPECT_EQ(segEnd, -1);
+
+    gst_query_unref(query);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnSeekableWithDurationFromServer)
+{
+    // When a client is available, GST_QUERY_SEEKING should include duration from server
+    constexpr gint64 kDuration{5000000000};  // 5 seconds in nanoseconds
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kDuration), Return(true)));
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{FALSE};
+    gint64 segStart{0}, segEnd{0};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segEnd);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_TRUE(seekable);
+    EXPECT_EQ(segStart, 0);
+    EXPECT_EQ(segEnd, kDuration);
+
+    gst_query_unref(query);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnSeekableWithNegativeDurationFromServer)
+{
+    // When server returns duration <= 0, seekable should still be TRUE but end = -1
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(-1), Return(true)));
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{FALSE};
+    gint64 segStart{0}, segEnd{0};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segEnd);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_TRUE(seekable);
+    EXPECT_EQ(segStart, 0);
+    EXPECT_EQ(segEnd, -1);
+
+    gst_query_unref(query);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnNotSeekableDuringOngoingSeek)
+{
+    // After a seek event is sent (even if upstream forward fails),
+    // m_isSeekOngoing is set to TRUE. GST_QUERY_SEEKING should return seekable=FALSE.
+    TestContext testContext = createPipelineWithAudioSinkAndSetToPaused();
+
+    sendPlaybackStateNotification(testContext.m_sink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(testContext.m_pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    // Send a flush-seek event. It will return FALSE (no upstream) but m_isSeekOngoing is set.
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(testContext.m_sink), 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
+                                  GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
+
+    // During seek, query should return NOT seekable
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(5000000000), Return(true)));
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(testContext.m_sink), query));
+
+    GstFormat fmt;
+    gboolean seekable{TRUE};
+    gint64 segStart{0}, segEnd{0};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segEnd);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_FALSE(seekable);
+    gst_query_unref(query);
+
+    setNullState(testContext.m_pipeline, testContext.m_sourceId);
+    gst_object_unref(testContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReturnSeekableAfterFlushCompletes)
+{
+    // After a seek is started and flush completes, m_isSeekOngoing should be cleared
+    // and GST_QUERY_SEEKING should return seekable=TRUE again.
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    // Set flushing
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_start()));
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    // Send seek event (returns FALSE because upstream push fails, but sets m_isSeekOngoing)
+    EXPECT_FALSE(gst_element_seek(GST_ELEMENT_CAST(audioSink), 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
+                                  GST_SEEK_TYPE_SET, kStart, GST_SEEK_TYPE_NONE, kStop));
+
+    EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+
+    std::mutex flushMutex;
+    std::condition_variable flushCond;
+    bool flushFlag{false};
+    std::thread t{[&]()
+                  {
+                      std::unique_lock<std::mutex> lock{flushMutex};
+                      flushCond.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return flushFlag; });
+                      auto mediaPipelineClient = m_mediaPipelineClient.lock();
+                      ASSERT_TRUE(mediaPipelineClient);
+                      mediaPipelineClient->notifySourceFlushed(kSourceId);
+                      mediaPipelineClient.reset();
+                  }};
+
+    // flush_stop triggers flushServer which completes the flush cycle
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_flush_stop(kResetTime)));
+
+    // Signal server flush complete
+    {
+        std::unique_lock<std::mutex> lock{flushMutex};
+        flushFlag = true;
+        flushCond.notify_one();
+    }
+    t.join();
+
+    // After flush completed, query should return seekable=TRUE
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(5000000000), Return(true)));
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{FALSE};
+    gint64 segStart{0}, segEnd{0};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segEnd);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_TRUE(seekable);
+    gst_query_unref(query);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
