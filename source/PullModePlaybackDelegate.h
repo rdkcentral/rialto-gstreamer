@@ -81,6 +81,7 @@ private:
     bool isLiveLatencyEnabled() const;
     GstSample *getLastSample() const;
     void setLastBuffer(GstBuffer *buffer);
+    void tryParseMp3Duration(GstBuffer *buffer);
 
 protected:
     GstElement *m_sink{nullptr};
@@ -113,4 +114,8 @@ protected:
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
     guint32 m_lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
     std::atomic<guint32> m_currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
+    std::atomic<gint64> m_cachedDuration{-1};         // [SEEK-FIX] Cached duration from GST_TAG_DURATION (ns)
+    std::atomic<gint64> m_pendingSeekTime{-1};        // [SEEK-FIX] TIME→BYTES seek target carried into setSegment
+    std::atomic<gint64> m_lastSeekPositionNs{-1};     // [SEEK-FIX] Last seek target — used as position floor (Fix B)
+    std::atomic<bool>   m_durationParseAttempted{false}; // [SEEK-FIX] One-shot MP3 header parse guard
 };

@@ -457,6 +457,45 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
     {
         GstFormat fmt;
         gst_query_parse_seeking(query, &fmt, NULL, NULL, NULL);
+        // [SEEK-FIX] Only advertise TIME-seekable for the audio-only progressive
+        // (BYTES-segment) pull-mode case. For MSE A/V the audio and video sinks use TIME
+        // segments and must keep the original (non-seekable) behaviour so WebKit's MSE seek
+        // path is unchanged (otherwise AV audio drops out on seek).
+        bool isProgressiveAudio = false;
+        {
+            std::lock_guard<std::mutex> lock(m_sinkMutex);
+            isProgressiveAudio = (m_lastSegment.format == GST_FORMAT_BYTES);
+        }
+        if (fmt == GST_FORMAT_TIME && isProgressiveAudio)
+        {
+            // [SEEK-FIX] Report seekable=TRUE for TIME format so WebKit allows seek.
+            // Query duration from upstream first; fall back to cached tag duration
+            // (ID3 / parsed MP3) so audio-only pull-mode pipelines still get a range.
+            gint64 duration = -1;
+            GstQuery *durationQuery = gst_query_new_duration(GST_FORMAT_TIME);
+            if (gst_pad_peer_query(m_sinkPad, durationQuery))
+            {
+                gst_query_parse_duration(durationQuery, NULL, &duration);
+            }
+            else
+            {
+                gint64 cached = m_cachedDuration.load();
+                if (cached > 0)
+                {
+                    duration = cached;
+                    GST_INFO_OBJECT(m_sink, "[SEEK-FIX] GST_QUERY_SEEKING: using cached tag duration=%" G_GINT64_FORMAT
+                                    " ns (%.3f sec)", cached, (double)cached / GST_SECOND);
+                }
+            }
+            gst_query_unref(durationQuery);
+
+            GST_INFO_OBJECT(m_sink, "[SEEK-FIX] GST_QUERY_SEEKING: format=TIME, seekable=TRUE, duration=%" G_GINT64_FORMAT,
+                            duration);
+            gst_query_set_seeking(query, fmt, TRUE, 0, duration);
+            return TRUE;
+        }
+        // MSE A/V or non-TIME query: keep the original (baseline) behaviour - not seekable here.
+        GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] GST_QUERY_SEEKING: format=%d not progressive-audio, seekable=FALSE", fmt);
         gst_query_set_seeking(query, fmt, FALSE, 0, -1);
         return TRUE;
     }
@@ -467,6 +506,7 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         {
             return FALSE;
         }
+        bool isProgressiveAudio = false;
         {
             std::unique_lock<std::mutex> lock(m_sinkMutex);
             if (m_isServerFlushOngoing && m_isTimeResetOngoing)
@@ -474,6 +514,7 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
                 GST_WARNING_OBJECT(m_sink, "Position query during server flush and time reset, returning FALSE");
                 return FALSE;
             }
+            isProgressiveAudio = (m_lastSegment.format == GST_FORMAT_BYTES);
         }
 
         GstFormat fmt;
@@ -484,6 +525,30 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         {
             gint64 position = client->getPosition(m_sourceId);
             GST_DEBUG_OBJECT(m_sink, "Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
+
+            // [SEEK-FIX — Fix B] Hold the last seek target as a floor while server
+            // preroll briefly reports -1 or a value below the seek target. This converts
+            // the visible scrub-bar "glitch back to 0:00" into a smooth hold.
+            // Restricted to the audio-only progressive (BYTES) path so MSE A/V position is
+            // reported verbatim (the clamp must not leak onto the video + AAC sinks).
+            gint64 seekPos = isProgressiveAudio ? m_lastSeekPositionNs.load() : -1;
+            if (seekPos > 0)
+            {
+                if (position < 0)
+                {
+                    GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] Position unknown, using seek target %" GST_TIME_FORMAT
+                                     " as fallback", GST_TIME_ARGS(seekPos));
+                    position = seekPos;
+                }
+                else if (position < seekPos)
+                {
+                    GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] Position %" GST_TIME_FORMAT
+                                     " below seek target %" GST_TIME_FORMAT ", clamping to floor",
+                                     GST_TIME_ARGS(position), GST_TIME_ARGS(seekPos));
+                    position = seekPos;
+                }
+            }
+
             if (position < 0)
             {
                 return FALSE;
@@ -524,12 +589,34 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         GstFormat fmt;
         int64_t duration{-1};
         gst_query_parse_duration(query, &fmt, NULL);
-        if (GST_FORMAT_TIME != fmt || !client->getDuration(duration))
+        if (fmt == GST_FORMAT_TIME)
         {
+            if (client->getDuration(duration) && duration > 0)
+            {
+                gst_query_set_duration(query, fmt, duration);
+                return TRUE;
+            }
+            // [SEEK-FIX] Try upstream (peer pad) before giving up
+            if (gst_pad_peer_query(m_sinkPad, query))
+            {
+                return TRUE;
+            }
+            // [SEEK-FIX] Fall back to cached ID3 / parsed MP3 duration
+            gint64 cached = m_cachedDuration.load();
+            if (cached > 0)
+            {
+                gst_query_set_duration(query, GST_FORMAT_TIME, cached);
+                GST_INFO_OBJECT(m_sink, "[SEEK-FIX] GST_QUERY_DURATION: using cached tag duration=%" G_GINT64_FORMAT
+                                " ns (%.3f sec)", cached, (double)cached / GST_SECOND);
+                return TRUE;
+            }
             return FALSE;
         }
-        gst_query_set_duration(query, fmt, duration);
-        return TRUE;
+        if (fmt == GST_FORMAT_BYTES && gst_pad_peer_query(m_sinkPad, query))
+        {
+            return TRUE;
+        }
+        return FALSE;
     }
     default:
         break;
@@ -552,6 +639,14 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
         GstSeekType startType{GST_SEEK_TYPE_NONE}, stopType{GST_SEEK_TYPE_NONE};
         gint64 start{0}, stop{0};
         gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
+        GST_INFO_OBJECT(m_sink, "[SEEK-FIX] handleSendEvent: GST_EVENT_SEEK received! "
+                        "format=%s, flags=0x%x, rate=%.2f, start=%" G_GINT64_FORMAT " (%.3f sec), "
+                        "stop=%" G_GINT64_FORMAT ", startType=%d, stopType=%d",
+                        (seekFormat == GST_FORMAT_TIME) ? "TIME" :
+                        (seekFormat == GST_FORMAT_BYTES) ? "BYTES" : "OTHER",
+                        flags, rate, start,
+                        (seekFormat == GST_FORMAT_TIME) ? (double)start / GST_SECOND : (double)start,
+                        stop, startType, stopType);
 
         if (flags & GST_SEEK_FLAG_FLUSH)
         {
@@ -561,8 +656,81 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
                 gst_event_unref(event);
                 return FALSE;
             }
-            // Update last segment
-            if (seekFormat == GST_FORMAT_TIME)
+            // [SEEK-FIX Layer 4] Handle TIME seek when segment is in BYTES format.
+            // This happens in audio-only pull-mode pipelines (httpsrc -> id3demux -> sink)
+            // where upstream doesn't understand TIME seeks. We convert TIME -> BYTES locally
+            // when we have both a cached duration and the file size. Otherwise we forward
+            // the TIME seek upstream as-is and let the pipeline (id3demux/mpegaudioparse)
+            // perform the conversion.
+            if (seekFormat == GST_FORMAT_TIME && m_lastSegment.format == GST_FORMAT_BYTES)
+            {
+                gint64 cachedDur = m_cachedDuration.load();
+                guint64 fileSize = m_lastSegment.duration;
+
+                if (fileSize == 0 || fileSize == (guint64)(-1))
+                {
+                    gint64 peerBytes = 0;
+                    if (gst_pad_peer_query_duration(m_sinkPad, GST_FORMAT_BYTES, &peerBytes) && peerBytes > 0)
+                    {
+                        fileSize = (guint64)peerBytes;
+                        GST_INFO_OBJECT(m_sink, "[SEEK-FIX] Got file size from upstream query: %" G_GUINT64_FORMAT " bytes",
+                                        fileSize);
+                    }
+                }
+
+                if (cachedDur > 0 && fileSize > 0 && fileSize != (guint64)(-1))
+                {
+                    gint64 byteStart = (gint64)((gdouble)start / (gdouble)cachedDur * (gdouble)fileSize);
+                    gint64 byteStop = (stop == -1 || stop == (gint64)GST_CLOCK_TIME_NONE)
+                                      ? -1
+                                      : (gint64)((gdouble)stop / (gdouble)cachedDur * (gdouble)fileSize);
+
+                    GST_INFO_OBJECT(m_sink, "[SEEK-FIX] Converting TIME seek to BYTES: "
+                                    "time=%" G_GINT64_FORMAT " ns (%.3f sec) -> byte=%" G_GINT64_FORMAT
+                                    " (fileSize=%" G_GUINT64_FORMAT ", duration=%" G_GINT64_FORMAT " ns)",
+                                    start, (gdouble)start / GST_SECOND, byteStart, fileSize, cachedDur);
+
+                    // Store the pending seek time for setSegment() to use when new segment arrives
+                    m_pendingSeekTime.store(start);
+                    // Store persistently for position query floor (Fix B)
+                    m_lastSeekPositionNs.store(start);
+
+                    guint32 seqnum = gst_event_get_seqnum(event);
+                    gst_event_unref(event);
+
+                    // Forward BYTES seek upstream. The source handles FLUSH_START/FLUSH_STOP
+                    // and pushes a new SEGMENT downstream which lands in our handleEvent.
+                    GstEvent *bytesSeek = gst_event_new_seek(rate, GST_FORMAT_BYTES, flags,
+                                                             startType, byteStart, stopType, byteStop);
+                    gst_event_set_seqnum(bytesSeek, seqnum);
+                    bool seekResult = gst_pad_push_event(m_sinkPad, bytesSeek);
+
+                    if (!seekResult)
+                    {
+                        GST_ERROR_OBJECT(m_sink, "[SEEK-FIX] BYTES seek upstream failed");
+                        m_pendingSeekTime.store(-1);
+                        return FALSE;
+                    }
+
+                    GST_INFO_OBJECT(m_sink, "[SEEK-FIX] TIME->BYTES seek forwarded successfully, "
+                                    "pendingSeekTime=%" G_GINT64_FORMAT " ns (%.3f sec)",
+                                    start, (gdouble)start / GST_SECOND);
+                    return TRUE;
+                }
+                else
+                {
+                    // Cannot convert locally; forward the TIME seek upstream as-is.
+                    GST_INFO_OBJECT(m_sink, "[SEEK-FIX] Cannot convert TIME seek to BYTES locally "
+                                    "(cachedDuration=%" G_GINT64_FORMAT " ns, fileSize=%" G_GUINT64_FORMAT "), "
+                                    "forwarding TIME seek upstream",
+                                    cachedDur, fileSize);
+                    m_pendingSeekTime.store(start);
+                    m_lastSeekPositionNs.store(start);
+                    // Fall through to forward upstream via shouldForwardUpstream
+                }
+            }
+            // Update last segment (normal TIME-format segment case)
+            else if (seekFormat == GST_FORMAT_TIME)
             {
                 gboolean update{FALSE};
                 std::lock_guard<std::mutex> lock(m_sinkMutex);
@@ -668,6 +836,24 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
             else
             {
                 m_caps = gst_caps_copy(caps);
+            }
+        }
+        break;
+    }
+    case GST_EVENT_TAG:
+    {
+        // [SEEK-FIX] Cache GST_TAG_DURATION from ID3 metadata so QUERY_SEEKING/QUERY_DURATION
+        // can answer when upstream and the server cannot.
+        GstTagList *tagList = nullptr;
+        gst_event_parse_tag(event, &tagList);
+        if (tagList)
+        {
+            guint64 duration = 0;
+            if (gst_tag_list_get_uint64(tagList, GST_TAG_DURATION, &duration) && duration > 0)
+            {
+                m_cachedDuration.store(static_cast<gint64>(duration));
+                GST_INFO_OBJECT(m_sink, "[SEEK-FIX] GST_EVENT_TAG: cached duration=%" G_GUINT64_FORMAT
+                                " ns (%.3f sec)", duration, (double)duration / GST_SECOND);
             }
         }
         break;
@@ -782,13 +968,198 @@ void PullModePlaybackDelegate::setSegment()
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
     if (!client)
     {
-        GST_ERROR_OBJECT(m_sink, "Could not get the media player client");
+        GST_ERROR_OBJECT(m_sink, "[SEEK-FIX] Could not get the media player client");
         return;
     }
     const bool kResetTime{m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
-    int64_t position = static_cast<int64_t>(m_lastSegment.start);
+
+    int64_t position;
+    if (m_lastSegment.format == GST_FORMAT_TIME)
+    {
+        // Segment is in TIME format (normal video case) - use start directly.
+        position = static_cast<int64_t>(m_lastSegment.start);
+        GST_INFO_OBJECT(m_sink, "[SEEK-FIX] setSegment: TIME format, position=%" G_GINT64_FORMAT
+                        " ns (%.3f sec)", position, static_cast<double>(position) / GST_SECOND);
+    }
+    else if (m_lastSegment.format == GST_FORMAT_BYTES)
+    {
+        // Audio-only pull-mode: segment.start is a byte offset, not a time.
+        // If a pending seek time was stashed by handleSendEvent's TIME->BYTES conversion,
+        // use that as the source position; otherwise fall back to segment.time.
+        gint64 pendingTime = m_pendingSeekTime.exchange(-1);
+        if (pendingTime >= 0)
+        {
+            position = pendingTime;
+            GST_INFO_OBJECT(m_sink, "[SEEK-FIX] setSegment: BYTES + pendingSeekTime=%" G_GINT64_FORMAT
+                            " ns (%.3f sec) from TIME->BYTES conversion",
+                            position, static_cast<double>(position) / GST_SECOND);
+        }
+        else
+        {
+            position = static_cast<int64_t>(m_lastSegment.time);
+            GST_WARNING_OBJECT(m_sink, "[SEEK-FIX] setSegment: BYTES format, start=%" G_GUINT64_FORMAT
+                               " bytes, using segment.time=%" G_GINT64_FORMAT " ns (%.3f sec) as position",
+                               m_lastSegment.start, position, static_cast<double>(position) / GST_SECOND);
+        }
+    }
+    else
+    {
+        // Unknown format - fall back to segment.time.
+        position = static_cast<int64_t>(m_lastSegment.time);
+        GST_WARNING_OBJECT(m_sink, "[SEEK-FIX] setSegment: unknown format=%d, fallback time=%" G_GINT64_FORMAT,
+                           m_lastSegment.format, position);
+    }
+
+    GST_INFO_OBJECT(m_sink, "[SEEK-FIX] setSegment: setSourcePosition(sourceId=%d, position=%" G_GINT64_FORMAT
+                    " ns, resetTime=%d, appliedRate=%.2f, stop=%" G_GUINT64_FORMAT ")",
+                    m_sourceId.load(), position, kResetTime, m_lastSegment.applied_rate, m_lastSegment.stop);
+
     client->setSourcePosition(m_sourceId, position, kResetTime, m_lastSegment.applied_rate, m_lastSegment.stop);
+
+    // [SEEK-FIX] Persist the position used so GST_QUERY_POSITION can floor to it (Fix B).
+    // Restrict to the audio-only progressive (BYTES) path: MSE A/V uses TIME segments and must
+    // not have its reported position floored (that leaked the audio-only fix onto the video +
+    // AAC sinks and caused AV audio to drop out on seek).
+    if (position >= 0 && m_lastSegment.format == GST_FORMAT_BYTES)
+    {
+        m_lastSeekPositionNs.store(position);
+    }
+
     m_segmentSet = true;
+}
+
+void PullModePlaybackDelegate::tryParseMp3Duration(GstBuffer *buffer)
+{
+    m_durationParseAttempted.store(true);
+
+    guint64 fileSize = m_lastSegment.duration;
+    if (fileSize == 0 || fileSize == static_cast<guint64>(-1))
+    {
+        GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: no valid file size in segment");
+        return;
+    }
+
+    GstMapInfo map;
+    if (!gst_buffer_map(buffer, &map, GST_MAP_READ))
+    {
+        GST_WARNING_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: failed to map buffer");
+        return;
+    }
+
+    if (map.size < 4)
+    {
+        gst_buffer_unmap(buffer, &map);
+        return;
+    }
+
+    // Parse MP3 frame header (4 bytes)
+    guint32 header = (map.data[0] << 24) | (map.data[1] << 16) | (map.data[2] << 8) | map.data[3];
+
+    // Check sync word (11 bits of 1s)
+    if ((header & 0xFFE00000) != 0xFFE00000)
+    {
+        GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: no MP3 sync word in first buffer");
+        gst_buffer_unmap(buffer, &map);
+        return;
+    }
+
+    guint version = (header >> 19) & 0x3;    // 00=2.5, 01=reserved, 10=2, 11=1
+    guint layer = (header >> 17) & 0x3;       // 01=III, 10=II, 11=I
+    guint bitrateIdx = (header >> 12) & 0xF;
+    guint srateIdx = (header >> 10) & 0x3;
+
+    if (version == 0x1 || layer == 0x0 || bitrateIdx == 0 || bitrateIdx == 0xF || srateIdx == 0x3)
+    {
+        GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: invalid MP3 header fields");
+        gst_buffer_unmap(buffer, &map);
+        return;
+    }
+
+    static const int kMpeg1Layer3Bitrates[] = {0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0};
+    static const int kMpeg2Layer3Bitrates[] = {0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0};
+    static const int kSampleRates[4][3] = {
+        {11025, 12000, 8000},   // MPEG 2.5
+        {0, 0, 0},              // reserved
+        {22050, 24000, 16000},  // MPEG 2
+        {44100, 48000, 32000}   // MPEG 1
+    };
+
+    int sampleRate = kSampleRates[version][srateIdx];
+    int bitrate = 0;
+    if (version == 3 && layer == 1) // MPEG1 Layer III
+        bitrate = kMpeg1Layer3Bitrates[bitrateIdx];
+    else if (layer == 1) // MPEG2/2.5 Layer III
+        bitrate = kMpeg2Layer3Bitrates[bitrateIdx];
+    else
+    {
+        GST_DEBUG_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: unsupported MPEG version/layer combo");
+        gst_buffer_unmap(buffer, &map);
+        return;
+    }
+
+    if (bitrate == 0 || sampleRate == 0)
+    {
+        gst_buffer_unmap(buffer, &map);
+        return;
+    }
+
+    // Try to find XING/Info header for more accurate duration.
+    guint channelMode = (header >> 6) & 0x3; // 0=stereo, 1=joint, 2=dual, 3=mono
+    guint xingOffset = 0;
+    if (version == 3) // MPEG1
+        xingOffset = (channelMode == 3) ? 17 : 32; // mono: 17, stereo: 32
+    else // MPEG2/2.5
+        xingOffset = (channelMode == 3) ? 9 : 17;
+    xingOffset += 4; // skip frame header
+
+    gint64 duration = -1;
+    int samplesPerFrame = (version == 3) ? 1152 : 576; // MPEG1 vs MPEG2/2.5
+
+    if (map.size >= xingOffset + 12)
+    {
+        const guint8 *xing = map.data + xingOffset;
+        if ((xing[0] == 'X' && xing[1] == 'i' && xing[2] == 'n' && xing[3] == 'g') ||
+            (xing[0] == 'I' && xing[1] == 'n' && xing[2] == 'f' && xing[3] == 'o'))
+        {
+            guint32 flags = (xing[4] << 24) | (xing[5] << 16) | (xing[6] << 8) | xing[7];
+            if (flags & 0x1) // Frames field present
+            {
+                guint32 totalFrames = (xing[8] << 24) | (xing[9] << 16) | (xing[10] << 8) | xing[11];
+                if (totalFrames > 0)
+                {
+                    duration = (gint64)totalFrames * samplesPerFrame * GST_SECOND / sampleRate;
+                    GST_INFO_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: XING header found! "
+                                    "totalFrames=%u, samplesPerFrame=%d, sampleRate=%d -> "
+                                    "duration=%" G_GINT64_FORMAT " ns (%.3f sec)",
+                                    totalFrames, samplesPerFrame, sampleRate,
+                                    duration, (double)duration / GST_SECOND);
+                }
+            }
+        }
+    }
+
+    // Fallback: estimate from CBR bitrate.
+    if (duration < 0)
+    {
+        guint64 audioSize = fileSize;
+        if (m_lastSegment.position > 0 && m_lastSegment.position < fileSize)
+            audioSize = fileSize - m_lastSegment.position;
+
+        duration = (gint64)((gdouble)audioSize * 8.0 / ((gdouble)bitrate * 1000.0) * GST_SECOND);
+        GST_INFO_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: CBR estimate - "
+                        "bitrate=%d kbps, audioSize=%" G_GUINT64_FORMAT ", sampleRate=%d -> "
+                        "duration=%" G_GINT64_FORMAT " ns (%.3f sec)",
+                        bitrate, audioSize, sampleRate, duration, (double)duration / GST_SECOND);
+    }
+
+    gst_buffer_unmap(buffer, &map);
+
+    if (duration > 0)
+    {
+        m_cachedDuration.store(duration);
+        GST_INFO_OBJECT(m_sink, "[SEEK-FIX] tryParseMp3Duration: cached duration=%" G_GINT64_FORMAT
+                        " ns (%.3f sec)", duration, (double)duration / GST_SECOND);
+    }
 }
 
 void PullModePlaybackDelegate::changePlaybackRate(GstEvent *event)
@@ -864,6 +1235,14 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
     constexpr size_t kMaxInternalBuffersQueueSize = 24;
     GST_LOG_OBJECT(m_sink, "Handling buffer %p with PTS %" GST_TIME_FORMAT, buffer,
                    GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
+
+    // [SEEK-FIX] Parse MP3 frame header for duration on the first BYTES buffer so
+    // QUERY_SEEKING/QUERY_DURATION can answer in audio-only pull-mode pipelines.
+    if (m_cachedDuration.load() < 0 && !m_durationParseAttempted.load() &&
+        m_lastSegment.format == GST_FORMAT_BYTES)
+    {
+        tryParseMp3Duration(buffer);
+    }
 
     std::unique_lock<std::mutex> lock(m_sinkMutex);
 
