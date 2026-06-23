@@ -61,7 +61,7 @@ std::unique_ptr<IMessageQueue> MessageQueueFactory::createMessageQueue() const
 
 namespace rialto
 {
-MessageQueue::MessageQueue() : m_running(false), m_acceptingMessages{false} {}
+MessageQueue::MessageQueue() : m_running(false) {}
 
 MessageQueue::~MessageQueue()
 {
@@ -76,7 +76,6 @@ void MessageQueue::start()
         return;
     }
     m_running = true;
-    m_acceptingMessages = true;
     std::thread startThread(&MessageQueue::processMessages, this);
     m_workerThread.swap(startThread);
 }
@@ -106,9 +105,9 @@ std::shared_ptr<Message> MessageQueue::waitForMessage()
 bool MessageQueue::postMessage(const std::shared_ptr<Message> &msg)
 {
     const std::lock_guard<std::mutex> lock(m_mutex);
-    if (!m_running || !m_acceptingMessages)
+    if (!m_running)
     {
-        GST_ERROR("Message queue is not running or not accepting messages");
+        GST_ERROR("Message queue is not running");
         return false;
     }
     m_queue.push_back(msg);
@@ -168,26 +167,10 @@ void MessageQueue::doStop()
         // queue is not running
         return;
     }
-    if (std::this_thread::get_id() == m_workerThread.get_id())
-    {
-        m_acceptingMessages = false;
-        m_running = false;
-        m_workerThread.detach();
-    }
-    else
-    {
-        auto message = std::make_shared<CallInEventLoopMessage>([this]() { m_running = false; });
-        {
-            const std::lock_guard<std::mutex> lock(m_mutex);
-            m_acceptingMessages = false;
-            m_queue.push_back(message);
-            m_condVar.notify_all();
-        }
-        message->wait();
+    callInEventLoopInternal([this]() { m_running = false; });
 
-        if (m_workerThread.joinable())
-            m_workerThread.join();
-    }
+    if (m_workerThread.joinable())
+        m_workerThread.join();
 
     doClear();
 }

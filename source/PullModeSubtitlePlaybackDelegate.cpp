@@ -64,8 +64,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
         if (subtitleSource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
-                                                    PullModePlaybackDelegate::shared_from_this())))
+            if ((!client) || (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink), shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source");
             }
@@ -294,15 +293,7 @@ PullModeSubtitlePlaybackDelegate::createMediaSource(GstCaps *caps) const
         }
 
         GST_INFO_OBJECT(m_sink, "%s subtitle media source created", mimeType.c_str());
-
-        // Access m_textTrackIdentifier with mutex held to avoid data race
-        std::string textTrackIdentifierCopy;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            textTrackIdentifierCopy = m_textTrackIdentifier;
-        }
-
-        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceSubtitle>(mimeType, textTrackIdentifierCopy);
+        return std::make_unique<firebolt::rialto::IMediaPipeline::MediaSourceSubtitle>(mimeType, m_textTrackIdentifier);
     }
     else
     {

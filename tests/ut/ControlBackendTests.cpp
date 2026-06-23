@@ -34,15 +34,6 @@ using testing::SaveArg;
 using testing::SetArgReferee;
 using testing::StrictMock;
 
-namespace
-{
-class ControlClientMock : public IControlClient
-{
-public:
-    MOCK_METHOD(void, notifyApplicationState, (ApplicationState state), (override));
-};
-} // namespace
-
 class ControlBackendTests : public testing::Test
 {
 public:
@@ -52,8 +43,6 @@ public:
     std::unique_ptr<ControlBackend> m_sut{nullptr};
 
     ~ControlBackendTests() override { testing::Mock::VerifyAndClearExpectations(&m_controlFactoryMock); }
-
-protected:
 };
 
 TEST_F(ControlBackendTests, ShouldFailToStartWhenControlIsNull)
@@ -107,50 +96,4 @@ TEST_F(ControlBackendTests, ShouldRemoveControlBackend)
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     m_sut = std::make_unique<ControlBackend>();
     m_sut->removeControlBackend();
-}
-
-TEST_F(ControlBackendTests, ShouldForwardApplicationStateToExternalControlClient)
-{
-    std::weak_ptr<IControlClient> weakClient;
-    auto externalClient = std::make_shared<StrictMock<ControlClientMock>>();
-    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
-    EXPECT_CALL(*m_controlMock, registerClient(_, _))
-        .WillOnce(DoAll(SaveArg<0>(&weakClient), SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
-    m_sut = std::make_unique<ControlBackend>(externalClient);
-
-    auto client = weakClient.lock();
-    ASSERT_TRUE(client);
-
-    EXPECT_CALL(*externalClient, notifyApplicationState(ApplicationState::UNKNOWN));
-    client->notifyApplicationState(ApplicationState::UNKNOWN);
-}
-
-TEST_F(ControlBackendTests, ShouldForwardRunningStateToExternalControlClient)
-{
-    std::weak_ptr<IControlClient> weakClient;
-    auto externalClient = std::make_shared<StrictMock<ControlClientMock>>();
-    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
-    EXPECT_CALL(*m_controlMock, registerClient(_, _))
-        .WillOnce(DoAll(SaveArg<0>(&weakClient), SetArgReferee<1>(ApplicationState::INACTIVE), Return(true)));
-    m_sut = std::make_unique<ControlBackend>(externalClient);
-
-    auto client = weakClient.lock();
-    ASSERT_TRUE(client);
-
-    EXPECT_CALL(*externalClient, notifyApplicationState(ApplicationState::RUNNING));
-    client->notifyApplicationState(ApplicationState::RUNNING);
-}
-
-TEST_F(ControlBackendTests, ShouldHandleStateNotificationWhenExternalControlClientIsMissing)
-{
-    std::weak_ptr<IControlClient> weakClient;
-    EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
-    EXPECT_CALL(*m_controlMock, registerClient(_, _))
-        .WillOnce(DoAll(SaveArg<0>(&weakClient), SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
-    m_sut = std::make_unique<ControlBackend>();
-
-    auto client = weakClient.lock();
-    ASSERT_TRUE(client);
-
-    client->notifyApplicationState(ApplicationState::UNKNOWN);
 }

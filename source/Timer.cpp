@@ -56,18 +56,14 @@ Timer::Timer(const std::chrono::milliseconds &timeout, const std::function<void(
         {
             do
             {
-                bool shouldCallback = false;
+                std::unique_lock<std::mutex> lock{m_mutex};
+                if (!m_cv.wait_for(lock, m_timeout, [this]() { return !m_active; }))
                 {
-                    std::unique_lock<std::mutex> lock{m_mutex};
-                    if (!m_cv.wait_for(lock, m_timeout, [this]() { return !m_active; }))
+                    if (m_active && m_callback)
                     {
-                        shouldCallback = m_active && m_callback;
+                        lock.unlock();
+                        m_callback();
                     }
-                } // lock released here by destructor
-
-                if (shouldCallback)
-                {
-                    m_callback();
                 }
             } while (timerType == TimerType::PERIODIC && m_active);
             m_active = false;

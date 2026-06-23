@@ -65,9 +65,7 @@ static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *eleme
         if (PlaybackMode::Pull == sink->priv->m_playbackMode)
         {
             GST_INFO_OBJECT(sink, "RialtoMSEAudioSink state change to READY. Initializing Pull Mode delegate");
-            auto delegate = std::make_shared<PullModeAudioPlaybackDelegate>(element);
-            delegate->createControlBackend();
-            rialto_mse_base_sink_initialise_delegate(sink, delegate);
+            rialto_mse_base_sink_initialise_delegate(sink, std::make_shared<PullModeAudioPlaybackDelegate>(element));
         }
         else // Push playback mode
         {

@@ -372,9 +372,7 @@ void GStreamerWebAudioPlayerClient::pushSamples()
                     // If the leftover data is smaller than a frame, it must be processed with the next buffer
                     std::unique_lock lock{m_queueSizeMutex};
                     m_dataBuffers.pop();
-                    GstBuffer *nextBuffer = m_dataBuffers.front();
-                    GstBuffer *combinedBuffer = gst_buffer_append(buffer, nextBuffer);
-                    m_dataBuffers.front() = combinedBuffer;
+                    m_dataBuffers.front() = gst_buffer_append(buffer, m_dataBuffers.front());
                     gst_buffer_unref(buffer);
                     m_queueSizeCv.notify_one();
                 }

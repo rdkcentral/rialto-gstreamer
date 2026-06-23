@@ -184,17 +184,6 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
-class FirstFrameReceivedMessage : public Message
-{
-public:
-    FirstFrameReceivedMessage(int sourceId, GStreamerMSEMediaPlayerClient *player);
-    void handle() override;
-
-private:
-    int m_sourceId;
-    GStreamerMSEMediaPlayerClient *m_player;
-};
-
 class PlaybackErrorMessage : public Message
 {
 public:
@@ -259,7 +248,7 @@ public:
     GStreamerMSEMediaPlayerClient(
         const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory,
         const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
-        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive);
+        const uint32_t maxVideoWidth, const uint32_t maxVideoHeight);
     virtual ~GStreamerMSEMediaPlayerClient();
 
     void notifyDuration(int64_t duration) override;
@@ -274,13 +263,11 @@ public:
     void notifyCancelNeedMediaData(int32_t sourceId) override;
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
     void notifyBufferUnderflow(int32_t sourceId) override;
-    void notifyFirstFrameReceived(int32_t sourceId) override;
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
 
     int64_t getPosition(int32_t sourceId);
-    bool getDuration(int64_t &duration);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
@@ -313,14 +300,12 @@ public:
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     bool handleBufferUnderflow(int sourceId);
-    bool handleFirstFrameReceived(int sourceId);
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(int32_t sourceId);
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
-    bool getCachedVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
     void setTextTrackIdentifier(const std::string &textTrackIdentifier);
@@ -372,5 +357,4 @@ private:
 
     const uint32_t m_maxWidth;
     const uint32_t m_maxHeight;
-    const bool m_isLive;
 };
