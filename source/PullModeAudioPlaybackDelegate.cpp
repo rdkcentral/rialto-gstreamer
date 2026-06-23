@@ -108,8 +108,7 @@ gboolean PullModeAudioPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
         if (asource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(asource, RIALTO_MSE_BASE_SINK(m_sink),
-                                                    PullModePlaybackDelegate::shared_from_this())))
+            if ((!client) || (!client->attachSource(asource, RIALTO_MSE_BASE_SINK(m_sink), shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach AUDIO source");
             }
@@ -224,7 +223,7 @@ void PullModeAudioPlaybackDelegate::getProperty(const Property &type, GValue *va
         double volume{1.0};
         if (client)
         {
-            if (client->getCachedVolume(volume))
+            if (client->getVolume(volume))
                 m_targetVolume = volume;
             else
                 volume = m_targetVolume; // Use last known volume

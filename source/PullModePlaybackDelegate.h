@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "IControl.h"
 #include "IPullModePlaybackDelegate.h"
 #include <gst/gst.h>
 
@@ -33,24 +32,19 @@
 #include <optional>
 #include <queue>
 
-class PullModePlaybackDelegate : public IPullModePlaybackDelegate,
-                                 public firebolt::rialto::IControlClient,
-                                 public std::enable_shared_from_this<PullModePlaybackDelegate>
+class PullModePlaybackDelegate : public IPullModePlaybackDelegate
 {
 protected:
     explicit PullModePlaybackDelegate(GstElement *sink);
     ~PullModePlaybackDelegate() override;
 
 public:
-    void createControlBackend();
-
     void setSourceId(int32_t sourceId) override;
 
     void handleEos() override;
     void handleFlushCompleted() override;
     void handleStateChanged(firebolt::rialto::PlaybackState state) override;
     void handleError(const std::string &message, gint code = 0) override;
-    void notifyApplicationState(firebolt::rialto::ApplicationState state) override;
     GstStateChangeReturn changeState(GstStateChange transition) override;
     void postAsyncStart() override;
     void setProperty(const Property &type, const GValue *value) override;
@@ -78,7 +72,6 @@ private:
     void stopFlushing(bool resetTime);
     void flushServer(bool resetTime);
     bool setStreamsNumber(GstObject *parentObject);
-    bool isLiveLatencyEnabled() const;
     GstSample *getLastSample() const;
     void setLastBuffer(GstBuffer *buffer);
 

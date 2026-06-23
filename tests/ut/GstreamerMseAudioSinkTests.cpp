@@ -547,10 +547,10 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldGetFadeVolumeProperty)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
 
+    constexpr int64_t kPosition{1234};
     guint fadeVolume{0};
     constexpr guint kFadeVolume{5};
-    EXPECT_CALL(m_mediaPipelineMock, getVolume(_))
-        .WillOnce(DoAll(SetArgReferee<0>(static_cast<double>(kFadeVolume) / 100.0), Return(true)));
+    sendPlaybackInfoNotification(textContext.m_sink, firebolt::rialto::PlaybackInfo{kPosition, kFadeVolume / 100.0});
     g_object_get(textContext.m_sink, "fade-volume", &fadeVolume, nullptr);
     EXPECT_EQ(fadeVolume, kFadeVolume);
 

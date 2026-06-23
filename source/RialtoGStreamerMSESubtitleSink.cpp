@@ -54,9 +54,8 @@ static GstStateChangeReturn rialto_mse_subtitle_sink_change_state(GstElement *el
     if (GST_STATE_CHANGE_NULL_TO_READY == transition)
     {
         GST_INFO_OBJECT(sink, "RialtoMSESubtitleSink state change to READY. Initializing delegate");
-        auto delegate = std::make_shared<PullModeSubtitlePlaybackDelegate>(element);
-        delegate->createControlBackend();
-        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink), delegate);
+        rialto_mse_base_sink_initialise_delegate(RIALTO_MSE_BASE_SINK(sink),
+                                                 std::make_shared<PullModeSubtitlePlaybackDelegate>(element));
     }
 
     GstStateChangeReturn result = GST_ELEMENT_CLASS(parent_class)->change_state(element, transition);

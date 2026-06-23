@@ -32,31 +32,21 @@ class ControlBackend final : public ControlBackendInterface
     class ControlClient : public IControlClient
     {
     public:
-        explicit ControlClient(ControlBackend &backend, std::weak_ptr<IControlClient> client)
-            : mBackend{backend}, mClient{std::move(client)}
-        {
-        }
+        explicit ControlClient(ControlBackend &backend) : mBackend{backend} {}
         ~ControlClient() override = default;
         void notifyApplicationState(ApplicationState state) override
         {
             GST_INFO("ApplicationStateChanged received by rialto sink");
             mBackend.onApplicationStateChanged(state);
-
-            if (auto client = mClient.lock())
-            {
-                client->notifyApplicationState(state);
-            }
         }
 
     private:
         ControlBackend &mBackend;
-        std::weak_ptr<IControlClient> mClient;
     };
 
 public:
-    explicit ControlBackend(std::weak_ptr<IControlClient> controlClient = {})
-        : m_rialtoClientState{ApplicationState::UNKNOWN},
-          m_controlClient{std::make_shared<ControlClient>(*this, std::move(controlClient))},
+    ControlBackend()
+        : m_rialtoClientState{ApplicationState::UNKNOWN}, m_controlClient{std::make_shared<ControlClient>(*this)},
           m_control{IControlFactory::createFactory()->createControl()}
     {
         if (!m_control)
@@ -92,11 +82,9 @@ private:
     {
         GST_INFO("Rialto Client application state changed to: %s",
                  state == ApplicationState::RUNNING ? "Active" : "Inactive/Unknown");
-        {
-            std::unique_lock<std::mutex> lock{m_mutex};
-            m_rialtoClientState = state;
-            m_stateCv.notify_one();
-        }
+        std::unique_lock<std::mutex> lock{m_mutex};
+        m_rialtoClientState = state;
+        m_stateCv.notify_one();
     }
 
 private:

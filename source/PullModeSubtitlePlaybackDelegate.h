@@ -23,7 +23,8 @@
 #include <mutex>
 #include <string>
 
-class PullModeSubtitlePlaybackDelegate : public PullModePlaybackDelegate
+class PullModeSubtitlePlaybackDelegate : public PullModePlaybackDelegate,
+                                         public std::enable_shared_from_this<PullModeSubtitlePlaybackDelegate>
 {
 public:
     explicit PullModeSubtitlePlaybackDelegate(GstElement *sink);
@@ -39,7 +40,7 @@ private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
 
 private:
-    mutable std::mutex m_mutex;
+    std::mutex m_mutex;
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};
     std::atomic<bool> m_isMuted{false};

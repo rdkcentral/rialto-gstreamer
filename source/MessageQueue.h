@@ -19,7 +19,6 @@
 #pragma once
 
 #include "IMessageQueue.h"
-#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -33,8 +32,8 @@ class CallInEventLoopMessage : public Message
 public:
     explicit CallInEventLoopMessage(const std::function<void()> &func);
     void handle() override;
-    void wait();
     void skip() override;
+    void wait();
 
 private:
     const std::function<void()> m_func;
@@ -88,7 +87,6 @@ protected:
     std::mutex m_mutex;
     std::deque<std::shared_ptr<Message>> m_queue;
     std::thread m_workerThread;
-    std::atomic_bool m_running;
-    std::atomic_bool m_acceptingMessages;
+    bool m_running;
 };
 } // namespace rialto

@@ -59,7 +59,6 @@ public:
         ImmediateOutput,
         SyncmodeStreaming,
         ShowVideoWindow,
-        VideoPts,
 
         // PullModeSubtitlePlaybackDelegate Properties
         TextTrackIdentifier,
