@@ -113,4 +113,7 @@ protected:
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
     guint32 m_lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
     std::atomic<guint32> m_currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
+    std::atomic<gint64> m_cachedDuration{-1};    // [SEEK-FIX] duration from GST_TAG_DURATION (ns)
+    std::atomic<gint64> m_pendingSeekTime{-1};   // [SEEK-FIX] TIME->BYTES seek target carried into setSegment
+    std::atomic<gint64> m_lastSeekPositionNs{-1}; // [SEEK-FIX] last seek target; floors QUERY_POSITION during preroll
 };
