@@ -603,6 +603,7 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
             GST_DEBUG_OBJECT(m_sink, "Instant playback rate change: %.2f", rate);
             m_currentInstantRateChangeSeqnum = seqnum;
             client->setPlaybackRate(rate);
+            m_lastPlaybackRate = rate;
         }
         break;
     }
@@ -785,6 +786,15 @@ void PullModePlaybackDelegate::setSegment()
     const bool kResetTime{m_lastSegment.flags == GST_SEGMENT_FLAG_RESET};
     int64_t position = static_cast<int64_t>(m_lastSegment.start);
     client->setSourcePosition(m_sourceId, position, kResetTime, m_lastSegment.applied_rate, m_lastSegment.stop);
+
+    // Send Playback Rate if it differs from the last rate we applied.
+    if (m_lastSegment.rate != m_lastPlaybackRate && m_mediaPlayerManager.hasControl())
+    {
+        GST_DEBUG_OBJECT(m_sink, "Setting playback rate to %.2f", m_lastSegment.rate);
+        client->setPlaybackRate(m_lastSegment.rate);
+        m_lastPlaybackRate = m_lastSegment.rate;
+    }
+
     m_segmentSet = true;
 }
 
@@ -799,6 +809,7 @@ void PullModePlaybackDelegate::changePlaybackRate(GstEvent *event)
         {
             GST_DEBUG_OBJECT(m_sink, "Instant playback rate change: %.2f", playbackRate);
             client->setPlaybackRate(playbackRate);
+            m_lastPlaybackRate = playbackRate;
         }
     }
 }

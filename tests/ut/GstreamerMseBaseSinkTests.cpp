@@ -1066,6 +1066,90 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetPlaybackRateWhenSegmentRateDiffersFromLastApplied)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{false};
+    constexpr double kAppliedRate{1.0};
+    constexpr double kSegmentRate{2.0};
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setPlaybackRate(kSegmentRate)).WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, kSegmentRate, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+
+    gst_segment_free(segment);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldNotSetPlaybackRateWhenSegmentRateMatchesLastApplied)
+{
+    constexpr guint64 kPosition{1234};
+    constexpr bool kResetTime{false};
+    constexpr double kAppliedRate{1.0};
+    constexpr double kSegmentRate{1.0}; // matches default m_lastPlaybackRate
+    constexpr uint64_t kStopPosition{GST_CLOCK_TIME_NONE};
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    // setSourcePosition is expected, but setPlaybackRate must NOT be called because the
+    // segment rate equals the last applied playback rate. StrictMock will fail the test
+    // if setPlaybackRate is invoked.
+    EXPECT_CALL(m_mediaPipelineMock, setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
+        .WillOnce(Return(true));
+
+    GstSegment *segment{gst_segment_new()};
+    gst_segment_init(segment, GST_FORMAT_TIME);
+    gst_segment_do_seek(segment, kSegmentRate, GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, GST_SEEK_TYPE_SET, kPosition,
+                        GST_SEEK_TYPE_SET, kStopPosition, nullptr);
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(audioSink->priv->m_sinkPad, GST_OBJECT_CAST(audioSink),
+                                           gst_event_new_segment(segment)));
+
+    gst_segment_free(segment);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

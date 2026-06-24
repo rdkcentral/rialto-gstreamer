@@ -113,4 +113,5 @@ protected:
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};
     guint32 m_lastInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
     std::atomic<guint32> m_currentInstantRateChangeSeqnum{GST_SEQNUM_INVALID};
+    gdouble m_lastPlaybackRate{1.0};
 };
