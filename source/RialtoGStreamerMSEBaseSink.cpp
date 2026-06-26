@@ -91,6 +91,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     {
         return delegate->handleSendEvent(event);
     }
+    gst_event_unref(event);
     return FALSE;
 }
 
@@ -100,6 +101,7 @@ gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *ev
     {
         return delegate->handleEvent(pad, parent, event);
     }
+    gst_event_unref(event);
     return FALSE;
 }
 
@@ -109,6 +111,7 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
     {
         return delegate->handleBuffer(buf);
     }
+    gst_buffer_unref(buf);
     return GST_FLOW_ERROR;
 }
 
@@ -183,6 +186,10 @@ void rialto_mse_base_sink_handle_set_property(RialtoMSEBaseSink *sink, const IPl
     else
     {
         std::unique_lock lock{sink->priv->m_sinkMutex};
+        if (sink->priv->m_queuedProperties.find(property) != sink->priv->m_queuedProperties.end())
+        {
+            g_value_unset(&sink->priv->m_queuedProperties[property]);
+        }
         sink->priv->m_queuedProperties[property] = G_VALUE_INIT;
         g_value_init(&(sink->priv->m_queuedProperties[property]), G_VALUE_TYPE(value));
         g_value_copy(value, &(sink->priv->m_queuedProperties[property]));
