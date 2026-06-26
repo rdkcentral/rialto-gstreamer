@@ -103,20 +103,6 @@ void firstFrameReceivedSignalCallback(GstElement *, gpointer, guint, gpointer)
     FirstFrameReceivedSignalMock::instance().callbackCalled();
 }
 
-class FirstFrameReceivedSignalMock
-{
-public:
-    static FirstFrameReceivedSignalMock &instance()
-    {
-        static FirstFrameReceivedSignalMock instance;
-        return instance;
-    }
-    MOCK_METHOD(void, callbackCalled, (), (const));
-};
-void firstFrameReceivedSignalCallback(GstElement *, gpointer, guint, gpointer)
-{
-    FirstFrameReceivedSignalMock::instance().callbackCalled();
-}
 } // namespace
 
 class GstreamerMseMediaPlayerClientTests : public RialtoGstTest
