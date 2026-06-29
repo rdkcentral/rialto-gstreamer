@@ -1199,6 +1199,7 @@ PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned i
 void PullBufferMessage::handle()
 {
     bool isEos = false;
+    bool isNoSpace{false};
     unsigned int addedSegments = 0;
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
@@ -1249,6 +1250,7 @@ void PullBufferMessage::handle()
         {
             gst_buffer_unmap(buffer, &map);
             GST_INFO_OBJECT(m_rialtoSink, "There's no space to add sample");
+            isNoSpace = true;
             break;
         }
 
@@ -1266,7 +1268,10 @@ void PullBufferMessage::handle()
     {
         status = firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES;
     }
-
+    else if (addedSegments != m_frameCount && isNoSpace)
+    {
+        status = firebolt::rialto::MediaSourceStatus::NO_SPACE_FOR_SAMPLES;
+    }
     if (firebolt::rialto::MediaSourceStatus::OK == status || firebolt::rialto::MediaSourceStatus::EOS == status)
     {
         m_player->getFlushAndDataSynchronizer().notifyDataPushed(m_sourceId);
