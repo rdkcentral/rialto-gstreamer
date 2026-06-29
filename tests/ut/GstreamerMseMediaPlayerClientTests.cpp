@@ -102,6 +102,7 @@ void firstFrameReceivedSignalCallback(GstElement *, gpointer, guint, gpointer)
 {
     FirstFrameReceivedSignalMock::instance().callbackCalled();
 }
+
 } // namespace
 
 class GstreamerMseMediaPlayerClientTests : public RialtoGstTest
@@ -658,6 +659,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstFrameReceived)
 
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstAudioFrameReceived)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    g_signal_connect(audioSink, "first-audio-frame-callback", G_CALLBACK(firstFrameReceivedSignalCallback), nullptr);
+
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    // No mutex/cv needed, signal emission is synchronous
+    EXPECT_CALL(FirstFrameReceivedSignalMock::instance(), callbackCalled());
+    m_sut->notifyFirstFrameReceived(kSourceId);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyFirstFrameReceivedWhenSourceIdIsNotKnown)

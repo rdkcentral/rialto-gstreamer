@@ -70,5 +70,6 @@ bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink);
 
 void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSink *sink);
 void rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(RialtoMSEBaseSink *sink);
+void rialto_mse_base_handle_rialto_server_sent_first_audio_frame_received(RialtoMSEBaseSink *sink);
 
 G_END_DECLS
