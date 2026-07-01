@@ -56,6 +56,7 @@ enum
 {
     SIGNAL_UNDERFLOW,
     SIGNAL_FIRST_VIDEO_FRAME_RECEIVED,
+    SIGNAL_FIRST_AUDIO_FRAME_RECEIVED,
     SIGNAL_LAST
 };
 
@@ -273,6 +274,12 @@ void rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(Rialto
     g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED], 0, 0, nullptr);
 }
 
+void rialto_mse_base_handle_rialto_server_sent_first_audio_frame_received(RialtoMSEBaseSink *sink)
+{
+    GST_INFO_OBJECT(sink, "Sending first audio frame received signal");
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_AUDIO_FRAME_RECEIVED], 0, 0, nullptr);
+}
+
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
 {
     GstPadTemplate *pad_template =
@@ -342,6 +349,10 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
                                                G_TYPE_POINTER);
     g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
+                                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
+                                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
+                                                                G_TYPE_UINT, G_TYPE_POINTER);
+    g_signals[SIGNAL_FIRST_AUDIO_FRAME_RECEIVED] = g_signal_new("first-audio-frame-callback", G_TYPE_FROM_CLASS(klass),
                                                                 (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                                 g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
                                                                 G_TYPE_UINT, G_TYPE_POINTER);
