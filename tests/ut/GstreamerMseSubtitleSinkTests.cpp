@@ -194,6 +194,26 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldFailToAttachSource)
+{
+    constexpr auto kUnknownSourceId{-1};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).WillOnce(Return(false));
+
+    GstCaps *caps{gst_caps_new_empty_simple("application/x-subtitle-vtt")};
+    EXPECT_EQ(FALSE, gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_caps(caps)));
+
+    setNullState(pipeline, kUnknownSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();

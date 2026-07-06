@@ -68,6 +68,8 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                                                     PullModePlaybackDelegate::shared_from_this())))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source");
+                gst_event_unref(event);
+                return FALSE;
             }
             else
             {
