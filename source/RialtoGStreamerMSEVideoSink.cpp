@@ -54,6 +54,20 @@ enum
     PROP_LAST
 };
 
+enum
+{
+    SIGNAL_FIRST_VIDEO_FRAME_RECEIVED,
+    SIGNAL_LAST
+};
+
+static guint g_signals[SIGNAL_LAST] = {0};
+
+void rialto_mse_video_handle_rialto_server_sent_first_video_frame_received(RialtoMSEVideoSink *sink)
+{
+    GST_INFO_OBJECT(sink, "Sending first frame received signal");
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED], 0, 0, nullptr);
+}
+
 static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEVideoSink *sink = RIALTO_MSE_VIDEO_SINK(element);
@@ -247,6 +261,11 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_VIDEO_PTS,
                                     g_param_spec_int64("video_pts", "video PTS", "current video PTS value", G_MININT64,
                                                        G_MAXINT64, 0, G_PARAM_READABLE));
+
+    g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
+                                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
+                                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
+                                                                G_TYPE_UINT, G_TYPE_POINTER);
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();

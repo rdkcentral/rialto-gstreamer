@@ -19,6 +19,7 @@
 #include "GStreamerMSEMediaPlayerClient.h"
 #include "Constants.h"
 #include "GstreamerCatLog.h"
+#include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
@@ -1080,12 +1081,14 @@ bool GStreamerMSEMediaPlayerClient::handleFirstFrameReceived(int sourceId)
             }
             if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
             {
-                rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(sourceIt->second.m_rialtoSink);
+                rialto_mse_video_handle_rialto_server_sent_first_video_frame_received(
+                    RIALTO_MSE_VIDEO_SINK(sourceIt->second.m_rialtoSink));
                 result = true;
             }
             else if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
             {
-                rialto_mse_base_handle_rialto_server_sent_first_audio_frame_received(sourceIt->second.m_rialtoSink);
+                rialto_mse_audio_handle_rialto_server_sent_first_audio_frame_received(
+                    RIALTO_MSE_AUDIO_SINK(sourceIt->second.m_rialtoSink));
                 result = true;
             }
         });
