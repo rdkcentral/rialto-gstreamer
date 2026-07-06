@@ -1416,11 +1416,11 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
-    const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(false));
-    EXPECT_FALSE(m_sut->renderFrame(kSourceId));
+    EXPECT_FALSE(m_sut->renderFrame());
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
@@ -1443,10 +1443,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
     EXPECT_CALL(*m_delegateMock, postAsyncStart());
-    EXPECT_CALL(*m_delegateMock, lostState());
     m_sut->pause(kVideoSourceId);
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, renderFrame()).WillOnce(Return(true));
-    EXPECT_TRUE(m_sut->renderFrame(kVideoSourceId));
+    EXPECT_TRUE(m_sut->renderFrame());
 
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(videoSink);
