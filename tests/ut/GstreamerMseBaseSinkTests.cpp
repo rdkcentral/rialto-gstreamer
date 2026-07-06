@@ -40,6 +40,63 @@ constexpr gdouble kPlaybackRate{1.5};
 constexpr gint64 kStart{12};
 constexpr gint64 kStop{0};
 constexpr bool kResetTime{true};
+constexpr char kUpstreamStubKey[]{"rialto-ut-upstream-stub"};
+
+struct UpstreamQueryStub
+{
+    bool answerSeeking{false};
+    gboolean seekable{FALSE};
+    gint64 seekStart{0};
+    gint64 seekStop{-1};
+    bool answerDuration{false};
+    GstFormat durationFormat{GST_FORMAT_TIME};
+    gint64 duration{-1};
+};
+
+gboolean upstreamStubQueryFunction(GstPad *pad, GstObject * /*parent*/, GstQuery *query)
+{
+    auto *stub = static_cast<UpstreamQueryStub *>(g_object_get_data(G_OBJECT(pad), kUpstreamStubKey));
+    if (!stub)
+    {
+        return FALSE;
+    }
+    switch (GST_QUERY_TYPE(query))
+    {
+    case GST_QUERY_SEEKING:
+        if (stub->answerSeeking)
+        {
+            GstFormat fmt;
+            gst_query_parse_seeking(query, &fmt, nullptr, nullptr, nullptr);
+            gst_query_set_seeking(query, fmt, stub->seekable, stub->seekStart, stub->seekStop);
+            return TRUE;
+        }
+        return FALSE;
+    case GST_QUERY_DURATION:
+        if (stub->answerDuration)
+        {
+            gst_query_set_duration(query, stub->durationFormat, stub->duration);
+            return TRUE;
+        }
+        return FALSE;
+    default:
+        return FALSE;
+    }
+}
+
+GstPad *linkUpstreamStubPad(RialtoMSEBaseSink *sink, UpstreamQueryStub *stub)
+{
+    GstPad *srcPad{gst_pad_new("upstream-stub-src", GST_PAD_SRC)};
+    g_object_set_data(G_OBJECT(srcPad), kUpstreamStubKey, stub);
+    gst_pad_set_query_function(srcPad, upstreamStubQueryFunction);
+    EXPECT_EQ(GST_PAD_LINK_OK, gst_pad_link_full(srcPad, sink->priv->m_sinkPad, GST_PAD_LINK_CHECK_NOTHING));
+    return srcPad;
+}
+
+void unlinkUpstreamStubPad(RialtoMSEBaseSink *sink, GstPad *srcPad)
+{
+    gst_pad_unlink(srcPad, sink->priv->m_sinkPad);
+    gst_object_unref(srcPad);
+}
 } // namespace
 
 class GstreamerMseBaseSinkTests : public RialtoGstTest
@@ -432,6 +489,110 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySeeking)
     GstQuery *query{gst_query_new_seeking(GST_FORMAT_DEFAULT)};
     EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
     gst_query_unref(query);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReportNotSeekableWhenNoUpstreamIsLinked)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{TRUE};
+    gint64 segStart{-1};
+    gint64 segStop{-1};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segStop);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_FALSE(seekable);
+    EXPECT_EQ(segStart, 0);
+    EXPECT_EQ(segStop, -1);
+    gst_query_unref(query);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldForwardSeekingQueryToSeekableUpstream)
+{
+    constexpr gint64 kSeekStart{0};
+    constexpr gint64 kSeekStop{123456789};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    UpstreamQueryStub stub;
+    stub.answerSeeking = true;
+    stub.seekable = TRUE;
+    stub.seekStart = kSeekStart;
+    stub.seekStop = kSeekStop;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    GstFormat fmt;
+    gboolean seekable{FALSE};
+    gint64 segStart{-1};
+    gint64 segStop{-1};
+    gst_query_parse_seeking(query, &fmt, &seekable, &segStart, &segStop);
+    EXPECT_EQ(fmt, GST_FORMAT_TIME);
+    EXPECT_TRUE(seekable);
+    EXPECT_EQ(segStart, kSeekStart);
+    EXPECT_EQ(segStop, kSeekStop);
+    gst_query_unref(query);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldReportNotSeekableWhenUpstreamDeclinesSeekingQuery)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    UpstreamQueryStub stub;
+    stub.answerSeeking = false;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    gboolean seekable{TRUE};
+    gst_query_parse_seeking(query, nullptr, &seekable, nullptr, nullptr);
+    EXPECT_FALSE(seekable);
+    gst_query_unref(query);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldForwardNotSeekableAnswerFromUpstream)
+{
+    constexpr gint64 kSeekStart{5};
+    constexpr gint64 kSeekStop{999};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    UpstreamQueryStub stub;
+    stub.answerSeeking = true;
+    stub.seekable = FALSE;
+    stub.seekStart = kSeekStart;
+    stub.seekStop = kSeekStop;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    GstQuery *query{gst_query_new_seeking(GST_FORMAT_TIME)};
+    EXPECT_TRUE(gst_element_query(GST_ELEMENT_CAST(audioSink), query));
+
+    gboolean seekable{TRUE};
+    gint64 segStart{-1};
+    gint64 segStop{-1};
+    gst_query_parse_seeking(query, nullptr, &seekable, &segStart, &segStop);
+    EXPECT_FALSE(seekable);
+    EXPECT_EQ(segStart, kSeekStart);
+    EXPECT_EQ(segStop, kSeekStop);
+    gst_query_unref(query);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
@@ -2098,6 +2259,146 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDuration)
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenFormatIsNotTime)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    UpstreamQueryStub stub;
+    stub.answerDuration = true;
+    stub.durationFormat = GST_FORMAT_BYTES;
+    stub.duration = 1000;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    gint64 duration{0};
+    EXPECT_FALSE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_BYTES, &duration));
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDurationFromUpstreamWhenUpstreamProvidesDuration)
+{
+    constexpr gint64 kUpstreamDuration{3717183000000};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    UpstreamQueryStub stub;
+    stub.answerDuration = true;
+    stub.durationFormat = GST_FORMAT_TIME;
+    stub.duration = kUpstreamDuration;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    gint64 duration{0};
+    EXPECT_TRUE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+    EXPECT_EQ(duration, kUpstreamDuration);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldNotConsultServerDurationWhenUpstreamProvidesDuration)
+{
+    constexpr gint64 kUpstreamDuration{3717183000000};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    UpstreamQueryStub stub;
+    stub.answerDuration = true;
+    stub.durationFormat = GST_FORMAT_TIME;
+    stub.duration = kUpstreamDuration;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    gint64 duration{0};
+    EXPECT_TRUE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+    EXPECT_EQ(duration, kUpstreamDuration);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToServerDurationWhenUpstreamDurationNotPositive)
+{
+    constexpr gint64 kServerDuration{5000};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    UpstreamQueryStub stub;
+    stub.answerDuration = true;
+    stub.durationFormat = GST_FORMAT_TIME;
+    stub.duration = 0;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    gint64 duration{0};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kServerDuration), Return(true)));
+    EXPECT_TRUE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+    EXPECT_EQ(duration, kServerDuration);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToServerDurationWhenUpstreamDeclinesDurationQuery)
+{
+    constexpr gint64 kServerDuration{6000};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    UpstreamQueryStub stub;
+    stub.answerDuration = false;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    gint64 duration{0};
+    EXPECT_CALL(m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kServerDuration), Return(true)));
+    EXPECT_TRUE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+    EXPECT_EQ(duration, kServerDuration);
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenUpstreamDurationNotPositiveAndNoClient)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    UpstreamQueryStub stub;
+    stub.answerDuration = true;
+    stub.durationFormat = GST_FORMAT_TIME;
+    stub.duration = -1;
+    GstPad *upstreamPad{linkUpstreamStubPad(audioSink, &stub)};
+
+    gint64 duration{0};
+    EXPECT_FALSE(gst_element_query_duration(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &duration));
+
+    unlinkUpstreamStubPad(audioSink, upstreamPad);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldQueuePropertyWithoutDelegate)

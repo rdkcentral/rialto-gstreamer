@@ -459,6 +459,10 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
     {
     case GST_QUERY_SEEKING:
     {
+        if (m_sinkPad && gst_pad_peer_query(m_sinkPad, query))
+        {
+            return TRUE;
+        }
         GstFormat fmt;
         gst_query_parse_seeking(query, &fmt, NULL, NULL, NULL);
         gst_query_set_seeking(query, fmt, FALSE, 0, -1);
@@ -520,15 +524,31 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
     }
     case GST_QUERY_DURATION:
     {
+        GstFormat fmt;
+        gst_query_parse_duration(query, &fmt, NULL);
+        if (GST_FORMAT_TIME != fmt)
+        {
+            return FALSE;
+        }
+
+        if (m_sinkPad && gst_pad_peer_query(m_sinkPad, query))
+        {
+            gint64 upstreamDuration{-1};
+            gst_query_parse_duration(query, nullptr, &upstreamDuration);
+            if (upstreamDuration > 0)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Duration from upstream is %" GST_TIME_FORMAT, GST_TIME_ARGS(upstreamDuration));
+                return TRUE;
+            }
+        }
+
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
             return FALSE;
         }
-        GstFormat fmt;
         int64_t duration{-1};
-        gst_query_parse_duration(query, &fmt, NULL);
-        if (GST_FORMAT_TIME != fmt || !client->getDuration(duration))
+        if (!client->getDuration(duration))
         {
             return FALSE;
         }
