@@ -546,8 +546,19 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossible()
     m_backendQueue->callInEventLoop([&]() { sendAllSourcesAttachedIfPossibleInternal(); });
 }
 
+void GStreamerMSEMediaPlayerClient::notifyStopping()
+{
+    m_backendQueue->callInEventLoop([&]() { m_isStopping = true; });
+}
+
 void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
 {
+    if (m_isStopping)
+    {
+        GST_INFO("Skip sending allSourcesAttached, because a stop was already requested");
+        return;
+    }
+
     if (!m_wasAllSourcesAttachedSent && areAllStreamsAttached())
     {
         // RialtoServer doesn't support dynamic source attachment.
