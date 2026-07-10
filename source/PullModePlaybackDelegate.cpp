@@ -286,6 +286,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
+        client->notifyStopping();
+
         if (m_isStateCommitNeeded)
         {
             GST_DEBUG_OBJECT(m_sink, "Sending async_done in PAUSED->READY transition");
@@ -302,6 +304,10 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
     case GST_STATE_CHANGE_READY_TO_NULL:
         // Playback will be stopped once all sources are finished and ref count
         // of the media pipeline object reaches 0
+        if (client)
+        {
+            client->notifyStopping();
+        }
         m_mediaPlayerManager.releaseMediaPlayerClient();
         m_rialtoControlClient->removeControlBackend();
         break;

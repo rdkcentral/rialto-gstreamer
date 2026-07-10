@@ -306,6 +306,7 @@ public:
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
     void sendAllSourcesAttachedIfPossible();
+    void notifyStopping();
 
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
@@ -353,6 +354,7 @@ private:
     std::mutex m_playbackInfoMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
+    bool m_isStopping = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
     int32_t m_subtitleStreams;
