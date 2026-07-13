@@ -306,7 +306,7 @@ public:
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
     void sendAllSourcesAttachedIfPossible();
-    void notifyStopping();
+    void setStopping(bool stopping);
 
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
