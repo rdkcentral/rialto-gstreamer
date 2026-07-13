@@ -213,6 +213,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
+        client->setStopping(false);
+
         m_isSinkFlushOngoing = false;
 
         StateChangeResult result = client->pause(m_sourceId);
@@ -277,7 +279,7 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
-        client->notifyStopping();
+        client->setStopping(true);
 
         if (m_isStateCommitNeeded)
         {
@@ -295,10 +297,6 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
     case GST_STATE_CHANGE_READY_TO_NULL:
         // Playback will be stopped once all sources are finished and ref count
         // of the media pipeline object reaches 0
-        if (client)
-        {
-            client->notifyStopping();
-        }
         m_mediaPlayerManager.releaseMediaPlayerClient();
         m_rialtoControlClient->removeControlBackend();
         break;

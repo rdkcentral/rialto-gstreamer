@@ -546,9 +546,9 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossible()
     m_backendQueue->callInEventLoop([&]() { sendAllSourcesAttachedIfPossibleInternal(); });
 }
 
-void GStreamerMSEMediaPlayerClient::notifyStopping()
+void GStreamerMSEMediaPlayerClient::setStopping(bool stopping)
 {
-    m_backendQueue->callInEventLoop([&]() { m_isStopping = true; });
+    m_backendQueue->callInEventLoop([this, stopping]() { m_isStopping = stopping; });
 }
 
 void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
