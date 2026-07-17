@@ -48,12 +48,15 @@ public:
     /**
      * @brief Constructor.
      *
-     * @param[in] callbacks : The callbacks for the sink.
+     * @param[in] webAudioClientBackend : The web audio client backend interface.
+     * @param[in] backendQueue          : The backend message queue.
+     * @param[in] delegate              : The playback delegate.
+     * @param[in] timerFactory          : The timer factory.
      */
     GStreamerWebAudioPlayerClient(
         std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
         std::unique_ptr<IMessageQueue> &&backendQueue, IPlaybackDelegate &delegate,
-        std::shared_ptr<ITimerFactory> timerFactory);
+        const std::shared_ptr<ITimerFactory> &timerFactory);
 
     /**
      * @brief Destructor.
