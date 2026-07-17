@@ -57,6 +57,20 @@ enum
     PROP_LAST
 };
 
+enum
+{
+    SIGNAL_FIRST_AUDIO_FRAME_RECEIVED,
+    SIGNAL_LAST
+};
+
+static guint g_signals[SIGNAL_LAST] = {0};
+
+void rialto_mse_audio_handle_rialto_server_sent_first_audio_frame_received(RialtoMSEAudioSink *sink)
+{
+    GST_INFO_OBJECT(sink, "Sending first audio frame received signal");
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_AUDIO_FRAME_RECEIVED], 0, 0, nullptr);
+}
+
 static GstStateChangeReturn rialto_mse_audio_sink_change_state(GstElement *element, GstStateChange transition)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
@@ -282,6 +296,11 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                     g_param_spec_boolean("web-audio",
                                                          "Webaudio mode", "Enable webaudio mode. Property should be set before NULL->READY transition",
                                                          FALSE, G_PARAM_READWRITE));
+
+    g_signals[SIGNAL_FIRST_AUDIO_FRAME_RECEIVED] = g_signal_new("first-audio-frame-callback", G_TYPE_FROM_CLASS(klass),
+                                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
+                                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
+                                                                G_TYPE_UINT, G_TYPE_POINTER);
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
