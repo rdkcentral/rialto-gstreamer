@@ -84,7 +84,6 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillAudioDecoderCapabilities)
                                         gst_caps_from_string("audio/x-flac"),
                                         gst_caps_from_string("audio/x-vorbis"),
                                         gst_caps_from_string("audio/x-opus"),
-                                        gst_caps_from_string("audio/x-wma"),
                                         gst_caps_from_string("audio/x-pn-realaudio"),
                                         gst_caps_from_string("audio/x-dts"),
                                         gst_caps_from_string("audio/x-private1-dts"),
@@ -96,11 +95,11 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillAudioDecoderCapabilities)
                    firebolt::rialto::MpegAudioCapability{}, firebolt::rialto::Mp3Capability{},
                    firebolt::rialto::AlacCapability{},      firebolt::rialto::SbcCapability{},
                    firebolt::rialto::DolbyAc3Capability{},  firebolt::rialto::DolbyAc4Capability{},
-                   firebolt::rialto::DolbyMatCapability{},  firebolt::rialto::DolbyTruehdCapability{},
+                   firebolt::rialto::DolbyEac3Capability{}, firebolt::rialto::DolbyTruehdCapability{},
                    firebolt::rialto::FlacCapability{},      firebolt::rialto::VorbisCapability{},
-                   firebolt::rialto::OpusCapability{},      firebolt::rialto::WmaCapability{},
-                   firebolt::rialto::RealAudioCapability{}, firebolt::rialto::UsacCapability{},
-                   firebolt::rialto::DtsCapability{},       firebolt::rialto::AvsCapability{}};
+                   firebolt::rialto::OpusCapability{},      firebolt::rialto::RealAudioCapability{},
+                   firebolt::rialto::UsacCapability{},      firebolt::rialto::DtsCapability{},
+                   firebolt::rialto::AvsCapability{}};
     const firebolt::rialto::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -133,12 +132,13 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
     };
 
     // Supported capabilities
-    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{{firebolt::rialto::Mpeg2Profile{}},
-                                                                     {firebolt::rialto::H264Profile{}},
-                                                                     {firebolt::rialto::H265Profile{}},
-                                                                     {firebolt::rialto::Vp9Profile{}},
-                                                                     {firebolt::rialto::Av1Profile{}}};
-    const firebolt::rialto::VideoDecoderCapability capability{codecCapabilities, {}};
+    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{
+        firebolt::rialto::Mpeg2CodecCapability{},
+        firebolt::rialto::H264CodecCapability{},
+        firebolt::rialto::H265CodecCapability{},
+        firebolt::rialto::Vp9CodecCapability{},
+        firebolt::rialto::Av1CodecCapability{}};
+    const firebolt::rialto::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -157,4 +157,106 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
     {
         gst_caps_unref(expectedCap);
     }
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
+{
+    const firebolt::rialto::AudioDecoderCapability capability{.dolbyEac3 = firebolt::rialto::DolbyEac3Capability{}};
+    const firebolt::rialto::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
+    GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    GstCaps *eac3Caps = gst_caps_from_string("audio/x-eac3");
+    EXPECT_TRUE(gst_caps_is_subset(eac3Caps, caps));
+    gst_caps_unref(eac3Caps);
+    gst_caps_unref(caps);
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
+{
+    const firebolt::rialto::AudioDecoderCapability capability{.dolbyAc3 = firebolt::rialto::DolbyAc3Capability{}};
+    const firebolt::rialto::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
+    GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    GstCaps *ac3Caps  = gst_caps_from_string("audio/x-ac3");
+    GstCaps *eac3Caps = gst_caps_from_string("audio/x-eac3");
+    EXPECT_TRUE(gst_caps_is_subset(ac3Caps, caps));
+    EXPECT_FALSE(gst_caps_is_subset(eac3Caps, caps));
+    gst_caps_unref(ac3Caps);
+    gst_caps_unref(eac3Caps);
+    gst_caps_unref(caps);
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterWma)
+{
+    const firebolt::rialto::AudioDecoderCapability capability{.pcm = firebolt::rialto::PcmCapability{}};
+    const firebolt::rialto::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
+    GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    GstCaps *wmaCaps = gst_caps_from_string("audio/x-wma");
+    EXPECT_FALSE(gst_caps_is_subset(wmaCaps, caps));
+    gst_caps_unref(wmaCaps);
+    gst_caps_unref(caps);
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterDolbyMatRaw)
+{
+    // No pcm and no dolbyMat — audio/x-raw must not appear
+    const firebolt::rialto::AudioDecoderCapability capability{.aac = firebolt::rialto::AacCapability{}};
+    const firebolt::rialto::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
+    GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    GstCaps *rawCaps = gst_caps_from_string("audio/x-raw");
+    EXPECT_FALSE(gst_caps_is_subset(rawCaps, caps));
+    gst_caps_unref(rawCaps);
+    gst_caps_unref(caps);
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterVideoCodecWhenOptionalIsNullopt)
+{
+    // Only h264 present — mpeg2/h265/vp9/av1 must not be registered
+    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{
+        std::nullopt,
+        firebolt::rialto::H264CodecCapability{},
+        std::nullopt,
+        std::nullopt,
+        std::nullopt};
+    const firebolt::rialto::VideoDecoderCapability capability{codecCapabilities};
+    const firebolt::rialto::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
+    GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
+    GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    GstCaps *h264Caps  = gst_caps_from_string("video/x-h264");
+    GstCaps *mpeg2Caps = gst_caps_from_string("video/mpeg, mpegversion=2");
+    GstCaps *vp9Caps   = gst_caps_from_string("video/x-vp9");
+    EXPECT_TRUE(gst_caps_is_subset(h264Caps, caps));
+    EXPECT_FALSE(gst_caps_is_subset(mpeg2Caps, caps));
+    EXPECT_FALSE(gst_caps_is_subset(vp9Caps, caps));
+    gst_caps_unref(h264Caps);
+    gst_caps_unref(mpeg2Caps);
+    gst_caps_unref(vp9Caps);
+    gst_caps_unref(caps);
+    gst_object_unref(sink);
 }

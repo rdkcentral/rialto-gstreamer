@@ -125,16 +125,15 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         if (audioCapability.dolbyAc3)
         {
             capsToAdd.push_back("audio/x-ac3");
+        }
+        if (audioCapability.dolbyEac3)
+        {
             capsToAdd.push_back("audio/x-eac3");
         }
         if (audioCapability.dolbyAc4)
         {
             capsToAdd.push_back("audio/x-ac4");
             capsToAdd.push_back("audio/ac4");
-        }
-        if (audioCapability.dolbyMat)
-        {
-            capsToAdd.push_back("audio/x-raw");
         }
         if (audioCapability.dolbyTruehd)
         {
@@ -151,10 +150,6 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         if (audioCapability.opus)
         {
             capsToAdd.push_back("audio/x-opus");
-        }
-        if (audioCapability.wma)
-        {
-            capsToAdd.push_back("audio/x-wma");
         }
         if (audioCapability.realAudio)
         {
@@ -204,23 +199,23 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     for (const auto &videoCapability : videoCapabilities.capabilities)
     {
         std::vector<std::string> capsToAdd;
-        if (!videoCapability.codecCapabilities.mpeg2Profiles.empty())
+        if (videoCapability.codecCapabilities.mpeg2.has_value())
         {
             capsToAdd.push_back("video/mpeg, mpegversion=2");
         }
-        if (!videoCapability.codecCapabilities.h264Profiles.empty())
+        if (videoCapability.codecCapabilities.h264.has_value())
         {
             capsToAdd.push_back("video/x-h264");
         }
-        if (!videoCapability.codecCapabilities.h265Profiles.empty())
+        if (videoCapability.codecCapabilities.h265.has_value())
         {
             capsToAdd.push_back("video/x-h265");
         }
-        if (!videoCapability.codecCapabilities.vp9Profiles.empty())
+        if (videoCapability.codecCapabilities.vp9.has_value())
         {
             capsToAdd.push_back("video/x-vp9");
         }
-        if (!videoCapability.codecCapabilities.av1Profiles.empty())
+        if (videoCapability.codecCapabilities.av1.has_value())
         {
             capsToAdd.push_back("video/x-av1");
         }
