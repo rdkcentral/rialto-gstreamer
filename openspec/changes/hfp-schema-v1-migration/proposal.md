@@ -56,7 +56,6 @@
   `RialtoGStreamerMSEVideoSink` call the capabilities API
 - Will not add new GStreamer codec caps beyond what the schema defines
 - Will not handle dynamic capabilities (HDMI output, display HDR detection)
-- Will not change `GStreamerMSEUtils.h` — function signatures are unchanged
 
 ---
 
@@ -66,11 +65,11 @@
 | ------------------------------------ | ------------------- | ----------------------------------------------- |
 | GStreamer caps registration — Audio | Logic change        | `source/GStreamerMSEUtils.cpp`                |
 | GStreamer caps registration — Video | Field access update | `source/GStreamerMSEUtils.cpp`                |
-| GStreamer caps header                | No change           | `source/GStreamerMSEUtils.h`                  |
-| Audio sink class                     | No change           | `source/RialtoGStreamerMSEAudioSink.cpp`      |
-| Video sink class                     | No change           | `source/RialtoGStreamerMSEVideoSink.cpp`      |
-| Unit tests                           | Test fixture update | `tests/ut/GStreamerMSEUtilsTests.cpp`         |
-| Mock                                 | No change           | `tests/mocks/MediaPipelineCapabilitiesMock.h` |
+| GStreamer caps header                | Signature update + new overloads | `source/GStreamerMSEUtils.h`                  |
+| Audio sink class                     | Uses capability structs          | `source/RialtoGStreamerMSEAudioSink.cpp`      |
+| Video sink class                     | Uses capability structs          | `source/RialtoGStreamerMSEVideoSink.cpp`      |
+| Unit tests                           | Test fixture update              | `tests/ut/GStreamerMSEUtilsTests.cpp`         |
+| Mock                                 | Adds capability-struct methods   | `tests/mocks/MediaPipelineCapabilitiesMock.h` |
 
 ---
 
