@@ -82,7 +82,7 @@ class AttachedSource
     friend class GStreamerMSEMediaPlayerClient;
 
 public:
-    AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
+    AttachedSource(RialtoMSEBaseSink *rialtoSink, const std::shared_ptr<BufferPuller> &puller,
                    const std::shared_ptr<IPullModePlaybackDelegate> &delegate, firebolt::rialto::MediaSourceType type,
                    ClientState state = ClientState::READY)
         : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_delegate{delegate}, m_type(type), m_state(state)
