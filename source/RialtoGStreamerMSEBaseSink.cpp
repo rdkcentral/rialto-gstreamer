@@ -55,7 +55,6 @@ enum
 enum
 {
     SIGNAL_UNDERFLOW,
-    SIGNAL_FIRST_VIDEO_FRAME_RECEIVED,
     SIGNAL_LAST
 };
 
@@ -90,6 +89,7 @@ static gboolean rialto_mse_base_sink_send_event(GstElement *element, GstEvent *e
     {
         return delegate->handleSendEvent(event);
     }
+    gst_event_unref(event);
     return FALSE;
 }
 
@@ -99,6 +99,7 @@ gboolean rialto_mse_base_sink_event(GstPad *pad, GstObject *parent, GstEvent *ev
     {
         return delegate->handleEvent(pad, parent, event);
     }
+    gst_event_unref(event);
     return FALSE;
 }
 
@@ -108,6 +109,7 @@ GstFlowReturn rialto_mse_base_sink_chain(GstPad *pad, GstObject *parent, GstBuff
     {
         return delegate->handleBuffer(buf);
     }
+    gst_buffer_unref(buf);
     return GST_FLOW_ERROR;
 }
 
@@ -182,6 +184,10 @@ void rialto_mse_base_sink_handle_set_property(RialtoMSEBaseSink *sink, const IPl
     else
     {
         std::unique_lock lock{sink->priv->m_sinkMutex};
+        if (sink->priv->m_queuedProperties.find(property) != sink->priv->m_queuedProperties.end())
+        {
+            g_value_unset(&sink->priv->m_queuedProperties[property]);
+        }
         sink->priv->m_queuedProperties[property] = G_VALUE_INIT;
         g_value_init(&(sink->priv->m_queuedProperties[property]), G_VALUE_TYPE(value));
         g_value_copy(value, &(sink->priv->m_queuedProperties[property]));
@@ -260,12 +266,6 @@ void rialto_mse_base_handle_rialto_server_sent_buffer_underflow(RialtoMSEBaseSin
     g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_UNDERFLOW], 0, 0, nullptr);
 }
 
-void rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(RialtoMSEBaseSink *sink)
-{
-    GST_INFO_OBJECT(sink, "Sending first frame received signal");
-    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED], 0, 0, nullptr);
-}
-
 bool rialto_mse_base_sink_initialise_sinkpad(RialtoMSEBaseSink *sink)
 {
     GstPadTemplate *pad_template =
@@ -334,10 +334,7 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2, G_TYPE_UINT,
                                                G_TYPE_POINTER);
-    g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
-                                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
-                                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
-                                                                G_TYPE_UINT, G_TYPE_POINTER);
+
     g_object_class_install_property(gobjectClass, PROP_IS_SINGLE_PATH_STREAM,
                                     g_param_spec_boolean("single-path-stream", "single path stream",
                                                          "is single path stream", FALSE, GParamFlags(G_PARAM_READWRITE)));

@@ -353,6 +353,7 @@ GstFlowReturn PushModeAudioPlaybackDelegate::handleBuffer(GstBuffer *buffer)
     else
     {
         GST_ERROR_OBJECT(m_sink, "Failed to push sample");
+        gst_buffer_unref(buffer);
         return GST_FLOW_ERROR;
     }
 }

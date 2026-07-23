@@ -19,6 +19,7 @@
 #include "GStreamerMSEMediaPlayerClient.h"
 #include "Constants.h"
 #include "GstreamerCatLog.h"
+#include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
@@ -205,6 +206,19 @@ bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool im
     return status;
 }
 
+bool GStreamerMSEMediaPlayerClient::setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]()
+                                    { status = m_clientBackend->setReportDecodeErrors(sourceId, reportDecodeErrors); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
 {
     if (!m_clientBackend)
@@ -214,6 +228,18 @@ bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &i
 
     bool status{false};
     m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getImmediateOutput(sourceId, immediateOutput); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getQueuedFrames(sourceId, queuedFrames); });
     return status;
 }
 
@@ -563,8 +589,19 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossible()
     m_backendQueue->callInEventLoop([&]() { sendAllSourcesAttachedIfPossibleInternal(); });
 }
 
+void GStreamerMSEMediaPlayerClient::setStopping(bool stopping)
+{
+    m_backendQueue->callInEventLoop([this, stopping]() { m_isStopping = stopping; });
+}
+
 void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
 {
+    if (m_isStopping)
+    {
+        GST_INFO("Skip sending allSourcesAttached, because a stop was already requested");
+        return;
+    }
+
     if (!m_wasAllSourcesAttachedSent && areAllStreamsAttached())
     {
         // RialtoServer doesn't support dynamic source attachment.
@@ -1080,7 +1117,14 @@ bool GStreamerMSEMediaPlayerClient::handleFirstFrameReceived(int sourceId)
             }
             if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
             {
-                rialto_mse_base_handle_rialto_server_sent_first_video_frame_received(sourceIt->second.m_rialtoSink);
+                rialto_mse_video_handle_rialto_server_sent_first_video_frame_received(
+                    RIALTO_MSE_VIDEO_SINK(sourceIt->second.m_rialtoSink));
+                result = true;
+            }
+            else if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+            {
+                rialto_mse_audio_handle_rialto_server_sent_first_audio_frame_received(
+                    RIALTO_MSE_AUDIO_SINK(sourceIt->second.m_rialtoSink));
                 result = true;
             }
         });
@@ -1199,6 +1243,7 @@ PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned i
 void PullBufferMessage::handle()
 {
     bool isEos = false;
+    bool isNoSpace{false};
     unsigned int addedSegments = 0;
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
@@ -1249,6 +1294,7 @@ void PullBufferMessage::handle()
         {
             gst_buffer_unmap(buffer, &map);
             GST_INFO_OBJECT(m_rialtoSink, "There's no space to add sample");
+            isNoSpace = true;
             break;
         }
 
@@ -1266,7 +1312,10 @@ void PullBufferMessage::handle()
     {
         status = firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES;
     }
-
+    else if (addedSegments != m_frameCount && isNoSpace)
+    {
+        status = firebolt::rialto::MediaSourceStatus::NO_SPACE_FOR_SAMPLES;
+    }
     if (firebolt::rialto::MediaSourceStatus::OK == status || firebolt::rialto::MediaSourceStatus::EOS == status)
     {
         m_player->getFlushAndDataSynchronizer().notifyDataPushed(m_sourceId);

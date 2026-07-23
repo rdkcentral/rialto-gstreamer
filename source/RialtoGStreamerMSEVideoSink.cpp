@@ -51,8 +51,24 @@ enum
     PROP_SHOW_VIDEO_WINDOW,
     PROP_IS_MASTER,
     PROP_VIDEO_PTS,
+    PROP_REPORT_DECODE_ERRORS,
+    PROP_QUEUED_FRAMES,
     PROP_LAST
 };
+
+enum
+{
+    SIGNAL_FIRST_VIDEO_FRAME_RECEIVED,
+    SIGNAL_LAST
+};
+
+static guint g_signals[SIGNAL_LAST] = {0};
+
+void rialto_mse_video_handle_rialto_server_sent_first_video_frame_received(RialtoMSEVideoSink *sink)
+{
+    GST_INFO_OBJECT(sink, "Sending first frame received signal");
+    g_signal_emit(G_OBJECT(sink), g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED], 0, 0, nullptr);
+}
 
 static GstStateChangeReturn rialto_mse_video_sink_change_state(GstElement *element, GstStateChange transition)
 {
@@ -108,6 +124,13 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
         g_value_set_boolean(value, FALSE); // Set default value
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::FrameStepOnPreroll, value);
+        break;
+    }
+    case PROP_QUEUED_FRAMES:
+    {
+        g_value_set_uint(value, 0); // Set default value
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::QueuedFrames, value);
         break;
     }
     case PROP_IMMEDIATE_OUTPUT:
@@ -166,6 +189,12 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
     {
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::FrameStepOnPreroll, value);
+        break;
+    }
+    case PROP_REPORT_DECODE_ERRORS:
+    {
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::ReportDecodeErrors, value);
         break;
     }
     case PROP_IMMEDIATE_OUTPUT:
@@ -240,6 +269,14 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("frame-step-on-preroll", "frame step on preroll",
                                                          "allow frame stepping on preroll into pause", FALSE,
                                                          G_PARAM_READWRITE));
+    g_object_class_install_property(gobjectClass, PROP_REPORT_DECODE_ERRORS,
+                                    g_param_spec_boolean("report-decode-errors", "Report decode errors",
+                                                         "Enable reporting of decode errors", FALSE, G_PARAM_WRITABLE));
+
+    g_object_class_install_property(gobjectClass, PROP_QUEUED_FRAMES,
+                                    g_param_spec_uint("queued-frames", "Queued frames",
+                                                      "Number of frames currently queued in decoder", 0, G_MAXUINT, 0,
+                                                      G_PARAM_READABLE));
     g_object_class_install_property(gobjectClass, PROP_IS_MASTER,
                                     g_param_spec_boolean("is-master", "is master",
                                                          "Checks if the platform is video master", TRUE,
@@ -247,6 +284,14 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_VIDEO_PTS,
                                     g_param_spec_int64("video_pts", "video PTS", "current video PTS value", G_MININT64,
                                                        G_MAXINT64, 0, G_PARAM_READABLE));
+    g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
+                                    g_param_spec_boolean("show-video-window", "make video window visible",
+                                                         "true: visible, false: hidden", TRUE, G_PARAM_WRITABLE));
+
+    g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
+                                                                (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
+                                                                g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
+                                                                G_TYPE_UINT, G_TYPE_POINTER);
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
@@ -259,10 +304,8 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
-        const std::string kShowVideoWindowPropertyName{"show-video-window"};
         const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
-                                                              kSyncmodeStreamingPropertyName,
-                                                              kShowVideoWindowPropertyName};
+                                                              kSyncmodeStreamingPropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
                                                             kPropertyNamesToSearch)};
@@ -281,14 +324,6 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                 g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
                                                 g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
                                                                      "Enable/disable OTT streaming sync mode", FALSE,
-                                                                     G_PARAM_WRITABLE));
-            }
-            else if (kShowVideoWindowPropertyName == propertyName)
-            {
-                g_object_class_install_property(gobjectClass, PROP_SHOW_VIDEO_WINDOW,
-                                                g_param_spec_boolean(kShowVideoWindowPropertyName.c_str(),
-                                                                     "make video window visible",
-                                                                     "true: visible, false: hidden", TRUE,
                                                                      G_PARAM_WRITABLE));
             }
         }

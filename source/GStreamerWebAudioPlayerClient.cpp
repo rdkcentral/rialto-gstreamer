@@ -80,7 +80,7 @@ bool operator!=(const firebolt::rialto::WebAudioPcmConfig &lac, const firebolt::
 GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
     std::unique_ptr<firebolt::rialto::client::WebAudioClientBackendInterface> &&webAudioClientBackend,
     std::unique_ptr<IMessageQueue> &&backendQueue, IPlaybackDelegate &delegate,
-    std::shared_ptr<ITimerFactory> timerFactory)
+    const std::shared_ptr<ITimerFactory> &timerFactory)
     : m_backendQueue{std::move(backendQueue)}, m_clientBackend{std::move(webAudioClientBackend)}, m_isOpen{false},
       m_dataBuffers{}, m_timerFactory{timerFactory}, m_pushSamplesTimer{nullptr}, m_preferredFrames{0},
       m_maximumFrames{0}, m_supportDeferredPlay{false}, m_isEos{false}, m_frameSize{0}, m_mimeType{}, m_config{{}},

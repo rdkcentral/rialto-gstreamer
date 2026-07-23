@@ -46,7 +46,9 @@ unsigned getGstPlayFlag(const char *nick)
 {
     GFlagsClass *flagsClass = static_cast<GFlagsClass *>(g_type_class_ref(g_type_from_name("GstPlayFlags")));
     GFlagsValue *flag = g_flags_get_value_by_nick(flagsClass, nick);
-    return flag ? flag->value : 0;
+    const unsigned kResult{flag ? flag->value : 0};
+    g_type_class_unref(flagsClass);
+    return kResult;
 }
 
 bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text)
@@ -220,6 +222,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
+        client->setStopping(false);
+
         m_isSinkFlushOngoing = false;
 
         StateChangeResult result = client->pause(m_sourceId);
@@ -283,6 +287,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             GST_ERROR_OBJECT(m_sink, "Cannot get the media player client object");
             return GST_STATE_CHANGE_FAILURE;
         }
+
+        client->setStopping(true);
 
         if (m_isStateCommitNeeded)
         {
@@ -425,6 +431,7 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
         {
             GST_ERROR_OBJECT(m_sink, "No stats returned from client");
         }
+        break;
     }
     case Property::EnableLastSample:
     {
@@ -875,10 +882,11 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
 
     std::unique_lock<std::mutex> lock(m_sinkMutex);
 
-    if (m_samples.size() >= kMaxInternalBuffersQueueSize)
+    const auto maxSize = kMaxInternalBuffersQueueSize;
+    if (m_samples.size() >= maxSize)
     {
-        GST_DEBUG_OBJECT(m_sink, "Waiting for more space in buffers queue\n");
-        m_needDataCondVariable.wait(lock);
+        GST_DEBUG_OBJECT(m_sink, "Waiting for more space in buffers queue");
+        m_needDataCondVariable.wait(lock, [this, maxSize]() { return m_samples.size() < maxSize; });
     }
 
     if (m_isSinkFlushOngoing)
