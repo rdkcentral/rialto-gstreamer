@@ -900,6 +900,45 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotOverwriteStreamCollectionSet
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttachedWhenStopping)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 0, 0);
+
+    // Teardown (PAUSED->READY / READY->NULL) requested before the source finished attaching.
+    m_sut->setStopping(true);
+
+    // allSourcesAttached() must NOT be sent - the StrictMock backend would flag it as an unexpected call.
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttachedAfterStoppingReset)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 0, 0);
+
+    // Stopping is requested then cleared (e.g. a READY->PAUSED re-init), so all sources attached can be notified again.
+    m_sut->setStopping(true);
+    m_sut->setStopping(false);
+
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAttached)
 {
     constexpr int32_t kVideoStreams{1};

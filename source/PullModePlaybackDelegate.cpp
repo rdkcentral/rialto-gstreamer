@@ -214,6 +214,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
+        client->setStopping(false);
+
         m_isSinkFlushOngoing = false;
 
         StateChangeResult result = client->pause(m_sourceId);
@@ -277,6 +279,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             GST_ERROR_OBJECT(m_sink, "Cannot get the media player client object");
             return GST_STATE_CHANGE_FAILURE;
         }
+
+        client->setStopping(true);
 
         if (m_isStateCommitNeeded)
         {
