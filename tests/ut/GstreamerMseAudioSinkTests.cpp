@@ -146,13 +146,53 @@ TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithMp3)
     allSourcesWillBeAttached();
 
     GstCaps *caps{gst_caps_new_simple("audio/mpeg", "mpegversion", G_TYPE_INT, 1, "layer", G_TYPE_INT, 3, "channels",
-                                      G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate, nullptr)};
+                                      G_TYPE_INT, kChannels, "rate", G_TYPE_INT, kRate, "parsed", G_TYPE_BOOLEAN, TRUE,
+                                      nullptr)};
     setCaps(audioSink, caps);
 
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseAudioSinkTests, ShouldAdvertiseParsedMpegVersion1InSinkPadTemplateCaps)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    GstCaps *templateCaps{gst_pad_get_pad_template_caps(audioSink->priv->m_sinkPad)};
+    ASSERT_TRUE(templateCaps);
+
+    bool foundMpegVersion1{false};
+    bool mpegVersion1IsParsed{false};
+    for (guint i = 0; i < gst_caps_get_size(templateCaps); ++i)
+    {
+        GstStructure *structure{gst_caps_get_structure(templateCaps, i)};
+        if (g_strcmp0(gst_structure_get_name(structure), "audio/mpeg") != 0)
+        {
+            continue;
+        }
+        gint mpegversion{0};
+        if (gst_structure_get_int(structure, "mpegversion", &mpegversion) && mpegversion == 1)
+        {
+            foundMpegVersion1 = true;
+            gboolean parsed{FALSE};
+            if (gst_structure_get_boolean(structure, "parsed", &parsed) && parsed)
+            {
+                mpegVersion1IsParsed = true;
+            }
+        }
+    }
+    EXPECT_TRUE(foundMpegVersion1);
+    EXPECT_TRUE(mpegVersion1IsParsed);
+
+    GstCaps *unparsedCaps{gst_caps_from_string("audio/mpeg, mpegversion=(int)1, parsed=(boolean)false")};
+    EXPECT_FALSE(gst_caps_can_intersect(templateCaps, unparsedCaps));
+    gst_caps_unref(unparsedCaps);
+
+    gst_caps_unref(templateCaps);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseAudioSinkTests, ShouldAttachSourceWithEac3)
