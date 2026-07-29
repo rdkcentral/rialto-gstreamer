@@ -242,14 +242,32 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     {
         const firebolt::rialto::VideoDecoderCapabilities kVideoDecoderCapabilities{
             mediaPlayerCapabilities->getSupportedVideoCapabilities()};
-        if (!rialto_mse_sink_setup_supported_caps(elementClass, kVideoDecoderCapabilities))
-        {
-            GST_INFO("No supported video decoder capabilities, falling back to legacy capability check");
-            std::vector<std::string> supportedMimeTypes =
-                mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
 
-            rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+        GST_INFO("USHA: [HFP YAML TEST] Setting up video caps from YAML-based HFP capabilities (schema v1.0.0)");
+        GST_INFO("USHA: [HFP YAML TEST] VideoDecoderCapabilities contains %zu decoder entr(ies)",
+                 kVideoDecoderCapabilities.capabilities.size());
+
+        if (rialto_mse_sink_setup_supported_caps(elementClass, kVideoDecoderCapabilities))
+        {
+            GST_INFO("USHA: [HFP YAML TEST] Video caps successfully registered from YAML HFP capabilities");
         }
+        else
+        {
+            GST_WARNING("USHA: [HFP YAML TEST] rialto_mse_sink_setup_supported_caps returned false "
+                        "-- no video caps registered from YAML (empty capabilities)");
+        }
+
+        /* NOTE: Legacy MIME-type fallback intentionally disabled to verify YAML capability reading.
+         * Re-enable the block below once YAML testing is complete.
+         *
+         * if (!rialto_mse_sink_setup_supported_caps(elementClass, kVideoDecoderCapabilities))
+         * {
+         *     GST_INFO("No supported video decoder capabilities, falling back to legacy capability check");
+         *     std::vector<std::string> supportedMimeTypes =
+         *         mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
+         *     rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+         * }
+         */
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};

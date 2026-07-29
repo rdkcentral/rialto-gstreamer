@@ -180,6 +180,10 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
             }
         }
     }
+    gchar *capsDebugStr = gst_caps_to_string(caps);
+    GST_INFO("USHA: [HFP YAML TEST] Writing audio caps to element: %s", capsDebugStr);
+    g_free(capsDebugStr);
+
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
@@ -231,6 +235,10 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
             }
         }
     }
+
+    gchar *videoCapsDebugStr = gst_caps_to_string(caps);
+    GST_INFO("[HFP YAML TEST] Writing video caps to element: %s", videoCapsDebugStr);
+    g_free(videoCapsDebugStr);
 
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
