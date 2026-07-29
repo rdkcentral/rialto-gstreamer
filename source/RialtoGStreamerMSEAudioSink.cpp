@@ -288,31 +288,13 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         const firebolt::rialto::AudioDecoderCapabilities kAudioDecoderCapabilities{
             mediaPlayerCapabilities->getSupportedAudioCapabilities()};
 
-        GST_INFO("USHA: [HFP YAML TEST] Setting up audio caps from YAML-based HFP capabilities (schema v1.0.0)");
-        GST_INFO("USHA: [HFP YAML TEST] AudioDecoderCapabilities contains %zu decoder entr(ies)",
-                 kAudioDecoderCapabilities.capabilities.size());
-
-        if (rialto_mse_sink_setup_supported_caps(elementClass, kAudioDecoderCapabilities))
+        if (!rialto_mse_sink_setup_supported_caps(elementClass, kAudioDecoderCapabilities))
         {
-            GST_INFO("USHA: [HFP YAML TEST] Audio caps successfully registered from YAML HFP capabilities");
+            GST_INFO("No supported audio decoder capabilities, falling back to legacy capability check");
+            std::vector<std::string> supportedMimeTypes =
+                mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
+            rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
         }
-        else
-        {
-            GST_WARNING("USHA: [HFP YAML TEST] rialto_mse_sink_setup_supported_caps returned false "
-                        "-- no audio caps registered from YAML (empty capabilities)");
-        }
-
-        /* NOTE: Legacy MIME-type fallback intentionally disabled to verify YAML capability reading.
-         * Re-enable the block below once YAML testing is complete.
-         *
-         * if (!rialto_mse_sink_setup_supported_caps(elementClass, kAudioDecoderCapabilities))
-         * {
-         *     GST_INFO("No supported audio decoder capabilities, falling back to legacy capability check");
-         *     std::vector<std::string> supportedMimeTypes =
-         *         mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
-         *     rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
-         * }
-         */
 
         const std::string kLowLatencyPropertyName{"low-latency"};
         const std::string kSyncPropertyName{"sync"};

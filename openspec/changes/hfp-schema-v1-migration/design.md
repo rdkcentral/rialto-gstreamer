@@ -28,22 +28,32 @@ and will not compile against the new rialto headers without this change.
 
 **Non-Goals:**
 - Changing audio/video playback pipeline logic
-- Changing `GStreamerMSEUtils.h` function signatures (unchanged)
 - Adding new GStreamer codec caps beyond the schema
 - Handling dynamic capabilities (HDMI, display HDR detection)
 
 ## Decisions
 
-### D1: Keep function signatures unchanged
+### D1: Change typed overload return type to `bool` and update sink call sites with a legacy fallback
 
-**Decision**: The typed overloads in `GStreamerMSEUtils.h` take `const AudioDecoderCapabilities&`
-and `const VideoDecoderCapabilities&`. These container structs (`interfaceVersion`,
-`schemaVersion`, `capabilities` vector) are unchanged by the rialto migration, so the header
-requires no modification.
+**Decision**: The typed overloads in `GStreamerMSEUtils.h` change their return type from `void`
+to `bool`. They return `false` when the supplied capabilities container is empty (no HFP YAML
+loaded) and `true` after successfully registering caps. Both
+`RialtoGStreamerMSEAudioSink.cpp` and `RialtoGStreamerMSEVideoSink.cpp` are updated to:
+1. Call `getSupportedAudioCapabilities()` / `getSupportedVideoCapabilities()` first and pass
+   the result to the typed overload.
+2. If the typed overload returns `false` (empty capabilities — no HFP config present), fall back
+   to the existing `getSupportedMimeTypes()` + legacy `std::vector<std::string>` overload.
 
-**Rationale**: Callers (`RialtoGStreamerMSEAudioSink.cpp`, `RialtoGStreamerMSEVideoSink.cpp`) pass
-the same container types — only the inner field layout changed. Preserving the signature avoids
-cascading changes in all callers.
+**Rationale**: The `bool` return allows callers to detect the "no HFP config" case without
+inspecting the struct internals. The fallback preserves backward compatibility on RDK-V and any
+other platform where the HFP YAML files are absent, while enabling accurate per-codec cap
+registration on HFP-capable platforms. Keeping the legacy path as a fallback avoids any startup
+regression when the YAML is not deployed.
+
+**Alternatives considered**:
+- *Keep `void` return; check `capabilities.empty()` at the call site*: Leaks struct internals
+  into every caller; the helper itself is the correct place to signal "nothing registered".
+- *Remove the legacy fallback*: Would break all non-HFP platforms.
 
 ### D2: Split dolbyAc3 / dolbyEac3 into independent registration paths
 
@@ -79,16 +89,25 @@ profiles vector is no longer possible since the field type changed.
 
 ## Migration Plan
 
-1. Update `GStreamerMSEUtils.cpp` audio section:
+1. Update `GStreamerMSEUtils.h`:
+   - Change return type of both typed overloads from `void` to `bool`
+2. Update `GStreamerMSEUtils.cpp` audio section:
+   - Return `false` when `audioCapabilities.capabilities.empty()`
    - Split `dolbyAc3` → `audio/x-ac3` only; add `dolbyEac3` → `audio/x-eac3`
    - Remove `dolbyMat` and `wma` blocks
-2. Update `GStreamerMSEUtils.cpp` video section:
+3. Update `GStreamerMSEUtils.cpp` video section:
+   - Return `false` when `videoCapabilities.capabilities.empty()`
    - Replace `.mpeg2Profiles.empty()` checks with `.mpeg2.has_value()` (and h264/h265/vp9/av1)
-3. Update `GStreamerMSEUtilsTests.cpp`:
+4. Update `RialtoGStreamerMSEAudioSink.cpp`:
+   - Replace direct `getSupportedMimeTypes()` call with `getSupportedAudioCapabilities()` +
+     typed overload; fall back to legacy mime-type path if typed overload returns `false`
+5. Update `RialtoGStreamerMSEVideoSink.cpp`:
+   - Same pattern: `getSupportedVideoCapabilities()` + typed overload with fallback
+6. Update `GStreamerMSEUtilsTests.cpp`:
    - Reconstruct `AudioDecoderCapability` without `DolbyMatCapability`/`WmaCapability`; use new
      struct constructors
    - Reconstruct `VideoCodecCapabilities` using `std::optional<*CodecCapability>` fields
    - Add `dolbyEac3` test case; add negative tests for `wma`/`dolbyMat` caps
 
-**Rollback**: `git revert source/GStreamerMSEUtils.cpp tests/ut/GStreamerMSEUtilsTests.cpp`.
-If rialto is rolled back, this file must also be reverted to avoid struct mismatch compile errors.
+**Rollback**: `git revert source/GStreamerMSEUtils.h source/GStreamerMSEUtils.cpp source/RialtoGStreamerMSEAudioSink.cpp source/RialtoGStreamerMSEVideoSink.cpp tests/ut/GStreamerMSEUtilsTests.cpp`.
+If rialto is rolled back, these files must also be reverted to avoid struct mismatch compile errors.
