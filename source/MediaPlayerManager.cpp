@@ -38,7 +38,9 @@ bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, 
     std::weak_ptr<GStreamerMSEMediaPlayerClient> clientCopy;
     const GstObject *currentParent = nullptr;
     {
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
+        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+        clientCopy = m_client;
+        currentParent = m_currentGstBinParent;
     }
 
     if (!clientCopy.lock())
