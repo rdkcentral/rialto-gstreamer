@@ -55,9 +55,11 @@ public:
     GstCaps *createAudioCaps() const;
     GstCaps *createVideoCaps() const;
     RialtoMSEBaseSink *createAudioSink() const;
+    RialtoMSEBaseSink *createAudioSinkWithoutDelegate() const;
     RialtoMSEBaseSink *createVideoSink() const;
     RialtoMSEBaseSink *createSubtitleSink() const;
     RialtoWebAudioSink *createWebAudioSink() const;
+    RialtoWebAudioSink *createWebAudioSinkWithoutDelegate() const;
     RialtoMSEBaseSink *createAudioSinkInWebAudioMode() const;
     GstElement *createPlaybin2WithSink(RialtoMSEBaseSink *sink) const;
     GstElement *createPipelineWithSink(RialtoMSEBaseSink *sink) const;

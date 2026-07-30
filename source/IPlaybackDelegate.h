@@ -59,6 +59,9 @@ public:
         ImmediateOutput,
         SyncmodeStreaming,
         ShowVideoWindow,
+        VideoPts,
+        ReportDecodeErrors,
+        QueuedFrames,
 
         // PullModeSubtitlePlaybackDelegate Properties
         TextTrackIdentifier,

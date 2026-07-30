@@ -43,7 +43,14 @@ G_BEGIN_DECLS
 struct _RialtoMSEBaseSinkPrivate
 {
     _RialtoMSEBaseSinkPrivate() = default;
-    ~_RialtoMSEBaseSinkPrivate() = default;
+    ~_RialtoMSEBaseSinkPrivate()
+    {
+        for (auto &[type, value] : m_queuedProperties)
+        {
+            g_value_unset(&value);
+        }
+        m_queuedProperties.clear();
+    }
 
     GstPad *m_sinkPad{nullptr};
     std::mutex m_sinkMutex;

@@ -57,6 +57,7 @@ const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/tt
 const firebolt::rialto::AudioDecoderCapabilities kAudioDecoderCapabilities{};
 const firebolt::rialto::VideoDecoderCapabilities kVideoDecoderCapabilities{};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
+constexpr bool kIsLive{false};
 int32_t generateSourceId()
 {
     static int32_t sourceId{0};
@@ -182,6 +183,12 @@ RialtoMSEBaseSink *RialtoGstTest::createAudioSink() const
     return RIALTO_MSE_BASE_SINK(audioSink);
 }
 
+RialtoMSEBaseSink *RialtoGstTest::createAudioSinkWithoutDelegate() const
+{
+    GstElement *audioSink = gst_element_factory_make("rialtomseaudiosink", "rialtomseaudiosink");
+    return RIALTO_MSE_BASE_SINK(audioSink);
+}
+
 RialtoMSEBaseSink *RialtoGstTest::createVideoSink() const
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -209,6 +216,12 @@ RialtoWebAudioSink *RialtoGstTest::createWebAudioSink() const
         .WillOnce(DoAll(SetArgReferee<1>(ApplicationState::RUNNING), Return(true)));
     GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(webAudioSink, GST_STATE_READY));
+    return RIALTO_WEB_AUDIO_SINK(webAudioSink);
+}
+
+RialtoWebAudioSink *RialtoGstTest::createWebAudioSinkWithoutDelegate() const
+{
+    GstElement *webAudioSink = gst_element_factory_make("rialtowebaudiosink", "rialtowebaudiosink");
     return RIALTO_WEB_AUDIO_SINK(webAudioSink);
 }
 
@@ -403,7 +416,7 @@ void RialtoGstTest::load(GstElement *pipeline)
     constexpr firebolt::rialto::MediaType kMediaType{firebolt::rialto::MediaType::MSE};
     const std::string kMimeType{};
     const std::string kUrl{"mse://1"};
-    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, load(kMediaType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kDefaultRequirements))
         .WillOnce(DoAll(SaveArg<0>(&m_mediaPipelineClient), Return(ByMove(std::move(m_mediaPipeline)))));
 }

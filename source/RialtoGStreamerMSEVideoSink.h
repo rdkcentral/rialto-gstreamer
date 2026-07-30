@@ -46,6 +46,7 @@ struct _RialtoMSEVideoSinkClass
 };
 
 GType rialto_mse_video_sink_get_type(void);
+void rialto_mse_video_handle_rialto_server_sent_first_video_frame_received(RialtoMSEVideoSink *sink);
 
 void rialto_mse_video_sink_set_client_backend(GstElement *sink,
                                               const std::shared_ptr<GStreamerMSEMediaPlayerClient> &mediaPlayerClient);

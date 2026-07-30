@@ -82,7 +82,7 @@ class AttachedSource
     friend class GStreamerMSEMediaPlayerClient;
 
 public:
-    AttachedSource(RialtoMSEBaseSink *rialtoSink, std::shared_ptr<BufferPuller> puller,
+    AttachedSource(RialtoMSEBaseSink *rialtoSink, const std::shared_ptr<BufferPuller> &puller,
                    const std::shared_ptr<IPullModePlaybackDelegate> &delegate, firebolt::rialto::MediaSourceType type,
                    ClientState state = ClientState::READY)
         : m_rialtoSink(rialtoSink), m_bufferPuller(puller), m_delegate{delegate}, m_type(type), m_state(state)
@@ -184,6 +184,17 @@ private:
     GStreamerMSEMediaPlayerClient *m_player;
 };
 
+class FirstFrameReceivedMessage : public Message
+{
+public:
+    FirstFrameReceivedMessage(int sourceId, GStreamerMSEMediaPlayerClient *player);
+    void handle() override;
+
+private:
+    int m_sourceId;
+    GStreamerMSEMediaPlayerClient *m_player;
+};
+
 class PlaybackErrorMessage : public Message
 {
 public:
@@ -263,13 +274,17 @@ public:
     void notifyCancelNeedMediaData(int32_t sourceId) override;
     void notifyQos(int32_t sourceId, const firebolt::rialto::QosInfo &qosInfo) override;
     void notifyBufferUnderflow(int32_t sourceId) override;
+    void notifyFirstFrameReceived(int32_t sourceId) override;
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
 
     int64_t getPosition(int32_t sourceId);
+    bool getDuration(int64_t &duration);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
+    bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors);
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
+    bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
 
     firebolt::rialto::AddSegmentStatus
@@ -293,6 +308,7 @@ public:
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
     void sendAllSourcesAttachedIfPossible();
+    void setStopping(bool stopping);
 
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
@@ -300,12 +316,14 @@ public:
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     bool handleBufferUnderflow(int sourceId);
+    bool handleFirstFrameReceived(int sourceId);
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
     void stopStreaming();
     void destroyClientBackend();
     bool renderFrame(int32_t sourceId);
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
+    bool getCachedVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
     bool getMute(int sourceId);
     void setTextTrackIdentifier(const std::string &textTrackIdentifier);
@@ -338,6 +356,7 @@ private:
     std::mutex m_playbackInfoMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
+    bool m_isStopping = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
     int32_t m_subtitleStreams;

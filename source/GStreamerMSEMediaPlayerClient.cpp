@@ -19,6 +19,7 @@
 #include "GStreamerMSEMediaPlayerClient.h"
 #include "Constants.h"
 #include "GstreamerCatLog.h"
+#include "RialtoGStreamerMSEAudioSink.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
@@ -41,6 +42,8 @@ const char *toString(const firebolt::rialto::PlaybackError &error)
     {
     case firebolt::rialto::PlaybackError::DECRYPTION:
         return "DECRYPTION";
+    case firebolt::rialto::PlaybackError::OUTPUT_PROTECTION:
+        return "OUTPUT_PROTECTION";
     case firebolt::rialto::PlaybackError::UNKNOWN:
         return "UNKNOWN";
     }
@@ -68,7 +71,7 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+      m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
@@ -147,6 +150,11 @@ void GStreamerMSEMediaPlayerClient::notifyBufferUnderflow(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<BufferUnderflowMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyFirstFrameReceived(int32_t sourceId)
+{
+    m_backendQueue->postMessage(std::make_shared<FirstFrameReceivedMessage>(sourceId, this));
+}
+
 void GStreamerMSEMediaPlayerClient::notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error)
 {
     m_backendQueue->postMessage(std::make_shared<PlaybackErrorMessage>(sourceId, error, this));
@@ -159,6 +167,11 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
+    if (m_flushAndDataSynchronizer.isAnySourceFlushing())
+    {
+        GST_WARNING("Not updating playback info, because flush is ongoing");
+        return;
+    }
     std::unique_lock lock{m_playbackInfoMutex};
     m_playbackInfo = playbackInfo;
 }
@@ -167,6 +180,18 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
     std::unique_lock lock{m_playbackInfoMutex};
     return m_playbackInfo.currentPosition;
+}
+
+bool GStreamerMSEMediaPlayerClient::getDuration(int64_t &duration)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getDuration(duration); });
+    return status;
 }
 
 bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool immediateOutput)
@@ -181,6 +206,19 @@ bool GStreamerMSEMediaPlayerClient::setImmediateOutput(int32_t sourceId, bool im
     return status;
 }
 
+bool GStreamerMSEMediaPlayerClient::setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]()
+                                    { status = m_clientBackend->setReportDecodeErrors(sourceId, reportDecodeErrors); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
 {
     if (!m_clientBackend)
@@ -190,6 +228,18 @@ bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &i
 
     bool status{false};
     m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getImmediateOutput(sourceId, immediateOutput); });
+    return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->getQueuedFrames(sourceId, queuedFrames); });
     return status;
 }
 
@@ -539,8 +589,19 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossible()
     m_backendQueue->callInEventLoop([&]() { sendAllSourcesAttachedIfPossibleInternal(); });
 }
 
+void GStreamerMSEMediaPlayerClient::setStopping(bool stopping)
+{
+    m_backendQueue->callInEventLoop([this, stopping]() { m_isStopping = stopping; });
+}
+
 void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
 {
+    if (m_isStopping)
+    {
+        GST_INFO("Skip sending allSourcesAttached, because a stop was already requested");
+        return;
+    }
+
     if (!m_wasAllSourcesAttachedSent && areAllStreamsAttached())
     {
         // RialtoServer doesn't support dynamic source attachment.
@@ -717,7 +778,7 @@ void GStreamerMSEMediaPlayerClient::setVideoRectangle(const std::string &rectang
 
 std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
 {
-    char rectangle[64];
+    char rectangle[64] = {0};
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -761,6 +822,13 @@ void GStreamerMSEMediaPlayerClient::setVolume(double targetVolume, uint32_t volu
 }
 
 bool GStreamerMSEMediaPlayerClient::getVolume(double &volume)
+{
+    bool success{false};
+    m_backendQueue->callInEventLoop([&]() { success = m_clientBackend->getVolume(volume); });
+    return success;
+}
+
+bool GStreamerMSEMediaPlayerClient::getCachedVolume(double &volume)
 {
     std::unique_lock lock{m_playbackInfoMutex};
     volume = m_playbackInfo.volume;
@@ -1035,6 +1103,35 @@ bool GStreamerMSEMediaPlayerClient::handleBufferUnderflow(int sourceId)
     return result;
 }
 
+bool GStreamerMSEMediaPlayerClient::handleFirstFrameReceived(int sourceId)
+{
+    bool result = false;
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                result = false;
+                return;
+            }
+            if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO)
+            {
+                rialto_mse_video_handle_rialto_server_sent_first_video_frame_received(
+                    RIALTO_MSE_VIDEO_SINK(sourceIt->second.m_rialtoSink));
+                result = true;
+            }
+            else if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::AUDIO)
+            {
+                rialto_mse_audio_handle_rialto_server_sent_first_audio_frame_received(
+                    RIALTO_MSE_AUDIO_SINK(sourceIt->second.m_rialtoSink));
+                result = true;
+            }
+        });
+
+    return result;
+}
+
 bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error)
 {
     bool result = false;
@@ -1048,20 +1145,38 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 return;
             }
 
-            // Even though rialto has only reported a non-fatal error, still fail the pipeline from rialto-gstreamer
-            GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
-                      toString(sourceIt->second.getType()));
-            if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+            // OUTPUT_PROTECTION is handled separately by posting an application message (not a pipeline error)
+            if (firebolt::rialto::PlaybackError::OUTPUT_PROTECTION == error)
             {
-                sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
-                                                         GST_STREAM_ERROR_DECRYPT);
+                GST_WARNING("HDCP output protection failure, posting HDCPProtectionFailure application message");
+                GstStructure *hdcpMsg = gst_structure_new("HDCPProtectionFailure", "message", G_TYPE_STRING,
+                                                          "HDCP Output Protection Error", "error", G_TYPE_STRING,
+                                                          toString(error), nullptr);
+                GstMessage *message =
+                    gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), hdcpMsg);
+                result = gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), message);
+                if (!result)
+                {
+                    GST_WARNING("Failed to post HDCPProtectionFailure application message");
+                }
             }
             else
             {
-                sourceIt->second.m_delegate->handleError("Rialto server playback failed");
-            }
+                // For other playback errors, fail the pipeline from rialto-gstreamer
+                GST_ERROR("Received Playback error '%s', posting error on %s sink", toString(error),
+                          toString(sourceIt->second.getType()));
+                if (firebolt::rialto::PlaybackError::DECRYPTION == error)
+                {
+                    sourceIt->second.m_delegate->handleError("Rialto dropped a frame that failed to decrypt",
+                                                             GST_STREAM_ERROR_DECRYPT);
+                }
+                else
+                {
+                    sourceIt->second.m_delegate->handleError("Rialto server playback failed");
+                }
 
-            result = true;
+                result = true;
+            }
         });
 
     return result;
@@ -1128,6 +1243,7 @@ PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned i
 void PullBufferMessage::handle()
 {
     bool isEos = false;
+    bool isNoSpace{false};
     unsigned int addedSegments = 0;
 
     for (unsigned int frame = 0; frame < m_frameCount; ++frame)
@@ -1178,6 +1294,7 @@ void PullBufferMessage::handle()
         {
             gst_buffer_unmap(buffer, &map);
             GST_INFO_OBJECT(m_rialtoSink, "There's no space to add sample");
+            isNoSpace = true;
             break;
         }
 
@@ -1195,7 +1312,10 @@ void PullBufferMessage::handle()
     {
         status = firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES;
     }
-
+    else if (addedSegments != m_frameCount && isNoSpace)
+    {
+        status = firebolt::rialto::MediaSourceStatus::NO_SPACE_FOR_SAMPLES;
+    }
     if (firebolt::rialto::MediaSourceStatus::OK == status || firebolt::rialto::MediaSourceStatus::EOS == status)
     {
         m_player->getFlushAndDataSynchronizer().notifyDataPushed(m_sourceId);
@@ -1255,6 +1375,19 @@ void BufferUnderflowMessage::handle()
     if (!m_player->handleBufferUnderflow(m_sourceId))
     {
         GST_ERROR("Failed to handle buffer underflow for sourceId=%d", m_sourceId);
+    }
+}
+
+FirstFrameReceivedMessage::FirstFrameReceivedMessage(int sourceId, GStreamerMSEMediaPlayerClient *player)
+    : m_sourceId(sourceId), m_player(player)
+{
+}
+
+void FirstFrameReceivedMessage::handle()
+{
+    if (!m_player->handleFirstFrameReceived(m_sourceId))
+    {
+        GST_ERROR("Failed to handle first frame received for sourceId=%d", m_sourceId);
     }
 }
 

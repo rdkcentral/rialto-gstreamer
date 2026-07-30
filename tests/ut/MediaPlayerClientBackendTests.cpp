@@ -43,6 +43,7 @@ constexpr double kVolume{0.7};
 constexpr uint32_t kVolumeDuration{1000};
 constexpr firebolt::rialto::EaseType kEaseType{firebolt::rialto::EaseType::EASE_LINEAR};
 constexpr bool kMute{true};
+constexpr bool kIsLive{false};
 MATCHER_P(PtrMatcher, ptr, "")
 {
     return ptr == arg.get();
@@ -337,4 +338,15 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.switchSource(mediaSourceAudio));
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldGetDuration)
+{
+    int64_t resultDuration{0};
+    constexpr int64_t kDuration{123};
+    EXPECT_CALL(*m_mediaPipelineMock, getDuration(_)).WillOnce(DoAll(SetArgReferee<0>(kDuration), Return(true)));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.getDuration(resultDuration));
+    EXPECT_EQ(kDuration, resultDuration);
 }

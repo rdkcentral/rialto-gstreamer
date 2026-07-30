@@ -46,7 +46,9 @@ unsigned getGstPlayFlag(const char *nick)
 {
     GFlagsClass *flagsClass = static_cast<GFlagsClass *>(g_type_class_ref(g_type_from_name("GstPlayFlags")));
     GFlagsValue *flag = g_flags_get_value_by_nick(flagsClass, nick);
-    return flag ? flag->value : 0;
+    const unsigned kResult{flag ? flag->value : 0};
+    g_type_class_unref(flagsClass);
+    return kResult;
 }
 
 bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio, gint &n_text)
@@ -75,10 +77,16 @@ bool getNStreamsFromParent(GstObject *parentObject, gint &n_video, gint &n_audio
 
 PullModePlaybackDelegate::PullModePlaybackDelegate(GstElement *sink) : m_sink{sink}
 {
-    RialtoMSEBaseSink *baseSink = RIALTO_MSE_BASE_SINK(sink);
-    m_sinkPad = baseSink->priv->m_sinkPad;
-    m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>();
+    m_sinkPad = RIALTO_MSE_BASE_SINK(sink)->priv->m_sinkPad;
     gst_segment_init(&m_lastSegment, GST_FORMAT_TIME);
+}
+
+void PullModePlaybackDelegate::createControlBackend()
+{
+    if (!m_rialtoControlClient)
+    {
+        m_rialtoControlClient = std::make_unique<firebolt::rialto::client::ControlBackend>(shared_from_this());
+    }
 }
 
 PullModePlaybackDelegate::~PullModePlaybackDelegate()
@@ -138,6 +146,7 @@ void PullModePlaybackDelegate::handleFlushCompleted()
     GST_INFO_OBJECT(m_sink, "Flush completed");
     std::unique_lock<std::mutex> lock(m_sinkMutex);
     m_isServerFlushOngoing = false;
+    m_isTimeResetOngoing = false;
 }
 
 void PullModePlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
@@ -213,6 +222,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
+        client->setStopping(false);
+
         m_isSinkFlushOngoing = false;
 
         StateChangeResult result = client->pause(m_sourceId);
@@ -277,6 +288,8 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
             return GST_STATE_CHANGE_FAILURE;
         }
 
+        client->setStopping(true);
+
         if (m_isStateCommitNeeded)
         {
             GST_DEBUG_OBJECT(m_sink, "Sending async_done in PAUSED->READY transition");
@@ -309,6 +322,15 @@ void PullModePlaybackDelegate::handleError(const std::string &message, gint code
     gst_element_post_message(GST_ELEMENT_CAST(m_sink),
                              gst_message_new_error(GST_OBJECT_CAST(m_sink), gError, message.c_str()));
     g_error_free(gError);
+}
+
+void PullModePlaybackDelegate::notifyApplicationState(firebolt::rialto::ApplicationState state)
+{
+    if (state == firebolt::rialto::ApplicationState::UNKNOWN)
+    {
+        GST_WARNING_OBJECT(m_sink, "Rialto control sent unknown application state");
+        handleError("Rialto client reached unknown application state");
+    }
 }
 
 void PullModePlaybackDelegate::postAsyncStart()
@@ -409,6 +431,7 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
         {
             GST_ERROR_OBJECT(m_sink, "No stats returned from client");
         }
+        break;
     }
     case Property::EnableLastSample:
     {
@@ -436,6 +459,10 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
     {
     case GST_QUERY_SEEKING:
     {
+        if (m_sinkPad && gst_pad_peer_query(m_sinkPad, query))
+        {
+            return TRUE;
+        }
         GstFormat fmt;
         gst_query_parse_seeking(query, &fmt, NULL, NULL, NULL);
         gst_query_set_seeking(query, fmt, FALSE, 0, -1);
@@ -447,6 +474,14 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         if (!client)
         {
             return FALSE;
+        }
+        {
+            std::unique_lock<std::mutex> lock(m_sinkMutex);
+            if (m_isServerFlushOngoing && m_isTimeResetOngoing)
+            {
+                GST_WARNING_OBJECT(m_sink, "Position query during server flush and time reset, returning FALSE");
+                return FALSE;
+            }
         }
 
         GstFormat fmt;
@@ -487,6 +522,39 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         gst_query_set_segment(query, m_lastSegment.rate, format, start, stop);
         return TRUE;
     }
+    case GST_QUERY_DURATION:
+    {
+        GstFormat fmt;
+        gst_query_parse_duration(query, &fmt, NULL);
+        if (GST_FORMAT_TIME != fmt)
+        {
+            return FALSE;
+        }
+
+        if (m_sinkPad && gst_pad_peer_query(m_sinkPad, query))
+        {
+            gint64 upstreamDuration{-1};
+            gst_query_parse_duration(query, nullptr, &upstreamDuration);
+            if (upstreamDuration > 0)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Duration from upstream is %" GST_TIME_FORMAT, GST_TIME_ARGS(upstreamDuration));
+                return TRUE;
+            }
+        }
+
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            return FALSE;
+        }
+        int64_t duration{-1};
+        if (!client->getDuration(duration))
+        {
+            return FALSE;
+        }
+        gst_query_set_duration(query, fmt, duration);
+        return TRUE;
+    }
     default:
         break;
     }
@@ -507,48 +575,44 @@ gboolean PullModePlaybackDelegate::handleSendEvent(GstEvent *event)
         GstSeekFlags flags{GST_SEEK_FLAG_NONE};
         GstSeekType startType{GST_SEEK_TYPE_NONE}, stopType{GST_SEEK_TYPE_NONE};
         gint64 start{0}, stop{0};
-        if (event)
-        {
-            gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
+        gst_event_parse_seek(event, &rate, &seekFormat, &flags, &startType, &start, &stopType, &stop);
 
-            if (flags & GST_SEEK_FLAG_FLUSH)
+        if (flags & GST_SEEK_FLAG_FLUSH)
+        {
+            if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
             {
-                if (seekFormat == GST_FORMAT_TIME && startType == GST_SEEK_TYPE_END)
-                {
-                    GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
-                    gst_event_unref(event);
-                    return FALSE;
-                }
-                // Update last segment
-                if (seekFormat == GST_FORMAT_TIME)
-                {
-                    gboolean update{FALSE};
-                    std::lock_guard<std::mutex> lock(m_sinkMutex);
-                    gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop,
-                                        &update);
-                }
-            }
-#if GST_CHECK_VERSION(1, 18, 0)
-            else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
-            {
-                gdouble rateMultiplier = rate / m_lastSegment.rate;
-                GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
-                gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
-                gst_event_unref(event);
-                if (gst_pad_send_event(m_sinkPad, rateChangeEvent) != TRUE)
-                {
-                    GST_ERROR_OBJECT(m_sink, "Sending instant rate change failed.");
-                    return FALSE;
-                }
-                return TRUE;
-            }
-#endif
-            else
-            {
-                GST_WARNING_OBJECT(m_sink, "Seek with flags 0x%X is not supported", flags);
+                GST_ERROR_OBJECT(m_sink, "GST_SEEK_TYPE_END seek is not supported");
                 gst_event_unref(event);
                 return FALSE;
             }
+            // Update last segment
+            if (seekFormat == GST_FORMAT_TIME)
+            {
+                gboolean update{FALSE};
+                std::lock_guard<std::mutex> lock(m_sinkMutex);
+                gst_segment_do_seek(&m_lastSegment, rate, seekFormat, flags, startType, start, stopType, stop, &update);
+            }
+        }
+#if GST_CHECK_VERSION(1, 18, 0)
+        else if (flags & GST_SEEK_FLAG_INSTANT_RATE_CHANGE)
+        {
+            gdouble rateMultiplier = rate / m_lastSegment.rate;
+            GstEvent *rateChangeEvent = gst_event_new_instant_rate_change(rateMultiplier, (GstSegmentFlags)flags);
+            gst_event_set_seqnum(rateChangeEvent, gst_event_get_seqnum(event));
+            gst_event_unref(event);
+            if (gst_pad_send_event(m_sinkPad, rateChangeEvent) != TRUE)
+            {
+                GST_ERROR_OBJECT(m_sink, "Sending instant rate change failed.");
+                return FALSE;
+            }
+            return TRUE;
+        }
+#endif
+        else
+        {
+            GST_WARNING_OBJECT(m_sink, "Seek with flags 0x%X is not supported", flags);
+            gst_event_unref(event);
+            return FALSE;
         }
         break;
     }
@@ -814,6 +878,7 @@ void PullModePlaybackDelegate::flushServer(bool resetTime)
     {
         std::unique_lock<std::mutex> lock(m_sinkMutex);
         m_isServerFlushOngoing = true;
+        m_isTimeResetOngoing = true;
     }
     client->flush(m_sourceId, resetTime);
 }
@@ -826,10 +891,11 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
 
     std::unique_lock<std::mutex> lock(m_sinkMutex);
 
-    if (m_samples.size() >= kMaxInternalBuffersQueueSize)
+    const auto maxSize = kMaxInternalBuffersQueueSize;
+    if (m_samples.size() >= maxSize)
     {
-        GST_DEBUG_OBJECT(m_sink, "Waiting for more space in buffers queue\n");
-        m_needDataCondVariable.wait(lock);
+        GST_DEBUG_OBJECT(m_sink, "Waiting for more space in buffers queue");
+        m_needDataCondVariable.wait(lock, [this, maxSize]() { return m_samples.size() < maxSize; });
     }
 
     if (m_isSinkFlushOngoing)
@@ -912,7 +978,7 @@ bool PullModePlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint
                                                                       const uint32_t maxVideoHeight)
 {
     GstObject *parentObject = getOldestGstBinParent(m_sink);
-    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
+    if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight, isLiveLatencyEnabled()))
     {
         GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient");
         return false;
@@ -1005,6 +1071,24 @@ bool PullModePlaybackDelegate::setStreamsNumber(GstObject *parentObject)
     client->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
 
     return true;
+}
+
+bool PullModePlaybackDelegate::isLiveLatencyEnabled() const
+{
+    GstContext *context = gst_element_get_context(m_sink, "streams-info");
+    if (context)
+    {
+        GST_DEBUG_OBJECT(m_sink, "Checking if live latency is enabled from \"streams-info\" context");
+
+        gboolean isEnabled{FALSE};
+
+        const GstStructure *streamsInfoStructure = gst_context_get_structure(context);
+        gst_structure_get_boolean(streamsInfoStructure, "enable-live-latency", &isEnabled);
+
+        gst_context_unref(context);
+        return isEnabled != FALSE;
+    }
+    return false;
 }
 
 GstSample *PullModePlaybackDelegate::getLastSample() const
