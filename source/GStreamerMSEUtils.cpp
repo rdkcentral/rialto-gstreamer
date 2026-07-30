@@ -195,7 +195,7 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
 {
     if (videoCapabilities.capabilities.empty())
     {
-        GST_WARNING("No video capabilities provided");
+        GST_DEBUG("No video capabilities provided (no HFP config)");
         return false;
     }
     GstCaps *caps = gst_caps_new_empty();
