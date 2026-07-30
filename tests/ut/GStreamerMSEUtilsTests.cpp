@@ -132,12 +132,11 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
     };
 
     // Supported capabilities
-    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{
-        firebolt::rialto::Mpeg2CodecCapability{},
-        firebolt::rialto::H264CodecCapability{},
-        firebolt::rialto::H265CodecCapability{},
-        firebolt::rialto::Vp9CodecCapability{},
-        firebolt::rialto::Av1CodecCapability{}};
+    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{firebolt::rialto::Mpeg2CodecCapability{},
+                                                                     firebolt::rialto::H264CodecCapability{},
+                                                                     firebolt::rialto::H265CodecCapability{},
+                                                                     firebolt::rialto::Vp9CodecCapability{},
+                                                                     firebolt::rialto::Av1CodecCapability{}};
     const firebolt::rialto::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -186,7 +185,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
-    GstCaps *ac3Caps  = gst_caps_from_string("audio/x-ac3");
+    GstCaps *ac3Caps = gst_caps_from_string("audio/x-ac3");
     GstCaps *eac3Caps = gst_caps_from_string("audio/x-eac3");
     EXPECT_TRUE(gst_caps_is_subset(ac3Caps, caps));
     EXPECT_FALSE(gst_caps_is_subset(eac3Caps, caps));
@@ -234,12 +233,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterDolbyMatRaw)
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterVideoCodecWhenOptionalIsNullopt)
 {
     // Only h264 present — mpeg2/h265/vp9/av1 must not be registered
-    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{
-        std::nullopt,
-        firebolt::rialto::H264CodecCapability{},
-        std::nullopt,
-        std::nullopt,
-        std::nullopt};
+    const firebolt::rialto::VideoCodecCapabilities codecCapabilities{std::nullopt,
+                                                                     firebolt::rialto::H264CodecCapability{},
+                                                                     std::nullopt, std::nullopt, std::nullopt};
     const firebolt::rialto::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -248,9 +244,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterVideoCodecWhenOptionalIsNullopt)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
-    GstCaps *h264Caps  = gst_caps_from_string("video/x-h264");
+    GstCaps *h264Caps = gst_caps_from_string("video/x-h264");
     GstCaps *mpeg2Caps = gst_caps_from_string("video/mpeg, mpegversion=2");
-    GstCaps *vp9Caps   = gst_caps_from_string("video/x-vp9");
+    GstCaps *vp9Caps = gst_caps_from_string("video/x-vp9");
     EXPECT_TRUE(gst_caps_is_subset(h264Caps, caps));
     EXPECT_FALSE(gst_caps_is_subset(mpeg2Caps, caps));
     EXPECT_FALSE(gst_caps_is_subset(vp9Caps, caps));
