@@ -119,7 +119,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldLoad)
     constexpr firebolt::rialto::MediaType kType{firebolt::rialto::MediaType::MSE};
     const std::string kMimeType{"mime_type"};
     const std::string kUrl{"url"};
-    EXPECT_CALL(*m_mediaPipelineMock, load(kType, kMimeType, kUrl, false)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineMock, load(kType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.load(kType, kMimeType, kUrl, false));
