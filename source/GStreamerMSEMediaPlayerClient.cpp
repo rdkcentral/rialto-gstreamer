@@ -113,6 +113,13 @@ void GStreamerMSEMediaPlayerClient::notifyDuration(int64_t duration)
 
 void GStreamerMSEMediaPlayerClient::notifyPosition(int64_t position)
 {
+    // Also update the playback info cache if position is valid
+    // This ensures the browser has the latest position even if it reads from cache
+    if (position >= 0)
+    {
+        std::unique_lock lock{m_playbackInfoMutex};
+        m_playbackInfo.currentPosition = position;
+    }
     m_backendQueue->postMessage(std::make_shared<SetPositionMessage>(position, m_attachedSources));
 }
 
