@@ -286,6 +286,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
     expectPostMessage();
     m_sut->notifyPosition(kPosition);
+    EXPECT_EQ(m_sut->getPosition(kUnknownSourceId), kPosition);
     m_sut->destroyClientBackend();
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
