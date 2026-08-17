@@ -820,6 +820,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotRegressPositionFromPlaybackInfo)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    const int64_t kNewerPosition{kPosition + 100};
+
+    expectPostMessage();
+    m_sut->notifyPosition(kNewerPosition);
+    m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition, kVolume});
+
+    EXPECT_EQ(m_sut->getPosition(kSourceId), kNewerPosition);
+
+    m_sut->destroyClientBackend();
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotHandlePositionInfoWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1281,12 +1299,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+    m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition + 100, kVolume});
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock,
                 setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(true));
     m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
+    EXPECT_EQ(m_sut->getPosition(kSourceId), -1);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
