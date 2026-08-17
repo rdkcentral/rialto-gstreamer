@@ -178,7 +178,11 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::P
         return;
     }
     std::unique_lock lock{m_playbackInfoMutex};
-    m_playbackInfo = playbackInfo;
+    if (playbackInfo.currentPosition >= m_playbackInfo.currentPosition)
+    {
+        m_playbackInfo.currentPosition = playbackInfo.currentPosition;
+    }
+    m_playbackInfo.volume = playbackInfo.volume;
 }
 
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
@@ -499,6 +503,8 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
                 return;
             }
             sourceIt->second.m_position = position;
+            std::unique_lock lock{m_playbackInfoMutex};
+            m_playbackInfo.currentPosition = -1;
         });
 }
 
