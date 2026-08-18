@@ -82,7 +82,7 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
 }
 
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
-                                          const firebolt::rialto::AudioDecoderCapabilities &audioCapabilities)
+                                          const firebolt::rialto::common::AudioDecoderCapabilities &audioCapabilities)
 {
     if (audioCapabilities.capabilities.empty())
     {
@@ -192,7 +192,7 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
 }
 
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
-                                          const firebolt::rialto::VideoDecoderCapabilities &videoCapabilities)
+                                          const firebolt::rialto::common::VideoDecoderCapabilities &videoCapabilities)
 {
     if (videoCapabilities.capabilities.empty())
     {

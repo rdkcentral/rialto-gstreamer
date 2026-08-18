@@ -54,8 +54,8 @@ const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/m
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
 const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml", "text/cc"};
-const firebolt::rialto::AudioDecoderCapabilities kAudioDecoderCapabilities{};
-const firebolt::rialto::VideoDecoderCapabilities kVideoDecoderCapabilities{};
+const firebolt::rialto::common::AudioDecoderCapabilities kAudioDecoderCapabilities{};
+const firebolt::rialto::common::VideoDecoderCapabilities kVideoDecoderCapabilities{};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 constexpr bool kIsLive{false};
 int32_t generateSourceId()

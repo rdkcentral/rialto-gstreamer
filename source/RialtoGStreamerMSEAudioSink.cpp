@@ -306,7 +306,7 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
     if (mediaPlayerCapabilities)
     {
-        const firebolt::rialto::AudioDecoderCapabilities kAudioDecoderCapabilities{
+        const firebolt::rialto::common::AudioDecoderCapabilities kAudioDecoderCapabilities{
             mediaPlayerCapabilities->getSupportedAudioCapabilities()};
 
         if (!rialto_mse_sink_setup_supported_caps(elementClass, kAudioDecoderCapabilities))

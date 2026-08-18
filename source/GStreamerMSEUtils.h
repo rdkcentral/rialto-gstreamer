@@ -32,9 +32,9 @@
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                                           const std::vector<std::string> &supportedMimeType);
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
-                                          const firebolt::rialto::AudioDecoderCapabilities &audioCapabilities);
+                                          const firebolt::rialto::common::AudioDecoderCapabilities &audioCapabilities);
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
-                                          const firebolt::rialto::VideoDecoderCapabilities &videoCapabilities);
+                                          const firebolt::rialto::common::VideoDecoderCapabilities &videoCapabilities);
 std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gchar *layoutStr);
 std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gchar *formatStr);
 std::shared_ptr<firebolt::rialto::CodecData> get_codec_data(const GstStructure *structure);

@@ -297,7 +297,7 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
     if (mediaPlayerCapabilities)
     {
-        const firebolt::rialto::VideoDecoderCapabilities kVideoDecoderCapabilities{
+        const firebolt::rialto::common::VideoDecoderCapabilities kVideoDecoderCapabilities{
             mediaPlayerCapabilities->getSupportedVideoCapabilities()};
 
         if (!rialto_mse_sink_setup_supported_caps(elementClass, kVideoDecoderCapabilities))
