@@ -489,10 +489,8 @@ void RialtoGstTest::expectSinksInitialisation() const
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
     std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockSubtitles{
         std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
-    EXPECT_CALL(*capabilitiesMockAudio, getSupportedAudioCapabilities()).WillOnce(Return(kAudioDecoderCapabilities));
     EXPECT_CALL(*capabilitiesMockAudio, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
         .WillOnce(Return(kSupportedAudioMimeTypes));
-    EXPECT_CALL(*capabilitiesMockVideo, getSupportedVideoCapabilities()).WillOnce(Return(kVideoDecoderCapabilities));
     EXPECT_CALL(*capabilitiesMockVideo, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
         .WillOnce(Return(kSupportedVideoMimeTypes));
     EXPECT_CALL(*capabilitiesMockSubtitles, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::SUBTITLE))

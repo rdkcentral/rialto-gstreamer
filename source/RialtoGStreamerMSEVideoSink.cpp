@@ -22,6 +22,7 @@
 
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
+#include "IMediaCapabilities.h"
 #include "IMediaPipelineCapabilities.h"
 #include "PullModeVideoPlaybackDelegate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
@@ -295,19 +296,27 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
-    if (mediaPlayerCapabilities)
+    std::unique_ptr<firebolt::rialto::IMediaCapabilities> mediaCapabilities =
+        firebolt::rialto::IMediaCapabilitiesFactory::createFactory()->createMediaCapabilities();
+    if (mediaCapabilities)
     {
         const firebolt::rialto::common::VideoDecoderCapabilities kVideoDecoderCapabilities{
-            mediaPlayerCapabilities->getSupportedVideoCapabilities()};
+            mediaCapabilities->getSupportedVideoCapabilities()};
 
         if (!rialto_mse_sink_setup_supported_caps(elementClass, kVideoDecoderCapabilities))
         {
             GST_INFO("No supported video decoder capabilities, falling back to legacy capability check");
-            std::vector<std::string> supportedMimeTypes =
-                mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
-            rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+            if (mediaPlayerCapabilities)
+            {
+                std::vector<std::string> supportedMimeTypes =
+                    mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
+                rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+            }
         }
+    }
 
+    if (mediaPlayerCapabilities)
+    {
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
         const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
