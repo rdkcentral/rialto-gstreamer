@@ -32,17 +32,17 @@ MediaPlayerManager::~MediaPlayerManager()
 }
 
 bool MediaPlayerManager::attachMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                                 const uint32_t maxVideoHeight)
+                                                 const uint32_t maxVideoHeight, bool isLive)
 {
     if (!m_client.lock())
     {
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
     }
     else if (gstBinParent != m_currentGstBinParent)
     {
         // New parent gst bin, release old client and create new
         releaseMediaPlayerClient();
-        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight);
+        createMediaPlayerClient(gstBinParent, maxVideoWidth, maxVideoHeight, isLive);
     }
 
     if (!m_client.lock())
@@ -136,7 +136,7 @@ bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo &mediaPlayerClient
 }
 
 void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, const uint32_t maxVideoWidth,
-                                                 const uint32_t maxVideoHeight)
+                                                 const uint32_t maxVideoHeight, bool isLive)
 {
     std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
 
@@ -153,7 +153,7 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
             std::make_shared<firebolt::rialto::client::MediaPlayerClientBackend>();
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client =
             std::make_shared<GStreamerMSEMediaPlayerClient>(IMessageQueueFactory::createFactory(), clientBackend,
-                                                            maxVideoWidth, maxVideoHeight);
+                                                            maxVideoWidth, maxVideoHeight, isLive);
 
         if (client->createBackend())
         {

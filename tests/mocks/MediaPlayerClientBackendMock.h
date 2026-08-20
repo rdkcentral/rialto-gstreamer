@@ -34,7 +34,8 @@ public:
                 (override));
     MOCK_METHOD(bool, removeSource, (int32_t id), (override));
     MOCK_METHOD(bool, allSourcesAttached, (), (override));
-    MOCK_METHOD(bool, load, (firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url),
+    MOCK_METHOD(bool, load,
+                (firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url, bool isLive),
                 (override));
     MOCK_METHOD(bool, play, (bool &async), (override));
     MOCK_METHOD(bool, pause, (), (override));
