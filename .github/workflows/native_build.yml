@@ -38,22 +38,39 @@ jobs:
       # Check, from which rialto branch should we download headers
       - name: Check if rialto branch with the same name exists
         id: check-branch
-        shell: sh +e {0}
+        shell: bash
         run: |
-          branch="${{ github.ref_name }}"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
-            if [ $? -eq 0 ]; then
-              branch="${{ github.event.pull_request.head.ref }}"
-            else
-              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
-              if [ $? -eq 0 ]; then
-                branch="${{ github.event.pull_request.base.ref }}"
-              else
-                branch="master"
+          # Default to master for security
+          branch="master"
+          
+          # For push events, use the current branch if it's trusted
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            current_branch="${{ github.ref_name }}"
+            
+            # Only allow trusted branch patterns
+            if [[ "$current_branch" == "master" ]] || [[ "$current_branch" =~ ^release/.+ ]]; then
+              # Verify branch exists in rialto repository
+              if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$current_branch" > /dev/null 2>&1; then
+                branch="$current_branch"
               fi
             fi
           fi
+          
+          # For pull requests, only check the BASE branch (target), never the HEAD (source)
+          # This prevents untrusted code from forks being checked out
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_branch="${{ github.event.pull_request.base.ref }}"
+            
+            # Only allow trusted base branch patterns
+            if [[ "$base_branch" == "master" ]] || [[ "$base_branch" =~ ^release/.+ ]]; then
+              # Verify branch exists in rialto repository
+              if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$base_branch" > /dev/null 2>&1; then
+                branch="$base_branch"
+              fi
+            fi
+          fi
+          
+          echo "Using rialto branch: $branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Install Dependencies

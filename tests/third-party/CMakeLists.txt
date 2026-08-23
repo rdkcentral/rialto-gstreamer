@@ -50,12 +50,20 @@ endif()
 
 function(copyLocalFallback FILE)
     set(CANDIDATE_DIRS
+        # Check sibling directory first (for local builds)
         "${CMAKE_SOURCE_DIR}/../rialto/common/public/include"
         "${CMAKE_SOURCE_DIR}/../rialto/media/public/include"
         "${CMAKE_SOURCE_DIR}/../rialto/media/public/interface"
         "${CMAKE_SOURCE_DIR}/../rialto/media/client/main/include"
         "${CMAKE_SOURCE_DIR}/../rialto/media/client/ipc/include"
-        "${CMAKE_SOURCE_DIR}/../rialto/serverManager/public/include")
+        "${CMAKE_SOURCE_DIR}/../rialto/serverManager/public/include"
+        # Check subdirectory (for GitHub Actions CI)
+        "${CMAKE_SOURCE_DIR}/rialto/common/public/include"
+        "${CMAKE_SOURCE_DIR}/rialto/media/public/include"
+        "${CMAKE_SOURCE_DIR}/rialto/media/public/interface"
+        "${CMAKE_SOURCE_DIR}/rialto/media/client/main/include"
+        "${CMAKE_SOURCE_DIR}/rialto/media/client/ipc/include"
+        "${CMAKE_SOURCE_DIR}/rialto/serverManager/public/include")
 
     foreach(candidate IN LISTS CANDIDATE_DIRS)
         if(EXISTS "${candidate}/${FILE}")
