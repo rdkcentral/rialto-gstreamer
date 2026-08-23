@@ -90,16 +90,16 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillAudioDecoderCapabilities)
                                         gst_caps_from_string("audio/x-avs")};
 
     // Supported capabilities
-    const firebolt::rialto::common::AudioDecoderCapability capability{
-        firebolt::rialto::common::PcmCapability{},       firebolt::rialto::common::AacCapability{},
-        firebolt::rialto::common::MpegAudioCapability{}, firebolt::rialto::common::Mp3Capability{},
-        firebolt::rialto::common::AlacCapability{},      firebolt::rialto::common::SbcCapability{},
-        firebolt::rialto::common::DolbyAc3Capability{},  firebolt::rialto::common::DolbyAc4Capability{},
-        firebolt::rialto::common::DolbyEac3Capability{}, firebolt::rialto::common::DolbyTruehdCapability{},
-        firebolt::rialto::common::FlacCapability{},      firebolt::rialto::common::VorbisCapability{},
-        firebolt::rialto::common::OpusCapability{},      firebolt::rialto::common::RealAudioCapability{},
-        firebolt::rialto::common::UsacCapability{},      firebolt::rialto::common::DtsCapability{},
-        firebolt::rialto::common::AvsCapability{}};
+    const firebolt::rialto::common::AudioDecoderCapability
+        capability{firebolt::rialto::common::PcmCapability{},       firebolt::rialto::common::AacCapability{},
+                   firebolt::rialto::common::MpegAudioCapability{}, firebolt::rialto::common::Mp3Capability{},
+                   firebolt::rialto::common::AlacCapability{},      firebolt::rialto::common::SbcCapability{},
+                   firebolt::rialto::common::DolbyAc3Capability{},  firebolt::rialto::common::DolbyAc4Capability{},
+                   firebolt::rialto::common::DolbyEac3Capability{}, firebolt::rialto::common::DolbyTruehdCapability{},
+                   firebolt::rialto::common::FlacCapability{},      firebolt::rialto::common::VorbisCapability{},
+                   firebolt::rialto::common::OpusCapability{},      firebolt::rialto::common::RealAudioCapability{},
+                   firebolt::rialto::common::UsacCapability{},      firebolt::rialto::common::DtsCapability{},
+                   firebolt::rialto::common::AvsCapability{}};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -132,10 +132,11 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
     };
 
     // Supported capabilities
-    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
-        firebolt::rialto::common::Mpeg2CodecCapability{}, firebolt::rialto::common::H264CodecCapability{},
-        firebolt::rialto::common::H265CodecCapability{}, firebolt::rialto::common::Vp9CodecCapability{},
-        firebolt::rialto::common::Av1CodecCapability{}};
+    const firebolt::rialto::common::VideoCodecCapabilities
+        codecCapabilities{firebolt::rialto::common::Mpeg2CodecCapability{},
+                          firebolt::rialto::common::H264CodecCapability{},
+                          firebolt::rialto::common::H265CodecCapability{},
+                          firebolt::rialto::common::Vp9CodecCapability{}, firebolt::rialto::common::Av1CodecCapability{}};
     const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -159,7 +160,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
 
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{.dolbyEac3 = firebolt::rialto::common::DolbyEac3Capability{}};
+    const firebolt::rialto::common::AudioDecoderCapability capability{
+        .dolbyEac3 = firebolt::rialto::common::DolbyEac3Capability{}};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -176,7 +178,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
 
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{.dolbyAc3 = firebolt::rialto::common::DolbyAc3Capability{}};
+    const firebolt::rialto::common::AudioDecoderCapability capability{
+        .dolbyAc3 = firebolt::rialto::common::DolbyAc3Capability{}};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -232,8 +235,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterDolbyMatRaw)
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterVideoCodecWhenOptionalIsNullopt)
 {
     // Only h264 present — mpeg2/h265/vp9/av1 must not be registered
-    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
-        std::nullopt, firebolt::rialto::common::H264CodecCapability{}, std::nullopt, std::nullopt, std::nullopt};
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{std::nullopt,
+                                                                             firebolt::rialto::common::H264CodecCapability{},
+                                                                             std::nullopt, std::nullopt, std::nullopt};
     const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 

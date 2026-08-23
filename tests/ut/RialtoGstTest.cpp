@@ -18,8 +18,8 @@
 
 #include "RialtoGstTest.h"
 #include "Matchers.h"
-#include "MediaPipelineCapabilitiesMock.h"
 #include "MediaCapabilitiesMock.h"
+#include "MediaPipelineCapabilitiesMock.h"
 #include "PlaybinStub.h"
 #include "RialtoGSteamerPlugin.cpp"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
@@ -31,12 +31,12 @@
 #include <vector>
 
 using firebolt::rialto::ApplicationState;
-using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
 using firebolt::rialto::IMediaCapabilitiesFactory;
-using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
-using firebolt::rialto::MediaPipelineCapabilitiesMock;
+using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
 using firebolt::rialto::MediaCapabilitiesFactoryMock;
 using firebolt::rialto::MediaCapabilitiesMock;
+using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
+using firebolt::rialto::MediaPipelineCapabilitiesMock;
 
 using testing::_;
 using testing::ByMove;
@@ -489,9 +489,9 @@ void RialtoGstTest::expectSinksInitialisation() const
     // New Media Capabilities interface mocks (video and audio)
     auto newCapabilitiesMockAudio = std::make_unique<StrictMock<MediaCapabilitiesMock>>();
     auto newCapabilitiesMockVideo = std::make_unique<StrictMock<MediaCapabilitiesMock>>();
-    auto* audioPtr = newCapabilitiesMockAudio.get();
-    auto* videoPtr = newCapabilitiesMockVideo.get();
-    
+    auto *audioPtr = newCapabilitiesMockAudio.get();
+    auto *videoPtr = newCapabilitiesMockVideo.get();
+
     EXPECT_CALL(*audioPtr, getSupportedAudioCapabilities())
         .Times(testing::AnyNumber())
         .WillRepeatedly(Return(kAudioDecoderCapabilities));
@@ -500,8 +500,7 @@ void RialtoGstTest::expectSinksInitialisation() const
         .WillRepeatedly(Return(kVideoDecoderCapabilities));
 
     std::shared_ptr<StrictMock<MediaCapabilitiesFactoryMock>> newCapabilitiesFactoryMock{
-        std::dynamic_pointer_cast<StrictMock<MediaCapabilitiesFactoryMock>>(
-            IMediaCapabilitiesFactory::createFactory())};
+        std::dynamic_pointer_cast<StrictMock<MediaCapabilitiesFactoryMock>>(IMediaCapabilitiesFactory::createFactory())};
     ASSERT_TRUE(newCapabilitiesFactoryMock);
     // Return new capabilities mocks for video and audio sinks during class_init
     EXPECT_CALL(*newCapabilitiesFactoryMock, createMediaCapabilities())
@@ -512,10 +511,10 @@ void RialtoGstTest::expectSinksInitialisation() const
     auto capabilitiesMockAudio = std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>();
     auto capabilitiesMockVideo = std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>();
     auto capabilitiesMockSubtitles = std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>();
-    auto* legacyAudioPtr = capabilitiesMockAudio.get();
-    auto* legacyVideoPtr = capabilitiesMockVideo.get();
-    auto* legacySubPtr = capabilitiesMockSubtitles.get();
-    
+    auto *legacyAudioPtr = capabilitiesMockAudio.get();
+    auto *legacyVideoPtr = capabilitiesMockVideo.get();
+    auto *legacySubPtr = capabilitiesMockSubtitles.get();
+
     EXPECT_CALL(*legacyAudioPtr, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
         .Times(testing::AnyNumber())
         .WillRepeatedly(Return(kSupportedAudioMimeTypes));
@@ -527,18 +526,12 @@ void RialtoGstTest::expectSinksInitialisation() const
         .WillRepeatedly(Return(kSupportedSubtitlesMimeTypes));
     EXPECT_CALL(*legacyVideoPtr, getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO, _))
         .Times(testing::AnyNumber())
-        .WillRepeatedly(Invoke(
-            [](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
-            {
-                return propertiesToSearch;
-            }));
+        .WillRepeatedly(Invoke([](firebolt::rialto::MediaSourceType source,
+                                  const std::vector<std::string> &propertiesToSearch) { return propertiesToSearch; }));
     EXPECT_CALL(*legacyAudioPtr, getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO, _))
         .Times(testing::AnyNumber())
-        .WillRepeatedly(Invoke(
-            [](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
-            {
-                return propertiesToSearch;
-            }));
+        .WillRepeatedly(Invoke([](firebolt::rialto::MediaSourceType source,
+                                  const std::vector<std::string> &propertiesToSearch) { return propertiesToSearch; }));
 
     std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
         std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
