@@ -48,6 +48,12 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v4
 
+      # Ensure Unix line endings for all text files (fix CRLF issues on Windows-checked-out repos)
+      - name: Convert line endings to LF
+        run: |
+          find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.yml" -o -name "*.yaml" \) -print0 | xargs -0 sed -i 's/\r$//'
+          git config core.safecrlf false
+
       # Setup github for python 3.8
       - name: setup python
         uses: actions/setup-python@v5
