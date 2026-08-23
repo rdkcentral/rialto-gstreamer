@@ -65,8 +65,11 @@ function(copyLocalFallback FILE)
         "${CMAKE_SOURCE_DIR}/rialto/media/client/ipc/include"
         "${CMAKE_SOURCE_DIR}/rialto/serverManager/public/include")
 
+    message(STATUS "Looking for ${FILE} in fallback locations...")
     foreach(candidate IN LISTS CANDIDATE_DIRS)
+        message(STATUS "  Checking: ${candidate}/${FILE}")
         if(EXISTS "${candidate}/${FILE}")
+            message(STATUS "  ✓ Found at: ${candidate}/${FILE}")
             file(READ "${candidate}/${FILE}" fallbackContents)
             file(WRITE "${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE}" "${fallbackContents}")
             return()

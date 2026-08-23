@@ -73,6 +73,14 @@ jobs:
           echo "Using rialto branch: $branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
+      # Checkout rialto repository for header fallback (using validated branch only)
+      - name: checkout rialto repo (for header dependencies)
+        uses: actions/checkout@v4
+        with:
+          repository: rdkcentral/rialto
+          path: rialto-gstreamer/rialto
+          ref: ${{ steps.check-branch.outputs.branch }}
+
       - name: Install Dependencies
         run: |
           WORK_DIR=$(pwd)
