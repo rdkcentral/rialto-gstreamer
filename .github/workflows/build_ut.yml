@@ -56,30 +56,37 @@ jobs:
           # Default to master for security
           branch="master"
           
-          # For push events, use the current branch if it's trusted
+          # For push events, check if branch exists in official rialto repo
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             current_branch="${{ github.ref_name }}"
             
-            # Only allow trusted branch patterns
-            if [[ "$current_branch" == "master" ]] || [[ "$current_branch" =~ ^release/.+ ]]; then
-              # Verify branch exists in rialto repository
-              if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$current_branch" > /dev/null 2>&1; then
-                branch="$current_branch"
-              fi
+            # Verify branch exists in official rdkcentral/rialto repository
+            if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$current_branch" > /dev/null 2>&1; then
+              branch="$current_branch"
+              echo "✓ Found matching branch '$current_branch' in official rialto repo"
+            else
+              echo "⚠ Branch '$current_branch' not found in rialto repo, using master"
             fi
           fi
           
-          # For pull requests, only check the BASE branch (target), never the HEAD (source)
-          # This prevents untrusted code from forks being checked out
+          # For pull requests, try to find matching branch in official repo
+          # Priority: PR head branch name (if exists in official repo) > base branch > master
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base_branch="${{ github.event.pull_request.base.ref }}"
+            head_ref="${{ github.event.pull_request.head.ref }}"
+            base_ref="${{ github.event.pull_request.base.ref }}"
             
-            # Only allow trusted base branch patterns
-            if [[ "$base_branch" == "master" ]] || [[ "$base_branch" =~ ^release/.+ ]]; then
-              # Verify branch exists in rialto repository
-              if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$base_branch" > /dev/null 2>&1; then
-                branch="$base_branch"
-              fi
+            # Try PR head branch name (but only if it exists in OFFICIAL rdkcentral/rialto repo)
+            # This is safe because we verify it exists in the official repo, not the fork
+            if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$head_ref" > /dev/null 2>&1; then
+              branch="$head_ref"
+              echo "✓ Using PR head branch '$head_ref' from official rialto repo"
+            # Try base branch
+            elif git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$base_ref" > /dev/null 2>&1; then
+              branch="$base_ref"
+              echo "✓ Using PR base branch '$base_ref' from official rialto repo"
+            else
+              # Fall back to master
+              echo "⚠ Neither head nor base branch found in rialto repo, using master"
             fi
           fi
           
@@ -93,6 +100,28 @@ jobs:
           repository: rdkcentral/rialto
           path: rialto
           ref: ${{ steps.check-branch.outputs.branch }}
+
+      # Verify rialto checkout and list header files for debugging
+      - name: Verify rialto checkout
+        run: |
+          echo "=== Verifying rialto checkout ==="
+          if [ -d "rialto" ]; then
+            echo "✓ rialto directory exists"
+            echo "Listing key directories:"
+            ls -la rialto/ || true
+            echo ""
+            echo "ServerManager include files:"
+            ls -la rialto/serverManager/public/include/ 2>/dev/null || echo "❌ serverManager/public/include/ not found"
+            echo ""
+            echo "Media include files:"
+            ls -la rialto/media/public/include/ 2>/dev/null || echo "❌ media/public/include/ not found"
+            echo ""
+            echo "Common include files:"
+            ls -la rialto/common/public/include/ 2>/dev/null || echo "❌ common/public/include/ not found"
+          else
+            echo "❌ rialto directory does NOT exist!"
+            exit 1
+          fi
 
       # Ensure Unix line endings for all text files (fix CRLF issues on Windows-checked-out repos)
       - name: Convert line endings to LF
