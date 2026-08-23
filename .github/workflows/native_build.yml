@@ -35,12 +35,14 @@ jobs:
         with:
           path: rialto-gstreamer
 
-      # Check, from which rialto branch should we download headers
-      - name: Check if rialto branch with the same name exists
-        id: check-branch
+      # Checkout rialto repository for header fallback
+      # Use master as default (safe), then checkout correct branch if needed
+      - name: checkout rialto repo (for header dependencies)
         shell: bash
         run: |
-          # Get the current branch name
+          set -e
+          
+          # Determine which branch to checkout
           current_branch="${{ github.head_ref || github.ref_name }}"
           echo "Current rialto-gstreamer branch: $current_branch"
           
@@ -56,33 +58,26 @@ jobs:
                 rialto_branch="$current_branch"
                 echo "✓ Found matching branch in rialto: $current_branch"
               else
-                # Fall back to master
+                # Fall back to master (safest default)
                 rialto_branch="master"
                 echo "✓ No matching branch found, using master"
               fi
               ;;
           esac
           
-          echo "Using rialto branch: $rialto_branch"
-          echo "branch=$rialto_branch" >> "$GITHUB_OUTPUT"
-
-      # Checkout rialto repository for header fallback (using validated branch only)
-      - name: checkout rialto repo (for header dependencies)
-        uses: actions/checkout@v4
-        with:
-          repository: rdkcentral/rialto
-          path: rialto-gstreamer/rialto
-          ref: ${{ steps.check-branch.outputs.branch }}
+          echo "Checking out rialto branch: $rialto_branch"
+          git clone --depth 1 --branch "$rialto_branch" https://github.com/rdkcentral/rialto.git rialto-gstreamer/rialto
+          echo "rialto_branch=$rialto_branch" >> $GITHUB_ENV
 
       - name: Install Dependencies
         run: |
           WORK_DIR=$(pwd)
 
-          echo "Using branch: ${{ steps.check-branch.outputs.branch }}"
+          echo "Using branch: ${{ env.rialto_branch }}"
           echo "Work dir: ${WORK_DIR}"
 
           cd rialto-gstreamer
-          sudo sh -x -v install_dependencies_for_native_build.sh "${{ steps.check-branch.outputs.branch }}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
+          sudo sh -x -v install_dependencies_for_native_build.sh "${{ env.rialto_branch }}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
 
       - name: Native build Rialto gstreamer
         run: |

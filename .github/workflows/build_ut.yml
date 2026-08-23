@@ -48,20 +48,21 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v4
 
-      # Check, from which rialto branch should we download headers
-      - name: Check if rialto branch with the same name exists
-        id: check-branch
+      # Checkout rialto repository for header fallback
+      # Use master as default (safe), then checkout correct branch if needed
+      - name: checkout rialto repo (for header dependencies)
         shell: bash
         run: |
+          set -e
+          
+          # Determine which branch to checkout
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             current_branch="${{ github.head_ref }}"
           else
-            # (already restricted to master/release/* by the trigger filter), so it's trusted
             current_branch="${{ github.ref_name }}"
           fi
-
-          echo "Current rialto-gstreamer branch: $current_branch"
           
+          echo "Current rialto-gstreamer branch: $current_branch"
           
           # Branch mapping for special cases where branch names differ between repos
           case "$current_branch" in
@@ -75,23 +76,16 @@ jobs:
                 rialto_branch="$current_branch"
                 echo "✓ Found matching branch in rialto: $current_branch"
               else
-                # Fall back to master
+                # Fall back to master (safest default)
                 rialto_branch="master"
                 echo "✓ No matching branch found, using master"
               fi
               ;;
           esac
           
-          echo "Using rialto branch: $rialto_branch"
-          echo "branch=$rialto_branch" >> "$GITHUB_OUTPUT"
-
-      # Checkout rialto repository for header fallback (using validated branch only)
-      - name: checkout rialto repo (for header dependencies)
-        uses: actions/checkout@v4
-        with:
-          repository: rdkcentral/rialto
-          path: rialto
-          ref: ${{ steps.check-branch.outputs.branch }}
+          echo "Checking out rialto branch: $rialto_branch"
+          git clone --depth 1 --branch "$rialto_branch" https://github.com/rdkcentral/rialto.git rialto
+          echo "rialto_branch=$rialto_branch" >> $GITHUB_ENV
 
       # Verify rialto checkout and list header files for debugging
       - name: Verify rialto checkout
@@ -145,7 +139,7 @@ jobs:
       # Run the build script
       - name: build_ut.py script
         run: |
-              python build_ut.py -c -xml -f -cov -b ${{ steps.check-branch.outputs.branch }}
+              python build_ut.py -c -xml -f -cov -b "${{ env.rialto_branch }}"
 
       # Process the test results
       - name: Check results
