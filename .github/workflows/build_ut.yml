@@ -53,9 +53,15 @@ jobs:
         id: check-branch
         shell: bash
         run: |
-          # Get the current branch name
-          current_branch="${{ github.head_ref || github.ref_name }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            current_branch="${{ github.head_ref }}"
+          else
+            # (already restricted to master/release/* by the trigger filter), so it's trusted
+            current_branch="${{ github.ref_name }}"
+          fi
+
           echo "Current rialto-gstreamer branch: $current_branch"
+          
           
           # Branch mapping for special cases where branch names differ between repos
           case "$current_branch" in
