@@ -48,6 +48,35 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v4
 
+      # Check, from which rialto branch should we download headers
+      - name: Check if rialto branch with the same name exists
+        id: check-branch
+        shell: sh +e {0}
+        run: |
+          branch="${{ github.ref_name }}"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
+            if [ $? -eq 0 ]; then
+              branch="${{ github.event.pull_request.head.ref }}"
+            else
+              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
+              if [ $? -eq 0 ]; then
+                branch="${{ github.event.pull_request.base.ref }}"
+              else
+                branch="master"
+              fi
+            fi
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      # Checkout rialto repository as a sibling directory for header fallback
+      - name: checkout rialto repo (for header dependencies)
+        uses: actions/checkout@v4
+        with:
+          repository: rdkcentral/rialto
+          path: ../rialto
+          ref: ${{ steps.check-branch.outputs.branch }}
+
       # Ensure Unix line endings for all text files (fix CRLF issues on Windows-checked-out repos)
       - name: Convert line endings to LF
         run: |
@@ -74,27 +103,6 @@ jobs:
           tar -xf lcov-2.0.tar.gz
           cd lcov-2.0
           sudo make install
-
-      # Check, from which rialto branch should we download headers
-      - name: Check if rialto branch with the same name exists
-        id: check-branch
-        shell: sh +e {0}
-        run: |
-          branch="${{ github.ref_name }}"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
-            if [ $? -eq 0 ]; then
-              branch="${{ github.event.pull_request.head.ref }}"
-            else
-              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
-              if [ $? -eq 0 ]; then
-                branch="${{ github.event.pull_request.base.ref }}"
-              else
-                branch="master"
-              fi
-            fi
-          fi
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       # Run the build script
       - name: build_ut.py script
