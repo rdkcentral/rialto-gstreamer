@@ -81,45 +81,31 @@ jobs:
         id: check-branch
         shell: bash
         run: |
-          # Default to master for security
-          branch="master"
+          # Get the current branch name
+          current_branch="${{ github.head_ref || github.ref_name }}"
+          echo "Current rialto-gstreamer branch: $current_branch"
           
-          # For push events, check if branch exists in official rialto repo
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            current_branch="${{ github.ref_name }}"
-            
-            # Verify branch exists in official rdkcentral/rialto repository
-            if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$current_branch" > /dev/null 2>&1; then
-              branch="$current_branch"
-              echo "✓ Found matching branch '$current_branch' in official rialto repo"
-            else
-              echo "⚠ Branch '$current_branch' not found in rialto repo, using master"
-            fi
-          fi
+          # Branch mapping for special cases where branch names differ between repos
+          case "$current_branch" in
+            "MediaPipelineCapabilitiesNewConfig")
+              rialto_branch="MediaCapabilitiesRialtoServerManager"
+              echo "✓ Using hardcoded mapping: $current_branch → $rialto_branch"
+              ;;
+            *)
+              # Try to find same branch name in rialto repo
+              if git ls-remote --heads https://github.com/rdkcentral/rialto.git "refs/heads/$current_branch" | grep -q "$current_branch"; then
+                rialto_branch="$current_branch"
+                echo "✓ Found matching branch in rialto: $current_branch"
+              else
+                # Fall back to master
+                rialto_branch="master"
+                echo "✓ No matching branch found, using master"
+              fi
+              ;;
+          esac
           
-          # For pull requests, try to find matching branch in official repo
-          # Priority: PR head branch name (if exists in official repo) > base branch > master
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            head_ref="${{ github.event.pull_request.head.ref }}"
-            base_ref="${{ github.event.pull_request.base.ref }}"
-            
-            # Try PR head branch name (but only if it exists in OFFICIAL rdkcentral/rialto repo)
-            # This is safe because we verify it exists in the official repo, not the fork
-            if git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$head_ref" > /dev/null 2>&1; then
-              branch="$head_ref"
-              echo "✓ Using PR head branch '$head_ref' from official rialto repo"
-            # Try base branch
-            elif git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$base_ref" > /dev/null 2>&1; then
-              branch="$base_ref"
-              echo "✓ Using PR base branch '$base_ref' from official rialto repo"
-            else
-              # Fall back to master
-              echo "⚠ Neither head nor base branch found in rialto repo, using master"
-            fi
-          fi
-          
-          echo "Using rialto branch: $branch"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Using rialto branch: $rialto_branch"
+          echo "branch=$rialto_branch" >> "$GITHUB_OUTPUT"
 
       # Checkout rialto repository for header fallback (using validated branch only)
       - name: checkout rialto repo (for header dependencies)
