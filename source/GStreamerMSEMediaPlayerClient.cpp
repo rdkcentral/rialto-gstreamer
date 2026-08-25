@@ -116,7 +116,14 @@ void GStreamerMSEMediaPlayerClient::notifyPosition(int64_t position)
     if (position >= 0)
     {
         std::unique_lock lock{m_playbackInfoMutex};
+        GST_DEBUG("PositionChangeEvent received: position=%lld cache-before=%lld", static_cast<long long>(position),
+                  static_cast<long long>(m_playbackInfo.currentPosition));
         m_playbackInfo.currentPosition = position;
+        GST_DEBUG("PositionChangeEvent cache-after=%lld", static_cast<long long>(m_playbackInfo.currentPosition));
+    }
+    else
+    {
+        GST_WARNING("PositionChangeEvent invalid: position=%lld", static_cast<long long>(position));
     }
     m_backendQueue->postMessage(std::make_shared<SetPositionMessage>(position, m_attachedSources));
 }
@@ -178,16 +185,22 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::P
         return;
     }
     std::unique_lock lock{m_playbackInfoMutex};
+    const int64_t cachedPosition{m_playbackInfo.currentPosition};
     if (playbackInfo.currentPosition >= m_playbackInfo.currentPosition)
     {
         m_playbackInfo.currentPosition = playbackInfo.currentPosition;
     }
     m_playbackInfo.volume = playbackInfo.volume;
+    GST_DEBUG("PlaybackInfoEvent received: position=%lld cache-before=%lld cache-after=%lld volume=%f",
+              static_cast<long long>(playbackInfo.currentPosition), static_cast<long long>(cachedPosition),
+              static_cast<long long>(m_playbackInfo.currentPosition), m_playbackInfo.volume);
 }
 
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
     std::unique_lock lock{m_playbackInfoMutex};
+    GST_DEBUG("Position cache queried: source=%d position=%lld", sourceId,
+              static_cast<long long>(m_playbackInfo.currentPosition));
     return m_playbackInfo.currentPosition;
 }
 
