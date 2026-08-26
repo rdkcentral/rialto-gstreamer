@@ -27,6 +27,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <thread>
+
 using firebolt::rialto::MediaSourceMock;
 using firebolt::rialto::client::MediaPlayerClientBackendMock;
 using testing::_;
@@ -815,6 +818,47 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
 
     m_sut->destroyClientBackend();
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAdvancePositionWhilePlaying)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    m_sut->notifyPosition(kPosition);
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
+    m_sut->handlePlaybackStateChange(firebolt::rialto::PlaybackState::PLAYING);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+
+    EXPECT_GT(m_sut->getPosition(kSourceId), kPosition);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotResetPositionAnchorForRepeatedZeroPosition)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    expectPostMessage();
+    m_sut->notifyPosition(kPosition);
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
+    m_sut->handlePlaybackStateChange(firebolt::rialto::PlaybackState::PLAYING);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    expectPostMessage();
+    m_sut->notifyPosition(0);
+
+    EXPECT_GT(m_sut->getPosition(kSourceId), kPosition);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
