@@ -190,15 +190,6 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::P
         return;
     }
     std::unique_lock lock{m_playbackInfoMutex};
-    const auto timestampT4 = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                 std::chrono::steady_clock::now().time_since_epoch())
-                                 .count();
-    GST_DEBUG("PositionTiming T4 client id=%llu timestamp_ns=%llu position=%lld cache=%lld t4_minus_server_ns=%lld state=%u",
-              static_cast<unsigned long long>(playbackInfo.timingId), static_cast<unsigned long long>(timestampT4),
-              static_cast<long long>(playbackInfo.currentPosition),
-              static_cast<long long>(m_playbackInfo.currentPosition),
-              static_cast<long long>(timestampT4 - playbackInfo.serverTimestampNs),
-              static_cast<unsigned>(m_serverPlaybackState));
     const int64_t cachedPosition{m_playbackInfo.currentPosition};
     if (playbackInfo.currentPosition >= m_playbackInfo.currentPosition)
     {
