@@ -34,7 +34,7 @@ class BufferParser
 
 public:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>
-    parseBuffer(const GstRefSample &sample, GstBuffer *buffer, GstMapInfo map, int streamId);
+    parseBuffer(const GstRefSample &sample, GstBuffer *buffer, const GstMapInfo &map, int streamId);
 
 private:
     virtual std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment>

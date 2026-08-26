@@ -29,7 +29,7 @@ using namespace firebolt::rialto;
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
 std::unique_ptr<IMediaPipeline::MediaSegment> BufferParser::parseBuffer(const GstRefSample &sample, GstBuffer *buffer,
-                                                                        GstMapInfo map, int streamId)
+                                                                        const GstMapInfo &map, int streamId)
 {
     int64_t timeStamp = static_cast<int64_t>(GST_BUFFER_PTS(buffer));
     int64_t duration = static_cast<int64_t>(GST_BUFFER_DURATION(buffer));
