@@ -113,23 +113,6 @@ void GStreamerMSEMediaPlayerClient::notifyDuration(int64_t duration)
 
 void GStreamerMSEMediaPlayerClient::notifyPosition(int64_t position)
 {
-    if (position >= 0)
-    {
-        std::unique_lock lock{m_playbackInfoMutex};
-        GST_DEBUG("PositionChangeEvent received: position=%lld cache-before=%lld", static_cast<long long>(position),
-                  static_cast<long long>(m_playbackInfo.currentPosition));
-        if (position >= getEstimatedPositionLocked() || !m_positionTimestampValid)
-        {
-            m_playbackInfo.currentPosition = position;
-            m_positionTimestamp = std::chrono::steady_clock::now();
-            m_positionTimestampValid = true;
-        }
-        GST_DEBUG("PositionChangeEvent cache-after=%lld", static_cast<long long>(m_playbackInfo.currentPosition));
-    }
-    else
-    {
-        GST_WARNING("PositionChangeEvent invalid: position=%lld", static_cast<long long>(position));
-    }
     m_backendQueue->postMessage(std::make_shared<SetPositionMessage>(position, m_attachedSources));
 }
 
@@ -190,26 +173,13 @@ void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::P
         return;
     }
     std::unique_lock lock{m_playbackInfoMutex};
-    const int64_t cachedPosition{m_playbackInfo.currentPosition};
-    if (playbackInfo.currentPosition >= getEstimatedPositionLocked() || !m_positionTimestampValid)
-    {
-        m_playbackInfo.currentPosition = playbackInfo.currentPosition;
-        m_positionTimestamp = std::chrono::steady_clock::now();
-        m_positionTimestampValid = true;
-    }
-    m_playbackInfo.volume = playbackInfo.volume;
-    GST_DEBUG("PlaybackInfoEvent received: position=%lld cache-before=%lld cache-after=%lld volume=%f",
-              static_cast<long long>(playbackInfo.currentPosition), static_cast<long long>(cachedPosition),
-              static_cast<long long>(m_playbackInfo.currentPosition), m_playbackInfo.volume);
+    m_playbackInfo = playbackInfo;
 }
 
 int64_t GStreamerMSEMediaPlayerClient::getPosition(int32_t sourceId)
 {
     std::unique_lock lock{m_playbackInfoMutex};
-    const int64_t position{getEstimatedPositionLocked()};
-    GST_DEBUG("Position cache queried: source=%d position=%lld", sourceId,
-              static_cast<long long>(position));
-    return position;
+    return m_playbackInfo.currentPosition;
 }
 
 bool GStreamerMSEMediaPlayerClient::getDuration(int64_t &duration)
@@ -464,21 +434,7 @@ void GStreamerMSEMediaPlayerClient::stop()
 
 void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
 {
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            {
-                std::unique_lock lock{m_playbackInfoMutex};
-                if (m_positionTimestampValid && m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING)
-                {
-                    m_playbackInfo.currentPosition = getEstimatedPositionLocked();
-                }
-                m_playbackRate = rate;
-                m_positionTimestamp = std::chrono::steady_clock::now();
-                m_positionTimestampValid = m_playbackInfo.currentPosition >= 0;
-            }
-            m_clientBackend->setPlaybackRate(rate);
-        });
+    m_backendQueue->callInEventLoop([&]() { m_clientBackend->setPlaybackRate(rate); });
 }
 
 void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
@@ -538,9 +494,6 @@ void GStreamerMSEMediaPlayerClient::setSourcePosition(int32_t sourceId, int64_t 
                 return;
             }
             sourceIt->second.m_position = position;
-            std::unique_lock lock{m_playbackInfoMutex};
-            m_playbackInfo.currentPosition = -1;
-            m_positionTimestampValid = false;
         });
 }
 
@@ -690,23 +643,7 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
         [&]()
         {
             const auto kPreviousState{m_serverPlaybackState};
-            {
-                std::unique_lock lock{m_playbackInfoMutex};
-                if (state == firebolt::rialto::PlaybackState::PAUSED && m_positionTimestampValid)
-                {
-                    m_playbackInfo.currentPosition = getEstimatedPositionLocked();
-                }
-                m_serverPlaybackState = state;
-                if (state == firebolt::rialto::PlaybackState::PLAYING)
-                {
-                    m_positionTimestamp = std::chrono::steady_clock::now();
-                    m_positionTimestampValid = m_playbackInfo.currentPosition >= 0;
-                }
-                else if (state == firebolt::rialto::PlaybackState::PAUSED)
-                {
-                    m_positionTimestampValid = false;
-                }
-            }
+            m_serverPlaybackState = state;
             switch (state)
             {
             case firebolt::rialto::PlaybackState::PAUSED:
@@ -777,7 +714,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 {
                     std::unique_lock lock{m_playbackInfoMutex};
                     m_playbackInfo.currentPosition = 0;
-                    m_positionTimestampValid = false;
                 }
 
                 break;
@@ -787,19 +723,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                 break;
             }
         });
-}
-
-int64_t GStreamerMSEMediaPlayerClient::getEstimatedPositionLocked() const
-{
-    int64_t position{m_playbackInfo.currentPosition};
-    if (position >= 0 && m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING &&
-        m_positionTimestampValid)
-    {
-        const auto elapsed = std::chrono::steady_clock::now() - m_positionTimestamp;
-        position += static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() *
-                                         m_playbackRate);
-    }
-    return position;
 }
 
 void GStreamerMSEMediaPlayerClient::handleSourceFlushed(int32_t sourceId)

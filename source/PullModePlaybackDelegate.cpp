@@ -493,7 +493,8 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
             gint64 position = client->getPosition(m_sourceId);
             if (position < 0)
             {
-                GST_DEBUG_OBJECT(m_sink, "Position query: source=%d result=%" G_GINT64_FORMAT, m_sourceId.load(), position);
+                GST_DEBUG_OBJECT(m_sink, "Position query: source=%d result=%" G_GINT64_FORMAT, m_sourceId.load(),
+                                 position);
                 return FALSE;
             }
 

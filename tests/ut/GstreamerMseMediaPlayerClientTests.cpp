@@ -27,9 +27,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <thread>
-
 using firebolt::rialto::MediaSourceMock;
 using firebolt::rialto::client::MediaPlayerClientBackendMock;
 using testing::_;
@@ -289,7 +286,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
     expectPostMessage();
     m_sut->notifyPosition(kPosition);
-    EXPECT_EQ(m_sut->getPosition(kUnknownSourceId), kPosition);
     m_sut->destroyClientBackend();
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
@@ -823,76 +819,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAdvancePositionWhilePlaying)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
-    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
-
-    expectPostMessage();
-    m_sut->notifyPosition(kPosition);
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
-    m_sut->handlePlaybackStateChange(firebolt::rialto::PlaybackState::PLAYING);
-
-    const auto deadline{std::chrono::steady_clock::now() + std::chrono::milliseconds(100)};
-    int64_t position{kPosition};
-    while (position <= kPosition && std::chrono::steady_clock::now() < deadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        position = m_sut->getPosition(kSourceId);
-    }
-    EXPECT_GT(position, kPosition);
-
-    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
-    gst_object_unref(audioSink);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotResetPositionAnchorForRepeatedZeroPosition)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
-    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
-
-    expectPostMessage();
-    m_sut->notifyPosition(kPosition);
-    expectCallInEventLoop();
-    EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
-    m_sut->handlePlaybackStateChange(firebolt::rialto::PlaybackState::PLAYING);
-    const auto deadline{std::chrono::steady_clock::now() + std::chrono::milliseconds(100)};
-    int64_t position{kPosition};
-    while (position <= kPosition && std::chrono::steady_clock::now() < deadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        position = m_sut->getPosition(kSourceId);
-    }
-    expectPostMessage();
-    m_sut->notifyPosition(0);
-
-    EXPECT_GT(m_sut->getPosition(kSourceId), kPosition);
-
-    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
-    gst_object_unref(audioSink);
-}
-
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotRegressPositionFromPlaybackInfo)
-{
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    bufferPullerWillBeCreated();
-    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
-    const int64_t kNewerPosition{kPosition + 100};
-
-    expectPostMessage();
-    m_sut->notifyPosition(kNewerPosition);
-    m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition, kVolume});
-
-    EXPECT_EQ(m_sut->getPosition(kSourceId), kNewerPosition);
-
-    m_sut->destroyClientBackend();
-    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
-    gst_object_unref(audioSink);
-}
-
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotHandlePositionInfoWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1354,14 +1280,12 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-    m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition + 100, kVolume});
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock,
                 setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition))
         .WillOnce(Return(true));
     m_sut->setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition);
-    EXPECT_EQ(m_sut->getPosition(kSourceId), -1);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);

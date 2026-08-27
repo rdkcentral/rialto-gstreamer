@@ -19,7 +19,6 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -348,8 +347,6 @@ private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
     bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
-    int64_t getEstimatedPositionLocked() const;
-
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
@@ -375,9 +372,6 @@ private:
     ClientState m_clientState = ClientState::IDLE;
     // To check if the backend message queue and pulling of data to serve backend is stopped or not
     bool m_streamingStopped;
-    std::chrono::steady_clock::time_point m_positionTimestamp{};
-    bool m_positionTimestampValid{false};
-    double m_playbackRate{1.0};
 
     const uint32_t m_maxWidth;
     const uint32_t m_maxHeight;
