@@ -348,6 +348,7 @@ private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
     bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
+    int64_t getEstimatedPositionLocked() const;
 
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
