@@ -467,14 +467,16 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            std::unique_lock lock{m_playbackInfoMutex};
-            if (m_positionTimestampValid && m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING)
             {
-                m_playbackInfo.currentPosition = getEstimatedPositionLocked();
+                std::unique_lock lock{m_playbackInfoMutex};
+                if (m_positionTimestampValid && m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING)
+                {
+                    m_playbackInfo.currentPosition = getEstimatedPositionLocked();
+                }
+                m_playbackRate = rate;
+                m_positionTimestamp = std::chrono::steady_clock::now();
+                m_positionTimestampValid = m_playbackInfo.currentPosition >= 0;
             }
-            m_playbackRate = rate;
-            m_positionTimestamp = std::chrono::steady_clock::now();
-            m_positionTimestampValid = m_playbackInfo.currentPosition >= 0;
             m_clientBackend->setPlaybackRate(rate);
         });
 }

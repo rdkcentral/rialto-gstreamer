@@ -835,9 +835,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAdvancePositionWhilePlaying)
     EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
     m_sut->handlePlaybackStateChange(firebolt::rialto::PlaybackState::PLAYING);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
-
-    EXPECT_GT(m_sut->getPosition(kSourceId), kPosition);
+    const auto deadline{std::chrono::steady_clock::now() + std::chrono::milliseconds(100)};
+    int64_t position{kPosition};
+    while (position <= kPosition && std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        position = m_sut->getPosition(kSourceId);
+    }
+    EXPECT_GT(position, kPosition);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
@@ -854,7 +859,13 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotResetPositionAnchorForRepeat
     expectCallInEventLoop();
     EXPECT_CALL(*m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::PLAYING));
     m_sut->handlePlaybackStateChange(firebolt::rialto::PlaybackState::PLAYING);
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    const auto deadline{std::chrono::steady_clock::now() + std::chrono::milliseconds(100)};
+    int64_t position{kPosition};
+    while (position <= kPosition && std::chrono::steady_clock::now() < deadline)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        position = m_sut->getPosition(kSourceId);
+    }
     expectPostMessage();
     m_sut->notifyPosition(0);
 
