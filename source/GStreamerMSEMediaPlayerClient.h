@@ -19,6 +19,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -90,7 +91,6 @@ public:
     }
 
     firebolt::rialto::MediaSourceType getType() const { return m_type; }
-    void setPosition(int64_t position) { m_position = position; }
 
 private:
     RialtoMSEBaseSink *m_rialtoSink;
@@ -205,17 +205,6 @@ private:
     int m_sourceId;
     firebolt::rialto::PlaybackError m_error;
     GStreamerMSEMediaPlayerClient *m_player;
-};
-
-class SetPositionMessage : public Message
-{
-public:
-    SetPositionMessage(int64_t newPosition, std::unordered_map<int32_t, AttachedSource> &attachedSources);
-    void handle() override;
-
-private:
-    int64_t m_newPosition;
-    std::unordered_map<int32_t, AttachedSource> &m_attachedSources;
 };
 
 class SetDurationMessage : public Message
@@ -361,6 +350,8 @@ private:
     int32_t m_videoStreams;
     int32_t m_subtitleStreams;
     firebolt::rialto::PlaybackInfo m_playbackInfo{-1, 1.0};
+    // RDKEMW-23214: timestamp of the last cache update, used to measure notifyPlaybackInfo() cadence
+    std::chrono::steady_clock::time_point m_lastPlaybackInfoUpdateTime{};
     FlushAndDataSynchronizer m_flushAndDataSynchronizer;
     bool wasPlayingBeforeEos{false};
 

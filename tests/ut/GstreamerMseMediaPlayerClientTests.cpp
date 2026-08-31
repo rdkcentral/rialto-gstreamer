@@ -281,10 +281,11 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDuration)
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
 {
+    // Deprecated: notifyPosition() is a no-op, position is only sourced from notifyPlaybackInfo()
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
-    expectPostMessage();
+    EXPECT_CALL(m_messageQueueMock, postMessage(_)).Times(0);
     m_sut->notifyPosition(kPosition);
     m_sut->destroyClientBackend();
 
@@ -819,7 +820,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotHandlePositionInfoWhenFlushing)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldUpdatePositionInfoWhileFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
@@ -836,11 +837,11 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotHandlePositionInfoWhenFlushi
 
     m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition + 100, kVolume});
 
+    EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition + 100);
+
     expectPostMessage();
     EXPECT_CALL(*m_delegateMock, handleFlushCompleted());
     m_sut->notifySourceFlushed(kSourceId);
-
-    EXPECT_EQ(m_sut->getPosition(kSourceId), kPosition);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);

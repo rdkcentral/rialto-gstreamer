@@ -36,6 +36,11 @@ namespace
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
 
+// RDKEMW-23214: instrumentation to verify the notifyPlaybackInfo() cache update cadence matches the
+// server's kPlaybackInfoTimerMs{32}. Remove once the root cause of the SpecAccuracy delay is confirmed.
+constexpr auto kExpectedPlaybackInfoInterval = std::chrono::milliseconds(32);
+constexpr auto kPlaybackInfoCadenceWarnThreshold = kExpectedPlaybackInfoInterval * 2;
+
 const char *toString(const firebolt::rialto::PlaybackError &error)
 {
     switch (error)
@@ -113,7 +118,7 @@ void GStreamerMSEMediaPlayerClient::notifyDuration(int64_t duration)
 
 void GStreamerMSEMediaPlayerClient::notifyPosition(int64_t position)
 {
-    m_backendQueue->postMessage(std::make_shared<SetPositionMessage>(position, m_attachedSources));
+    // Deprecated: position is now only sourced from notifyPlaybackInfo(), kept as a no-op to satisfy the interface
 }
 
 void GStreamerMSEMediaPlayerClient::notifyNativeSize(uint32_t width, uint32_t height, double aspect) {}
@@ -167,12 +172,23 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
-    if (m_flushAndDataSynchronizer.isAnySourceFlushing())
-    {
-        GST_WARNING("Not updating playback info, because flush is ongoing");
-        return;
-    }
+    // Always cache the latest report - skipping updates during flush previously froze
+    // getPosition() for the whole flush window instead of just being briefly stale.
     std::unique_lock lock{m_playbackInfoMutex};
+
+    const auto now = std::chrono::steady_clock::now();
+    if (m_lastPlaybackInfoUpdateTime.time_since_epoch().count() != 0)
+    {
+        const auto gap = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastPlaybackInfoUpdateTime);
+        if (gap > kPlaybackInfoCadenceWarnThreshold)
+        {
+            GST_WARNING("notifyPlaybackInfo() cadence missed: %lldms since last cache update (expected ~%lldms)",
+                       static_cast<long long>(gap.count()),
+                       static_cast<long long>(kExpectedPlaybackInfoInterval.count()));
+        }
+    }
+    m_lastPlaybackInfoUpdateTime = now;
+
     m_playbackInfo = playbackInfo;
 }
 
@@ -1389,19 +1405,6 @@ void PlaybackErrorMessage::handle()
     if (!m_player->handlePlaybackError(m_sourceId, m_error))
     {
         GST_ERROR("Failed to handle playback error for sourceId=%d, error %s", m_sourceId, toString(m_error));
-    }
-}
-
-SetPositionMessage::SetPositionMessage(int64_t newPosition, std::unordered_map<int32_t, AttachedSource> &attachedSources)
-    : m_newPosition(newPosition), m_attachedSources(attachedSources)
-{
-}
-
-void SetPositionMessage::handle()
-{
-    for (auto &source : m_attachedSources)
-    {
-        source.second.setPosition(m_newPosition);
     }
 }
 
