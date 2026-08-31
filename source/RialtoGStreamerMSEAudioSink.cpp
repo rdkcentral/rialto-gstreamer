@@ -297,6 +297,12 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                          "Webaudio mode", "Enable webaudio mode. Property should be set before NULL->READY transition",
                                                          FALSE, G_PARAM_READWRITE));
 
+    g_object_class_install_property(gobjectClass, PROP_LIMIT_BUFFERING_MS,
+                                    g_param_spec_uint("limit-buffering-ms", "limit buffering ms",
+                                                      "Set millisecond threshold used if limit_buffering is set. "
+                                                      "Changing this value does not enable/disable limit_buffering",
+                                                      0, 20000, kDefaultBufferingLimit, G_PARAM_READWRITE));
+
     g_signals[SIGNAL_FIRST_AUDIO_FRAME_RECEIVED] = g_signal_new("first-audio-frame-callback", G_TYPE_FROM_CLASS(klass),
                                                                 (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                                 g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
@@ -369,15 +375,6 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                 g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
                                                                   "Get current fade volume", 0, 100, kDefaultFadeVolume,
                                                                   G_PARAM_READABLE));
-            }
-            else if (kBufferingLimitPropertyName == *it)
-            {
-                constexpr uint32_t kMaxValue{20000};
-                g_object_class_install_property(gobjectClass, PROP_LIMIT_BUFFERING_MS,
-                                                g_param_spec_uint("limit-buffering-ms",
-                                                                  "limit buffering ms", "Set millisecond threshold used if limit_buffering is set. Changing this value does not enable/disable limit_buffering",
-                                                                  0, kMaxValue, kDefaultBufferingLimit,
-                                                                  G_PARAM_READWRITE));
             }
             else
             {
