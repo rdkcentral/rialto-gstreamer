@@ -82,6 +82,7 @@ protected:
 
     std::atomic<int32_t> m_sourceId{-1};
     std::queue<GstSample *> m_samples{};
+    bool m_eosPostPending{false};
     bool m_isEos{false};
     std::atomic<bool> m_segmentSet{false};
     std::atomic<bool> m_isSinkFlushOngoing{false};

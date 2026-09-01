@@ -123,11 +123,13 @@ void PullModePlaybackDelegate::handleEos()
         std::unique_lock lock{m_sinkMutex};
         if (!m_isSinkFlushOngoing && !m_isServerFlushOngoing)
         {
+            m_eosPostPending = false;
             gst_element_post_message(m_sink, gst_message_new_eos(GST_OBJECT_CAST(m_sink)));
         }
         else
         {
-            GST_WARNING_OBJECT(m_sink, "Skip sending eos message - flush is ongoing...");
+            GST_WARNING_OBJECT(m_sink, "Deferring EOS message - flush is ongoing, will post on flush complete");
+            m_eosPostPending = true;
         }
     }
 }
@@ -135,9 +137,31 @@ void PullModePlaybackDelegate::handleEos()
 void PullModePlaybackDelegate::handleFlushCompleted()
 {
     GST_INFO_OBJECT(m_sink, "Flush completed");
-    std::unique_lock<std::mutex> lock(m_sinkMutex);
-    m_isServerFlushOngoing = false;
-    m_isTimeResetOngoing = false;
+    bool postEos = false;
+    {
+        std::unique_lock<std::mutex> lock(m_sinkMutex);
+        m_isServerFlushOngoing = false;
+        m_isTimeResetOngoing = false;
+        if (m_eosPostPending)
+        {
+            m_eosPostPending = false;
+            postEos = true;
+        }
+    }
+    if (postEos)
+    {
+        GstState currentState = GST_STATE(m_sink);
+        if ((currentState == GST_STATE_PAUSED) || (currentState == GST_STATE_PLAYING))
+        {
+            GST_INFO_OBJECT(m_sink, "Posting deferred EOS message after flush completed");
+            gst_element_post_message(m_sink, gst_message_new_eos(GST_OBJECT_CAST(m_sink)));
+        }
+        else
+        {
+            GST_WARNING_OBJECT(m_sink, "Deferred EOS skipped - sink state is now '%s'",
+                               gst_element_state_get_name(currentState));
+        }
+    }
 }
 
 void PullModePlaybackDelegate::handleStateChanged(firebolt::rialto::PlaybackState state)
@@ -769,6 +793,7 @@ void PullModePlaybackDelegate::startFlushing()
             m_isEos = false;
         }
         m_isSinkFlushOngoing = true;
+	m_eosPostPending = false;
         m_segmentSet = false;
         clearBuffersUnlocked();
     }
