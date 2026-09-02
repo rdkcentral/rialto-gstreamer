@@ -122,7 +122,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldLoad)
     EXPECT_CALL(*m_mediaPipelineMock, load(kType, kMimeType, kUrl, kIsLive)).WillOnce(Return(true));
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
-    EXPECT_TRUE(m_sut.load(kType, kMimeType, kUrl, false));
+    EXPECT_TRUE(m_sut.load(kType, kMimeType, kUrl, kIsLive));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldPlay)

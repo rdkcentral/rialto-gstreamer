@@ -56,9 +56,6 @@ target_include_directories(
         ${GStreamerApp_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/tests/third-party/include
         ${CMAKE_SOURCE_DIR}/source
-        ${CMAKE_SOURCE_DIR}/../rialto/common/public/include
-        ${CMAKE_SOURCE_DIR}/../rialto/media/public/include
-        ${CMAKE_SOURCE_DIR}/../rialto/serverManager/public/include
         )
 
 target_link_libraries(

@@ -323,6 +323,13 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             }
         }
     }
+    else if (mediaPlayerCapabilities)
+    {
+        GST_INFO("IMediaCapabilities creation failed, falling back to legacy capability check");
+        std::vector<std::string> supportedMimeTypes =
+            mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
+        rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+    }
 
     if (mediaPlayerCapabilities)
     {

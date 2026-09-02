@@ -87,9 +87,12 @@ function(downloadAndCheck URL FILE)
     endif()
 
     if(FILE STREQUAL "MediaCommon.h" OR FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "IMediaPipelineCapabilities.h" OR FILE STREQUAL "IMediaCapabilities.h")
-        message(WARNING "Using local Rialto header for ${FILE} to match the current API")
-        copyLocalFallback(${FILE})
-        return()
+        # Only use local fallback if the local rialto tree exists, otherwise continue with normal download
+        if(EXISTS "${CMAKE_SOURCE_DIR}/../rialto/common/public/include" OR EXISTS "${CMAKE_SOURCE_DIR}/../rialto/media/public/include")
+            message(WARNING "Using local Rialto header for ${FILE} to match the current API")
+            copyLocalFallback(${FILE})
+            return()
+        endif()
     endif()
 
     if(NOT EXISTS ${FILE_PATH})
