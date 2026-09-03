@@ -62,7 +62,20 @@ function(downloadAndCheck URL FILE)
         # If the file is empty
         file(READ ${FILE_PATH} fileContents)
         if("${fileContents}" STREQUAL "")
-            message(FATAL_ERROR "The downloaded ${FILE} file is empty!")
+            message(STATUS "The downloaded ${FILE} file is empty, using local fallback from ../rialto/")
+            # Try to copy from local rialto repository
+            if(FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "DecoderCapabilitiesCommon.h")
+                set(LOCAL_SOURCE "${CMAKE_SOURCE_DIR}/../rialto/common/public/include/${FILE}")
+                if(EXISTS ${LOCAL_SOURCE})
+                    file(READ ${LOCAL_SOURCE} localContents)
+                    file(WRITE ${FILE_PATH} "${localContents}")
+                    message(STATUS "Copied ${FILE} from ${LOCAL_SOURCE}")
+                else()
+                    message(FATAL_ERROR "The downloaded ${FILE} file is empty and local fallback not found at ${LOCAL_SOURCE}!")
+                endif()
+            else()
+                message(FATAL_ERROR "The downloaded ${FILE} file is empty!")
+            endif()
         endif()
     endif()
 endfunction()
@@ -84,6 +97,7 @@ set(FILE_LIST
     IWebAudioPlayerClient.h
     IClientLogHandler.h
     IClientLogControl.h
+    DecoderCapabilitiesCommon.h
     AudioDecoderCapabilities.h
     VideoDecoderCapabilities.h
 )
@@ -94,6 +108,8 @@ foreach(FILE_NAME ${FILE_LIST})
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/)
     elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for source file as the path is different
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/)
+    elseif(FILE_NAME STREQUAL "DecoderCapabilitiesCommon.h" OR FILE_NAME STREQUAL "AudioDecoderCapabilities.h" OR FILE_NAME STREQUAL "VideoDecoderCapabilities.h")
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/common/public/include/)
     else()
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/)
     endif()

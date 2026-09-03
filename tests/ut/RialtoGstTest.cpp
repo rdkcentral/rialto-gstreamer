@@ -503,7 +503,7 @@ void RialtoGstTest::expectSinksInitialisation() const
         std::dynamic_pointer_cast<StrictMock<MediaCapabilitiesFactoryMock>>(IMediaCapabilitiesFactory::createFactory())};
     ASSERT_TRUE(newCapabilitiesFactoryMock);
     // Return new capabilities mocks for video and audio sinks during class_init
-    EXPECT_CALL(*newCapabilitiesFactoryMock, createMediaCapabilities())
+    EXPECT_CALL(*newCapabilitiesFactoryMock, createMediaCapabilities(testing::_, testing::_))
         .WillOnce(Return(ByMove(std::move(newCapabilitiesMockVideo))))
         .WillOnce(Return(ByMove(std::move(newCapabilitiesMockAudio))));
 
