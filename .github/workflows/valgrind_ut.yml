@@ -89,8 +89,8 @@ jobs:
           
           # Branch mapping for special cases where branch names differ between repos
           case "$current_branch" in
-            "feature/RDKEMW-23564")
-              rialto_branch="feature/RDKEMW-23564"
+            "MediaPipelineCapabilitiesNewConfig")
+              rialto_branch="MediaCapabilitiesRialtoServerManager"
               echo "✓ Using hardcoded mapping: $current_branch → $rialto_branch"
               ;;
             *)
