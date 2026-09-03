@@ -38,32 +38,22 @@ jobs:
       # Check, from which rialto branch should we download headers
       - name: Check if rialto branch with the same name exists
         id: check-branch
-        shell: bash +e {0}
+        shell: sh +e {0}
         run: |
-          current_branch="${{ github.ref_name }}"
+          branch="${{ github.ref_name }}"
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            current_branch="${{ github.event.pull_request.head.ref }}"
-          fi
-          
-          # Branch mapping for special cases where branch names differ between repos
-          case "$current_branch" in
-            "feature/RDKEMW-23564")
-              branch="feature/RDKEMW-23564"
-              echo "✓ Using hardcoded mapping: $current_branch → $branch"
-              ;;
-            *)
-              # Try to find same branch name in rialto repo
-              if git ls-remote --heads https://github.com/rdkcentral/rialto.git "refs/heads/$current_branch" | grep -q "$current_branch"; then
-                branch="$current_branch"
-                echo "✓ Found matching branch in rialto: $current_branch"
+            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
+            if [ $? -eq 0 ]; then
+              branch="${{ github.event.pull_request.head.ref }}"
+            else
+              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
+              if [ $? -eq 0 ]; then
+                branch="${{ github.event.pull_request.base.ref }}"
               else
-                # Fall back to master (safest default)
                 branch="master"
-                echo "✓ No matching branch found, using master"
               fi
-              ;;
-          esac
-          
+            fi
+          fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Install Dependencies
