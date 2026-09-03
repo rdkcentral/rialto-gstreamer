@@ -35,49 +35,46 @@ jobs:
         with:
           path: rialto-gstreamer
 
-      # Checkout rialto repository for header fallback
-      # Use master as default (safe), then checkout correct branch if needed
-      - name: checkout rialto repo (for header dependencies)
-        shell: bash
+      # Check, from which rialto branch should we download headers
+      - name: Check if rialto branch with the same name exists
+        id: check-branch
+        shell: bash +e {0}
         run: |
-          set -e
-          
-          # Determine which branch to checkout
-          current_branch="${{ github.head_ref || github.ref_name }}"
-          echo "Current rialto-gstreamer branch: $current_branch"
+          current_branch="${{ github.ref_name }}"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            current_branch="${{ github.event.pull_request.head.ref }}"
+          fi
           
           # Branch mapping for special cases where branch names differ between repos
           case "$current_branch" in
-            "MediaPipelineCapabilitiesNewConfig")
-              rialto_branch="MediaCapabilitiesRialtoServerManager"
-              echo "✓ Using hardcoded mapping: $current_branch → $rialto_branch"
+            "feature/RDKEMW-23564")
+              branch="feature/RDKEMW-23564"
+              echo "✓ Using hardcoded mapping: $current_branch → $branch"
               ;;
             *)
               # Try to find same branch name in rialto repo
               if git ls-remote --heads https://github.com/rdkcentral/rialto.git "refs/heads/$current_branch" | grep -q "$current_branch"; then
-                rialto_branch="$current_branch"
+                branch="$current_branch"
                 echo "✓ Found matching branch in rialto: $current_branch"
               else
                 # Fall back to master (safest default)
-                rialto_branch="master"
+                branch="master"
                 echo "✓ No matching branch found, using master"
               fi
               ;;
           esac
           
-          echo "Checking out rialto branch: $rialto_branch"
-          git clone --depth 1 --branch "$rialto_branch" https://github.com/rdkcentral/rialto.git rialto-gstreamer/rialto
-          echo "rialto_branch=$rialto_branch" >> $GITHUB_ENV
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Install Dependencies
         run: |
           WORK_DIR=$(pwd)
 
-          echo "Using branch: ${{ env.rialto_branch }}"
+          echo "Using branch: ${{ steps.check-branch.outputs.branch }}"
           echo "Work dir: ${WORK_DIR}"
 
           cd rialto-gstreamer
-          sudo sh -x -v install_dependencies_for_native_build.sh "${{ env.rialto_branch }}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
+          sudo sh -x -v install_dependencies_for_native_build.sh "${{ steps.check-branch.outputs.branch }}" "${WORK_DIR}" &> "${WORK_DIR}/output_file.txt"
 
       - name: Native build Rialto gstreamer
         run: |
@@ -98,3 +95,4 @@ jobs:
           name: Output Logs
           path: |
             output_file.txt
+

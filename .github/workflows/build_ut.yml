@@ -48,73 +48,6 @@ jobs:
       - name: checkout repo
         uses: actions/checkout@v4
 
-      # Checkout rialto repository for header fallback
-      # Use master as default (safe), then checkout correct branch if needed
-      - name: checkout rialto repo (for header dependencies)
-        shell: bash
-        run: |
-          set -e
-          
-          # Determine which branch to checkout
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            current_branch="${{ github.head_ref }}"
-          else
-            current_branch="${{ github.ref_name }}"
-          fi
-          
-          echo "Current rialto-gstreamer branch: $current_branch"
-          
-          # Branch mapping for special cases where branch names differ between repos
-          case "$current_branch" in
-            "MediaPipelineCapabilitiesNewConfig")
-              rialto_branch="MediaCapabilitiesRialtoServerManager"
-              echo "✓ Using hardcoded mapping: $current_branch → $rialto_branch"
-              ;;
-            *)
-              # Try to find same branch name in rialto repo
-              if git ls-remote --heads https://github.com/rdkcentral/rialto.git "refs/heads/$current_branch" | grep -q "$current_branch"; then
-                rialto_branch="$current_branch"
-                echo "✓ Found matching branch in rialto: $current_branch"
-              else
-                # Fall back to master (safest default)
-                rialto_branch="master"
-                echo "✓ No matching branch found, using master"
-              fi
-              ;;
-          esac
-          
-          echo "Checking out rialto branch: $rialto_branch"
-          git clone --depth 1 --branch "$rialto_branch" https://github.com/rdkcentral/rialto.git rialto
-          echo "rialto_branch=$rialto_branch" >> $GITHUB_ENV
-
-      # Verify rialto checkout and list header files for debugging
-      - name: Verify rialto checkout
-        run: |
-          echo "=== Verifying rialto checkout ==="
-          if [ -d "rialto" ]; then
-            echo "✓ rialto directory exists"
-            echo "Listing key directories:"
-            ls -la rialto/ || true
-            echo ""
-            echo "ServerManager include files:"
-            ls -la rialto/serverManager/public/include/ 2>/dev/null || echo "❌ serverManager/public/include/ not found"
-            echo ""
-            echo "Media include files:"
-            ls -la rialto/media/public/include/ 2>/dev/null || echo "❌ media/public/include/ not found"
-            echo ""
-            echo "Common include files:"
-            ls -la rialto/common/public/include/ 2>/dev/null || echo "❌ common/public/include/ not found"
-          else
-            echo "❌ rialto directory does NOT exist!"
-            exit 1
-          fi
-
-      # Ensure Unix line endings for all text files (fix CRLF issues on Windows-checked-out repos)
-      - name: Convert line endings to LF
-        run: |
-          find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.yml" -o -name "*.yaml" \) -print0 | xargs -0 sed -i 's/\r$//'
-          git config core.safecrlf false
-
       # Setup github for python 3.8
       - name: setup python
         uses: actions/setup-python@v5
@@ -136,10 +69,41 @@ jobs:
           cd lcov-2.0
           sudo make install
 
+      # Check, from which rialto branch should we download headers
+      - name: Check if rialto branch with the same name exists
+        id: check-branch
+        shell: bash +e {0}
+        run: |
+          current_branch="${{ github.ref_name }}"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            current_branch="${{ github.event.pull_request.head.ref }}"
+          fi
+          
+          # Branch mapping for special cases where branch names differ between repos
+          case "$current_branch" in
+            "feature/RDKEMW-23564")
+              branch="feature/RDKEMW-23564"
+              echo "✓ Using hardcoded mapping: $current_branch → $branch"
+              ;;
+            *)
+              # Try to find same branch name in rialto repo
+              if git ls-remote --heads https://github.com/rdkcentral/rialto.git "refs/heads/$current_branch" | grep -q "$current_branch"; then
+                branch="$current_branch"
+                echo "✓ Found matching branch in rialto: $current_branch"
+              else
+                # Fall back to master (safest default)
+                branch="master"
+                echo "✓ No matching branch found, using master"
+              fi
+              ;;
+          esac
+          
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
       # Run the build script
       - name: build_ut.py script
         run: |
-              python build_ut.py -c -xml -f -cov -b "${{ env.rialto_branch }}"
+              python build_ut.py -c -xml -f -cov -b ${{ steps.check-branch.outputs.branch }}
 
       # Process the test results
       - name: Check results
