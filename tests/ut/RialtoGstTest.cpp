@@ -18,6 +18,7 @@
 
 #include "RialtoGstTest.h"
 #include "Matchers.h"
+#include "MediaCapabilitiesMock.h"
 #include "MediaPipelineCapabilitiesMock.h"
 #include "PlaybinStub.h"
 #include "RialtoGSteamerPlugin.cpp"
@@ -30,7 +31,10 @@
 #include <vector>
 
 using firebolt::rialto::ApplicationState;
+using firebolt::rialto::IMediaCapabilitiesFactory;
 using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
+using firebolt::rialto::MediaCapabilitiesFactoryMock;
+using firebolt::rialto::MediaCapabilitiesMock;
 using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
 using firebolt::rialto::MediaPipelineCapabilitiesMock;
 
@@ -54,6 +58,8 @@ const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/m
 const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
                                                         "video/unsupported"};
 const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml", "text/cc"};
+const firebolt::rialto::common::AudioDecoderCapabilities kAudioDecoderCapabilities{};
+const firebolt::rialto::common::VideoDecoderCapabilities kVideoDecoderCapabilities{};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 constexpr bool kIsLive{false};
 int32_t generateSourceId()
@@ -480,38 +486,58 @@ void RialtoGstTest::sendPlaybackInfoNotification(RialtoMSEBaseSink *sink, const 
 
 void RialtoGstTest::expectSinksInitialisation() const
 {
-    // Media Pipeline Capabilities will be created two times during class_init of audio and video sink
-    std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockAudio{
-        std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
-    std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockVideo{
-        std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
-    std::unique_ptr<StrictMock<MediaPipelineCapabilitiesMock>> capabilitiesMockSubtitles{
-        std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>()};
-    EXPECT_CALL(*capabilitiesMockAudio, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
-        .WillOnce(Return(kSupportedAudioMimeTypes));
-    EXPECT_CALL(*capabilitiesMockVideo, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
-        .WillOnce(Return(kSupportedVideoMimeTypes));
-    EXPECT_CALL(*capabilitiesMockSubtitles, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::SUBTITLE))
-        .WillOnce(Return(kSupportedSubtitlesMimeTypes));
-    EXPECT_CALL(*capabilitiesMockVideo, getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO, _))
-        .WillOnce(Invoke(
-            [&](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
-            {
-                return propertiesToSearch; // Mock that all are supported
-            }));
-    EXPECT_CALL(*capabilitiesMockAudio,
-                getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO, _)) // TODO check props
-        .WillOnce(Invoke(
-            [&](firebolt::rialto::MediaSourceType source, const std::vector<std::string> &propertiesToSearch)
-            {
-                return propertiesToSearch; // Mock that all are supported
-            }));
+    // New Media Capabilities interface mocks (video and audio)
+    auto newCapabilitiesMockAudio = std::make_unique<StrictMock<MediaCapabilitiesMock>>();
+    auto newCapabilitiesMockVideo = std::make_unique<StrictMock<MediaCapabilitiesMock>>();
+    auto *audioPtr = newCapabilitiesMockAudio.get();
+    auto *videoPtr = newCapabilitiesMockVideo.get();
+
+    EXPECT_CALL(*audioPtr, getSupportedAudioCapabilities())
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Return(kAudioDecoderCapabilities));
+    EXPECT_CALL(*videoPtr, getSupportedVideoCapabilities())
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Return(kVideoDecoderCapabilities));
+
+    std::shared_ptr<StrictMock<MediaCapabilitiesFactoryMock>> newCapabilitiesFactoryMock{
+        std::dynamic_pointer_cast<StrictMock<MediaCapabilitiesFactoryMock>>(IMediaCapabilitiesFactory::createFactory())};
+    ASSERT_TRUE(newCapabilitiesFactoryMock);
+    // Return new capabilities mocks for video and audio sinks during class_init
+    EXPECT_CALL(*newCapabilitiesFactoryMock, createMediaCapabilities(testing::_, testing::_))
+        .WillOnce(Return(ByMove(std::move(newCapabilitiesMockVideo))))
+        .WillOnce(Return(ByMove(std::move(newCapabilitiesMockAudio))));
+
+    // Legacy Pipeline Capabilities mocks (for mime type lookups as fallback)
+    auto capabilitiesMockAudio = std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>();
+    auto capabilitiesMockVideo = std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>();
+    auto capabilitiesMockSubtitles = std::make_unique<StrictMock<MediaPipelineCapabilitiesMock>>();
+    auto *legacyAudioPtr = capabilitiesMockAudio.get();
+    auto *legacyVideoPtr = capabilitiesMockVideo.get();
+    auto *legacySubPtr = capabilitiesMockSubtitles.get();
+
+    EXPECT_CALL(*legacyAudioPtr, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Return(kSupportedAudioMimeTypes));
+    EXPECT_CALL(*legacyVideoPtr, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Return(kSupportedVideoMimeTypes));
+    EXPECT_CALL(*legacySubPtr, getSupportedMimeTypes(firebolt::rialto::MediaSourceType::SUBTITLE))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Return(kSupportedSubtitlesMimeTypes));
+    EXPECT_CALL(*legacyVideoPtr, getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Invoke([](firebolt::rialto::MediaSourceType source,
+                                  const std::vector<std::string> &propertiesToSearch) { return propertiesToSearch; }));
+    EXPECT_CALL(*legacyAudioPtr, getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Invoke([](firebolt::rialto::MediaSourceType source,
+                                  const std::vector<std::string> &propertiesToSearch) { return propertiesToSearch; }));
 
     std::shared_ptr<StrictMock<MediaPipelineCapabilitiesFactoryMock>> capabilitiesFactoryMock{
         std::dynamic_pointer_cast<StrictMock<MediaPipelineCapabilitiesFactoryMock>>(
             IMediaPipelineCapabilitiesFactory::createFactory())};
     ASSERT_TRUE(capabilitiesFactoryMock);
-    // Video sink is registered first
+    // Legacy factory returns for backwards compatibility (though sinks prefer new capabilities)
     EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities())
         .WillOnce(Return(ByMove(std::move(capabilitiesMockVideo))))
         .WillOnce(Return(ByMove(std::move(capabilitiesMockAudio))))

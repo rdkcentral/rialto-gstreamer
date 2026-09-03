@@ -21,6 +21,7 @@
 #include <gst/gst.h>
 
 #include "GStreamerMSEUtils.h"
+#include "IMediaCapabilities.h"
 #include "IMediaPipelineCapabilities.h"
 #include "PullModeAudioPlaybackDelegate.h"
 #include "PushModeAudioPlaybackDelegate.h"
@@ -304,13 +305,34 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
 
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
-    if (mediaPlayerCapabilities)
+    std::unique_ptr<firebolt::rialto::IMediaCapabilities> mediaCapabilities =
+        firebolt::rialto::IMediaCapabilitiesFactory::createFactory()->createMediaCapabilities();
+    if (mediaCapabilities)
     {
+        const firebolt::rialto::common::AudioDecoderCapabilities kAudioDecoderCapabilities{
+            mediaCapabilities->getSupportedAudioCapabilities()};
+
+        if (!rialto_mse_sink_setup_supported_caps(elementClass, kAudioDecoderCapabilities))
+        {
+            GST_INFO("No supported audio decoder capabilities, falling back to legacy capability check");
+            if (mediaPlayerCapabilities)
+            {
+                std::vector<std::string> supportedMimeTypes =
+                    mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
+                rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+            }
+        }
+    }
+    else if (mediaPlayerCapabilities)
+    {
+        GST_INFO("IMediaCapabilities creation failed, falling back to legacy capability check");
         std::vector<std::string> supportedMimeTypes =
             mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
-
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+    }
 
+    if (mediaPlayerCapabilities)
+    {
         const std::string kLowLatencyPropertyName{"low-latency"};
         const std::string kSyncPropertyName{"sync"};
         const std::string kSyncOffPropertyName{"sync-off"};
