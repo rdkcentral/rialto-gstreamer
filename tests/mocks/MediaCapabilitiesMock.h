@@ -27,10 +27,7 @@ namespace firebolt::rialto
 class MediaCapabilitiesFactoryMock : public IMediaCapabilitiesFactory
 {
 public:
-    MOCK_METHOD(std::unique_ptr<IMediaCapabilities>, createMediaCapabilities,
-                (const std::optional<firebolt::rialto::common::AudioDecoderCapabilities> &preloadedAudio,
-                 const std::optional<firebolt::rialto::common::VideoDecoderCapabilities> &preloadedVideo),
-                (const, override));
+    MOCK_METHOD(std::unique_ptr<IMediaCapabilities>, createMediaCapabilities, (), (const, override));
 };
 
 class MediaCapabilitiesMock : public IMediaCapabilities
