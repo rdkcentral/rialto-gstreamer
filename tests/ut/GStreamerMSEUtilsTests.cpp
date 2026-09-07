@@ -17,11 +17,17 @@
  */
 
 #include "GStreamerMSEUtils.h"
-#include "RialtoGstTest.h"
 #include <gtest/gtest.h>
+#include <gst/gst.h>
 
-class GStreamerMSEUtilsTests : public RialtoGstTest
+class GStreamerMSEUtilsTests : public testing::Test
 {
+public:
+    static void SetUpTestSuite()
+    {
+        // Initialize GStreamer once for all tests in this suite
+        gst_init(nullptr, nullptr);
+    }
 };
 
 TEST_F(GStreamerMSEUtilsTests, shouldConvertLayout)
