@@ -74,6 +74,14 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         }
     }
 
+    // Return false if no caps were resolved (empty caps)
+    if (gst_caps_is_empty(caps))
+    {
+        GST_WARNING("No caps could be resolved from supportedMimeTypes");
+        gst_caps_unref(caps);
+        return false;
+    }
+
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
@@ -185,6 +193,14 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     GST_DEBUG("Writing audio caps to element: %s", capsDebugStr);
     g_free(capsDebugStr);
 
+    // Return false if no caps were added (empty caps means no supported audio formats)
+    if (gst_caps_is_empty(caps))
+    {
+        GST_WARNING("No audio caps could be resolved from capabilities");
+        gst_caps_unref(caps);
+        return false;
+    }
+
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
@@ -240,6 +256,14 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     gchar *videoCapsDebugStr = gst_caps_to_string(caps);
     GST_DEBUG("Writing video caps to element: %s", videoCapsDebugStr);
     g_free(videoCapsDebugStr);
+
+    // Return false if no caps were added (empty caps means no supported video formats)
+    if (gst_caps_is_empty(caps))
+    {
+        GST_WARNING("No video caps could be resolved from capabilities");
+        gst_caps_unref(caps);
+        return false;
+    }
 
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);

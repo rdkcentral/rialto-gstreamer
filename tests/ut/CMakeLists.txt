@@ -111,7 +111,6 @@ target_include_directories(
         $<TARGET_PROPERTY:GstRialtoMocks,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoTestLib,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoStubs,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CMAKE_SOURCE_DIR}/../rialto/common/public/include
 )
 
 target_link_libraries(

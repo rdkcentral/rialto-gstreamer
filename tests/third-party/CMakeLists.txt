@@ -86,7 +86,7 @@ function(downloadAndCheck URL FILE)
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE})
     endif()
 
-    if(FILE STREQUAL "MediaCommon.h" OR FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "IMediaPipelineCapabilities.h" OR FILE STREQUAL "IMediaCapabilities.h")
+    if(FILE STREQUAL "MediaCommon.h" OR FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "DecoderCapabilitiesCommon.h" OR FILE STREQUAL "IMediaPipelineCapabilities.h" OR FILE STREQUAL "IMediaCapabilities.h")
         # Only use local fallback if the local rialto tree exists, otherwise continue with normal download
         if(EXISTS "${CMAKE_SOURCE_DIR}/../rialto/common/public/include" OR EXISTS "${CMAKE_SOURCE_DIR}/../rialto/media/public/include")
             message(WARNING "Using local Rialto header for ${FILE} to match the current API")
@@ -99,8 +99,13 @@ function(downloadAndCheck URL FILE)
         file(DOWNLOAD ${URL} ${FILE_PATH} STATUS downloadStatus LOG downloadLog)
         list(GET downloadStatus 0 statusCode)
         if(NOT statusCode EQUAL 0 OR NOT EXISTS ${FILE_PATH})
-            message(WARNING "Download of ${FILE} failed (${URL}); using local Rialto fallback")
-            copyLocalFallback(${FILE})
+            # Only attempt fallback for whitelisted header files
+            if(FILE STREQUAL "MediaCommon.h" OR FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "DecoderCapabilitiesCommon.h" OR FILE STREQUAL "IMediaPipelineCapabilities.h" OR FILE STREQUAL "IMediaCapabilities.h")
+                message(WARNING "Download of ${FILE} failed (${URL}); using local Rialto fallback")
+                copyLocalFallback(${FILE})
+            else()
+                message(FATAL_ERROR "Download of ${FILE} failed (${URL}): ${downloadStatus}\n${downloadLog}")
+            endif()
         else()
             message("Downloaded ${FILE}")
         endif()
@@ -136,6 +141,7 @@ set(FILE_LIST
     IClientLogControl.h
     AudioDecoderCapabilities.h
     VideoDecoderCapabilities.h
+    DecoderCapabilitiesCommon.h
 )
 
 # Loop through the list and call the function
@@ -144,7 +150,7 @@ foreach(FILE_NAME ${FILE_LIST})
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/)
     elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/)
-    elseif(FILE_NAME STREQUAL "AudioDecoderCapabilities.h" OR FILE_NAME STREQUAL "VideoDecoderCapabilities.h")
+    elseif(FILE_NAME STREQUAL "AudioDecoderCapabilities.h" OR FILE_NAME STREQUAL "VideoDecoderCapabilities.h" OR FILE_NAME STREQUAL "DecoderCapabilitiesCommon.h")
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/common/public/include/)
     else()
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/)

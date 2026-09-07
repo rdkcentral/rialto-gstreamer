@@ -107,6 +107,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillAudioDecoderCapabilities)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     for (GstCaps *expectedCap : expectedCaps)
     {
         EXPECT_TRUE(gst_caps_is_subset(expectedCap, caps));
@@ -145,6 +146,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     for (GstCaps *expectedCap : expectedCaps)
     {
         EXPECT_TRUE(gst_caps_is_subset(expectedCap, caps));
@@ -160,8 +162,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
 
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{
-        .dolbyEac3 = firebolt::rialto::common::DolbyEac3Capability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dolbyEac3 = firebolt::rialto::common::DolbyEac3Capability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -169,6 +171,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     GstCaps *eac3Caps = gst_caps_from_string("audio/x-eac3");
     EXPECT_TRUE(gst_caps_is_subset(eac3Caps, caps));
     gst_caps_unref(eac3Caps);
@@ -178,8 +181,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
 
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{
-        .dolbyAc3 = firebolt::rialto::common::DolbyAc3Capability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dolbyAc3 = firebolt::rialto::common::DolbyAc3Capability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -187,6 +190,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     GstCaps *ac3Caps = gst_caps_from_string("audio/x-ac3");
     GstCaps *eac3Caps = gst_caps_from_string("audio/x-eac3");
     EXPECT_TRUE(gst_caps_is_subset(ac3Caps, caps));
@@ -199,7 +203,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
 
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterWma)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{.pcm = firebolt::rialto::common::PcmCapability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.pcm = firebolt::rialto::common::PcmCapability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -207,6 +212,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterWma)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     GstCaps *wmaCaps = gst_caps_from_string("audio/x-wma");
     EXPECT_FALSE(gst_caps_is_subset(wmaCaps, caps));
     gst_caps_unref(wmaCaps);
@@ -217,7 +223,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterWma)
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterDolbyMatRaw)
 {
     // No pcm and no dolbyMat — audio/x-raw must not appear
-    const firebolt::rialto::common::AudioDecoderCapability capability{.aac = firebolt::rialto::common::AacCapability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.aac = firebolt::rialto::common::AacCapability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -225,6 +232,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterDolbyMatRaw)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     GstCaps *rawCaps = gst_caps_from_string("audio/x-raw");
     EXPECT_FALSE(gst_caps_is_subset(rawCaps, caps));
     gst_caps_unref(rawCaps);
@@ -246,6 +254,7 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterVideoCodecWhenOptionalIsNullopt)
     EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
     GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
     GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+    gst_caps_ref(caps);  // Take reference before unreffing (gst_pad_template_get_caps returns non-owned ref)
     GstCaps *h264Caps = gst_caps_from_string("video/x-h264");
     GstCaps *mpeg2Caps = gst_caps_from_string("video/mpeg, mpegversion=2");
     GstCaps *vp9Caps = gst_caps_from_string("video/x-vp9");
