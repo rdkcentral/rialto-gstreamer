@@ -74,15 +74,11 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
         }
     }
 
-    // Always register the pad template (even if empty) so the sink has a sink pad
-    // Use return value only to indicate if any caps were successfully resolved
-    bool hasResolvedCaps = !gst_caps_is_empty(caps);
-
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
 
-    return hasResolvedCaps;
+    return true;
 }
 
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
@@ -189,14 +185,10 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     GST_DEBUG("Writing audio caps to element: %s", capsDebugStr);
     g_free(capsDebugStr);
 
-    // Always register the pad template (even if empty) so the sink has a sink pad
-    // Use return value only to indicate if any caps were successfully resolved
-    bool hasResolvedCaps = !gst_caps_is_empty(caps);
-
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
-    return hasResolvedCaps;
+    return true;
 }
 
 bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
@@ -249,14 +241,10 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
     GST_DEBUG("Writing video caps to element: %s", videoCapsDebugStr);
     g_free(videoCapsDebugStr);
 
-    // Always register the pad template (even if empty) so the sink has a sink pad
-    // Use return value only to indicate if any caps were successfully resolved
-    bool hasResolvedCaps = !gst_caps_is_empty(caps);
-
     GstPadTemplate *sinktempl = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps);
     gst_element_class_add_pad_template(elementClass, sinktempl);
     gst_caps_unref(caps);
-    return hasResolvedCaps;
+    return true;
 }
 
 std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gchar *layoutStr)
