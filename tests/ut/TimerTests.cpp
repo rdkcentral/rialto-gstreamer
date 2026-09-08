@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 #include <mutex>
 
+// cppcheck-suppress unusedFunction
 TEST(TimerTests, ShouldTimeoutOneShotTimer)
 {
     std::mutex mtx;
@@ -39,6 +40,7 @@ TEST(TimerTests, ShouldTimeoutOneShotTimer)
     EXPECT_TRUE(callFlag);
 }
 
+// cppcheck-suppress unusedFunction
 TEST(TimerTests, ShouldCancelTimer)
 {
     std::atomic_bool callFlag{false};
@@ -50,6 +52,7 @@ TEST(TimerTests, ShouldCancelTimer)
     EXPECT_FALSE(callFlag);
 }
 
+// cppcheck-suppress unusedFunction
 TEST(TimerTests, ShouldTimeoutPeriodicTimer)
 {
     std::mutex mtx;

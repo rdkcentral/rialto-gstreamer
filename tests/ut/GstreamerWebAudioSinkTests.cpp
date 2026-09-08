@@ -91,6 +91,7 @@ public:
     StrictMock<WebAudioPlayerMock> &m_playerMock{*m_player};
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldCreateSink)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -99,6 +100,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldCreateSink)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldNotReachReadyStateWhenAppStateIsInactive)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -112,6 +114,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldNotReachReadyStateWhenAppStateIsInactiv
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToAttachSource)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -128,6 +131,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToAttachSource)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldAttachSource)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -140,6 +144,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldAttachSource)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToReachPlayingState)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -155,6 +160,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToReachPlayingState)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldReachPlayingState)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -171,6 +177,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldReachPlayingState)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldDelayTransitionToPlayingWhenSourceIsNotAttached)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -187,6 +194,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldDelayTransitionToPlayingWhenSourceIsNot
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldDelayTransitionToPlayingWhenSourceIsNotAttachedAndFail)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -203,6 +211,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldDelayTransitionToPlayingWhenSourceIsNot
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToPause)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -222,6 +231,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToPause)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldSetEos)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -240,6 +250,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldSetEos)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetEosWhenBelowPaused)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -254,6 +265,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetEosWhenBelowPaused)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldHandleError)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -269,6 +281,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldHandleError)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldHandleEosEvent)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -291,6 +304,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldHandleEosEvent)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldHandleUnknownEvent)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -312,6 +326,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldHandleUnknownEvent)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldGetAndSetTsOffsetProperty)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -328,6 +343,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldGetAndSetTsOffsetProperty)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToGetOrSetUnknownProperty)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -347,6 +363,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToGetOrSetUnknownProperty)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldNotifyNewSample)
 {
     constexpr uint32_t kAvailableFrames{24};
@@ -371,6 +388,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldNotifyNewSample)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldReturnDefaultVolumeValueWhenPipelineIsBelowPausedState)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -383,6 +401,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldReturnDefaultVolumeValueWhenPipelineIsB
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldGetVolumeProperty)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -400,6 +419,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldGetVolumeProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -416,6 +436,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolumePropertyWhenPipelineIsBe
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldSetVolume)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -431,6 +452,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldSetVolume)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolume)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -449,6 +471,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetVolume)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldSetCachedVolume)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -466,6 +489,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldSetCachedVolume)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetCachedVolume)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};
@@ -486,6 +510,7 @@ TEST_F(GstreamerWebAudioSinkTests, ShouldFailToSetCachedVolume)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioSinkTests, ShouldReturnLastKnownVolumeWhenOperationFails)
 {
     RialtoWebAudioSink *sink{createWebAudioSink()};

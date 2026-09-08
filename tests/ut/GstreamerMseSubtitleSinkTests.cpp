@@ -48,6 +48,7 @@ public:
     }
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldFailToReachPausedStateWhenMediaPipelineCantBeCreated)
 {
     constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
@@ -62,6 +63,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldFailToReachPausedStateWhenMediaPipel
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotHandleUnknownEvent)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -77,6 +79,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotHandleUnknownEvent)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -94,6 +97,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceWhenPipelineIsBelowPa
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithTtml)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -112,6 +116,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithTtml)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithVtt)
 {
     const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/vtt", ""}};
@@ -131,6 +136,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithVtt)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithCC)
 {
     const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/cc", ""}};
@@ -150,6 +156,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithCC)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -169,6 +176,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
 {
     const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/ttml", kTextTrackIdentifier}};
@@ -194,6 +202,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -220,6 +229,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMutePropertyWithoutSourceAttached)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -233,6 +243,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMutePropertyWithoutSourceAt
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -261,6 +272,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdPropertyWithoutSourceAttached)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -276,6 +288,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdPropertyWithoutS
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotSetTextTrackIdPropertyWhenItsEmpty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -286,6 +299,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotSetTextTrackIdPropertyWhenItsEmpt
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetWindowIdProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -300,6 +314,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetWindowIdProperty)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetAsyncProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -314,6 +329,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetAsyncProperty)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotSetAndGetInvalidProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -330,6 +346,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotSetAndGetInvalidProperty)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSendQosEvent)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -357,6 +374,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSendQosEvent)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventValueNotPresent)
 {
     constexpr guint64 kOffset{4325};
@@ -382,6 +400,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventValueNotPrese
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleSetPtsOffsetEventSetPosition)
 {
     constexpr guint64 kOffset{4325};

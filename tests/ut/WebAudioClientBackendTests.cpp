@@ -70,6 +70,7 @@ public:
     }
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldFailToCreateBackend)
 {
     EXPECT_CALL(*m_playerFactoryMock, createWebAudioPlayer(_, kAudioMimeType, kPriority, webAudioConfigMatcher(m_config)))
@@ -77,17 +78,20 @@ TEST_F(WebAudioClientBackendTests, ShouldFailToCreateBackend)
     EXPECT_FALSE(m_sut.createWebAudioBackend(m_clientMock, kAudioMimeType, kPriority, m_config));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldCreateBackend)
 {
     EXPECT_TRUE(createBackend());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldDestroyBackend)
 {
     EXPECT_TRUE(createBackend());
     m_sut.destroyWebAudioBackend();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldPlay)
 {
     EXPECT_CALL(*m_playerMock, play()).WillOnce(Return(true));
@@ -95,6 +99,7 @@ TEST_F(WebAudioClientBackendTests, ShouldPlay)
     EXPECT_TRUE(m_sut.play());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldPause)
 {
     EXPECT_CALL(*m_playerMock, pause()).WillOnce(Return(true));
@@ -102,6 +107,7 @@ TEST_F(WebAudioClientBackendTests, ShouldPause)
     EXPECT_TRUE(m_sut.pause());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldSetEos)
 {
     EXPECT_CALL(*m_playerMock, setEos()).WillOnce(Return(true));
@@ -109,6 +115,7 @@ TEST_F(WebAudioClientBackendTests, ShouldSetEos)
     EXPECT_TRUE(m_sut.setEos());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldGetBufferAvailable)
 {
     uint32_t frames{0};
@@ -118,6 +125,7 @@ TEST_F(WebAudioClientBackendTests, ShouldGetBufferAvailable)
     EXPECT_EQ(frames, kFrames);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldGetBufferDelay)
 {
     uint32_t frames{0};
@@ -127,6 +135,7 @@ TEST_F(WebAudioClientBackendTests, ShouldGetBufferDelay)
     EXPECT_EQ(frames, kFrames);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldWriteBuffer)
 {
     uint32_t data{0};
@@ -135,6 +144,7 @@ TEST_F(WebAudioClientBackendTests, ShouldWriteBuffer)
     EXPECT_TRUE(m_sut.writeBuffer(kFrames, &data));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldGetDeviceInfo)
 {
     uint32_t preferredFrames{0};
@@ -152,6 +162,7 @@ TEST_F(WebAudioClientBackendTests, ShouldGetDeviceInfo)
     EXPECT_EQ(supportDeferredPlay, kSupportDeferredPlay);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldSetVolume)
 {
     EXPECT_CALL(*m_playerMock, setVolume(kVolume)).WillOnce(Return(true));
@@ -159,6 +170,7 @@ TEST_F(WebAudioClientBackendTests, ShouldSetVolume)
     EXPECT_TRUE(m_sut.setVolume(kVolume));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(WebAudioClientBackendTests, ShouldGetVolume)
 {
     double volume{0.0};

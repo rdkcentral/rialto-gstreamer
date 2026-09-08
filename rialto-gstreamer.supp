@@ -105,3 +105,46 @@
    fun:g_atomic_rc_box_alloc
    ...
 }
+{
+   ignore_mse_sink_setup_caps_from_string_leak
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect
+   fun:calloc
+   fun:g_malloc0
+   ...
+   fun:gst_caps_from_string
+   fun:*rialto_mse_sink_setup_supported_caps*
+}
+{
+   ignore_mse_sink_setup_caps_append_leak
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect
+   fun:realloc
+   fun:g_realloc
+   ...
+   fun:g_array_append_vals
+   fun:gst_caps_append
+   fun:*rialto_mse_sink_setup_supported_caps*
+}
+{
+   ignore_mse_sink_setup_caps_new_empty_leak
+   Memcheck:Leak
+   match-leak-kinds: definite,indirect
+   fun:malloc
+   fun:g_malloc
+   ...
+   fun:gst_caps_new_empty
+   fun:*rialto_mse_sink_setup_supported_caps*
+}
+{
+   ignore_detached_thread_tls_possibly_lost
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create*
+   ...
+}

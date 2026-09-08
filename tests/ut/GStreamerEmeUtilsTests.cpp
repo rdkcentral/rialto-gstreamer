@@ -31,11 +31,13 @@ public:
     BufferProtectionMetadata m_metadata;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldNotProcessNullBuffer)
 {
     ProcessProtectionMetadata(nullptr, m_metadata);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessSubsamples)
 {
     constexpr uint16_t kClearBytes = 7;
@@ -68,6 +70,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessSubsamples)
     }
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbcsEncryptionScheme)
 {
     const std::string kEncryptionScheme{"cbcs"};
@@ -83,6 +86,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbcsEncryptionScheme)
     EXPECT_EQ(m_metadata.cipherMode, firebolt::rialto::CipherMode::CBCS);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessCencEncryptionScheme)
 {
     const std::string kEncryptionScheme{"cenc"};
@@ -98,6 +102,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessCencEncryptionScheme)
     EXPECT_EQ(m_metadata.cipherMode, firebolt::rialto::CipherMode::CENC);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbc1EncryptionScheme)
 {
     const std::string kEncryptionScheme{"cbc1"};
@@ -113,6 +118,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbc1EncryptionScheme)
     EXPECT_EQ(m_metadata.cipherMode, firebolt::rialto::CipherMode::CBC1);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessCensEncryptionScheme)
 {
     const std::string kEncryptionScheme{"cens"};
@@ -128,6 +134,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessCensEncryptionScheme)
     EXPECT_EQ(m_metadata.cipherMode, firebolt::rialto::CipherMode::CENS);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessUnknownEncryptionScheme)
 {
     const std::string kEncryptionScheme{"surprise"};
@@ -143,6 +150,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldProcessUnknownEncryptionScheme)
     EXPECT_EQ(m_metadata.cipherMode, firebolt::rialto::CipherMode::UNKNOWN);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldFailToReadEncryptionPatternWhenSkipByteBlockIsNotFound)
 {
     constexpr unsigned int kCryptByteBlock{7};
@@ -158,6 +166,7 @@ TEST_F(GStreamerEmeUtilsTests, ShouldFailToReadEncryptionPatternWhenSkipByteBloc
     EXPECT_FALSE(m_metadata.encryptionPatternSet);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GStreamerEmeUtilsTests, ShouldProcessCbcsConstantIVSize)
 {
     const std::string kEncryptionScheme{"cbcs"};

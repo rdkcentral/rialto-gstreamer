@@ -88,6 +88,7 @@ public:
     std::weak_ptr<IWebAudioPlayerClient> m_webAudioClient;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldCreatePushModeSink)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -96,6 +97,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldCreatePushModeSink)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldNotReachReadyStateWhenAppStateIsInactiveInPushMode)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -110,6 +112,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldNotReachReadyStateWhenApp
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToAttachSourceInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -126,6 +129,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToAttachSourceInPushM
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldAttachSourceInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -138,6 +142,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldAttachSourceInPushMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToReachPlayingStateInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -153,6 +158,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToReachPlayingStateIn
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldReachPlayingStateInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -170,6 +176,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldReachPlayingStateInPushMo
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldDelayTransitionToPlayingWhenSourceIsNotAttachedInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -187,6 +194,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldDelayTransitionToPlayingW
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldDelayTransitionToPlayingWhenSourceIsNotAttachedAndFailInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -203,6 +211,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldDelayTransitionToPlayingW
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToPauseInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -223,6 +232,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToPauseInPushMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldSetEosInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -242,6 +252,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldSetEosInPushMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldHandleErrorInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -257,6 +268,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldHandleErrorInPushMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldHandleEosEventInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -280,6 +292,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldHandleEosEventInPushMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldHandleUnknownEventInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -302,6 +315,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldHandleUnknownEventInPushM
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldNotifyNewSampleInPushMode)
 {
     constexpr uint32_t kAvailableFrames{24};
@@ -327,6 +341,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldNotifyNewSampleInPushMode
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldReturnDefaultVolumeValueWhenPipelineIsBelowPausedStateInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -339,6 +354,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldReturnDefaultVolumeValueW
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldGetVolumePropertyInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -356,6 +372,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldGetVolumePropertyInPushMo
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToSetVolumePropertyWhenPipelineIsBelowPausedStateInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -372,6 +389,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToSetVolumePropertyWh
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldSetVolumeInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -387,6 +405,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldSetVolumeInPushMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToSetVolumeInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -405,6 +424,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToSetVolumeInPushMode
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldSetCachedVolumeInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -422,6 +442,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldSetCachedVolumeInPushMode
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToSetCachedVolumeInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};
@@ -442,6 +463,7 @@ TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldFailToSetCachedVolumeInPu
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseAudioSinkInWebAudioModeTests, ShouldReturnLastKnownVolumeWhenOperationFailsInPushMode)
 {
     RialtoMSEBaseSink *sink{createAudioSinkInWebAudioMode()};

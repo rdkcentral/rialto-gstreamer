@@ -120,6 +120,7 @@ protected:
     std::shared_ptr<GStreamerWebAudioPlayerClient> m_sut;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatIsNotPresentInCaps)
 {
     GstCaps *caps =
@@ -128,6 +129,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatIsNotPresentIn
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatIsEmpty)
 {
     GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
@@ -136,6 +138,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatIsEmpty)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenRateIsNotPresent)
 {
     GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "channels", G_TYPE_INT, kChannels, "format", G_TYPE_STRING,
@@ -144,6 +147,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenRateIsNotPresent)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenChannelsAreNotPresent)
 {
     GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "format", G_TYPE_STRING,
@@ -152,6 +156,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenChannelsAreNotPresen
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatHasWrongSize)
 {
     GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
@@ -160,6 +165,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatHasWrongSize)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatHasInvalidType)
 {
     GstCaps *caps = gst_caps_new_simple(kMimeType.c_str(), "rate", G_TYPE_INT, kRate, "channels", G_TYPE_INT, kChannels,
@@ -168,6 +174,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenFormatHasInvalidType
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenCreateBackendFails)
 {
     expectCallInEventLoop();
@@ -180,6 +187,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotOpenWhenCreateBackendFails)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithFailedGetDeviceInfo)
 {
     expectCallInEventLoop();
@@ -193,12 +201,14 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithFailedGetDeviceInfo)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithSignedFormat)
 {
     expectCallInEventLoop();
     open();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithUnsignedFormat)
 {
     expectCallInEventLoop();
@@ -212,6 +222,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithUnsignedFormat)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithFloatFormat)
 {
     expectCallInEventLoop();
@@ -225,6 +236,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithFloatFormat)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithLittleEndianFormat)
 {
     expectCallInEventLoop();
@@ -238,6 +250,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenWithLittleEndianFormat)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToOpenTheSameConfigTwice)
 {
     expectCallInEventLoop();
@@ -248,6 +261,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToOpenTheSameConfigTwice)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenMimeTypeChanged)
 {
     open();
@@ -263,6 +277,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenMimeT
     gst_caps_unref(newCaps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenMimeTypeIsNotRaw)
 {
     expectCallInEventLoop();
@@ -284,6 +299,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenMimeT
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenPcmIsChanged)
 {
     open();
@@ -299,6 +315,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenTheSameConfigTwiceWhenPcmIs
     gst_caps_unref(newCaps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenAgainAfterClose)
 {
     open();
@@ -307,12 +324,14 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldOpenAgainAfterClose)
     open();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPlayWhenNotOpened)
 {
     expectCallInEventLoop();
     EXPECT_FALSE(m_sut->play());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPlayWhenOperationFails)
 {
     open();
@@ -320,6 +339,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPlayWhenOperationFails)
     EXPECT_FALSE(m_sut->play());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPlay)
 {
     open();
@@ -327,12 +347,14 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPlay)
     EXPECT_TRUE(m_sut->play());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPauseWhenNotOpened)
 {
     expectCallInEventLoop();
     EXPECT_FALSE(m_sut->pause());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPauseWhenOperationFails)
 {
     open();
@@ -340,6 +362,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPauseWhenOperationFails)
     EXPECT_FALSE(m_sut->pause());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPause)
 {
     open();
@@ -347,12 +370,14 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPause)
     EXPECT_TRUE(m_sut->pause());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToSetEosWhenNotOpened)
 {
     expectCallInEventLoop();
     EXPECT_FALSE(m_sut->setEos());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToSetEosWhenOperationFails)
 {
     open();
@@ -360,6 +385,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToSetEosWhenOperationFails)
     EXPECT_FALSE(m_sut->setEos());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEos)
 {
     open();
@@ -367,6 +393,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEos)
     EXPECT_TRUE(m_sut->setEos());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEosAndTryPushBuffer)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -385,6 +412,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldSetEosAndTryPushBuffer)
     gst_buffer_unref(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotSetEosTwice)
 {
     open();
@@ -393,24 +421,28 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotSetEosTwice)
     EXPECT_FALSE(m_sut->setEos());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotBeOpened)
 {
     expectCallInEventLoop();
     EXPECT_FALSE(m_sut->isOpen());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldBeOpened)
 {
     open();
     EXPECT_TRUE(m_sut->isOpen());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenNotOpened)
 {
     expectScheduleInEventLoop();
     m_sut->notifyPushSamplesTimerExpired();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenGetAvailableBuffersFail)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -423,6 +455,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenGetAvailableB
     gst_buffer_unref(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenThereIsNoBufferAvailable)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -437,6 +470,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldNotPushSamplesWhenThereIsNoBuff
     gst_buffer_unref(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldTryPushBufferTwiceWhenTimerExpires)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -464,6 +498,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldTryPushBufferTwiceWhenTimerExpi
     gst_buffer_unref(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPushBuffer)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -476,6 +511,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldFailToPushBuffer)
     m_sut->notifyNewSample(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPushBuffer)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -491,6 +527,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldPushBuffer)
     gst_buffer_unref(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
 {
     GstBuffer *buffer = gst_buffer_new_allocate(nullptr, kBytes.size(), nullptr);
@@ -516,18 +553,21 @@ TEST_F(GstreamerWebAudioPlayerClientTests, ShouldAppendBuffer)
     m_sut->notifyNewSample(secondBuffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyEos)
 {
     EXPECT_CALL(m_delegateMock, handleEos());
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::END_OF_STREAM);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyFailure)
 {
     EXPECT_CALL(m_delegateMock, handleError(_, 0));
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::FAILURE);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyStateChange)
 {
     EXPECT_CALL(m_delegateMock, handleStateChanged(firebolt::rialto::PlaybackState::IDLE));
@@ -538,6 +578,7 @@ TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotifyStateChange)
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::PAUSED);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerWebAudioPlayerClientTests, shouldNotCallAnyCallbackWhenUnknownStateIsNotified)
 {
     m_sut->notifyState(firebolt::rialto::WebAudioPlayerState::UNKNOWN);

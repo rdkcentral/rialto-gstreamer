@@ -69,11 +69,13 @@ public:
     }
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, MediaPlayerShouldNotBeCreated)
 {
     EXPECT_FALSE(m_sut.isMediaPlayerBackendCreated());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldFailToCreateMediaPipeline)
 {
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, kVideoRequirements)).WillOnce(Return(nullptr));
@@ -81,12 +83,14 @@ TEST_F(MediaPlayerClientBackendTests, ShouldFailToCreateMediaPipeline)
     EXPECT_FALSE(m_sut.isMediaPlayerBackendCreated());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldCreateMediaPipeline)
 {
     initializeMediaPipeline();
     EXPECT_TRUE(m_sut.isMediaPlayerBackendCreated());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldAttachSource)
 {
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSourceAudio{
@@ -97,6 +101,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldAttachSource)
     EXPECT_TRUE(m_sut.attachSource(mediaSourceAudio));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldRemoveSource)
 {
     constexpr int32_t id{123};
@@ -106,6 +111,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldRemoveSource)
     EXPECT_TRUE(m_sut.removeSource(id));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, AllSourcesShouldBeAttached)
 {
     EXPECT_CALL(*m_mediaPipelineMock, allSourcesAttached()).WillOnce(Return(true));
@@ -114,6 +120,7 @@ TEST_F(MediaPlayerClientBackendTests, AllSourcesShouldBeAttached)
     EXPECT_TRUE(m_sut.allSourcesAttached());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldLoad)
 {
     constexpr firebolt::rialto::MediaType kType{firebolt::rialto::MediaType::MSE};
@@ -125,6 +132,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldLoad)
     EXPECT_TRUE(m_sut.load(kType, kMimeType, kUrl, kIsLive));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldPlay)
 {
     bool async{false};
@@ -134,6 +142,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldPlay)
     EXPECT_TRUE(m_sut.play(async));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldPause)
 {
     EXPECT_CALL(*m_mediaPipelineMock, pause()).WillOnce(Return(true));
@@ -142,6 +151,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldPause)
     EXPECT_TRUE(m_sut.pause());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldStop)
 {
     EXPECT_CALL(*m_mediaPipelineMock, stop()).WillOnce(Return(true));
@@ -150,6 +160,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldStop)
     EXPECT_TRUE(m_sut.stop());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldHaveData)
 {
     constexpr auto kStatus{firebolt::rialto::MediaSourceStatus::EOS};
@@ -160,6 +171,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldHaveData)
     EXPECT_TRUE(m_sut.haveData(kStatus, kNeedDataRequestId));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetPlaybackRate)
 {
     constexpr double rate{1.25};
@@ -169,6 +181,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetPlaybackRate)
     EXPECT_TRUE(m_sut.setPlaybackRate(rate));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetVideoWindow)
 {
     constexpr unsigned int kX{1};
@@ -181,6 +194,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetVideoWindow)
     EXPECT_TRUE(m_sut.setVideoWindow(kX, kY, kWidth, kHeight));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldAddSegment)
 {
     constexpr firebolt::rialto::AddSegmentStatus kStatus{firebolt::rialto::AddSegmentStatus::OK};
@@ -194,6 +208,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldAddSegment)
     EXPECT_EQ(kStatus, m_sut.addSegment(kNeedDataRequestId, kMediaSegment));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldGetPosition)
 {
     int64_t resultPosition{0};
@@ -205,6 +220,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetPosition)
     EXPECT_EQ(kPosition, resultPosition);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldRenderFrame)
 {
     EXPECT_CALL(*m_mediaPipelineMock, renderFrame()).WillOnce(Return(true));
@@ -213,6 +229,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldRenderFrame)
     EXPECT_TRUE(m_sut.renderFrame());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetVolume)
 {
     EXPECT_CALL(*m_mediaPipelineMock, setVolume(kVolume, kVolumeDuration, kEaseType)).WillOnce(Return(true));
@@ -221,6 +238,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetVolume)
     EXPECT_TRUE(m_sut.setVolume(kVolume, kVolumeDuration, kEaseType));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldGetVolume)
 {
     double volume{0.0};
@@ -231,6 +249,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetVolume)
     EXPECT_EQ(kVolume, volume);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetMute)
 {
     constexpr int32_t kSourceId{12};
@@ -240,6 +259,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetMute)
     EXPECT_TRUE(m_sut.setMute(kMute, kSourceId));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldGetMute)
 {
     constexpr int32_t kSourceId{12};
@@ -251,6 +271,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetMute)
     EXPECT_EQ(kMute, mute);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
 {
     constexpr int32_t kSourceId{12};
@@ -262,6 +283,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
     EXPECT_TRUE(m_sut.flush(kSourceId, kResetTime, async));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
 {
     constexpr int32_t kSourceId{12};
@@ -276,6 +298,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetSourcePosition)
     EXPECT_TRUE(m_sut.setSourcePosition(kSourceId, kPosition, kResetTime, kAppliedRate, kStopPosition));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldProcessAudioGap)
 {
     constexpr int64_t kPosition{34};
@@ -290,6 +313,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldProcessAudioGap)
     EXPECT_TRUE(m_sut.processAudioGap(kPosition, kDuration, kDiscontinuityGap, kAudioAac));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetBufferingLimit)
 {
     constexpr uint32_t kBufferingLimit{123};
@@ -299,6 +323,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetBufferingLimit)
     EXPECT_TRUE(m_sut.setBufferingLimit(kBufferingLimit));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldGetBufferingLimit)
 {
     constexpr uint32_t kBufferingLimit{123};
@@ -310,6 +335,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetBufferingLimit)
     EXPECT_EQ(kBufferingLimit, bufferingLimit);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSetUseBuffering)
 {
     constexpr bool kUseBuffering{true};
@@ -319,6 +345,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSetUseBuffering)
     EXPECT_TRUE(m_sut.setUseBuffering(kUseBuffering));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldGetUseBuffering)
 {
     constexpr bool kUseBuffering{true};
@@ -330,6 +357,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetUseBuffering)
     EXPECT_EQ(kUseBuffering, useBuffering);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
 {
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSourceAudio{
@@ -340,6 +368,7 @@ TEST_F(MediaPlayerClientBackendTests, ShouldSwitchSource)
     EXPECT_TRUE(m_sut.switchSource(mediaSourceAudio));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerClientBackendTests, ShouldGetDuration)
 {
     int64_t resultDuration{0};

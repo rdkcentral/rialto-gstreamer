@@ -53,6 +53,7 @@ protected:
     rialto::MessageQueue m_sut;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldStartAndStop)
 {
     m_sut.start();
@@ -60,18 +61,21 @@ TEST_F(MessageQueueTests, ShouldStartAndStop)
     m_sut.stop();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldSkipStartingTwice)
 {
     m_sut.start();
     m_sut.start();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldFailToPostMessageWhenNotRunning)
 {
     std::shared_ptr<Message> msg;
     EXPECT_FALSE(m_sut.postMessage(msg));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldPostMessage)
 {
     std::mutex mtx;
@@ -85,11 +89,13 @@ TEST_F(MessageQueueTests, ShouldPostMessage)
     EXPECT_TRUE(callFlag);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldFailToCallInEventLoopWhenNotRunning)
 {
     EXPECT_FALSE(m_sut.callInEventLoop([]() {}));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldCallInEventLoop)
 {
     std::mutex mtx;
@@ -108,6 +114,7 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoop)
     EXPECT_TRUE(callFlag);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
 {
     std::mutex mtx;
@@ -126,6 +133,7 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
     EXPECT_TRUE(callFlag);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, ShouldDropTaskWhenCallInEventLoopIsCalledAfterStop)
 {
     std::atomic_bool t1TaskExecuted{false};
@@ -164,6 +172,7 @@ TEST_F(MessageQueueTests, ShouldDropTaskWhenCallInEventLoopIsCalledAfterStop)
     EXPECT_FALSE(t3TaskExecuted);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, StopCalledInWorkerThread)
 {
     m_sut.start();
@@ -171,6 +180,7 @@ TEST_F(MessageQueueTests, StopCalledInWorkerThread)
     EXPECT_TRUE(m_sut.callInEventLoop([&]() { m_sut.stop(); }));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MessageQueueTests, StopCalledInWorkerThreadWhenPreviousTaskIsRunning)
 {
     std::mutex mtx;

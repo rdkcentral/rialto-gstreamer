@@ -46,6 +46,7 @@ protected:
     FlushAndDataSynchronizer m_sut;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(FlushAndDataSynchronizerTests, ShouldAllowToFlushBothSources)
 {
     m_sut.waitIfRequired(kAudioSourceId);
@@ -54,6 +55,7 @@ TEST_F(FlushAndDataSynchronizerTests, ShouldAllowToFlushBothSources)
     m_sut.notifyFlushStarted(kVideoSourceId);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForPreviousFlushCompletion)
 {
     std::mutex mutex;
@@ -82,6 +84,7 @@ TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForPreviousFlushCompletion)
     waitingThread.join();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(FlushAndDataSynchronizerTests, SecondReceivedDataShouldNotMessUpTheStateIfPushedEarlier)
 {
     m_sut.waitIfRequired(kAudioSourceId);
@@ -95,6 +98,7 @@ TEST_F(FlushAndDataSynchronizerTests, SecondReceivedDataShouldNotMessUpTheStateI
     m_sut.waitIfRequired(kAudioSourceId);     // should not block
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForDataPush)
 {
     std::mutex mutex;
@@ -125,6 +129,7 @@ TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForDataPush)
     waitingThread.join();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForDataPushOfSecondSource)
 {
     std::mutex mutex;

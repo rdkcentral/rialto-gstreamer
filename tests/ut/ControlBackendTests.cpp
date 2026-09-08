@@ -56,12 +56,14 @@ public:
 protected:
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldFailToStartWhenControlIsNull)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(nullptr));
     m_sut = std::make_unique<ControlBackend>();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldFailToStartWhenRegisterClientFails)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -69,6 +71,7 @@ TEST_F(ControlBackendTests, ShouldFailToStartWhenRegisterClientFails)
     m_sut = std::make_unique<ControlBackend>();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetDuringInitialisation)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -78,6 +81,7 @@ TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetDur
     EXPECT_TRUE(m_sut->waitForRunning());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetEarlier)
 {
     std::weak_ptr<IControlClient> weakClient;
@@ -91,6 +95,7 @@ TEST_F(ControlBackendTests, ShouldSkipWaitingForRunningWhenRunningStateWasSetEar
     EXPECT_TRUE(m_sut->waitForRunning());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldFailToWaitForRunning)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -100,6 +105,7 @@ TEST_F(ControlBackendTests, ShouldFailToWaitForRunning)
     EXPECT_FALSE(m_sut->waitForRunning());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldRemoveControlBackend)
 {
     EXPECT_CALL(*m_controlFactoryMock, createControl()).WillOnce(Return(m_controlMock));
@@ -109,6 +115,7 @@ TEST_F(ControlBackendTests, ShouldRemoveControlBackend)
     m_sut->removeControlBackend();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldForwardApplicationStateToExternalControlClient)
 {
     std::weak_ptr<IControlClient> weakClient;
@@ -125,6 +132,7 @@ TEST_F(ControlBackendTests, ShouldForwardApplicationStateToExternalControlClient
     client->notifyApplicationState(ApplicationState::UNKNOWN);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldForwardRunningStateToExternalControlClient)
 {
     std::weak_ptr<IControlClient> weakClient;
@@ -141,6 +149,7 @@ TEST_F(ControlBackendTests, ShouldForwardRunningStateToExternalControlClient)
     client->notifyApplicationState(ApplicationState::RUNNING);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(ControlBackendTests, ShouldHandleStateNotificationWhenExternalControlClientIsMissing)
 {
     std::weak_ptr<IControlClient> weakClient;

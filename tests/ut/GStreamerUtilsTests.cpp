@@ -26,6 +26,7 @@ namespace
 const std::vector<uint8_t> kData{1, 2, 3, 4};
 } // namespace
 
+// cppcheck-suppress unusedFunction
 TEST(GstMappedBufferTests, ShouldMapBuffer)
 {
     GstBuffer *buffer{gst_buffer_new_allocate(nullptr, kData.size(), nullptr)};
@@ -40,6 +41,7 @@ TEST(GstMappedBufferTests, ShouldMapBuffer)
     gst_buffer_unref(buffer);
 }
 
+// cppcheck-suppress unusedFunction
 TEST(GstMappedBufferTests, ShouldFailToMapBuffer)
 {
     GstBuffer buffer{};

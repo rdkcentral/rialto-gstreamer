@@ -505,6 +505,7 @@ void RialtoGstTest::expectSinksInitialisation() const
     // Return new capabilities mocks for video and audio sinks during class_init
     // Client factory createMediaCapabilities() takes NO parameters
     EXPECT_CALL(*newCapabilitiesFactoryMock, createMediaCapabilities())
+        // cppcheck-suppress accessMoved ; each mock is moved exactly once into its own WillOnce()
         .WillOnce(Return(ByMove(std::move(newCapabilitiesMockVideo))))
         .WillOnce(Return(ByMove(std::move(newCapabilitiesMockAudio))));
 
@@ -540,7 +541,9 @@ void RialtoGstTest::expectSinksInitialisation() const
     ASSERT_TRUE(capabilitiesFactoryMock);
     // Legacy factory returns for backwards compatibility (though sinks prefer new capabilities)
     EXPECT_CALL(*capabilitiesFactoryMock, createMediaPipelineCapabilities())
+        // cppcheck-suppress accessMoved ; each mock is moved exactly once into its own WillOnce()
         .WillOnce(Return(ByMove(std::move(capabilitiesMockVideo))))
+        // cppcheck-suppress accessMoved ; each mock is moved exactly once into its own WillOnce()
         .WillOnce(Return(ByMove(std::move(capabilitiesMockAudio))))
         .WillOnce(Return(ByMove(std::move(capabilitiesMockSubtitles))));
 }

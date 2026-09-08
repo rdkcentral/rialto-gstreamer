@@ -47,16 +47,19 @@ public:
     MediaPlayerManager m_sut;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldFailToGetMediaPlayerClientWhenItsNotAttached)
 {
     EXPECT_FALSE(m_sut.getMediaPlayerClient());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldNotHaveControlWhenClientIsNotAttached)
 {
     EXPECT_FALSE(m_sut.hasControl());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClient)
 {
     EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
@@ -68,12 +71,14 @@ TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClient)
     m_sut.releaseMediaPlayerClient();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldFailToAttachMediaPlayerClient)
 {
     EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _)).WillOnce(Return(nullptr));
     EXPECT_FALSE(m_sut.attachMediaPlayerClient(&m_object, kMaxVideoWidth, kMaxVideoHeight));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClientForAnotherGstObject)
 {
     // Create first object
@@ -97,6 +102,7 @@ TEST_F(MediaPlayerManagerTests, ShouldAttachAndReleaseMediaPlayerClientForAnothe
     m_sut.releaseMediaPlayerClient();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
 {
     EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
@@ -109,6 +115,7 @@ TEST_F(MediaPlayerManagerTests, ShouldHaveControl)
     m_sut.releaseMediaPlayerClient();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachAndReleaseMediaPlayerClient)
 {
     EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
@@ -123,6 +130,7 @@ TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldAttachAndReleaseMe
     secondSut.releaseMediaPlayerClient();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldFailToAcquireControl)
 {
     EXPECT_CALL(*m_mediaPipelineMockPtr, load(_, _, _, _)).WillOnce(Return(true));
@@ -139,6 +147,7 @@ TEST_F(MediaPlayerManagerTests, SecondMediaPlayerManagerShouldFailToAcquireContr
     secondSut.releaseMediaPlayerClient();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(MediaPlayerManagerTests, ShouldAcquireControl)
 {
     {

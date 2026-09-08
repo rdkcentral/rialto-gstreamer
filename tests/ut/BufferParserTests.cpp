@@ -105,6 +105,7 @@ private:
     }
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
 {
     AudioBufferParser parser;
@@ -133,6 +134,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferCenc)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
 {
     AudioBufferParser parser;
@@ -145,7 +147,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::AUDIO);
     gst_caps_unref(caps);
 }
-
+// cppcheck-suppress unusedFunction// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
 {
     AudioBufferParser parser;
@@ -163,6 +165,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
     gst_buffer_unref(codecDataBuf);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBufferInvalidBufferCodecData)
 {
     AudioBufferParser parser;
@@ -175,6 +178,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferInvalidBufferCodecData)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBuffeWithClippingMeta)
 {
     uint64_t start{1024};
@@ -194,6 +198,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBuffeWithClippingMeta)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
 {
     AudioBufferParser parser;
@@ -209,6 +214,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferStringCodecData)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseVideoBuffer)
 {
     VideoBufferParser parser;
@@ -234,6 +240,7 @@ TEST_F(BufferParserTests, ShouldParseVideoBuffer)
     gst_caps_unref(caps);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseSubtitleBuffer)
 {
     SubtitleBufferParser parser;

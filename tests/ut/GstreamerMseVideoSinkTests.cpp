@@ -59,6 +59,7 @@ public:
     }
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToReachPausedStateWhenMediaPipelineCantBeCreated)
 {
     constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
@@ -72,6 +73,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToReachPausedStateWhenMediaPipeline
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotHandleUnknownEvent)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -87,6 +89,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotHandleUnknownEvent)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -104,6 +107,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceWhenPipelineIsBelowPause
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH264)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -122,6 +126,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH264)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedImmediateOutput)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -145,6 +150,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedImmediateOutput)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetImmediateOutputProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -165,6 +171,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetImmediateOutputProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedReportDecodeErrors)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -188,6 +195,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedReportDecodeErrors)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetReportDecodeErrorsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -208,6 +216,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetReportDecodeErrorsProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsPropertyDueToPipelinedFailure)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -228,6 +237,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsPropertyDueT
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -239,6 +249,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetReportDecodeErrorsProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetImmediateOutputPropertyDueToPipelinedFailure)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -259,6 +270,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetImmediateOutputPropertyDueToPi
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetImmediateOutputProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -270,6 +282,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetImmediateOutputProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetImmediateOutputProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -292,6 +305,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetImmediateOutputProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetImmediateOutputPropertyDueToPipelinedFailure)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -314,6 +328,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetImmediateOutputPropertyDueToPi
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetImmediateOutputProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -326,6 +341,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetImmediateOutputProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetVideoPtsProperty)
 {
     constexpr gint64 kPosition{2500000000};
@@ -352,6 +368,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetVideoPtsProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetVideoPtsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -363,6 +380,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetVideoPtsProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetQueuedFramesProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -385,6 +403,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetQueuedFramesProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesPropertyDueToPipelinedFailure)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -407,6 +426,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesPropertyDueToPipel
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -419,6 +439,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetQueuedFramesProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetStreamSyncModePropertyOnRialtoFailure)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -433,6 +454,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetStreamSyncModePropertyOnRialto
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetStreamSyncMode)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -445,6 +467,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetStreamSyncMode)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedStreamSyncMode)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -468,6 +491,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedStreamSyncMode)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailure)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -493,6 +517,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetCachedStreamSyncModeOnRialtoFailu
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetShowVideoWindow)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -506,6 +531,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetShowVideoWindow)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedShowVideoWindow)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -529,6 +555,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedShowVideoWindow)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -548,6 +575,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithVp9)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -567,6 +595,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithVp9)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH265)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -587,6 +616,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithH265)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithDolbyVision)
 {
     constexpr unsigned kDvProfile{123};
@@ -610,6 +640,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldAttachSourceWithDolbyVision)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldReachPausedState)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -632,6 +663,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldReachPausedState)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetRectanglePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -644,6 +676,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetRectanglePropertyWhenPipelineI
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetRectangleProperty)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -658,6 +691,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetRectangleProperty)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoWidthProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -672,6 +706,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoWidthProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoHeightProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -686,6 +721,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoHeightProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoWidthPropertyDeprecated)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -700,6 +736,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoWidthPropertyDeprecate
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoHeightPropertyDeprecated)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -714,6 +751,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetMaxVideoHeightPropertyDeprecat
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetFrameStepOnPrerollProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -728,6 +766,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetFrameStepOnPrerollProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -745,6 +784,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenPipelineI
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenStringIsNotValid)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -755,6 +795,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetRectanglePropertyWhenStringIsN
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetRectangleProperty)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -772,6 +813,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetRectangleProperty)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedRectangleProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -793,6 +835,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetQueuedRectangleProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetFrameStepOnPrerollPropertyWhenPipelineIsBelowPausedState)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -803,6 +846,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetFrameStepOnPrerollPropertyWhen
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSetFrameStepOnPrerollProperty)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -814,6 +858,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetFrameStepOnPrerollProperty)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotRenderFrameTwice)
 {
     TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
@@ -826,6 +871,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotRenderFrameTwice)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterPropertyFromMediaPipelineCapabilities)
 {
     constexpr bool kIsMaster{false};
@@ -848,6 +894,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetIsMasterPropertyFromMediaPipelineCap
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetOrSetUnknownProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -867,6 +914,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetOrSetUnknownProperty)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseVideoSinkTests, ShouldSendQosEvent)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();

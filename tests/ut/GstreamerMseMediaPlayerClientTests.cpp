@@ -159,15 +159,14 @@ public:
 
     void attachAudioVideo()
     {
-        constexpr int32_t kVideoStreams{1};
         constexpr int32_t kAudioStreams{1};
+        constexpr int32_t kVideoStreams{1};
         constexpr int32_t kTextStreams{0};
         expectCallInEventLoop();
         m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kTextStreams);
 
         EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
 
-        m_audioSink = createAudioSink();
         bufferPullerWillBeCreated();
         m_audioSourceId = attachSource(m_audioSink, firebolt::rialto::MediaSourceType::AUDIO);
 
@@ -225,14 +224,13 @@ public:
 
     StrictMock<MessageQueueMock> &bufferPullerWillBeCreated()
     {
-        std::unique_ptr<StrictMock<MessageQueueMock>> bufferPullerMessageQueue{
-            std::make_unique<StrictMock<MessageQueueMock>>()};
-        StrictMock<MessageQueueMock> &result{*bufferPullerMessageQueue};
-        EXPECT_CALL(*bufferPullerMessageQueue, start());
-        EXPECT_CALL(*bufferPullerMessageQueue, stop());
+        m_bufferPullerMessageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+        StrictMock<MessageQueueMock> &bufferPullerMsgQueueRef = *m_bufferPullerMessageQueue;
+        EXPECT_CALL(bufferPullerMsgQueueRef, start());
+        EXPECT_CALL(bufferPullerMsgQueueRef, stop());
         EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue())
-            .WillOnce(Return(ByMove(std::move(bufferPullerMessageQueue))));
-        return result;
+            .WillOnce(Return(ByMove(std::move(m_bufferPullerMessageQueue))));
+        return bufferPullerMsgQueueRef;
     }
 
     RialtoMSEBaseSink *createSinkWithMockedDelegate()
@@ -249,6 +247,7 @@ public:
         std::make_shared<StrictMock<MessageQueueFactoryMock>>()};
     std::unique_ptr<StrictMock<MessageQueueMock>> m_messageQueue{std::make_unique<StrictMock<MessageQueueMock>>()};
     StrictMock<MessageQueueMock> &m_messageQueueMock{*m_messageQueue};
+    std::unique_ptr<StrictMock<MessageQueueMock>> m_bufferPullerMessageQueue;
     std::shared_ptr<StrictMock<PullModePlaybackDelegateMock>> m_delegateMock{
         std::make_shared<StrictMock<PullModePlaybackDelegateMock>>()};
     std::shared_ptr<GStreamerMSEMediaPlayerClient> m_sut;
@@ -260,6 +259,7 @@ protected:
     RialtoMSEBaseSink *m_videoSink{nullptr};
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDestroyBackend)
 {
     expectCallInEventLoop();
@@ -267,6 +267,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDestroyBackend)
     EXPECT_FALSE(m_sut->createBackend()); // Operation should fail when client backend is null
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDuration)
 {
     EXPECT_CALL(m_messageQueueMock, postMessage(_))
@@ -279,6 +280,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDuration)
     m_sut->notifyDuration(kDuration);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -292,17 +294,20 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPosition)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNativeSize)
 {
     constexpr double kAspect{0.0};
     m_sut->notifyNativeSize(kMaxVideoWidth, kMaxVideoHeight, kAspect);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNetworkState)
 {
     m_sut->notifyNetworkState(firebolt::rialto::NetworkState::STALLED);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackStateStopped)
 {
     expectPostMessage();
@@ -310,6 +315,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackStateStopped)
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::STOPPED);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePausedWhenNextStateIsWrong)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -328,6 +334,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePaused
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePlayingWhenNextStateIsWrong)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -346,6 +353,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackStatePlayin
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldHandleEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -360,6 +368,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldHandleEos)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveUnexpectedSeekDoneMessage)
 {
     expectPostMessage();
@@ -367,6 +376,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveUnexpectedSeekDoneMessag
     m_sut->notifyPlaybackState(firebolt::rialto::PlaybackState::SEEK_DONE);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -382,18 +392,21 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldReceiveFailureMessage)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyVideoData)
 {
     constexpr bool kHasData{true};
     m_sut->notifyVideoData(kHasData);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyAudioData)
 {
     constexpr bool kHasData{true};
     m_sut->notifyAudioData(kHasData);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenSourceIsIsNotKnown)
 {
     expectCallInEventLoop();
@@ -401,6 +414,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenSo
     m_sut->notifyNeedMediaData(kUnknownSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenBufferPullerFails)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -418,6 +432,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenBu
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSamplesAvailable)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -445,6 +460,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSample
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSamplesAvailableWhenNotReadyToSendData)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -470,6 +486,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSample
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -497,6 +514,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEos)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEmptySample)
 {
     RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
@@ -525,6 +543,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithEmptySam
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
 {
     RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
@@ -560,6 +579,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpace)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaData)
 {
     RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
@@ -595,6 +615,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaData)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpaceForSamples)
 {
     constexpr int32_t kBiggerFrameCount{2};
@@ -633,6 +654,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNeedMediaDataWithNoSpaceF
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyQosWhenSourceIdIsNotKnown)
 {
     expectPostMessage();
@@ -641,6 +663,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyQosWhenSourceIdIsNo
     m_sut->notifyQos(kUnknownSourceId, kQosInfo);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyQos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -657,6 +680,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyQos)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyBufferUnderflow)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -675,6 +699,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyBufferUnderflow)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
@@ -682,6 +707,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyBufferUnderflowWhen
     m_sut->notifyBufferUnderflow(kUnknownSourceId);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstFrameReceived)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -700,6 +726,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstFrameReceived)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstAudioFrameReceived)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -718,6 +745,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyFirstAudioFrameReceived)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyFirstFrameReceivedWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
@@ -725,6 +753,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyFirstFrameReceivedW
     m_sut->notifyFirstFrameReceived(kUnknownSourceId);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDecryptionPlaybackError)
 {
     RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
@@ -741,6 +770,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyDecryptionPlaybackError)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyUnknownPlaybackError)
 {
     RialtoMSEBaseSink *audioSink = createSinkWithMockedDelegate();
@@ -757,6 +787,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyUnknownPlaybackError)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostHdcpProtectionFailureApplicationMessage)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -790,6 +821,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostHdcpProtectionFailureApplic
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackErrorWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
@@ -797,6 +829,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackErrorWhenSo
     m_sut->notifyPlaybackError(kUnknownSourceId, firebolt::rialto::PlaybackError::DECRYPTION);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyOutputProtectionPlaybackErrorWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
@@ -804,6 +837,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyOutputProtectionPla
     m_sut->notifyPlaybackError(kUnknownSourceId, firebolt::rialto::PlaybackError::OUTPUT_PROTECTION);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -819,6 +853,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetPosition)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotHandlePositionInfoWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -846,6 +881,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotHandlePositionInfoWhenFlushi
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToCreateBackend)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
@@ -854,6 +890,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToCreateBackend)
     EXPECT_FALSE(m_sut->createBackend());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToLoad)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
@@ -863,6 +900,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToLoad)
     EXPECT_FALSE(m_sut->createBackend());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCreateBackend)
 {
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, createMediaPlayerBackend(_, kMaxVideoWidth, kMaxVideoHeight));
@@ -872,6 +910,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCreateBackend)
     EXPECT_TRUE(m_sut->createBackend());
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAttached)
 {
     expectCallInEventLoop();
@@ -879,6 +918,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAttached)
     m_sut->pause(0);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAttached)
 {
     expectCallInEventLoop();
@@ -886,6 +926,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAttached)
     m_sut->play(0);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlayWhenAllAttachedPlaying)
 {
     attachAudioVideo();
@@ -900,6 +941,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlayWhenAllAttachedPlaying)
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlaySynchronouslyWhenAllAttachedPlaying)
 {
     attachAudioVideo();
@@ -914,6 +956,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPlaySynchronouslyWhenAllAttache
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenServerAlreadyPlaying)
 {
     constexpr int kNumOfSources{2};
@@ -934,6 +977,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenServerAlreadyPla
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenAlreadyPaused)
 {
     constexpr int kNumOfSources{2};
@@ -955,6 +999,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenAlreadyPaused)
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenNotAllSourcesAttached)
 {
     constexpr int32_t kVideoStreams{1};
@@ -980,6 +1025,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPausedWhenNotAllSourcesA
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotOverwriteStreamCollectionSettings)
 {
     expectCallInEventLoop();
@@ -998,6 +1044,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotOverwriteStreamCollectionSet
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttachedWhenStopping)
 {
     expectCallInEventLoop();
@@ -1017,6 +1064,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttachedWhenSt
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttachedAfterStoppingReset)
 {
     expectCallInEventLoop();
@@ -1037,6 +1085,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttachedAfterStop
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAttached)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1064,6 +1113,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendPlayWhenNotAllSourcesAtt
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaitingForPaused)
 {
     attachAudioVideo();
@@ -1080,6 +1130,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitPlayNotificationWhenWaiting
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlaying)
 {
     attachAudioVideo();
@@ -1096,6 +1147,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenNotAllAttachedPlayin
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenClientNotInPaused)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1127,6 +1179,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPlayWhenClientNotInPaused)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenWaitingForPlaying)
 {
     attachAudioVideo();
@@ -1145,6 +1198,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenWaitingForPlaying)
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenPlaying)
 {
     attachAudioVideo();
@@ -1164,6 +1218,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenPlaying)
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenAllAttachedPaused)
 {
     attachAudioVideo();
@@ -1176,6 +1231,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseWhenAllAttachedPaused)
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAllAttachedPaused)
 {
     attachAudioVideo();
@@ -1191,6 +1247,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseWhenNotAllAttachedPause
     gst_object_unref(m_videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStop)
 {
     expectCallInEventLoop();
@@ -1198,6 +1255,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStop)
     m_sut->stop();
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyThatSourceFinishedFlushWhenSourceIdIsNotFound)
 {
     expectCallInEventLoop();
@@ -1205,6 +1263,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyThatSourceFinishedF
     m_sut->notifySourceFlushed(kUnknownSourceId);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1220,6 +1279,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlushWithoutPullingData)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1239,6 +1299,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFlush)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1253,6 +1314,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
 {
     expectCallInEventLoop();
@@ -1260,6 +1322,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
     m_sut->flush(0, kResetTime);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifySourceFlushedWhenSourceIsNotFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1275,6 +1338,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifySourceFlushedWhenSo
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1291,6 +1355,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSourcePosition)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1307,6 +1372,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetSourcePosition)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSourceIdIsNotFound)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1320,6 +1386,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSkipSetSourcePositionWhenSource
     gst_object_unref(audioSink);
 }
 //
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
 {
     constexpr uint32_t kAudioGapDuration{435345};
@@ -1331,6 +1398,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldProcessAudioGap)
     m_sut->processAudioGap(kPosition, kAudioGapDuration, kDiscontinuityGap, kAudioAac);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
 {
     constexpr uint32_t kAudioGapDuration{435345};
@@ -1343,6 +1411,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToProcessAudioGap)
 }
 
 //
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetPlaybackRate)
 {
     constexpr double kPlaybackRate{0.5};
@@ -1351,6 +1420,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetPlaybackRate)
     m_sut->setPlaybackRate(kPlaybackRate);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRemoveSource)
 {
     expectCallInEventLoop();
@@ -1358,6 +1428,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRemoveSource)
     m_sut->removeSource(kUnknownSourceId);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRemoveSource)
 {
     expectCallInEventLoop();
@@ -1365,6 +1436,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRemoveSource)
     m_sut->removeSource(kUnknownSourceId);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetVideoRectangleWhenBackendIsNotCreated)
 {
     const std::string kRectangleString{};
@@ -1373,6 +1445,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetVideoRectangleWhenBack
     m_sut->setVideoRectangle(kRectangleString);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetVideoRectangleWhenStringIsEmpty)
 {
     const std::string kRectangleString{};
@@ -1381,6 +1454,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetVideoRectangleWhenStri
     m_sut->setVideoRectangle(kRectangleString);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetVideoRectangleWhenStringIsInvalid)
 {
     const std::string kRectangleString{"invalid"};
@@ -1389,6 +1463,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetVideoRectangleWhenStri
     m_sut->setVideoRectangle(kRectangleString);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVideoRectangle)
 {
     constexpr int kX{1}, kY{2}, kWidth{3}, kHeight{4};
@@ -1400,6 +1475,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVideoRectangle)
     m_sut->setVideoRectangle(kRectangleString);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVideoRectangle)
 {
     constexpr int kX{1}, kY{2}, kWidth{3}, kHeight{4};
@@ -1412,6 +1488,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVideoRectangle)
     EXPECT_EQ(m_sut->getVideoRectangle(), kRectangleString);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1426,6 +1503,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToRenderFrame)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1452,6 +1530,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRenderFrame)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
 {
     expectCallInEventLoop();
@@ -1459,6 +1538,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetVolume)
     m_sut->setVolume(kVolume, kVolumeDuration, kEaseType);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetCachedVolume)
 {
     double volume{0.0};
@@ -1476,6 +1556,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetCachedVolume)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
 {
     double volume{0.0};
@@ -1494,6 +1575,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetVolume)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1508,6 +1590,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1523,6 +1606,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetReportDecodeErrors)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -1538,6 +1622,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetReportDecodeErrors)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetReportDecodeErrorsIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1554,6 +1639,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetReportDecodeErrorsIfNoCli
     EXPECT_FALSE(m_sut->setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetImmediateOutput)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1568,6 +1654,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetImmediateOutput)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetImmediateOutputIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1584,6 +1671,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetImmediateOutputIfNoClient
     EXPECT_FALSE(m_sut->setImmediateOutput(kAudioSourceId, kImmediateOutput));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetImmediateOutput)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1602,6 +1690,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetImmediateOutput)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetImmediateOutputIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1619,6 +1708,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetImmediateOutputIfNoClient
     EXPECT_FALSE(m_sut->getImmediateOutput(kAudioSourceId, immediateOutput));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetQueuedFrames)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -1637,6 +1727,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetQueuedFrames)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetQueuedFramesIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1654,6 +1745,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetQueuedFramesIfNoClientBac
     EXPECT_FALSE(m_sut->getQueuedFrames(kVideoSourceId, queuedFrames));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetLowLatency)
 {
     expectCallInEventLoop();
@@ -1661,6 +1753,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetLowLatency)
     EXPECT_TRUE(m_sut->setLowLatency(kLowLatency));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetLowLatencyIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1676,6 +1769,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetLowLatencyIfNoClientBacke
     EXPECT_FALSE(m_sut->setLowLatency(kLowLatency));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSync)
 {
     expectCallInEventLoop();
@@ -1683,6 +1777,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSync)
     EXPECT_TRUE(m_sut->setSync(kSync));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1698,6 +1793,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncIfNoClientBackend)
     EXPECT_FALSE(m_sut->setSync(kSync));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetSync)
 {
     expectCallInEventLoop();
@@ -1708,6 +1804,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetSync)
     EXPECT_EQ(sync, kSync);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetSyncIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1724,6 +1821,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetSyncIfNoClientBackend)
     EXPECT_FALSE(m_sut->getSync(sync));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSyncOff)
 {
     expectCallInEventLoop();
@@ -1731,6 +1829,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSyncOff)
     EXPECT_TRUE(m_sut->setSyncOff(kSyncOff));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncOffIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1746,6 +1845,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetSyncOffIfNoClientBackend)
     EXPECT_FALSE(m_sut->setSyncOff(kSyncOff));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetStreamSyncMode)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1760,6 +1860,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetStreamSyncMode)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1775,6 +1876,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetStreamSyncModeIfNoClientB
     EXPECT_FALSE(m_sut->setStreamSyncMode(kUnknownSourceId, kStreamSyncMode));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetStreamSyncMode)
 {
     expectCallInEventLoop();
@@ -1786,6 +1888,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetStreamSyncMode)
     EXPECT_EQ(streamSyncMode, kStreamSyncMode);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetStreamSyncModeIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved
@@ -1802,6 +1905,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetStreamSyncModeIfNoClientB
     EXPECT_FALSE(m_sut->getStreamSyncMode(streamSyncMode));
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreams)
 {
     constexpr int32_t kVideoStreams{-1};
@@ -1811,6 +1915,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreams)
     m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kTextStreams);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreamsOnly)
 {
     constexpr int32_t kVideoStreams{0};
@@ -1820,6 +1925,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetAudioStreamsOnly)
     m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kTextStreams);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAddSegment)
 {
     constexpr auto kStatus{firebolt::rialto::AddSegmentStatus::OK};
@@ -1831,6 +1937,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAddSegment)
     m_sut->addSegment(kNeedDataRequestId, mediaSegment);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToAttachSourceWhenMediaTypeIsUnknown)
 {
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSource{
@@ -1844,6 +1951,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToAttachSourceWhenMediaType
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToAttachSourceWhenOperationFails)
 {
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSource{
@@ -1858,6 +1966,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToAttachSourceWhenOperation
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAudioSource)
 {
     RialtoMSEBaseSink *sink = createAudioSink();
@@ -1868,6 +1977,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAudioSource)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachVideoSource)
 {
     RialtoMSEBaseSink *sink = createVideoSink();
@@ -1877,6 +1987,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachVideoSource)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachSubtitleSource)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -1886,6 +1997,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachSubtitleSource)
     gst_object_unref(sink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1907,6 +2019,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
     gst_object_unref(videoSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttached)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1920,6 +2033,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttached)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
 {
     constexpr int kAudioStreams{1}, kVideoStreams{0}, kSubtitleStreams{0};
@@ -1942,6 +2056,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSendAllSourcesAttached)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetTextTrackIdentifier)
 {
     expectCallInEventLoop();
@@ -1949,6 +2064,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetTextTrackIdentifier)
     m_sut->setTextTrackIdentifier(kTextTrackIdentifier);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetTextTrackIdentifier)
 {
     expectCallInEventLoop();
@@ -1957,6 +2073,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetTextTrackIdentifier)
     EXPECT_EQ(m_sut->getTextTrackIdentifier(), kTextTrackIdentifier);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetBufferingLimit)
 {
     expectCallInEventLoop();
@@ -1964,6 +2081,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetBufferingLimit)
     m_sut->setBufferingLimit(kBufferingLimit);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetBufferingLimit)
 {
     expectCallInEventLoop();
@@ -1972,6 +2090,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetBufferingLimit)
     EXPECT_EQ(m_sut->getBufferingLimit(), kBufferingLimit);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetUseBuffering)
 {
     expectCallInEventLoop();
@@ -1979,6 +2098,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetUseBuffering)
     m_sut->setUseBuffering(kUseBuffering);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetUseBuffering)
 {
     expectCallInEventLoop();
@@ -1987,6 +2107,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetUseBuffering)
     EXPECT_EQ(m_sut->getUseBuffering(), kUseBuffering);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSwitchSource)
 {
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSource{
@@ -1996,6 +2117,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSwitchSource)
     m_sut->switchSource(mediaSource);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetDuration)
 {
     expectCallInEventLoop();
@@ -2005,6 +2127,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetDuration)
     EXPECT_EQ(duration, kDuration);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToGetDurationIfNoClientBackend)
 {
     // Need to create a new message queue as it has been moved

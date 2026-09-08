@@ -106,6 +106,7 @@ public:
     ~GstreamerMseBaseSinkTests() override = default;
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchAudioSinkToPausedWithAVStreamsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -130,6 +131,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchAudioSinkToPausedWithAVStreamsProp
     gst_object_unref(playbin);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchVideoSinkToPausedWithAVStreamsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
@@ -154,6 +156,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSwitchVideoSinkToPausedWithAVStreamsProp
     gst_object_unref(playbin);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldReachPlayingState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -180,6 +183,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldReachPlayingState)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -209,6 +213,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendEos)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSendErrorWhenEosIsReportedInWrongState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -230,6 +235,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendErrorWhenEosIsReportedInWrongState)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSendQos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -262,6 +268,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSendQos)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSkipSendingEosWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -295,6 +302,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSkipSendingEosWhenFlushing)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -318,6 +326,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -331,6 +340,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldPostErrorWhenControlReportsUnknownApplicationState)
 {
     std::weak_ptr<firebolt::rialto::IControlClient> weakControlClient;
@@ -368,6 +378,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostErrorWhenControlReportsUnknownApplic
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldNotPostErrorWhenControlReportsRunningApplicationState)
 {
     std::weak_ptr<firebolt::rialto::IControlClient> weakControlClient;
@@ -391,6 +402,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotPostErrorWhenControlReportsRunningApp
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetLastSample)
 {
     gboolean enabled{FALSE};
@@ -444,6 +456,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetLastSample)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetIsSinglePathStreamProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -457,6 +470,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetIsSinglePathStreamProperty)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetStreamsNumberProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -470,6 +484,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetStreamsNumberProperty)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetHasDrmProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -483,6 +498,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetAndGetHasDrmProperty)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySeeking)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -493,6 +509,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySeeking)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldReportNotSeekableWhenNoUpstreamIsLinked)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -514,6 +531,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldReportNotSeekableWhenNoUpstreamIsLinked)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldForwardSeekingQueryToSeekableUpstream)
 {
     constexpr gint64 kSeekStart{0};
@@ -546,6 +564,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldForwardSeekingQueryToSeekableUpstream)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldReportNotSeekableWhenUpstreamDeclinesSeekingQuery)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -567,6 +586,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldReportNotSeekableWhenUpstreamDeclinesSee
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldForwardNotSeekableAnswerFromUpstream)
 {
     constexpr gint64 kSeekStart{5};
@@ -597,6 +617,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldForwardNotSeekableAnswerFromUpstream)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPipelineIsBelowPaused)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -606,6 +627,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPipelineIsBelowPa
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -621,6 +643,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenSourceNotAttached
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid)
 {
     constexpr gint64 kInvalidPosition{-1};
@@ -643,6 +666,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenPositionIsInvalid
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -697,6 +721,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryPositionWhenFlushing)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQueryPosition)
 {
     constexpr gint64 kPosition{1234};
@@ -720,6 +745,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryPosition)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSkipQueryingPositionWithInvalidFormat)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -740,6 +766,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSkipQueryingPositionWithInvalidFormat)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenFlagIsWrong)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -751,6 +778,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenFlagIsWrong)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongFormat)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -762,6 +790,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongFormat)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongSeekType)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -773,6 +802,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongSeekType)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithSeekTypeEnd)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -784,6 +814,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithSeekTypeEnd)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongPosition)
 {
     constexpr gint64 kWrongStart{-1};
@@ -796,6 +827,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWithWrongPosition)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -806,6 +838,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekBelowPausedState)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFails)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -817,6 +850,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFails)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsWithAttachedSource)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -831,6 +865,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsWithAttachedSourceInPlayingState)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -851,6 +886,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToSeekWhenSendingUpstreamEventFailsW
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySegmentAfterSeek)
 {
     TestContext textContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -941,6 +977,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSkipHandlingInstantRateChangeWhenCurrent
 }
 #endif
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldDiscardBufferInChainFunctionWhenFlushing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -957,6 +994,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldDiscardBufferInChainFunctionWhenFlushing
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAddBufferInChainFunction)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -968,6 +1006,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAddBufferInChainFunction)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1025,6 +1064,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldWaitAndAddBufferInChainFunction)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleNewSegment)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1040,6 +1080,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleNewSegment)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
 {
     constexpr guint64 kPosition{1234};
@@ -1083,6 +1124,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePosition)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySegmentAfterSetSourcePosition)
 {
     constexpr guint64 kPosition{1234};
@@ -1140,6 +1182,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQuerySegmentAfterSetSourcePosition)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithResetTime)
 {
     constexpr guint64 kPosition{1234};
@@ -1183,6 +1226,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithResetTime)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRate)
 {
     constexpr guint64 kPosition{1234};
@@ -1227,6 +1271,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetSourcePositionWithNonDefaultAppliedRa
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1237,6 +1282,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleEos)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCapsEvent)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1260,6 +1306,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCapsEvent)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSinkMessage)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1289,6 +1336,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSinkMessage)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCustomDownstreamMessage)
 {
     GstStructure *structure{
@@ -1303,6 +1351,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCustomDownstreamMessage)
     gst_object_unref(textContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCustomDownstreamMessageWithoutChangingPlaybackRateWhenBelowPaused)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1316,6 +1365,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleCustomDownstreamMessageWithoutChan
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1342,6 +1392,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStart)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEos)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1380,6 +1431,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEos)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEosWithoutClient)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1393,6 +1445,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStartWithEosWithoutClient)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopBelowPausedState)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1413,6 +1466,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopBelowPausedState)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopWithoutAttachedSource)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1437,6 +1491,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStopWithoutAttachedSource)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1493,6 +1548,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleFlushStop)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSecondFlushStopAfterFirstFlushStopIsCompleted)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1574,6 +1630,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleSecondFlushStopAfterFirstFlushStop
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithBufferCodecData)
 {
     const std::vector<uint8_t> kCodecDataVec{1, 2, 3, 4};
@@ -1607,6 +1664,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithBufferCodecData)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithCodecDataString)
 {
     const std::string kCodecDataStr{"abcd"};
@@ -1638,6 +1696,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithCodecDataString)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithRawStreamFormat)
 {
     const std::string kStreamFormat{"raw"};
@@ -1663,6 +1722,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithRawStreamFormat)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAvcStreamFormat)
 {
     const std::string kStreamFormat{"avc"};
@@ -1688,6 +1748,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAvcStreamFormat)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithByteStreamStreamFormat)
 {
     const std::string kStreamFormat{"byte-stream"};
@@ -1713,6 +1774,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithByteStreamStreamFormat)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHvcStreamFormat)
 {
     const std::string kStreamFormat{"hvc1"};
@@ -1742,6 +1804,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHvcStreamFormat)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHevStreamFormat)
 {
     const std::string kStreamFormat{"hev1"};
@@ -1771,6 +1834,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithHevStreamFormat)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAuSegmentAlignment)
 {
     const std::string kAlignment{"au"};
@@ -1794,6 +1858,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithAuSegmentAlignment)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithNalSegmentAlignment)
 {
     const std::string kAlignment{"nal"};
@@ -1817,6 +1882,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldAttachSourceWithNalSegmentAlignment)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleSendEventWhenNotInitialised)
 {
     RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
@@ -1828,6 +1894,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleSendEventWhenNotInitialised)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
 {
     TestContext testContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -1858,6 +1925,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostDecryptError)
     gst_object_unref(testContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleEventWhenNotInitialised)
 {
     RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
@@ -1869,6 +1937,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleEventWhenNotInitialised)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1923,6 +1992,7 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
 {
     TestContext testContext = createPipelineWithAudioSinkAndSetToPaused();
@@ -1951,6 +2021,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldPostGenericError)
     gst_object_unref(testContext.m_pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleStreamCollectionEvent)
 {
     GstStreamCollection *streamCollection{gst_stream_collection_new("test_stream")};
@@ -1964,6 +2035,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToHandleStreamCollectionEvent)
     gst_object_unref(streamCollection);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEventAllAttached)
 {
     GstStreamCollection *streamCollection{gst_stream_collection_new("test_stream")};
@@ -1989,6 +2061,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEventAllAttached)
     gst_object_unref(streamCollection);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEventNotAllAttached)
 {
     GstStreamCollection *streamCollection{gst_stream_collection_new("test_stream")};
@@ -2012,6 +2085,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleStreamCollectionEventNotAllAttache
     gst_object_unref(streamCollection);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoAllAttached)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2038,6 +2112,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoAllAttached)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldSetEnableLiveLatencyProperty)
 {
     constexpr bool kEnableLiveLatency{true};
@@ -2066,6 +2141,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldSetEnableLiveLatencyProperty)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleDefaultStreamSetting)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2094,6 +2170,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleDefaultStreamSetting)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoNotAllAttached)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2115,6 +2192,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoNotAllAttache
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoStreamsNumberToBig)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2137,6 +2215,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldHandleGstContextStreamsInfoStreamsNumber
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToPullBufferWhenNotInitialised)
 {
     RialtoMSEBaseSink *audioSink = createAudioSinkWithoutDelegate();
@@ -2151,6 +2230,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToPullBufferWhenNotInitialised)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2210,6 +2290,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenPipelineIsBelowPaused)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2219,6 +2300,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenPipelineIsBelowPa
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDuration)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2239,6 +2321,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDuration)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDuration)
 {
     constexpr gint64 kDuration{1234};
@@ -2261,6 +2344,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDuration)
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenFormatIsNotTime)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2279,6 +2363,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenFormatIsNotTime)
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDurationFromUpstreamWhenUpstreamProvidesDuration)
 {
     constexpr gint64 kUpstreamDuration{3717183000000};
@@ -2299,6 +2384,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryDurationFromUpstreamWhenUpstreamPro
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldNotConsultServerDurationWhenUpstreamProvidesDuration)
 {
     constexpr gint64 kUpstreamDuration{3717183000000};
@@ -2327,6 +2413,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotConsultServerDurationWhenUpstreamProv
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToServerDurationWhenUpstreamDurationNotPositive)
 {
     constexpr gint64 kServerDuration{5000};
@@ -2356,6 +2443,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToServerDurationWhenUpstreamDura
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToServerDurationWhenUpstreamDeclinesDurationQuery)
 {
     constexpr gint64 kServerDuration{6000};
@@ -2383,6 +2471,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToServerDurationWhenUpstreamDecl
     gst_object_unref(pipeline);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenUpstreamDurationNotPositiveAndNoClient)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -2401,6 +2490,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToQueryDurationWhenUpstreamDurationN
     gst_object_unref(audioSink);
 }
 
+// cppcheck-suppress unusedFunction
 TEST_F(GstreamerMseBaseSinkTests, ShouldQueuePropertyWithoutDelegate)
 {
     constexpr int32_t kStreamsNumber{2};

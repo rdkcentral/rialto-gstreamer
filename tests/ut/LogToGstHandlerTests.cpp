@@ -33,6 +33,7 @@ public:
     ~LogToGstHandlerTest() override {}
 };
 
+// cppcheck-suppress unusedFunction
 TEST_F(LogToGstHandlerTest, callingLogHandlerAtAllLevelsShouldSucceed)
 {
     LogToGstHandler logToGstHandler;
