@@ -326,6 +326,15 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
 
+        g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
+                                        g_param_spec_string(kAudioFadePropertyName.c_str(),
+                                                            "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
+                                                            kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+        g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
+                                        g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
+                                                            "Get current fade volume", 0, 100, kDefaultFadeVolume,
+                                                            G_PARAM_READABLE));
+
         for (auto it = supportedProperties.begin(); it != supportedProperties.end(); ++it)
         {
             if (kLowLatencyPropertyName == *it)
@@ -355,20 +364,6 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                                  "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync",
                                                                  0, G_MAXINT, kDefaultStreamSyncMode,
                                                                  GParamFlags(G_PARAM_READWRITE)));
-            }
-            else if (kAudioFadePropertyName == *it)
-            {
-                g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
-                                                g_param_spec_string(kAudioFadePropertyName.c_str(),
-                                                                    "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
-                                                                    kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
-            }
-            else if (kFadeVolumePropertyName == *it)
-            {
-                g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
-                                                g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
-                                                                  "Get current fade volume", 0, 100, kDefaultFadeVolume,
-                                                                  G_PARAM_READABLE));
             }
             else if (kBufferingLimitPropertyName == *it)
             {
