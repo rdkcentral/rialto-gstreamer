@@ -38,4 +38,9 @@ public:
     virtual bool isEos() const = 0;
     virtual void lostState() = 0;
     virtual bool isReadyToSendData() const = 0;
+
+    // Muted-source hack: withhold haveData() until real data/EOS arrives, to avoid needData/haveData flood.
+    virtual bool isMuted() const { return false; }
+    virtual bool waitForData() { return false; }
+    virtual void cancelDataWait() {}
 };

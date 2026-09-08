@@ -1191,6 +1191,7 @@ void BufferPuller::start()
 
 void BufferPuller::stop()
 {
+    m_delegate->cancelDataWait();
     m_queue->stop();
 }
 
@@ -1246,6 +1247,14 @@ void PullBufferMessage::handle()
             if (m_delegate->isEos())
             {
                 isEos = true;
+            }
+            else if (m_delegate->isMuted())
+            {
+                if (m_delegate->waitForData())
+                {
+                    continue;
+                }
+                // flush or teardown interrupted the wait - fall through and report status as usual.
             }
             else
             {

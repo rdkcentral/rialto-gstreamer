@@ -669,6 +669,7 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
     {
         std::lock_guard<std::mutex> lock(m_sinkMutex);
         m_isEos = true;
+        m_needDataCondVariable.notify_all();
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
         if (client)
         {
@@ -918,7 +919,10 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
 
     GstSample *sample = gst_sample_new(buffer, m_caps, &m_lastSegment, nullptr);
     if (sample)
+    {
         m_samples.push(sample);
+        m_needDataCondVariable.notify_all();
+    }
     else
         GST_ERROR_OBJECT(m_sink, "Failed to create a sample");
 
@@ -977,6 +981,24 @@ bool PullModePlaybackDelegate::isReadyToSendData() const
 {
     std::lock_guard<std::mutex> lock(m_sinkMutex);
     return m_isEos || m_segmentSet;
+}
+
+// Blocks until real data/EOS arrives or flush/teardown cancels the wait; never times out on its own.
+bool PullModePlaybackDelegate::waitForData()
+{
+    std::unique_lock<std::mutex> lock(m_sinkMutex);
+    m_needDataCondVariable.wait(lock, [this]()
+                                {
+                                    return !m_samples.empty() || m_isEos || m_isSinkFlushOngoing ||
+                                           m_isServerFlushOngoing || m_waitCancelled;
+                                });
+    return !m_isSinkFlushOngoing && !m_isServerFlushOngoing && !m_waitCancelled;
+}
+
+void PullModePlaybackDelegate::cancelDataWait()
+{
+    m_waitCancelled = true;
+    m_needDataCondVariable.notify_all();
 }
 
 void PullModePlaybackDelegate::lostState()

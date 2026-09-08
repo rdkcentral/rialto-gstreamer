@@ -1,0 +1,123 @@
+diff --git a/source/GStreamerMSEMediaPlayerClient.cpp b/source/GStreamerMSEMediaPlayerClient.cpp
+index f7a1348..f9925f0 100644
+--- a/source/GStreamerMSEMediaPlayerClient.cpp
++++ b/source/GStreamerMSEMediaPlayerClient.cpp
+@@ -1116,6 +1116,7 @@ void BufferPuller::start()
+ 
+ void BufferPuller::stop()
+ {
++    m_delegate->cancelDataWait();
+     m_queue->stop();
+ }
+ 
+@@ -1171,6 +1172,14 @@ void PullBufferMessage::handle()
+             {
+                 isEos = true;
+             }
++            else if (m_delegate->isMuted())
++            {
++                if (m_delegate->waitForData())
++                {
++                    continue;
++                }
++                // flush or teardown interrupted the wait - fall through and report status as usual.
++            }
+             else
+             {
+                 // it's not a critical issue. It might be caused by receiving too many need data requests.
+diff --git a/source/IPullModePlaybackDelegate.h b/source/IPullModePlaybackDelegate.h
+index 55065bf..c0c8aad 100644
+--- a/source/IPullModePlaybackDelegate.h
++++ b/source/IPullModePlaybackDelegate.h
+@@ -38,4 +38,9 @@ public:
+     virtual bool isEos() const = 0;
+     virtual void lostState() = 0;
+     virtual bool isReadyToSendData() const = 0;
++
++    // Muted-source hack: withhold haveData() until real data/EOS arrives, to avoid needData/haveData flood.
++    virtual bool isMuted() const { return false; }
++    virtual bool waitForData() { return false; }
++    virtual void cancelDataWait() {}
+ };
+diff --git a/source/PullModePlaybackDelegate.cpp b/source/PullModePlaybackDelegate.cpp
+index d40c6de..86c884b 100644
+--- a/source/PullModePlaybackDelegate.cpp
++++ b/source/PullModePlaybackDelegate.cpp
+@@ -590,6 +590,7 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
+     {
+         std::lock_guard<std::mutex> lock(m_sinkMutex);
+         m_isEos = true;
++        m_needDataCondVariable.notify_all();
+         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+         if (client)
+         {
+@@ -828,7 +829,10 @@ GstFlowReturn PullModePlaybackDelegate::handleBuffer(GstBuffer *buffer)
+ 
+     GstSample *sample = gst_sample_new(buffer, m_caps, &m_lastSegment, nullptr);
+     if (sample)
++    {
+         m_samples.push(sample);
++        m_needDataCondVariable.notify_all();
++    }
+     else
+         GST_ERROR_OBJECT(m_sink, "Failed to create a sample");
+ 
+@@ -886,6 +890,24 @@ bool PullModePlaybackDelegate::isReadyToSendData() const
+     return m_isEos || m_segmentSet;
+ }
+ 
++// Blocks until real data/EOS arrives or flush/teardown cancels the wait; never times out on its own.
++bool PullModePlaybackDelegate::waitForData()
++{
++    std::unique_lock<std::mutex> lock(m_sinkMutex);
++    m_needDataCondVariable.wait(lock, [this]()
++                                {
++                                    return !m_samples.empty() || m_isEos || m_isSinkFlushOngoing ||
++                                           m_isServerFlushOngoing || m_waitCancelled;
++                                });
++    return !m_isSinkFlushOngoing && !m_isServerFlushOngoing && !m_waitCancelled;
++}
++
++void PullModePlaybackDelegate::cancelDataWait()
++{
++    m_waitCancelled = true;
++    m_needDataCondVariable.notify_all();
++}
++
+ void PullModePlaybackDelegate::lostState()
+ {
+     m_isStateCommitNeeded = true;
+diff --git a/source/PullModePlaybackDelegate.h b/source/PullModePlaybackDelegate.h
+index d60e52b..a6af69e 100644
+--- a/source/PullModePlaybackDelegate.h
++++ b/source/PullModePlaybackDelegate.h
+@@ -58,6 +58,8 @@ public:
+     bool isEos() const override;
+     void lostState() override;
+     bool isReadyToSendData() const override;
++    bool waitForData() override;
++    void cancelDataWait() override;
+ 
+ protected:
+     bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
+@@ -82,6 +84,7 @@ protected:
+     std::atomic<int32_t> m_sourceId{-1};
+     std::queue<GstSample *> m_samples{};
+     bool m_isEos{false};
++    std::atomic<bool> m_waitCancelled{false};
+     std::atomic<bool> m_segmentSet{false};
+     std::atomic<bool> m_isSinkFlushOngoing{false};
+     bool m_isServerFlushOngoing{false};
+diff --git a/source/PullModeSubtitlePlaybackDelegate.h b/source/PullModeSubtitlePlaybackDelegate.h
+index 463aecc..101a694 100644
+--- a/source/PullModeSubtitlePlaybackDelegate.h
++++ b/source/PullModeSubtitlePlaybackDelegate.h
+@@ -35,6 +35,7 @@ public:
+     void getProperty(const Property &type, GValue *value) override;
+     void setProperty(const Property &type, const GValue *value) override;
+     void handleQos(uint64_t processed, uint64_t dropped) const override;
++    bool isMuted() const override { return m_isMuted.load(); }
+ 
+ private:
+     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
+

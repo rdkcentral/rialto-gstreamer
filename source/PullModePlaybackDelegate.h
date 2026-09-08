@@ -64,6 +64,8 @@ public:
     bool isEos() const override;
     void lostState() override;
     bool isReadyToSendData() const override;
+    bool waitForData() override;
+    void cancelDataWait() override;
 
 protected:
     bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
@@ -91,6 +93,7 @@ protected:
     std::atomic<int32_t> m_sourceId{-1};
     std::queue<GstSample *> m_samples{};
     bool m_isEos{false};
+    std::atomic<bool> m_waitCancelled{false};
     std::atomic<bool> m_segmentSet{false};
     std::atomic<bool> m_isSinkFlushOngoing{false};
     bool m_isServerFlushOngoing{false};

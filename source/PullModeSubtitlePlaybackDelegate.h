@@ -34,6 +34,7 @@ public:
     void getProperty(const Property &type, GValue *value) override;
     void setProperty(const Property &type, const GValue *value) override;
     void handleQos(uint64_t processed, uint64_t dropped) const override;
+    bool isMuted() const override { return m_isMuted.load(); }
 
 private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
