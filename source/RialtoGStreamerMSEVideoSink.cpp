@@ -313,6 +313,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                 rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
             }
         }
+        else
+        {
+            GST_ERROR("No legacy IMediaPipelineCapabilities available to fall back to");
+        }
     }
     else if (mediaPlayerCapabilities)
     {
