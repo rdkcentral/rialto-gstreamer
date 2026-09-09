@@ -320,7 +320,7 @@ public:
     bool handlePlaybackError(int sourceId, firebolt::rialto::PlaybackError error);
     void stopStreaming();
     void destroyClientBackend();
-    bool renderFrame(int32_t sourceId);
+    bool renderFrame();
     void setVolume(double targetVolume, uint32_t volumeDuration, firebolt::rialto::EaseType easeType);
     bool getVolume(double &volume);
     bool getCachedVolume(double &volume);
