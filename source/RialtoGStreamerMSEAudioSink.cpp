@@ -321,10 +321,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                     mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
                 rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
             }
-        }
-        else
-        {
-            GST_ERROR("No legacy IMediaPipelineCapabilities available to fall back to");
+            else
+            {
+                GST_ERROR("No legacy IMediaPipelineCapabilities available to fall back to");
+            }
         }
     }
     else if (mediaPlayerCapabilities)
@@ -333,6 +333,10 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         std::vector<std::string> supportedMimeTypes =
             mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::AUDIO);
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
+    }
+    else
+    {
+        GST_ERROR("Neither IMediaCapabilities nor legacy IMediaPipelineCapabilities are available");
     }
 
     if (mediaPlayerCapabilities)
