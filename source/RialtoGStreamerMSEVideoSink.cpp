@@ -317,7 +317,6 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                 GST_ERROR("No legacy IMediaPipelineCapabilities available to fall back to");
             }
         }
-
     }
     else if (mediaPlayerCapabilities)
     {
