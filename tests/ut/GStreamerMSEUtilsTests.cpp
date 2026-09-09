@@ -160,8 +160,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldFillVideoDecoderCapabilities)
 
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{
-        .dolbyEac3 = firebolt::rialto::common::DolbyEac3Capability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dolbyEac3 = firebolt::rialto::common::DolbyEac3Capability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -178,8 +178,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterEac3WhenDolbyEac3Present)
 
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{
-        .dolbyAc3 = firebolt::rialto::common::DolbyAc3Capability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dolbyAc3 = firebolt::rialto::common::DolbyAc3Capability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -199,7 +199,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterEac3WhenOnlyDolbyAc3Present)
 
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterWma)
 {
-    const firebolt::rialto::common::AudioDecoderCapability capability{.pcm = firebolt::rialto::common::PcmCapability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.pcm = firebolt::rialto::common::PcmCapability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
@@ -217,7 +218,8 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterWma)
 TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterDolbyMatRaw)
 {
     // No pcm and no dolbyMat — audio/x-raw must not appear
-    const firebolt::rialto::common::AudioDecoderCapability capability{.aac = firebolt::rialto::common::AacCapability{}};
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.aac = firebolt::rialto::common::AacCapability{};
     const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
 
     GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
