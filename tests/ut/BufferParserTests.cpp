@@ -147,7 +147,7 @@ TEST_F(BufferParserTests, ShouldParseAudioBufferWebm)
     EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::AUDIO);
     gst_caps_unref(caps);
 }
-// cppcheck-suppress unusedFunction// cppcheck-suppress unusedFunction
+// cppcheck-suppress unusedFunction
 TEST_F(BufferParserTests, ShouldParseAudioBufferBufferCodecData)
 {
     AudioBufferParser parser;
