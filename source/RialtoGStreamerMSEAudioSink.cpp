@@ -149,8 +149,9 @@ static void rialto_mse_audio_sink_get_property(GObject *object, guint propId, GV
     }
     case PROP_ASYNC:
     {
-        g_value_set_boolean(value, TRUE);
-        rialto_mse_base_sink_handle_get_property(sink, IPlaybackDelegate::Property::Async, value);
+        // Hard-coded to FALSE for testing; async must never be enabled.
+        g_value_set_boolean(value, FALSE);
+        GST_ERROR_OBJECT(sink, "async property get, value=%d", g_value_get_boolean(value));
         break;
     }
     case PROP_WEBAUDIO:
@@ -223,7 +224,8 @@ static void rialto_mse_audio_sink_set_property(GObject *object, guint propId, co
     }
     case PROP_ASYNC:
     {
-        rialto_mse_base_sink_handle_set_property(sink, IPlaybackDelegate::Property::Async, value);
+        // Ignored for testing; async is forced to remain FALSE.
+        GST_ERROR_OBJECT(sink, "async property set ignored, requested value=%d", g_value_get_boolean(value));
         break;
     }
     case PROP_WEBAUDIO:

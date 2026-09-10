@@ -95,8 +95,9 @@ static void rialto_mse_subtitle_sink_get_property(GObject *object, guint propId,
     }
     case PROP_ASYNC:
     {
-        g_value_set_boolean(value, FALSE); // Set default value first
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
+        // Hard-coded to FALSE for testing; async must never be enabled.
+        g_value_set_boolean(value, FALSE);
+        GST_ERROR_OBJECT(object, "async property get, value=%d", g_value_get_boolean(value));
         break;
     }
     default:
@@ -126,7 +127,8 @@ static void rialto_mse_subtitle_sink_set_property(GObject *object, guint propId,
     }
     case PROP_ASYNC:
     {
-        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Async, value);
+        // Ignored for testing; async is forced to remain FALSE.
+        GST_ERROR_OBJECT(object, "async property set ignored, requested value=%d", g_value_get_boolean(value));
         break;
     }
     default:
