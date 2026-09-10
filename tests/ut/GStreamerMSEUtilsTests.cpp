@@ -448,4 +448,3 @@ TEST_F(GStreamerMSEUtilsTests, shouldReturnNullptrWhenNoCodecData)
     EXPECT_TRUE(codecData == nullptr);
     gst_structure_free(structure);
 }
-
