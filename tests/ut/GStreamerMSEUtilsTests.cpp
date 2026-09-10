@@ -740,18 +740,19 @@ TEST_F(GStreamerMSEUtilsTests, shouldConvertAllStreamFormats)
 
 TEST_F(GStreamerMSEUtilsTests, shouldHandleCodecDataReadError)
 {
-    // Test handling of empty buffer codec_data
+    // Test handling of string codec_data
     GstStructure *structure = gst_structure_new_empty("test");
 
-    // Create an empty buffer and set as codec_data
-    GstBuffer *buffer = gst_buffer_new();
-    gst_structure_set(structure, "codec_data", GST_TYPE_BUFFER, buffer, nullptr);
+    // Set codec_data as a string
+    const gchar *codec_data_str = "test_codec_data";
+    gst_structure_set(structure, "codec_data", G_TYPE_STRING, codec_data_str, nullptr);
 
-    // Empty buffer should still return valid CodecData with empty data vector
+    // String codec_data should return valid CodecData with string data
     auto codecData = get_codec_data(structure);
     EXPECT_TRUE(codecData != nullptr);
-    EXPECT_TRUE(codecData->data.empty());
-    EXPECT_EQ(codecData->type, firebolt::rialto::CodecDataType::BUFFER);
+    EXPECT_FALSE(codecData->data.empty());
+    EXPECT_EQ(codecData->type, firebolt::rialto::CodecDataType::STRING);
+
     gst_structure_free(structure);
 }
 

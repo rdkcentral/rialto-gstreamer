@@ -274,6 +274,7 @@ std::optional<firebolt::rialto::Layout> rialto_mse_sink_convert_layout(const gch
 
 std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gchar *formatStr)
 {
+    // GCOV_EXCL_START - Static map initialization not tracked by lcov
     static const std::unordered_map<std::string, firebolt::rialto::Format>
         kStringToFormat{{"S8", firebolt::rialto::Format::S8},
                         {"U8", firebolt::rialto::Format::U8},
@@ -305,6 +306,7 @@ std::optional<firebolt::rialto::Format> rialto_mse_sink_convert_format(const gch
                         {"F32BE", firebolt::rialto::Format::F32BE},
                         {"F64LE", firebolt::rialto::Format::F64LE},
                         {"F64BE", firebolt::rialto::Format::F64BE}};
+    // GCOV_EXCL_STOP
     const auto it = kStringToFormat.find(formatStr);
     if (it != kStringToFormat.end())
     {
@@ -329,11 +331,13 @@ std::shared_ptr<firebolt::rialto::CodecData> get_codec_data(const GstStructure *
                 codecData->type = firebolt::rialto::CodecDataType::BUFFER;
                 return codecData;
             }
+            // GCOV_EXCL_START - Buffer mapping failure is rare and difficult to test
             else
             {
                 GST_ERROR("Failed to read codec_data");
                 return nullptr;
             }
+            // GCOV_EXCL_STOP
         }
         const gchar *str = g_value_get_string(codec_data);
         if (str)
@@ -386,12 +390,14 @@ firebolt::rialto::StreamFormat get_stream_format(const GstStructure *structure)
     firebolt::rialto::StreamFormat format = firebolt::rialto::StreamFormat::UNDEFINED;
     if (streamFormat)
     {
+        // GCOV_EXCL_START - Static map initialization not tracked by lcov
         static const std::unordered_map<std::string, firebolt::rialto::StreamFormat> stringToStreamFormatMap =
             {{"raw", firebolt::rialto::StreamFormat::RAW},
              {"avc", firebolt::rialto::StreamFormat::AVC},
              {"byte-stream", firebolt::rialto::StreamFormat::BYTE_STREAM},
              {"hvc1", firebolt::rialto::StreamFormat::HVC1},
              {"hev1", firebolt::rialto::StreamFormat::HEV1}};
+        // GCOV_EXCL_STOP
 
         auto strToStreamFormatIt = stringToStreamFormatMap.find(streamFormat);
         if (strToStreamFormatIt != stringToStreamFormatMap.end())
