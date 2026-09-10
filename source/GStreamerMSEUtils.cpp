@@ -181,6 +181,12 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
             }
         }
     }
+    if (addedCaps.empty())
+    {
+        GST_INFO("No supported audio decoder capabilities found in provided config");
+        gst_caps_unref(caps);
+        return false;
+    }
     gchar *capsDebugStr = gst_caps_to_string(caps);
     GST_DEBUG("Writing audio caps to element: %s", capsDebugStr);
     g_free(capsDebugStr);
@@ -235,6 +241,12 @@ bool rialto_mse_sink_setup_supported_caps(GstElementClass *elementClass,
                 addedCaps.insert(capsStr);
             }
         }
+    }
+    if (addedCaps.empty())
+    {
+        GST_INFO("No supported Video decoder capabilities found in provided config");
+        gst_caps_unref(caps);
+        return false;
     }
 
     gchar *videoCapsDebugStr = gst_caps_to_string(caps);
