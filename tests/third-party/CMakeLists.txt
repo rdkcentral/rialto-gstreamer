@@ -48,37 +48,6 @@ else()
     endif()
 endif()
 
-function(copyLocalFallback FILE)
-    set(CANDIDATE_DIRS
-        # Check sibling directory first (for local builds)
-        "${CMAKE_SOURCE_DIR}/../rialto/common/public/include"
-        "${CMAKE_SOURCE_DIR}/../rialto/media/public/include"
-        "${CMAKE_SOURCE_DIR}/../rialto/media/public/interface"
-        "${CMAKE_SOURCE_DIR}/../rialto/media/client/main/include"
-        "${CMAKE_SOURCE_DIR}/../rialto/media/client/ipc/include"
-        "${CMAKE_SOURCE_DIR}/../rialto/serverManager/public/include"
-        # Check subdirectory (for GitHub Actions CI)
-        "${CMAKE_SOURCE_DIR}/rialto/common/public/include"
-        "${CMAKE_SOURCE_DIR}/rialto/media/public/include"
-        "${CMAKE_SOURCE_DIR}/rialto/media/public/interface"
-        "${CMAKE_SOURCE_DIR}/rialto/media/client/main/include"
-        "${CMAKE_SOURCE_DIR}/rialto/media/client/ipc/include"
-        "${CMAKE_SOURCE_DIR}/rialto/serverManager/public/include")
-
-    message(STATUS "Looking for ${FILE} in fallback locations...")
-    foreach(candidate IN LISTS CANDIDATE_DIRS)
-        message(STATUS "  Checking: ${candidate}/${FILE}")
-        if(EXISTS "${candidate}/${FILE}")
-            message(STATUS "  ✓ Found at: ${candidate}/${FILE}")
-            file(READ "${candidate}/${FILE}" fallbackContents)
-            file(WRITE "${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE}" "${fallbackContents}")
-            return()
-        endif()
-    endforeach()
-
-    message(FATAL_ERROR "No local fallback found for ${FILE}")
-endfunction()
-
 function(downloadAndCheck URL FILE)
     if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/source/${FILE})
@@ -86,34 +55,15 @@ function(downloadAndCheck URL FILE)
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE})
     endif()
 
-    if(FILE STREQUAL "MediaCommon.h" OR FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "DecoderCapabilitiesCommon.h" OR FILE STREQUAL "IMediaPipelineCapabilities.h" OR FILE STREQUAL "IMediaCapabilities.h")
-        # Only use local fallback if the local rialto tree exists, otherwise continue with normal download
-        if(EXISTS "${CMAKE_SOURCE_DIR}/../rialto/common/public/include" OR EXISTS "${CMAKE_SOURCE_DIR}/../rialto/media/public/include" OR EXISTS "${CMAKE_SOURCE_DIR}/rialto/common/public/include" OR EXISTS "${CMAKE_SOURCE_DIR}/rialto/media/public/include")
-            message(WARNING "Using local Rialto header for ${FILE} to match the current API")
-            copyLocalFallback(${FILE})
-            return()
-        endif()
-    endif()
-
     if(NOT EXISTS ${FILE_PATH})
-        file(DOWNLOAD ${URL} ${FILE_PATH} STATUS downloadStatus LOG downloadLog)
-        list(GET downloadStatus 0 statusCode)
-        if(NOT statusCode EQUAL 0 OR NOT EXISTS ${FILE_PATH})
-            message(WARNING "Download of ${FILE} failed (${URL}); using local Rialto fallback")
-            copyLocalFallback(${FILE})
-        else()
-            message("Downloaded ${FILE}")
-        endif()
-    endif()
-
-    if(EXISTS ${FILE_PATH})
+        file(DOWNLOAD ${URL} ${FILE_PATH})
+        message("Downloaded ${FILE}")
+        
+        # If the file is empty
         file(READ ${FILE_PATH} fileContents)
         if("${fileContents}" STREQUAL "")
-            message(WARNING "The downloaded ${FILE} file is empty; using local Rialto fallback")
-            copyLocalFallback(${FILE})
+            message(FATAL_ERROR "The downloaded ${FILE} file is empty!")
         endif()
-    else()
-        message(FATAL_ERROR "The file ${FILE} is missing after download and fallback attempts.")
     endif()
 endfunction()
 
