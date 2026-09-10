@@ -448,3 +448,323 @@ TEST_F(GStreamerMSEUtilsTests, shouldReturnNullptrWhenNoCodecData)
     EXPECT_TRUE(codecData == nullptr);
     gst_structure_free(structure);
 }
+
+// Additional granular tests for individual audio codecs
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterPcmAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.pcm = firebolt::rialto::common::PcmCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterAacAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.aac = firebolt::rialto::common::AacCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterMpegAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.mpegAudio = firebolt::rialto::common::MpegAudioCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterMp3Audio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.mp3 = firebolt::rialto::common::Mp3Capability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterAlacAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.alac = firebolt::rialto::common::AlacCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterSbcAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.sbc = firebolt::rialto::common::SbcCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterFlacAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.flac = firebolt::rialto::common::FlacCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterVorbisAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.vorbis = firebolt::rialto::common::VorbisCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterOpusAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.opus = firebolt::rialto::common::OpusCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterRealAudioAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.realAudio = firebolt::rialto::common::RealAudioCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterUsacAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.usac = firebolt::rialto::common::UsacCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterDtsAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dts = firebolt::rialto::common::DtsCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterAvsAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.avs = firebolt::rialto::common::AvsCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterDolbyAc4Audio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dolbyAc4 = firebolt::rialto::common::DolbyAc4Capability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterDolbyTruehdAudio)
+{
+    firebolt::rialto::common::AudioDecoderCapability capability{};
+    capability.dolbyTruehd = firebolt::rialto::common::DolbyTruehdCapability{};
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+// Additional granular tests for individual video codecs
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterMpeg2Video)
+{
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
+        firebolt::rialto::common::Mpeg2CodecCapability{}, std::nullopt, std::nullopt, std::nullopt, std::nullopt};
+    const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
+    const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterH265Video)
+{
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
+        std::nullopt, std::nullopt, firebolt::rialto::common::H265CodecCapability{}, std::nullopt, std::nullopt};
+    const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
+    const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterVp9Video)
+{
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
+        std::nullopt, std::nullopt, std::nullopt, firebolt::rialto::common::Vp9CodecCapability{}, std::nullopt};
+    const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
+    const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldRegisterAv1Video)
+{
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
+        std::nullopt, std::nullopt, std::nullopt, std::nullopt, firebolt::rialto::common::Av1CodecCapability{}};
+    const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
+    const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+// Tests to cover static map initializations and error paths
+TEST_F(GStreamerMSEUtilsTests, shouldConvertAllAudioFormats)
+{
+    // Test all format conversions to trigger kStringToFormat map initialization
+    EXPECT_EQ(rialto_mse_sink_convert_format("S24LE"), firebolt::rialto::Format::S24LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("S24BE"), firebolt::rialto::Format::S24BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("U24LE"), firebolt::rialto::Format::U24LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("U24BE"), firebolt::rialto::Format::U24BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("S20LE"), firebolt::rialto::Format::S20LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("S20BE"), firebolt::rialto::Format::S20BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("U20LE"), firebolt::rialto::Format::U20LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("U20BE"), firebolt::rialto::Format::U20BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("S18LE"), firebolt::rialto::Format::S18LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("S18BE"), firebolt::rialto::Format::S18BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("U18LE"), firebolt::rialto::Format::U18LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("U18BE"), firebolt::rialto::Format::U18BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("F32LE"), firebolt::rialto::Format::F32LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("F32BE"), firebolt::rialto::Format::F32BE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("F64LE"), firebolt::rialto::Format::F64LE);
+    EXPECT_EQ(rialto_mse_sink_convert_format("F64BE"), firebolt::rialto::Format::F64BE);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldConvertAllStreamFormats)
+{
+    // Test all stream format conversions to trigger stringToStreamFormatMap initialization
+    GstStructure *structRaw = gst_structure_new_empty("test");
+    gst_structure_set(structRaw, "stream-format", G_TYPE_STRING, "raw", nullptr);
+    EXPECT_EQ(get_stream_format(structRaw), firebolt::rialto::StreamFormat::RAW);
+    gst_structure_free(structRaw);
+
+    GstStructure *structAvc = gst_structure_new_empty("test");
+    gst_structure_set(structAvc, "stream-format", G_TYPE_STRING, "avc", nullptr);
+    EXPECT_EQ(get_stream_format(structAvc), firebolt::rialto::StreamFormat::AVC);
+    gst_structure_free(structAvc);
+
+    GstStructure *structByteStream = gst_structure_new_empty("test");
+    gst_structure_set(structByteStream, "stream-format", G_TYPE_STRING, "byte-stream", nullptr);
+    EXPECT_EQ(get_stream_format(structByteStream), firebolt::rialto::StreamFormat::BYTE_STREAM);
+    gst_structure_free(structByteStream);
+
+    GstStructure *structHvc1 = gst_structure_new_empty("test");
+    gst_structure_set(structHvc1, "stream-format", G_TYPE_STRING, "hvc1", nullptr);
+    EXPECT_EQ(get_stream_format(structHvc1), firebolt::rialto::StreamFormat::HVC1);
+    gst_structure_free(structHvc1);
+
+    GstStructure *structHev1 = gst_structure_new_empty("test");
+    gst_structure_set(structHev1, "stream-format", G_TYPE_STRING, "hev1", nullptr);
+    EXPECT_EQ(get_stream_format(structHev1), firebolt::rialto::StreamFormat::HEV1);
+    gst_structure_free(structHev1);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldHandleCodecDataReadError)
+{
+    // Test handling of empty buffer codec_data
+    GstStructure *structure = gst_structure_new_empty("test");
+    
+    // Create an empty buffer and set as codec_data
+    GstBuffer *buffer = gst_buffer_new();
+    gst_structure_set(structure, "codec_data", GST_TYPE_BUFFER, buffer, nullptr);
+    
+    // Empty buffer should still return valid CodecData with empty data vector
+    auto codecData = get_codec_data(structure);
+    EXPECT_TRUE(codecData != nullptr);
+    EXPECT_TRUE(codecData->data.empty());
+    EXPECT_EQ(codecData->type, firebolt::rialto::CodecDataType::BUFFER);
+    gst_structure_free(structure);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldHandleUnknownStreamFormat)
+{
+    // Test unknown stream format handling - should not crash
+    GstStructure *structure = gst_structure_new_empty("test");
+    gst_structure_set(structure, "stream-format", G_TYPE_STRING, "unknown-format", nullptr);
+    // Function should handle gracefully without throwing
+    auto result = get_stream_format(structure);
+    (void)result; // Use the result to avoid unused variable warnings
+    gst_structure_free(structure);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldHandleInvalidFormatString)
+{
+    // Test invalid format string
+    auto result = rialto_mse_sink_convert_format("INVALID_FORMAT");
+    EXPECT_EQ(result, std::nullopt);
+}
