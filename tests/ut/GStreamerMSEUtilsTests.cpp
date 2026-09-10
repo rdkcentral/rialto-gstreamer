@@ -18,6 +18,7 @@
 
 #include "GStreamerMSEUtils.h"
 #include "RialtoGstTest.h"
+#include <cstring>
 #include <gtest/gtest.h>
 
 class GStreamerMSEUtilsTests : public RialtoGstTest
@@ -260,3 +261,191 @@ TEST_F(GStreamerMSEUtilsTests, shouldNotRegisterVideoCodecWhenOptionalIsNullopt)
     gst_caps_unref(caps);
     gst_object_unref(sink);
 }
+
+TEST_F(GStreamerMSEUtilsTests, shouldFillSupportedCapsFromMimeTypes)
+{
+    std::vector<std::string> supportedMimeTypes{"audio/mp4", "video/h264", "text/vtt"};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes));
+    GstPadTemplate *sinkPadTemplate{gst_element_class_get_pad_template(elementClass, "sink")};
+    GstCaps *caps{gst_pad_template_get_caps(sinkPadTemplate)};
+
+    // Verify expected caps for each mime type
+    GstCaps *mp4Caps = gst_caps_from_string("audio/mpeg, mpegversion=4");
+    GstCaps *h264Caps = gst_caps_from_string("video/x-h264");
+    GstCaps *vttCaps = gst_caps_from_string("text/vtt");
+
+    EXPECT_TRUE(gst_caps_is_subset(mp4Caps, caps));
+    EXPECT_TRUE(gst_caps_is_subset(h264Caps, caps));
+    EXPECT_TRUE(gst_caps_is_subset(vttCaps, caps));
+
+    gst_caps_unref(mp4Caps);
+    gst_caps_unref(h264Caps);
+    gst_caps_unref(vttCaps);
+    gst_caps_unref(caps);
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldHandleUnsupportedMimeType)
+{
+    std::vector<std::string> supportedMimeTypes{"unsupported/mime"};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_TRUE(rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldReturnFalseForEmptyAudioCapabilities)
+{
+    const firebolt::rialto::common::AudioDecoderCapabilities audioDecoderCapabilities{"1.0", "1.1", {}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_FALSE(rialto_mse_sink_setup_supported_caps(elementClass, audioDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldReturnFalseForEmptyVideoCapabilities)
+{
+    const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {}};
+
+    GstElement *sink = gst_element_factory_make("fakesink", "test_sink");
+    GstElementClass *elementClass{GST_ELEMENT_CLASS(G_OBJECT_GET_CLASS(sink))};
+    EXPECT_FALSE(rialto_mse_sink_setup_supported_caps(elementClass, videoDecoderCapabilities));
+    gst_object_unref(sink);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldGetSegmentAlignment)
+{
+    GstStructure *structAu = gst_structure_new_empty("test");
+    gst_structure_set(structAu, "alignment", G_TYPE_STRING, "au", nullptr);
+    EXPECT_EQ(get_segment_alignment(structAu), firebolt::rialto::SegmentAlignment::AU);
+    gst_structure_free(structAu);
+
+    GstStructure *structNal = gst_structure_new_empty("test");
+    gst_structure_set(structNal, "alignment", G_TYPE_STRING, "nal", nullptr);
+    EXPECT_EQ(get_segment_alignment(structNal), firebolt::rialto::SegmentAlignment::NAL);
+    gst_structure_free(structNal);
+
+    GstStructure *structUndef = gst_structure_new_empty("test");
+    gst_structure_set(structUndef, "alignment", G_TYPE_STRING, "unknown", nullptr);
+    EXPECT_EQ(get_segment_alignment(structUndef), firebolt::rialto::SegmentAlignment::UNDEFINED);
+    gst_structure_free(structUndef);
+
+    GstStructure *structNoAlignment = gst_structure_new_empty("test");
+    EXPECT_EQ(get_segment_alignment(structNoAlignment), firebolt::rialto::SegmentAlignment::UNDEFINED);
+    gst_structure_free(structNoAlignment);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldGetDvProfile)
+{
+    GstStructure *structWithDv = gst_structure_new_empty("test");
+    gst_structure_set(structWithDv, "dovi-stream", G_TYPE_BOOLEAN, true, "dv_profile", G_TYPE_UINT, 10u, nullptr);
+    uint32_t dvProfile = 0;
+    EXPECT_TRUE(get_dv_profile(structWithDv, dvProfile));
+    EXPECT_EQ(dvProfile, 10u);
+    gst_structure_free(structWithDv);
+
+    GstStructure *structWithoutDv = gst_structure_new_empty("test");
+    gst_structure_set(structWithoutDv, "dovi-stream", G_TYPE_BOOLEAN, false, nullptr);
+    dvProfile = 0;
+    EXPECT_FALSE(get_dv_profile(structWithoutDv, dvProfile));
+    gst_structure_free(structWithoutDv);
+
+    GstStructure *structNoDviStream = gst_structure_new_empty("test");
+    dvProfile = 0;
+    EXPECT_FALSE(get_dv_profile(structNoDviStream, dvProfile));
+    gst_structure_free(structNoDviStream);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldGetStreamFormat)
+{
+    GstStructure *structRaw = gst_structure_new_empty("test");
+    gst_structure_set(structRaw, "stream-format", G_TYPE_STRING, "raw", nullptr);
+    EXPECT_EQ(get_stream_format(structRaw), firebolt::rialto::StreamFormat::RAW);
+    gst_structure_free(structRaw);
+
+    GstStructure *structAvc = gst_structure_new_empty("test");
+    gst_structure_set(structAvc, "stream-format", G_TYPE_STRING, "avc", nullptr);
+    EXPECT_EQ(get_stream_format(structAvc), firebolt::rialto::StreamFormat::AVC);
+    gst_structure_free(structAvc);
+
+    GstStructure *structByteStream = gst_structure_new_empty("test");
+    gst_structure_set(structByteStream, "stream-format", G_TYPE_STRING, "byte-stream", nullptr);
+    EXPECT_EQ(get_stream_format(structByteStream), firebolt::rialto::StreamFormat::BYTE_STREAM);
+    gst_structure_free(structByteStream);
+
+    GstStructure *structHvc1 = gst_structure_new_empty("test");
+    gst_structure_set(structHvc1, "stream-format", G_TYPE_STRING, "hvc1", nullptr);
+    EXPECT_EQ(get_stream_format(structHvc1), firebolt::rialto::StreamFormat::HVC1);
+    gst_structure_free(structHvc1);
+
+    GstStructure *structHev1 = gst_structure_new_empty("test");
+    gst_structure_set(structHev1, "stream-format", G_TYPE_STRING, "hev1", nullptr);
+    EXPECT_EQ(get_stream_format(structHev1), firebolt::rialto::StreamFormat::HEV1);
+    gst_structure_free(structHev1);
+
+    GstStructure *structUnknown = gst_structure_new_empty("test");
+    gst_structure_set(structUnknown, "stream-format", G_TYPE_STRING, "unknown", nullptr);
+    EXPECT_EQ(get_stream_format(structUnknown), firebolt::rialto::StreamFormat::UNDEFINED);
+    gst_structure_free(structUnknown);
+
+    GstStructure *structNoFormat = gst_structure_new_empty("test");
+    EXPECT_EQ(get_stream_format(structNoFormat), firebolt::rialto::StreamFormat::UNDEFINED);
+    gst_structure_free(structNoFormat);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldGetCodecDataFromBuffer)
+{
+    GstBuffer *buffer = gst_buffer_new_allocate(nullptr, 10, nullptr);
+    GstMapInfo map;
+    gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+    for (int i = 0; i < 10; i++)
+    {
+        map.data[i] = i;
+    }
+    gst_buffer_unmap(buffer, &map);
+
+    GstStructure *structure = gst_structure_new_empty("test");
+    GValue value = G_VALUE_INIT;
+    g_value_init(&value, GST_TYPE_BUFFER);
+    gst_value_set_buffer(&value, buffer);
+    gst_structure_set_value(structure, "codec_data", &value);
+    g_value_unset(&value);
+
+    auto codecData = get_codec_data(structure);
+    EXPECT_TRUE(codecData != nullptr);
+    EXPECT_EQ(codecData->type, firebolt::rialto::CodecDataType::BUFFER);
+    EXPECT_EQ(codecData->data.size(), 10u);
+    for (int i = 0; i < 10; i++)
+    {
+        EXPECT_EQ(codecData->data[i], i);
+    }
+
+    gst_structure_free(structure);
+    gst_buffer_unref(buffer);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldGetCodecDataFromString)
+{
+    GstStructure *structure = gst_structure_new("test", "codec_data", G_TYPE_STRING, "test_codec_data", nullptr);
+
+    auto codecData = get_codec_data(structure);
+    EXPECT_TRUE(codecData != nullptr);
+    EXPECT_EQ(codecData->type, firebolt::rialto::CodecDataType::STRING);
+    EXPECT_EQ(codecData->data.size(), strlen("test_codec_data"));
+
+    gst_structure_free(structure);
+}
+
+TEST_F(GStreamerMSEUtilsTests, shouldReturnNullptrWhenNoCodecData)
+{
+    GstStructure *structure = gst_structure_new_empty("test");
+    auto codecData = get_codec_data(structure);
+    EXPECT_TRUE(codecData == nullptr);
+    gst_structure_free(structure);
+}
+
