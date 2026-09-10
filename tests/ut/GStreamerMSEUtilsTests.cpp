@@ -633,8 +633,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterDolbyTruehdAudio)
 // Additional granular tests for individual video codecs
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterMpeg2Video)
 {
-    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
-        firebolt::rialto::common::Mpeg2CodecCapability{}, std::nullopt, std::nullopt, std::nullopt, std::nullopt};
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{firebolt::rialto::common::Mpeg2CodecCapability{},
+                                                                             std::nullopt, std::nullopt, std::nullopt,
+                                                                             std::nullopt};
     const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -646,8 +647,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterMpeg2Video)
 
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterH265Video)
 {
-    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
-        std::nullopt, std::nullopt, firebolt::rialto::common::H265CodecCapability{}, std::nullopt, std::nullopt};
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{std::nullopt, std::nullopt,
+                                                                             firebolt::rialto::common::H265CodecCapability{},
+                                                                             std::nullopt, std::nullopt};
     const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -659,8 +661,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterH265Video)
 
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterVp9Video)
 {
-    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
-        std::nullopt, std::nullopt, std::nullopt, firebolt::rialto::common::Vp9CodecCapability{}, std::nullopt};
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{std::nullopt, std::nullopt, std::nullopt,
+                                                                             firebolt::rialto::common::Vp9CodecCapability{},
+                                                                             std::nullopt};
     const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -672,8 +675,9 @@ TEST_F(GStreamerMSEUtilsTests, shouldRegisterVp9Video)
 
 TEST_F(GStreamerMSEUtilsTests, shouldRegisterAv1Video)
 {
-    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{
-        std::nullopt, std::nullopt, std::nullopt, std::nullopt, firebolt::rialto::common::Av1CodecCapability{}};
+    const firebolt::rialto::common::VideoCodecCapabilities codecCapabilities{std::nullopt, std::nullopt, std::nullopt,
+                                                                             std::nullopt,
+                                                                             firebolt::rialto::common::Av1CodecCapability{}};
     const firebolt::rialto::common::VideoDecoderCapability capability{codecCapabilities};
     const firebolt::rialto::common::VideoDecoderCapabilities videoDecoderCapabilities{"1.0", "1.1", {capability}};
 
@@ -738,11 +742,11 @@ TEST_F(GStreamerMSEUtilsTests, shouldHandleCodecDataReadError)
 {
     // Test handling of empty buffer codec_data
     GstStructure *structure = gst_structure_new_empty("test");
-    
+
     // Create an empty buffer and set as codec_data
     GstBuffer *buffer = gst_buffer_new();
     gst_structure_set(structure, "codec_data", GST_TYPE_BUFFER, buffer, nullptr);
-    
+
     // Empty buffer should still return valid CodecData with empty data vector
     auto codecData = get_codec_data(structure);
     EXPECT_TRUE(codecData != nullptr);
