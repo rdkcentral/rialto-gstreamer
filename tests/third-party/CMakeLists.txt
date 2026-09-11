@@ -48,25 +48,6 @@ else()
     endif()
 endif()
 
-function(copyLocalFallback FILE)
-    set(CANDIDATE_DIRS
-        # Check subdirectory (for GitHub Actions CI)
-        "${CMAKE_SOURCE_DIR}/rialto/common/public/include")
-
-    message(STATUS "Looking for ${FILE} in fallback locations...")
-    foreach(candidate IN LISTS CANDIDATE_DIRS)
-        message(STATUS "  Checking: ${candidate}/${FILE}")
-        if(EXISTS "${candidate}/${FILE}")
-            message(STATUS "  ✓ Found at: ${candidate}/${FILE}")
-            file(READ "${candidate}/${FILE}" fallbackContents)
-            file(WRITE "${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE}" "${fallbackContents}")
-            return()
-        endif()
-    endforeach()
-
-    message(FATAL_ERROR "No local fallback found for ${FILE}")
-endfunction()
-
 function(downloadAndCheck URL FILE)
     if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/source/${FILE})
