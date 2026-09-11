@@ -32,4 +32,9 @@ echo "Native dir: ${NATIVE_DIR}"
 echo "@@@ GSTREAMER BUILD"
 cd "${WORK_DIR}/rialto-gstreamer"
 cmake . -B build -DCMAKE_INCLUDE_PATH="${NATIVE_DIR}/include"  -DCMAKE_LIBRARY_PATH="${NATIVE_DIR}/lib" -DNATIVE_BUILD=ON -DRIALTO_BUILD_TYPE="Debug"
-make -C build -j$(nproc)
+if [ $? -eq 0 ]
+then
+    make -C build -j$(nproc)
+else
+    exit 1
+fi
