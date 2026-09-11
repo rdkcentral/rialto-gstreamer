@@ -46,6 +46,9 @@ private:
                                  const uint32_t maxVideoHeight);
     bool acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo);
 
+    // Must be called with m_mediaPlayerClientsMutex held. Tears the client down and removes the entry.
+    static void destroyClientEntryUnlocked(std::map<const GstObject *, MediaPlayerClientInfo>::iterator it);
+
     std::weak_ptr<GStreamerMSEMediaPlayerClient> m_client;
     const GstObject *m_currentGstBinParent;
 

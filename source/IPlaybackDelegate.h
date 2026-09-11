@@ -80,6 +80,14 @@ public:
     virtual void handleQos(uint64_t processed, uint64_t dropped) const = 0;
 
     virtual GstStateChangeReturn changeState(GstStateChange transition) = 0;
+
+    /**
+     * Detaches the delegate from its media player client, if it still holds one. Called when the sink is
+     * disposed, so that a sink destroyed without being taken to GST_STATE_NULL still gives up its
+     * RialtoServer session. Must be safe to call more than once.
+     */
+    virtual void releaseMediaPlayerClient() {}
+
     virtual void postAsyncStart() = 0;
     virtual void setProperty(const Property &type, const GValue *value) = 0;
     virtual void getProperty(const Property &type, GValue *value) = 0;

@@ -129,8 +129,14 @@ static GstStateChangeReturn rialto_mse_base_sink_change_state(GstElement *elemen
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(element);
     if (auto delegate = rialto_mse_base_sink_get_delegate(sink))
     {
+        // A failed downward transition must not stop us from tearing the sink down - if we skipped the
+        // rest, GStreamer would leave the element above GST_STATE_NULL and the delegate (and with it the
+        // RialtoServer session) would never be released.
+        const bool kIsDownwardTransition{GST_STATE_TRANSITION_NEXT(transition) <
+                                         GST_STATE_TRANSITION_CURRENT(transition)};
+
         GstStateChangeReturn status = delegate->changeState(transition);
-        if (GST_STATE_CHANGE_FAILURE != status)
+        if (GST_STATE_CHANGE_FAILURE != status || kIsDownwardTransition)
         {
             if (GST_STATE_CHANGE_READY_TO_NULL == transition)
             {
@@ -277,6 +283,33 @@ static void rialto_mse_base_sink_init(RialtoMSEBaseSink *sink)
     GST_OBJECT_FLAG_SET(sink, GST_ELEMENT_FLAG_SINK);
 }
 
+static void rialto_mse_base_sink_dispose(GObject *object)
+{
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
+
+    // The sink is going away. If it never reached GST_STATE_NULL - because the application dropped it
+    // while it was still in READY or PAUSED - the delegate has not released its media player client yet,
+    // and the client holds a reference back to the delegate for every attached source. Break that cycle
+    // here, otherwise the RialtoServer session stays alive for the lifetime of the process and
+    // eventually exhausts the maximum number of playback sessions.
+    std::shared_ptr<IPlaybackDelegate> delegate;
+    {
+        std::unique_lock lock{sink->priv->m_sinkMutex};
+        delegate.swap(sink->priv->m_delegate);
+    }
+
+    // Released with the mutex dropped - tearing the client down runs tasks that can call back into the
+    // delegate and take m_sinkMutex again.
+    if (delegate)
+    {
+        GST_INFO_OBJECT(sink, "Disposing in state %s, releasing the media player client",
+                        gst_element_state_get_name(GST_STATE(sink)));
+        delegate->releaseMediaPlayerClient();
+    }
+
+    GST_CALL_PARENT(G_OBJECT_CLASS, dispose, (object));
+}
+
 static void rialto_mse_base_sink_finalize(GObject *object)
 {
     RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(object);
@@ -302,6 +335,7 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
 
     gst_element_class_set_metadata(elementClass, "Rialto MSE base sink", "Generic", "A sink for Rialto", "Sky");
 
+    gobjectClass->dispose = rialto_mse_base_sink_dispose;
     gobjectClass->finalize = rialto_mse_base_sink_finalize;
     gobjectClass->get_property = rialto_mse_base_sink_get_property;
     gobjectClass->set_property = rialto_mse_base_sink_set_property;

@@ -253,8 +253,10 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
     {
         if (!client)
         {
-            GST_ERROR_OBJECT(m_sink, "Cannot get the media player client object");
-            return GST_STATE_CHANGE_FAILURE;
+            // Downward transitions must never fail - failing one stops GStreamer from taking the sink
+            // any lower, so it would never reach READY->NULL and never release its media player client.
+            GST_WARNING_OBJECT(m_sink, "Cannot get the media player client object, nothing to pause");
+            break;
         }
 
         StateChangeResult result = client->pause(m_sourceId);
@@ -271,19 +273,21 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
         break;
     }
     case GST_STATE_CHANGE_PAUSED_TO_READY:
-        if (!client)
-        {
-            GST_ERROR_OBJECT(m_sink, "Cannot get the media player client object");
-            return GST_STATE_CHANGE_FAILURE;
-        }
-
         if (m_isStateCommitNeeded)
         {
             GST_DEBUG_OBJECT(m_sink, "Sending async_done in PAUSED->READY transition");
             postAsyncDone();
         }
 
-        client->removeSource(m_sourceId);
+        if (client)
+        {
+            client->removeSource(m_sourceId);
+        }
+        else
+        {
+            // Downward transitions must never fail - see GST_STATE_CHANGE_PLAYING_TO_PAUSED above.
+            GST_WARNING_OBJECT(m_sink, "Cannot get the media player client object, nothing to remove");
+        }
         {
             std::lock_guard<std::mutex> lock(m_sinkMutex);
             clearBuffersUnlocked();
@@ -301,6 +305,11 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
     }
 
     return status;
+}
+
+void PullModePlaybackDelegate::releaseMediaPlayerClient()
+{
+    m_mediaPlayerManager.releaseMediaPlayerClient();
 }
 
 void PullModePlaybackDelegate::handleError(const std::string &message, gint code)
@@ -892,6 +901,16 @@ bool PullModePlaybackDelegate::attachToMediaClientAndSetStreamsNumber(const uint
                                                                       const uint32_t maxVideoHeight)
 {
     GstObject *parentObject = getOldestGstBinParent(m_sink);
+    if (parentObject == GST_OBJECT_CAST(m_sink))
+    {
+        // getOldestGstBinParent() falls back to the sink itself when the sink has no parent bin. Such a
+        // sink is not part of any pipeline, so it cannot play anything - attaching would open a
+        // RialtoServer session of its own, keyed on the sink, that no other sink shares and that only
+        // this sink could ever release.
+        GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient, sink has no parent bin");
+        return false;
+    }
+
     if (!m_mediaPlayerManager.attachMediaPlayerClient(parentObject, maxVideoWidth, maxVideoHeight))
     {
         GST_ERROR_OBJECT(m_sink, "Cannot attach the MediaPlayerClient");

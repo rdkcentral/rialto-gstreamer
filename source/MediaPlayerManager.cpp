@@ -20,6 +20,7 @@
 #include "GstreamerCatLog.h"
 #include "IMessageQueue.h"
 #include "MediaPlayerClientBackend.h"
+#include <algorithm>
 
 std::mutex MediaPlayerManager::m_mediaPlayerClientsMutex;
 std::map<const GstObject *, MediaPlayerManager::MediaPlayerClientInfo> MediaPlayerManager::m_mediaPlayerClientsInfo;
@@ -92,36 +93,57 @@ bool MediaPlayerManager::hasControl()
     return false;
 }
 
+void MediaPlayerManager::destroyClientEntryUnlocked(std::map<const GstObject *, MediaPlayerClientInfo>::iterator it)
+{
+    it->second.client->stop();
+    it->second.client->stopStreaming();
+    it->second.client->destroyClientBackend();
+    m_mediaPlayerClientsInfo.erase(it);
+}
+
 void MediaPlayerManager::releaseMediaPlayerClient()
 {
-    if (m_client.lock())
+    std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_client.lock();
+    if (!client)
     {
-        std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+        return;
+    }
 
-        auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
-        if (it != m_mediaPlayerClientsInfo.end())
+    std::lock_guard<std::mutex> guard(m_mediaPlayerClientsMutex);
+
+    auto it = m_mediaPlayerClientsInfo.find(m_currentGstBinParent);
+    if (it == m_mediaPlayerClientsInfo.end())
+    {
+        // The key we attached with is gone, but we still hold a reference to the client, so the entry
+        // must be found and released by value - otherwise the map keeps the client (and with it the
+        // RialtoServer session) alive for the lifetime of the process.
+        GST_ERROR("Could not find the attached media player client by parent, searching by client");
+        it = std::find_if(m_mediaPlayerClientsInfo.begin(), m_mediaPlayerClientsInfo.end(),
+                          [&client](const auto &entry) { return entry.second.client == client; });
+    }
+
+    if (it != m_mediaPlayerClientsInfo.end())
+    {
+        it->second.refCount--;
+        if (it->second.refCount == 0)
         {
-            it->second.refCount--;
-            if (it->second.refCount == 0)
-            {
-                it->second.client->stop();
-                it->second.client->stopStreaming();
-                it->second.client->destroyClientBackend();
-                m_mediaPlayerClientsInfo.erase(it);
-            }
-            else
-            {
-                if (it->second.controller == this)
-                    it->second.controller = nullptr;
-            }
-            m_client.reset();
-            m_currentGstBinParent = nullptr;
+            destroyClientEntryUnlocked(it);
         }
         else
         {
-            GST_ERROR("Could not find the attached media player client");
+            if (it->second.controller == this)
+                it->second.controller = nullptr;
         }
     }
+    else
+    {
+        GST_ERROR("Could not find the attached media player client");
+    }
+
+    // Always drop our own reference, even when the entry could not be found. Keeping it would leave
+    // this manager permanently attached to a client it can no longer release.
+    m_client.reset();
+    m_currentGstBinParent = nullptr;
 }
 
 bool MediaPlayerManager::acquireControl(MediaPlayerClientInfo &mediaPlayerClientInfo)
@@ -157,7 +179,9 @@ void MediaPlayerManager::createMediaPlayerClient(const GstObject *gstBinParent, 
 
         if (client->createBackend())
         {
-            // Store the new client in global map
+            // Store the new client in global map. Note that no reference is taken on the key: the map
+            // must not keep the parent bin alive, or the sinks inside it would never be disposed and
+            // rialto_mse_base_sink_dispose() could never release this entry.
             MediaPlayerClientInfo newClientInfo;
             newClientInfo.client = client;
             newClientInfo.controller = this;
