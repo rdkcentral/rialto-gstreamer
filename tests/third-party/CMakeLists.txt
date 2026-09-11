@@ -64,6 +64,9 @@ function(copyLocalFallback FILE)
         endif()
     endforeach()
 
+    message(FATAL_ERROR "No local fallback found for ${FILE}")
+endfunction()
+
 function(downloadAndCheck URL FILE)
     if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/source/${FILE})
