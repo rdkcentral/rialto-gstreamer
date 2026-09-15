@@ -44,7 +44,7 @@ class VL VL
 **Key Features & Responsibilities:**
 
 - **GStreamer sink element registration**: Registers four GStreamer sink elements (`rialtomsevideosink`, `rialtomseaudiosink`, `rialtomsesubtitlesink`, `rialtowebaudiosink`) at a configurable rank so the GStreamer element selection mechanism routes media data through the Rialto path.
-- **Pull-mode media data feeding**: Responds to `notifyNeedMediaData` requests from the Rialto server by pulling GStreamer samples upstream, parsing them through `BufferParser`, and submitting them as `IMediaPipeline::MediaSegment` objects via `addSegment`.
+- **Pull-mode media data feeding**: Responds to `notifyNeedMediaData` requests from the Rialto server by dequeuing buffered `GstSample` objects from `PullModePlaybackDelegate`, parsing them through `BufferParser`, and submitting them as `IMediaPipeline::MediaSegment` objects via `addSegment`.
 - **Push-mode web audio delivery**: Delivers web audio streams via `GStreamerWebAudioPlayerClient`, queuing incoming GStreamer buffers and pushing PCM audio data to the Rialto web audio backend using `writeBuffer()` as buffer space becomes available.
 - **EME / content protection handling**: Extracts per-buffer DRM protection metadata (key ID, IV, subsamples, cipher mode) from GStreamer buffer protection metadata and attaches it to each submitted media segment.
 - **Playback lifecycle management**: Maps GStreamer element state transitions (NULL→READY→PAUSED→PLAYING and reverse) to the corresponding Rialto pipeline operations (load, attach source, play, pause, stop, flush).
@@ -135,7 +135,7 @@ flowchart LR
 - **Main Thread**: GStreamer state-change dispatching, property get/set, and pad event handling execute on the calling GStreamer thread (typically a streaming thread or the application thread).
 - **Worker Threads**:
   - _MessageQueue worker thread_: Owned by `GStreamerMSEMediaPlayerClient`. Processes all messages posted from Rialto server callbacks (`NeedDataMessage`, `PlaybackStateMessage`, `SetPositionMessage`, `QosMessage`, `BufferUnderflowMessage`, `SourceFlushedMessage`, etc.) serially to prevent concurrent access to pipeline state.
-  - _BufferPuller queue thread_: One per attached source in pull mode. Receives `PullBufferMessage` requests, pulls GStreamer samples from the upstream pad, parses them with `BufferParser`, and submits segments via `addSegment`.
+  - _BufferPuller queue thread_: One per attached source in pull mode. Receives `PullBufferMessage` requests, dequeues buffered `GstSample` objects from `PullModePlaybackDelegate`, parses them with `BufferParser`, and submits segments via `addSegment`.
   - _Timer thread_: Used by `Timer` for one-shot or periodic callbacks, primarily in the web audio path.
 - **Synchronization**: `m_sinkMutex` (per sink) protects the delegate pointer and queued properties. `m_mediaPlayerClientsMutex` (static on `MediaPlayerManager`) protects the shared media player client map. `m_playbackInfoMutex` protects the `PlaybackInfo` struct updated by the Rialto server notification. `FlushAndDataSynchronizer` uses a `std::condition_variable` to block data submissions while a flush is in progress.
 - **Async / Event Dispatch**: Rialto server callbacks (e.g., `notifyPlaybackState`, `notifyNeedMediaData`) are received on the Rialto client IPC thread and immediately posted as `Message` objects to the `MessageQueue`, which processes them on the worker thread. This prevents IPC callback threads from blocking on GStreamer pipeline operations.
@@ -182,8 +182,10 @@ sequenceDiagram
     GSTPipeline->>Sink: READY_TO_PAUSED state change
     Delegate->>RialtoClient: attachSource(MediaSource)
     RialtoClient-->>Delegate: sourceId assigned
+    GSTPipeline->>Sink: chain() - push GstBuffer
+    Sink->>Delegate: handleBuffer() - queue GstSample
     RialtoClient->>Delegate: notifyNeedMediaData(sourceId, frameCount)
-    Delegate->>GSTPipeline: Pull sample from upstream pad
+    Delegate->>Delegate: getFrontSample() - dequeue buffered sample
     Delegate->>RialtoClient: addSegment() + haveData()
 
     GSTPipeline->>Sink: PAUSED_TO_PLAYING state change
@@ -192,8 +194,10 @@ sequenceDiagram
     Sink-->>GSTPipeline: PLAYING
 
     loop Runtime - data feeding
+        GSTPipeline->>Sink: chain() - push GstBuffer
+        Sink->>Delegate: handleBuffer() - queue GstSample
         RialtoClient->>Delegate: notifyNeedMediaData()
-        Delegate->>GSTPipeline: Pull GstBuffer
+        Delegate->>Delegate: getFrontSample() - dequeue buffered sample
         Delegate->>RialtoClient: addSegment() + haveData()
     end
 
@@ -205,7 +209,7 @@ sequenceDiagram
 
 #### Runtime State Changes
 
-During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by pulling samples from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which are forwarded to the GStreamer segment and posted as messages.
+During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which are forwarded to the GStreamer segment and posted as messages.
 
 **State Change Triggers:**
 
@@ -249,24 +253,28 @@ sequenceDiagram
 
 #### Request Processing Call Flow
 
-The video sink receives a `notifyNeedMediaData` callback from the Rialto server, which is enqueued on the `MessageQueue`. The worker thread dequeues it, posts a `PullBufferMessage` to the `BufferPuller` queue, which pulls a `GstSample` from the upstream GStreamer pad, parses it using `VideoBufferParser`, and calls `addSegment` followed by `haveData` on the Rialto pipeline backend.
+Video buffers are pushed into the sink by the upstream GStreamer element through the pad chain function, and `PullModePlaybackDelegate` queues each buffer as a `GstSample`. When the video sink receives a `notifyNeedMediaData` callback from the Rialto server, it is enqueued on the `MessageQueue`. The worker thread dequeues it, posts a `PullBufferMessage` to the `BufferPuller` queue, which dequeues a buffered `GstSample` from the delegate, parses it using `VideoBufferParser`, and calls `addSegment` followed by `haveData` on the Rialto pipeline backend.
 
 ```mermaid
 sequenceDiagram
+    participant GSTPipeline as GStreamer Pipeline
+    participant Delegate as PullModePlaybackDelegate
     participant RialtoServer as Rialto Server (IPC)
     participant MPClient as GStreamerMSEMediaPlayerClient
     participant MsgQueue as MessageQueue (Worker Thread)
     participant BufPuller as BufferPuller Thread
-    participant GSTUpstream as GStreamer Upstream Pad
     participant BufParser as VideoBufferParser
     participant RialtoBackend as MediaPlayerClientBackend
+
+    GSTPipeline->>Delegate: chain() - push GstBuffer
+    Delegate->>Delegate: handleBuffer() - queue GstSample
 
     RialtoServer->>MPClient: notifyNeedMediaData(sourceId, frameCount, requestId)
     MPClient->>MsgQueue: postMessage(NeedDataMessage)
     MsgQueue->>MsgQueue: dequeue and handle
     MsgQueue->>BufPuller: requestPullBuffer(sourceId, frameCount, requestId)
-    BufPuller->>GSTUpstream: gst_pad_get_range() / pull sample
-    GSTUpstream-->>BufPuller: GstSample
+    BufPuller->>Delegate: getFrontSample() - dequeue buffered sample
+    Delegate-->>BufPuller: GstSample
     BufPuller->>BufParser: parseBuffer(sample, buffer, map, streamId)
     BufParser-->>BufPuller: MediaSegment (with timestamps, codec data, protection metadata)
     BufPuller->>RialtoBackend: addSegment(requestId, mediaSegment)
@@ -321,7 +329,7 @@ rialto-gstreamer communicates upward with the GStreamer pipeline through standar
 | `IControl`                   | Register as a Rialto control client to receive application state transitions                                                            | `IControl::registerClient()`, `notifyApplicationState()`                                                                                                                                                                                        |
 | `IMediaPipelineCapabilities` | Query supported MIME types at sink element class initialization to populate GstCaps                                                     | `getSupportedMimeTypes()`                                                                                                                                                                                                                       |
 | **GStreamer Pipeline**       |                                                                                                                                         |                                                                                                                                                                                                                                                 |
-| GStreamer upstream           | Receive media buffers via pad chain or pull-mode sample requests                                                                        | `gst_pad_get_range()`, `gst_pad_pull_range()`, GstBuffer chain                                                                                                                                                                                  |
+| GStreamer upstream           | Receive media buffers pushed via the pad chain function and queue them for on-demand delegate consumption                               | `gst_pad_set_chain_function()`, `handleBuffer()`                                                                                                                                                                                                |
 | GStreamer bus                | Post EOS, error, state-change, and QoS messages upstream                                                                                | `gst_element_post_message()`, `gst_message_new_eos()`, `gst_message_new_error()`                                                                                                                                                                |
 | GStreamer pad events         | Handle CAPS, SEGMENT, EOS, FLUSH_START, FLUSH_STOP, SEEK events                                                                         | `gst_pad_event_default()`, `GST_EVENT_*`                                                                                                                                                                                                        |
 
