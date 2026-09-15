@@ -297,6 +297,12 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                          "Webaudio mode", "Enable webaudio mode. Property should be set before NULL->READY transition",
                                                          FALSE, G_PARAM_READWRITE));
 
+    g_object_class_install_property(gobjectClass, PROP_LIMIT_BUFFERING_MS,
+                                    g_param_spec_uint("limit-buffering-ms", "limit buffering ms",
+                                                      "Set millisecond threshold used if limit_buffering is set. "
+                                                      "Changing this value does not enable/disable limit_buffering",
+                                                      0, 20000, kDefaultBufferingLimit, G_PARAM_READWRITE));
+
     g_signals[SIGNAL_FIRST_AUDIO_FRAME_RECEIVED] = g_signal_new("first-audio-frame-callback", G_TYPE_FROM_CLASS(klass),
                                                                 (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                                 g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
@@ -325,6 +331,15 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
+
+        g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
+                                        g_param_spec_string(kAudioFadePropertyName.c_str(),
+                                                            "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
+                                                            kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+        g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
+                                        g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
+                                                            "Get current fade volume", 0, 100, kDefaultFadeVolume,
+                                                            G_PARAM_READABLE));
 
         for (auto it = supportedProperties.begin(); it != supportedProperties.end(); ++it)
         {
@@ -355,20 +370,6 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
                                                                  "stream sync mode", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync",
                                                                  0, G_MAXINT, kDefaultStreamSyncMode,
                                                                  GParamFlags(G_PARAM_READWRITE)));
-            }
-            else if (kAudioFadePropertyName == *it)
-            {
-                g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
-                                                g_param_spec_string(kAudioFadePropertyName.c_str(),
-                                                                    "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
-                                                                    kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
-            }
-            else if (kFadeVolumePropertyName == *it)
-            {
-                g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
-                                                g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
-                                                                  "Get current fade volume", 0, 100, kDefaultFadeVolume,
-                                                                  G_PARAM_READABLE));
             }
             else if (kBufferingLimitPropertyName == *it)
             {
