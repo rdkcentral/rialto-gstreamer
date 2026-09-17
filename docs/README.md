@@ -177,8 +177,9 @@ sequenceDiagram
     CtrlBackend->>RialtoClient: IControl::registerClient()
     RialtoClient-->>CtrlBackend: notifyApplicationState(RUNNING)
     Delegate->>MPMgr: attachMediaPlayerClient()
-    MPMgr->>RialtoClient: createMediaPlayerBackend() + load(MSE)
-    RialtoClient-->>MPMgr: Backend created
+    MPMgr->>MPClient: create GStreamerMSEMediaPlayerClient
+    MPClient->>RialtoClient: createMediaPlayerBackend() + load(MSE)
+    RialtoClient-->>MPClient: Backend created
     Sink-->>GSTPipeline: READY
 
     GSTPipeline->>Sink: READY_TO_PAUSED state change
@@ -223,8 +224,8 @@ During normal playback, the Rialto server periodically sends `notifyNeedMediaDat
 
 - `notifyPlaybackState(PLAYING/PAUSED/STOPPED/END_OF_STREAM)` posted to the MessageQueue triggers corresponding GStreamer state or EOS message propagation upstream.
 - A flush event from the GStreamer pipeline (`GST_EVENT_FLUSH_START/STOP`) triggers `flush()` on the Rialto pipeline via `MediaPlayerClientBackendInterface::flush()`, and `FlushAndDataSynchronizer` blocks any concurrent `addSegment` calls until the server confirms flush completion via `notifySourceFlushed`.
-- `notifyBufferUnderflow` emits the `underflow` GSignal on the sink element, which the parent pipeline can handle to adjust buffering.
-- `notifyPlaybackError(DECRYPTION / OUTPUT_PROTECTION)` posts a GStreamer error message to the pipeline bus.
+- `notifyBufferUnderflow` emits the `buffer-underflow-callback` GObject signal on the sink element, which the parent pipeline can handle to adjust buffering.
+- `notifyPlaybackError(DECRYPTION)` posts a GStreamer error message to the pipeline bus; `OUTPUT_PROTECTION` instead posts an `HDCPProtectionFailure` application message.
 
 **Context Switching Scenarios:**
 
@@ -471,7 +472,7 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 | `use-buffering`      | GObject property (bool)                 | false           | Enables server-side buffering management.                                                                                                                                                                                                                 |
 | `immediate-output`   | GObject property (bool)                 | false           | Enables immediate output mode for the video decoder in the Rialto server.                                                                                                                                                                                 |
 | `syncmode-streaming` | GObject property (bool)                 | false           | Enables streaming sync mode for video playback.                                                                                                                                                                                                           |
-| `window-set`         | GObject property (string)               | "0,0,1920,1080" | Video display rectangle as `"x,y,width,height"` forwarded to the Rialto server.                                                                                                                                                                           |
+| `rectangle`          | GObject property (string)               | `"0,0,1920,1080"` | Video display rectangle as `"x,y,width,height"` forwarded to the Rialto server.                                                                                                                                                                           |
 
 ### Runtime Configuration
 
