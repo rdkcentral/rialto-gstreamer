@@ -167,6 +167,8 @@ sequenceDiagram
     participant Delegate as PullModePlaybackDelegate
     participant CtrlBackend as ControlBackend
     participant MPMgr as MediaPlayerManager
+    participant MPClient as GStreamerMSEMediaPlayerClient
+    participant BufPuller as BufferPuller
     participant RialtoClient as Rialto Client IPC
 
     GSTPipeline->>Sink: NULL_TO_READY state change
@@ -184,9 +186,12 @@ sequenceDiagram
     RialtoClient-->>Delegate: sourceId assigned
     GSTPipeline->>Sink: chain() - push GstBuffer
     Sink->>Delegate: handleBuffer() - queue GstSample
-    RialtoClient->>Delegate: notifyNeedMediaData(sourceId, frameCount)
-    Delegate->>Delegate: getFrontSample() - dequeue buffered sample
-    Delegate->>RialtoClient: addSegment() + haveData()
+    RialtoClient->>MPClient: notifyNeedMediaData(sourceId, frameCount, requestId)
+    MPClient->>BufPuller: postMessage(NeedDataMessage / PullBufferMessage)
+    BufPuller->>Delegate: getFrontSample() - dequeue buffered sample
+    BufPuller->>RialtoClient: addSegment(requestId, mediaSegment)
+    BufPuller->>MPClient: postMessage(HaveDataMessage)
+    MPClient->>RialtoClient: haveData(status, requestId)
 
     GSTPipeline->>Sink: PAUSED_TO_PLAYING state change
     Delegate->>RialtoClient: play()
@@ -196,9 +201,12 @@ sequenceDiagram
     loop Runtime - data feeding
         GSTPipeline->>Sink: chain() - push GstBuffer
         Sink->>Delegate: handleBuffer() - queue GstSample
-        RialtoClient->>Delegate: notifyNeedMediaData()
-        Delegate->>Delegate: getFrontSample() - dequeue buffered sample
-        Delegate->>RialtoClient: addSegment() + haveData()
+        RialtoClient->>MPClient: notifyNeedMediaData(sourceId, frameCount, requestId)
+        MPClient->>BufPuller: postMessage(NeedDataMessage / PullBufferMessage)
+        BufPuller->>Delegate: getFrontSample() - dequeue buffered sample
+        BufPuller->>RialtoClient: addSegment(requestId, mediaSegment)
+        BufPuller->>MPClient: postMessage(HaveDataMessage)
+        MPClient->>RialtoClient: haveData(status, requestId)
     end
 
     GSTPipeline->>Sink: PLAYING_TO_PAUSED / PAUSED_TO_READY / READY_TO_NULL
@@ -369,7 +377,7 @@ sequenceDiagram
 
 **Event Notification Flow:**
 
-Rialto server callbacks arrive on the IPC receiver thread, are immediately wrapped as `Message` objects and posted to the `MessageQueue`, then processed on the worker thread to update pipeline state or propagate events into the GStreamer pipeline.
+Rialto server callbacks arrive on the IPC receiver thread, are immediately wrapped as `Message` objects and posted to the backend `MessageQueue`, then processed on the worker thread to update pipeline state or propagate events into the GStreamer pipeline. Data-request notifications (`notifyNeedMediaData`) additionally hand off to a per-source `BufferPuller` queue, which dequeues the buffered sample, parses it, and calls `addSegment` directly from its own thread, before the backend queue sends `haveData` back to the Rialto server.
 
 ```mermaid
 sequenceDiagram
@@ -436,7 +444,7 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
   - Sink element state dispatch: `RialtoGStreamerMSEBaseSink.cpp`
   - Rialto session lifecycle: `PullModePlaybackDelegate.cpp`, `GStreamerMSEMediaPlayerClient.cpp`
 
-- **Event Processing**: Rialto server callbacks are received on the IPC thread and posted immediately to the `MessageQueue` as typed `Message` subclasses. The worker thread processes them serially, preventing concurrent modification of playback state. The `BufferPuller` thread operates on a separate `IMessageQueue` instance, decoupled from the backend notification queue.
+- **Event Processing**: Rialto server callbacks are received on the IPC thread and posted immediately to the backend `MessageQueue` as typed `Message` subclasses. For data requests, the backend worker thread hands off to the attached source's `BufferPuller`, whose own `IMessageQueue` dequeues the buffered sample, parses it, and calls `addSegment` directly from the `BufferPuller` thread; the outcome is then posted back to the backend queue, which sends `haveData` to the Rialto server. Other server callbacks (playback state, position, QoS, underflow) are processed serially on the backend worker thread without this additional hop.
   - Message dispatch: `GStreamerMSEMediaPlayerClient.cpp`
   - Buffer pull: `GStreamerMSEMediaPlayerClient.cpp` (`BufferPuller`, `PullBufferMessage`)
 
