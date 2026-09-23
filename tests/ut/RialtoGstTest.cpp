@@ -49,10 +49,11 @@ constexpr bool kHasDrm{true};
 constexpr int kChannels{1};
 constexpr int kRate{48000};
 const firebolt::rialto::AudioConfig kAudioConfig{kChannels, kRate, {}};
-const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/mp3",   "audio/aac",   "audio/x-eac3",
-                                                        "audio/x-opus", "audio/b-wav", "audio/x-raw", "audio/x-flac"};
-const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264", "video/h265", "video/x-av1", "video/x-vp9",
-                                                        "video/unsupported"};
+const std::vector<std::string> kSupportedAudioMimeTypes{"audio/mp4",    "audio/mp3",    "audio/aac",
+                                                        "audio/x-eac3", "audio/x-opus", "audio/b-wav",
+                                                        "audio/x-raw",  "audio/x-flac", "audio/x-vorbis"};
+const std::vector<std::string> kSupportedVideoMimeTypes{"video/h264",  "video/h265",  "video/x-av1",
+                                                        "video/x-vp9", "video/x-vp8", "video/unsupported"};
 const std::vector<std::string> kSupportedSubtitlesMimeTypes{"text/vtt", "text/ttml", "text/cc"};
 constexpr firebolt::rialto::VideoRequirements kDefaultRequirements{3840, 2160};
 constexpr bool kIsLive{false};
