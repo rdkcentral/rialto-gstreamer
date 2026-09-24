@@ -326,8 +326,46 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::AUDIO,
                                                             kPropertyNamesToSearch)};
 
+        g_object_class_install_property(gobjectClass, PROP_LOW_LATENCY,
+                                g_param_spec_boolean(kLowLatencyPropertyName.c_str(),
+                                "low latency", "Turn on low latency mode, for use with gaming (no audio decoding, no a/v sync)",
+                                kDefaultLowLatency, GParamFlags(G_PARAM_WRITABLE)));
+
+        g_object_class_install_property(gobjectClass, PROP_SYNC,
+                                g_param_spec_boolean(kSyncPropertyName.c_str(), "sync", "Clock sync",
+                                kDefaultSync, GParamFlags(G_PARAM_READWRITE)));
+
+        g_object_class_install_property(gobjectClass, PROP_SYNC_OFF,
+                                g_param_spec_boolean(kSyncOffPropertyName.c_str(),
+                                "sync off", "Turn on free running audio. Must be set before pipeline is PLAYING state.",
+                                kDefaultSyncOff, GParamFlags(G_PARAM_WRITABLE)));
+
+        g_object_class_install_property(gobjectClass, PROP_STREAM_SYNC_MODE,
+                            g_param_spec_int(kStreamSyncModePropertyName.c_str(),
+                            "stream sync mode SSV", "1 - Frame to decode frame will immediately proceed next frame sync, 0 - Frame decoded with no frame sync",
+                            0, G_MAXINT, kDefaultStreamSyncMode,
+                            GParamFlags(G_PARAM_READWRITE)));
+
+        g_object_class_install_property(gobjectClass, PROP_AUDIO_FADE,
+                                        g_param_spec_string(kAudioFadePropertyName.c_str(),
+                                        "audio fade", "Start audio fade (vol[0-100],duration ms,easetype[(L)inear,Cubic(I)n,Cubic(O)ut])",
+                                        kDefaultAudioFade, GParamFlags(G_PARAM_WRITABLE)));
+
+        g_object_class_install_property(gobjectClass, PROP_FADE_VOLUME,
+                                        g_param_spec_uint(kFadeVolumePropertyName.c_str(), "fade volume",
+                                        "Get current fade volume", 0, 100, kDefaultFadeVolume,
+                                        G_PARAM_READABLE));
+
+        constexpr uint32_t kMaxValue{20000};
+        g_object_class_install_property(gobjectClass, PROP_LIMIT_BUFFERING_MS,
+                                        g_param_spec_uint("limit-buffering-ms",
+                                        "limit buffering ms", "Set millisecond threshold used if limit_buffering is set. Changing this value does not enable/disable limit_buffering",
+                                        0, kMaxValue, kDefaultBufferingLimit,
+                                        G_PARAM_READWRITE));
+
         for (auto it = supportedProperties.begin(); it != supportedProperties.end(); ++it)
         {
+#if 0
             if (kLowLatencyPropertyName == *it)
             {
                 g_object_class_install_property(gobjectClass, PROP_LOW_LATENCY,
@@ -383,6 +421,7 @@ static void rialto_mse_audio_sink_class_init(RialtoMSEAudioSinkClass *klass)
             {
                 GST_ERROR("Unexpected property %s returned from rialto", it->c_str());
             }
+#endif
         }
     }
     else

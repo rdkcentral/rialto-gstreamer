@@ -243,6 +243,9 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     gobjectClass->set_property = rialto_mse_video_sink_set_property;
     elementClass->change_state = rialto_mse_video_sink_change_state;
 
+    const std::string kImmediateOutputPropertyName{"immediate-output"};
+    const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
+
     g_object_class_install_property(gobjectClass, PROP_WINDOW_SET,
                                     g_param_spec_string("rectangle", "rectangle", "Window Set Format: x,y,width,height",
                                                         nullptr, GParamFlags(G_PARAM_READWRITE)));
@@ -293,6 +296,16 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                                 g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
                                                                 G_TYPE_UINT, G_TYPE_POINTER);
 
+    g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
+                            g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
+                            "immediate output", "immediate output", TRUE,
+                            GParamFlags(G_PARAM_READWRITE)));
+
+    g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
+                        g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
+                        "Enable/disable OTT streaming sync mode", FALSE,
+                        G_PARAM_WRITABLE));
+
     std::unique_ptr<firebolt::rialto::IMediaPipelineCapabilities> mediaPlayerCapabilities =
         firebolt::rialto::IMediaPipelineCapabilitiesFactory::createFactory()->createMediaPipelineCapabilities();
     if (mediaPlayerCapabilities)
@@ -301,11 +314,12 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
             mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
 
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
-
+#if 0
         const std::string kImmediateOutputPropertyName{"immediate-output"};
         const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
         const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
                                                               kSyncmodeStreamingPropertyName};
+
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
                                                             kPropertyNamesToSearch)};
@@ -327,6 +341,7 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                                      G_PARAM_WRITABLE));
             }
         }
+#endif
     }
     else
     {
