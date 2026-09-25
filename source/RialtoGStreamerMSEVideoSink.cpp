@@ -288,6 +288,11 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("show-video-window", "make video window visible",
                                                          "true: visible, false: hidden", TRUE, G_PARAM_WRITABLE));
 
+    g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
+                                    g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
+                                                         "Enable/disable OTT streaming sync mode", FALSE,
+                                                         G_PARAM_WRITABLE));
+
     g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
                                                                 (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                                 g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
@@ -303,9 +308,7 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
 
         const std::string kImmediateOutputPropertyName{"immediate-output"};
-        const std::string kSyncmodeStreamingPropertyName{"syncmode-streaming"};
-        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName,
-                                                              kSyncmodeStreamingPropertyName};
+        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName};
         std::vector<std::string> supportedProperties{
             mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
                                                             kPropertyNamesToSearch)};
@@ -318,13 +321,6 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                 g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
                                                                      "immediate output", "immediate output", TRUE,
                                                                      GParamFlags(G_PARAM_READWRITE)));
-            }
-            else if (kSyncmodeStreamingPropertyName == propertyName)
-            {
-                g_object_class_install_property(gobjectClass, PROP_SYNCMODE_STREAMING,
-                                                g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
-                                                                     "Enable/disable OTT streaming sync mode", FALSE,
-                                                                     G_PARAM_WRITABLE));
             }
         }
     }
