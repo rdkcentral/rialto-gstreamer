@@ -49,7 +49,7 @@ else()
 endif()
 
 function(downloadAndCheck URL FILE)
-    if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for the source file
+    if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/source/${FILE})
     else()
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE})
@@ -76,6 +76,7 @@ set(FILE_LIST
     IMediaPipelineClient.h
     MediaCommon.h
     IMediaPipelineCapabilities.h
+    IMediaCapabilities.h
     ControlCommon.h
     IControlClient.h
     IControl.h
@@ -83,14 +84,19 @@ set(FILE_LIST
     IWebAudioPlayerClient.h
     IClientLogHandler.h
     IClientLogControl.h
+    AudioDecoderCapabilities.h
+    VideoDecoderCapabilities.h
+    DecoderCapabilitiesCommon.h
 )
 
 # Loop through the list and call the function
 foreach(FILE_NAME ${FILE_LIST})
-    if(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.h") # Special case for header file as the path is different
+    if(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.h")
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/)
-    elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for source file as the path is different
+    elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/)
+    elseif(FILE_NAME STREQUAL "AudioDecoderCapabilities.h" OR FILE_NAME STREQUAL "VideoDecoderCapabilities.h" OR FILE_NAME STREQUAL "DecoderCapabilitiesCommon.h")
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/common/public/include/)
     else()
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/)
     endif()
@@ -106,6 +112,7 @@ add_library(
     source/ControlFactory.cpp
     source/ClientLogControlFactory.cpp
     source/MediaPipelineCapabilitiesFactory.cpp
+    source/MediaCapabilitiesFactory.cpp
     source/MediaPipelineFactory.cpp
     source/RialtoGStreamerEMEProtectionMetadata.cpp
     source/WebAudioPlayerFactory.cpp
