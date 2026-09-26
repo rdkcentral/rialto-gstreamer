@@ -48,22 +48,72 @@ else()
     endif()
 endif()
 
+function(copyLocalFallback FILE)
+    set(CANDIDATE_DIRS
+        # Check sibling directory first (for local builds)
+        "${CMAKE_SOURCE_DIR}/../rialto/common/public/include"
+        "${CMAKE_SOURCE_DIR}/../rialto/media/public/include"
+        "${CMAKE_SOURCE_DIR}/../rialto/media/public/interface"
+        "${CMAKE_SOURCE_DIR}/../rialto/media/client/main/include"
+        "${CMAKE_SOURCE_DIR}/../rialto/media/client/ipc/include"
+        "${CMAKE_SOURCE_DIR}/../rialto/serverManager/public/include"
+        # Check subdirectory (for GitHub Actions CI)
+        "${CMAKE_SOURCE_DIR}/rialto/common/public/include"
+        "${CMAKE_SOURCE_DIR}/rialto/media/public/include"
+        "${CMAKE_SOURCE_DIR}/rialto/media/public/interface"
+        "${CMAKE_SOURCE_DIR}/rialto/media/client/main/include"
+        "${CMAKE_SOURCE_DIR}/rialto/media/client/ipc/include"
+        "${CMAKE_SOURCE_DIR}/rialto/serverManager/public/include")
+
+    message(STATUS "Looking for ${FILE} in fallback locations...")
+    foreach(candidate IN LISTS CANDIDATE_DIRS)
+        message(STATUS "  Checking: ${candidate}/${FILE}")
+        if(EXISTS "${candidate}/${FILE}")
+            message(STATUS "  ✓ Found at: ${candidate}/${FILE}")
+            file(READ "${candidate}/${FILE}" fallbackContents)
+            file(WRITE "${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE}" "${fallbackContents}")
+            return()
+        endif()
+    endforeach()
+
+    message(FATAL_ERROR "No local fallback found for ${FILE}")
+endfunction()
+
 function(downloadAndCheck URL FILE)
-    if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for the source file
+    if(FILE MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/source/${FILE})
     else()
         set(FILE_PATH ${CMAKE_SOURCE_DIR}/tests/third-party/include/${FILE})
     endif()
 
+    if(FILE STREQUAL "MediaCommon.h" OR FILE STREQUAL "AudioDecoderCapabilities.h" OR FILE STREQUAL "VideoDecoderCapabilities.h" OR FILE STREQUAL "IMediaPipelineCapabilities.h" OR FILE STREQUAL "IMediaCapabilities.h")
+        # Only use local fallback if the local rialto tree exists, otherwise continue with normal download
+        if(EXISTS "${CMAKE_SOURCE_DIR}/../rialto/common/public/include" OR EXISTS "${CMAKE_SOURCE_DIR}/../rialto/media/public/include")
+            message(WARNING "Using local Rialto header for ${FILE} to match the current API")
+            copyLocalFallback(${FILE})
+            return()
+        endif()
+    endif()
+
     if(NOT EXISTS ${FILE_PATH})
-        file(DOWNLOAD ${URL} ${FILE_PATH})
-        message("Downloaded ${FILE}")
-        
-        # If the file is empty
+        file(DOWNLOAD ${URL} ${FILE_PATH} STATUS downloadStatus LOG downloadLog)
+        list(GET downloadStatus 0 statusCode)
+        if(NOT statusCode EQUAL 0 OR NOT EXISTS ${FILE_PATH})
+            message(WARNING "Download of ${FILE} failed (${URL}); using local Rialto fallback")
+            copyLocalFallback(${FILE})
+        else()
+            message("Downloaded ${FILE}")
+        endif()
+    endif()
+
+    if(EXISTS ${FILE_PATH})
         file(READ ${FILE_PATH} fileContents)
         if("${fileContents}" STREQUAL "")
-            message(FATAL_ERROR "The downloaded ${FILE} file is empty!")
+            message(WARNING "The downloaded ${FILE} file is empty; using local Rialto fallback")
+            copyLocalFallback(${FILE})
         endif()
+    else()
+        message(FATAL_ERROR "The file ${FILE} is missing after download and fallback attempts.")
     endif()
 endfunction()
 
@@ -76,6 +126,7 @@ set(FILE_LIST
     IMediaPipelineClient.h
     MediaCommon.h
     IMediaPipelineCapabilities.h
+    IMediaCapabilities.h
     ControlCommon.h
     IControlClient.h
     IControl.h
@@ -83,14 +134,18 @@ set(FILE_LIST
     IWebAudioPlayerClient.h
     IClientLogHandler.h
     IClientLogControl.h
+    AudioDecoderCapabilities.h
+    VideoDecoderCapabilities.h
 )
 
 # Loop through the list and call the function
 foreach(FILE_NAME ${FILE_LIST})
-    if(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.h") # Special case for header file as the path is different
+    if(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.h")
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/)
-    elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for source file as the path is different
+    elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp")
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/)
+    elseif(FILE_NAME STREQUAL "AudioDecoderCapabilities.h" OR FILE_NAME STREQUAL "VideoDecoderCapabilities.h")
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/common/public/include/)
     else()
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/)
     endif()
@@ -106,6 +161,7 @@ add_library(
     source/ControlFactory.cpp
     source/ClientLogControlFactory.cpp
     source/MediaPipelineCapabilitiesFactory.cpp
+    source/MediaCapabilitiesFactory.cpp
     source/MediaPipelineFactory.cpp
     source/RialtoGStreamerEMEProtectionMetadata.cpp
     source/WebAudioPlayerFactory.cpp

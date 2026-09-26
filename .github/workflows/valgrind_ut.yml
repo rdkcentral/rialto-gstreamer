@@ -76,31 +76,44 @@ jobs:
         run: |
           sudo apt-get install valgrind
 
-      # Check, from which rialto branch should we download headers
-      - name: Check if rialto branch with the same name exists
-        id: check-branch
-        shell: sh +e {0}
+      # Checkout rialto repository for header fallback
+      # Use master as default (safe), then checkout correct branch if needed
+      - name: checkout rialto repo (for header dependencies)
+        shell: bash
         run: |
-          branch="${{ github.ref_name }}"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
-            if [ $? -eq 0 ]; then
-              branch="${{ github.event.pull_request.head.ref }}"
-            else
-              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
-              if [ $? -eq 0 ]; then
-                branch="${{ github.event.pull_request.base.ref }}"
+          set -e
+          
+          # Determine which branch to checkout
+          current_branch="${{ github.head_ref || github.ref_name }}"
+          echo "Current rialto-gstreamer branch: $current_branch"
+          
+          # Branch mapping for special cases where branch names differ between repos
+          case "$current_branch" in
+            "MediaPipelineCapabilitiesNewConfig")
+              rialto_branch="MediaCapabilitiesRialtoServerManager"
+              echo "✓ Using hardcoded mapping: $current_branch → $rialto_branch"
+              ;;
+            *)
+              # Try to find same branch name in rialto repo
+              if git ls-remote --heads https://github.com/rdkcentral/rialto.git "refs/heads/$current_branch" | grep -q "$current_branch"; then
+                rialto_branch="$current_branch"
+                echo "✓ Found matching branch in rialto: $current_branch"
               else
-                branch="master"
+                # Fall back to master (safest default)
+                rialto_branch="master"
+                echo "✓ No matching branch found, using master"
               fi
-            fi
-          fi
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+          
+          echo "Checking out rialto branch: $rialto_branch"
+          git clone --depth 1 --branch "$rialto_branch" https://github.com/rdkcentral/rialto.git rialto
+          echo "rialto_branch=$rialto_branch" >> $GITHUB_ENV
 
       # Run the build script with valgrind
       - name: Run unittests with valgrind
         run: |
-              python build_ut.py -c -xml -f -val -b ${{ steps.check-branch.outputs.branch }}
+              python build_ut.py -c -xml -f -val -b "${{ env.rialto_branch }}"
 
       # Process the valgrind results and create a csv
       - name: Process valgrind results
