@@ -321,7 +321,7 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
         if (client && stepOnPrerollEnabled && !m_stepOnPrerollEnabled)
         {
             GST_INFO_OBJECT(m_sink, "Frame stepping on preroll");
-            client->renderFrame(m_sourceId);
+            client->renderFrame();
         }
         m_stepOnPrerollEnabled = stepOnPrerollEnabled;
         break;

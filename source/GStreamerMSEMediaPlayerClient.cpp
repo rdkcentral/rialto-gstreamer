@@ -789,23 +789,10 @@ std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
     return std::string(rectangle);
 }
 
-bool GStreamerMSEMediaPlayerClient::renderFrame(int32_t sourceId)
+bool GStreamerMSEMediaPlayerClient::renderFrame()
 {
     bool result = false;
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            result = m_clientBackend->renderFrame();
-            if (result)
-            {
-                // RialtoServer's video sink should drop PAUSED state due to skipping prerolled buffer in PAUSED state
-                auto sourceIt = m_attachedSources.find(sourceId);
-                if (sourceIt != m_attachedSources.end())
-                {
-                    sourceIt->second.m_delegate->lostState();
-                }
-            }
-        });
+    m_backendQueue->callInEventLoop([&]() { result = m_clientBackend->renderFrame(); });
     return result;
 }
 
