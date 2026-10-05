@@ -294,6 +294,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                                          "Enable/disable OTT streaming sync mode", FALSE,
                                                          G_PARAM_WRITABLE));
 
+    g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
+                                    g_param_spec_boolean("immediate-output", "immediate output", "immediate output",
+                                                         TRUE, GParamFlags(G_PARAM_READWRITE)));
+
     g_signals[SIGNAL_FIRST_VIDEO_FRAME_RECEIVED] = g_signal_new("first-video-frame-callback", G_TYPE_FROM_CLASS(klass),
                                                                 (GSignalFlags)(G_SIGNAL_RUN_LAST), 0, nullptr, nullptr,
                                                                 g_cclosure_marshal_VOID__UINT_POINTER, G_TYPE_NONE, 2,
@@ -325,30 +329,6 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
         std::vector<std::string> supportedMimeTypes =
             mediaPlayerCapabilities->getSupportedMimeTypes(firebolt::rialto::MediaSourceType::VIDEO);
         rialto_mse_sink_setup_supported_caps(elementClass, supportedMimeTypes);
-    }
-
-    if (mediaPlayerCapabilities)
-    {
-        const std::string kImmediateOutputPropertyName{"immediate-output"};
-        const std::vector<std::string> kPropertyNamesToSearch{kImmediateOutputPropertyName};
-        std::vector<std::string> supportedProperties{
-            mediaPlayerCapabilities->getSupportedProperties(firebolt::rialto::MediaSourceType::VIDEO,
-                                                            kPropertyNamesToSearch)};
-
-        for (const auto &propertyName : supportedProperties)
-        {
-            if (kImmediateOutputPropertyName == propertyName)
-            {
-                g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
-                                                g_param_spec_boolean(kImmediateOutputPropertyName.c_str(),
-                                                                     "immediate output", "immediate output", TRUE,
-                                                                     GParamFlags(G_PARAM_READWRITE)));
-            }
-        }
-    }
-    else
-    {
-        GST_ERROR("Failed to get supported mime types for VIDEO");
     }
 
     gst_element_class_set_details_simple(elementClass, "Rialto Video Sink", "Decoder/Video/Sink/Video",
