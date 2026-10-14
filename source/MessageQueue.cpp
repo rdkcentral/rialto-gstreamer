@@ -111,7 +111,7 @@ bool MessageQueue::postMessage(const std::shared_ptr<Message> &msg)
         return false;
     }
     m_queue.push_back(msg);
-    m_condVar.notify_all();
+    m_condVar.notify_one();
 
     return true;
 }
