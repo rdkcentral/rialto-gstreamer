@@ -347,7 +347,6 @@ private:
     bool areAllStreamsAttached();
     void sendAllSourcesAttachedIfPossibleInternal();
     bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
-
     std::unique_ptr<IMessageQueue> m_backendQueue;
     std::shared_ptr<IMessageQueueFactory> m_messageQueueFactory;
     std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> m_clientBackend;
