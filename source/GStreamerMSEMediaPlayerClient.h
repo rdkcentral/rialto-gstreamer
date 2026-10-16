@@ -136,20 +136,6 @@ private:
     std::shared_ptr<IPullModePlaybackDelegate> m_delegate;
 };
 
-class NeedDataMessage : public Message
-{
-public:
-    NeedDataMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
-                    GStreamerMSEMediaPlayerClient *player);
-    void handle() override;
-
-private:
-    int m_sourceId;
-    size_t m_frameCount;
-    unsigned int m_needDataRequestId;
-    GStreamerMSEMediaPlayerClient *m_player;
-};
-
 class PlaybackStateMessage : public Message
 {
 public:
@@ -250,7 +236,6 @@ enum class StateChangeResult
 class GStreamerMSEMediaPlayerClient : public firebolt::rialto::IMediaPipelineClient,
                                       public std::enable_shared_from_this<GStreamerMSEMediaPlayerClient>
 {
-    friend class NeedDataMessage;
     friend class PullBufferMessage;
     friend class HaveDataMessage;
     friend class QosMessage;
@@ -290,6 +275,7 @@ public:
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
                const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSegment> &mediaSegment);
+    bool haveData(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId);
 
     bool createBackend();
     StateChangeResult play(int32_t sourceId);
@@ -313,7 +299,6 @@ public:
     void setVideoRectangle(const std::string &rectangleString);
     std::string getVideoRectangle();
 
-    bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
     bool handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo);
     bool handleBufferUnderflow(int sourceId);
     bool handleFirstFrameReceived(int sourceId);
@@ -355,6 +340,10 @@ private:
     int64_t m_duration;
     std::mutex m_playbackInfoMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
+    // Per-source workers used for the NeedMediaData data path. Accessed from the IPC event thread, so guarded by
+    // its own mutex rather than being confined to m_backendQueue like m_attachedSources.
+    std::mutex m_bufferPullersMutex;
+    std::unordered_map<int32_t, std::shared_ptr<BufferPuller>> m_bufferPullers;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;
     int32_t m_audioStreams;
