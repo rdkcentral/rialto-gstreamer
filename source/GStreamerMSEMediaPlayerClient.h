@@ -46,6 +46,8 @@
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
 
+bool validateMediaPipelineMetricMessage(const GstStructure *structure);
+
 class GStreamerMSEMediaPlayerClient;
 
 enum class ClientState
