@@ -25,6 +25,7 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <thread>
 
@@ -35,6 +36,38 @@ namespace
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
+
+bool validateMediaPipelineMetricMessage(const GstStructure *structure)
+{
+    if (structure == nullptr)
+    {
+        return false;
+    }
+
+    if (g_strcmp0(gst_structure_get_name(structure), "media-pipeline-metric") != 0)
+    {
+        return false;
+    }
+
+    const std::array<const char *, 6> requiredFields = {"metric_type", "source_id", "rendered_frames",
+                                                        "dropped_frames", "corrupted_frames", "pts_ns"};
+    const std::array<GType, 6> requiredTypes = {G_TYPE_UINT, G_TYPE_INT, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT,
+                                                G_TYPE_INT64};
+
+    for (size_t i = 0; i < requiredFields.size(); ++i)
+    {
+        if (!gst_structure_has_field(structure, requiredFields[i]))
+        {
+            return false;
+        }
+        if (gst_structure_get_field_type(structure, requiredFields[i]) != requiredTypes[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 const char *toString(const firebolt::rialto::PlaybackError &error)
 {

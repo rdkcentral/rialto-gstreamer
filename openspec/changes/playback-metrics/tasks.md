@@ -2,7 +2,7 @@
 
 ## 1. Producer validation
 
-- [ ] 1.1 Add producer validation tests for `media-pipeline-metric` message structure and required field presence, and verify the test suite catches malformed GStreamer payloads.
+- [x] 1.1 Add producer validation tests for `media-pipeline-metric` message structure and required field presence, and verify the test suite catches malformed GStreamer payloads.
 - [ ] 1.2 Add counter monotonicity and enum validation checks, and verify invalid metric_type or decreasing counters fail the tests as expected.
 - [ ] 1.3 Add producer component tests for drop and decode-error scenarios, and verify real pipeline metric emission matches the expected contract.
 

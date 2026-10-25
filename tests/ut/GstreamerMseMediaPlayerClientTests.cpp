@@ -790,6 +790,41 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostHdcpProtectionFailureApplic
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldValidateMediaPipelineMetricMessageStructure)
+{
+    GstStructure *messageStructure{gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 100u, "dropped_frames", G_TYPE_UINT, 2u, "corrupted_frames", G_TYPE_UINT,
+        1u, "pts_ns", G_TYPE_INT64, static_cast<gint64>(1234567890), nullptr)};
+
+    ASSERT_NE(messageStructure, nullptr);
+    EXPECT_TRUE(validateMediaPipelineMetricMessage(messageStructure));
+
+    gst_structure_free(messageStructure);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMalformedMediaPipelineMetricMessages)
+{
+    GstStructure *messageStructure{gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 100u, "dropped_frames", G_TYPE_UINT, 2u, "pts_ns",
+        G_TYPE_INT64, static_cast<gint64>(1234567890), nullptr)};
+
+    ASSERT_NE(messageStructure, nullptr);
+    EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
+
+    gst_structure_free(messageStructure);
+
+    GstStructure *invalidName{gst_structure_new(
+        "not-media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 100u, "dropped_frames", G_TYPE_UINT, 2u, "corrupted_frames", G_TYPE_UINT,
+        1u, "pts_ns", G_TYPE_INT64, static_cast<gint64>(1234567890), nullptr)};
+
+    ASSERT_NE(invalidName, nullptr);
+    EXPECT_FALSE(validateMediaPipelineMetricMessage(invalidName));
+    gst_structure_free(invalidName);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackErrorWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
