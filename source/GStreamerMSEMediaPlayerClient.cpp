@@ -66,6 +66,39 @@ bool validateMediaPipelineMetricMessage(const GstStructure *structure)
         }
     }
 
+    const guint metricType = g_value_get_uint(gst_structure_get_value(structure, "metric_type"));
+    const std::array<guint, 7> validMetricTypes = {0u, 1u, 2u, 3u, 4u, 5u, 6u};
+    if (std::find(validMetricTypes.begin(), validMetricTypes.end(), metricType) == validMetricTypes.end())
+    {
+        return false;
+    }
+
+    static std::mutex metricValidationMutex;
+    static std::unordered_map<int32_t, std::tuple<uint64_t, uint64_t, uint64_t>> lastCounterSnapshots;
+
+    const int32_t sourceId = g_value_get_int(gst_structure_get_value(structure, "source_id"));
+    if (sourceId < 0)
+    {
+        return false;
+    }
+
+    const uint64_t renderedFrames = static_cast<uint64_t>(g_value_get_uint(gst_structure_get_value(structure, "rendered_frames")));
+    const uint64_t droppedFrames = static_cast<uint64_t>(g_value_get_uint(gst_structure_get_value(structure, "dropped_frames")));
+    const uint64_t corruptedFrames = static_cast<uint64_t>(g_value_get_uint(gst_structure_get_value(structure, "corrupted_frames")));
+
+    std::lock_guard<std::mutex> lock{metricValidationMutex};
+    const auto iter = lastCounterSnapshots.find(sourceId);
+    if (iter != lastCounterSnapshots.end())
+    {
+        const auto &[lastRenderedFrames, lastDroppedFrames, lastCorruptedFrames] = iter->second;
+        if ((renderedFrames < lastRenderedFrames) || (droppedFrames < lastDroppedFrames) ||
+            (corruptedFrames < lastCorruptedFrames))
+        {
+            return false;
+        }
+    }
+
+    lastCounterSnapshots[sourceId] = std::make_tuple(renderedFrames, droppedFrames, corruptedFrames);
     return true;
 }
 
