@@ -858,6 +858,44 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectNonMonotonicCountersForTh
     gst_structure_free(secondMessage);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAcceptDropScenarioMetricMessages)
+{
+    GstStructure *dropMessage{gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 110u, "dropped_frames", G_TYPE_UINT, 5u, "corrupted_frames", G_TYPE_UINT,
+        0u, "pts_ns", G_TYPE_INT64, static_cast<gint64>(1234567890), nullptr)};
+    ASSERT_NE(dropMessage, nullptr);
+    EXPECT_TRUE(validateMediaPipelineMetricMessage(dropMessage));
+    gst_structure_free(dropMessage);
+
+    GstStructure *nextDropMessage{gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 115u, "dropped_frames", G_TYPE_UINT, 7u, "corrupted_frames", G_TYPE_UINT,
+        0u, "pts_ns", G_TYPE_INT64, static_cast<gint64>(1234567891), nullptr)};
+    ASSERT_NE(nextDropMessage, nullptr);
+    EXPECT_TRUE(validateMediaPipelineMetricMessage(nextDropMessage));
+    gst_structure_free(nextDropMessage);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAcceptDecodeErrorScenarioMetricMessages)
+{
+    GstStructure *decodeErrorMessage{gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, 2u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 200u, "dropped_frames", G_TYPE_UINT, 0u, "corrupted_frames", G_TYPE_UINT,
+        1u, "pts_ns", G_TYPE_INT64, static_cast<gint64>(1234567890), nullptr)};
+    ASSERT_NE(decodeErrorMessage, nullptr);
+    EXPECT_TRUE(validateMediaPipelineMetricMessage(decodeErrorMessage));
+    gst_structure_free(decodeErrorMessage);
+
+    GstStructure *nextDecodeErrorMessage{gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, 2u, "source_id", G_TYPE_INT, 7,
+        "rendered_frames", G_TYPE_UINT, 210u, "dropped_frames", G_TYPE_UINT, 0u, "corrupted_frames", G_TYPE_UINT,
+        3u, "pts_ns", G_TYPE_INT64, static_cast<gint64>(1234567891), nullptr)};
+    ASSERT_NE(nextDecodeErrorMessage, nullptr);
+    EXPECT_TRUE(validateMediaPipelineMetricMessage(nextDecodeErrorMessage));
+    gst_structure_free(nextDecodeErrorMessage);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyPlaybackErrorWhenSourceIdIsNotKnown)
 {
     expectCallInEventLoop();
