@@ -231,6 +231,13 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<SourceFlushedMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames,
+                                                    uint64_t droppedFrames, uint64_t corruptedFrames,
+                                                    const std::string &errorInfo)
+{
+    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, errorInfo});
+}
+
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
     if (m_flushAndDataSynchronizer.isAnySourceFlushing())
@@ -320,6 +327,62 @@ bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &rendere
     m_backendQueue->callInEventLoop([&]()
                                     { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
     return status;
+}
+
+int32_t GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameCounters *out)
+{
+    if (!out || !m_clientBackend)
+    {
+        return -1;
+    }
+
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    uint64_t timestamp{0};
+    bool status{false};
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            status = m_clientBackend->getFrameCounters(sourceId, renderedFrames, droppedFrames, corruptedFrames,
+                                                     timestamp);
+        });
+    if (!status)
+    {
+        return -1;
+    }
+
+    *out = FrameCounters{renderedFrames, droppedFrames, corruptedFrames, timestamp};
+
+    std::lock_guard<std::mutex> lock{m_frameCountersMutex};
+    m_lastCounters[sourceId] = *out;
+    return 0;
+}
+
+void GStreamerMSEMediaPlayerClient::setMetricCallback(
+    std::function<void(int32_t, const NotifyMetricEvent &)> callback)
+{
+    std::lock_guard<std::mutex> lock{m_metricCallbackMutex};
+    m_metricCallback = std::move(callback);
+}
+
+void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)
+{
+    FrameCounters snapshot{event.renderedFrames, event.droppedFrames, event.corruptedFrames, 0};
+    {
+        std::lock_guard<std::mutex> lock{m_frameCountersMutex};
+        m_lastCounters[sourceId] = snapshot;
+    }
+
+    std::function<void(int32_t, const NotifyMetricEvent &)> callback;
+    {
+        std::lock_guard<std::mutex> lock{m_metricCallbackMutex};
+        callback = m_metricCallback;
+    }
+    if (callback)
+    {
+        callback(sourceId, event);
+    }
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()

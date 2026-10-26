@@ -21,6 +21,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -58,6 +59,22 @@ enum class ClientState
     PAUSED,
     AWAITING_PLAYING,
     PLAYING
+};
+
+struct FrameCounters
+{
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    uint64_t timestamp{0};
+};
+
+struct NotifyMetricEvent
+{
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    std::string errorInfo;
 };
 
 class BufferPuller
@@ -280,6 +297,8 @@ public:
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
+    void notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames, uint64_t droppedFrames, uint64_t corruptedFrames,
+                          const std::string &errorInfo) override;
 
     int64_t getPosition(int32_t sourceId);
     bool getDuration(int64_t &duration);
@@ -288,6 +307,9 @@ public:
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
     bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
+    int32_t getFrameCounters(int32_t sourceId, FrameCounters *out);
+    void setMetricCallback(std::function<void(int32_t, const NotifyMetricEvent &)> callback);
+    void onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event);
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
@@ -356,7 +378,11 @@ private:
     int64_t m_position;
     int64_t m_duration;
     std::mutex m_playbackInfoMutex;
+    std::mutex m_frameCountersMutex;
+    std::mutex m_metricCallbackMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
+    std::map<int32_t, FrameCounters> m_lastCounters;
+    std::function<void(int32_t, const NotifyMetricEvent &)> m_metricCallback;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;
     int32_t m_audioStreams;

@@ -303,6 +303,49 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyNetworkState)
     m_sut->notifyNetworkState(firebolt::rialto::NetworkState::STALLED);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersFromBackend)
+{
+    constexpr int32_t kSourceId{7};
+    const FrameCounters expected{101u, 7u, 3u, 12345u};
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
+        .WillOnce(DoAll(SetArgReferee<1>(expected.renderedFrames), SetArgReferee<2>(expected.droppedFrames),
+                        SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(expected.timestamp),
+                        Return(true)));
+
+    FrameCounters actual{};
+    EXPECT_EQ(m_sut->getFrameCounters(kSourceId, &actual), 0);
+    EXPECT_EQ(actual.renderedFrames, expected.renderedFrames);
+    EXPECT_EQ(actual.droppedFrames, expected.droppedFrames);
+    EXPECT_EQ(actual.corruptedFrames, expected.corruptedFrames);
+    EXPECT_EQ(actual.timestamp, expected.timestamp);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDeliverMetricEventToRegisteredCallback)
+{
+    constexpr int32_t kSourceId{9};
+    bool wasCalled{false};
+    int32_t seenSourceId{-1};
+    NotifyMetricEvent seenEvent{};
+    m_sut->setMetricCallback(
+        [&](int32_t sourceId, const NotifyMetricEvent &event)
+        {
+            wasCalled = true;
+            seenSourceId = sourceId;
+            seenEvent = event;
+        });
+
+    const NotifyMetricEvent expected{42u, 2u, 1u, "decoder error"};
+    m_sut->notifyMetricEvent(kSourceId, expected.renderedFrames, expected.droppedFrames, expected.corruptedFrames,
+                             expected.errorInfo);
+
+    EXPECT_TRUE(wasCalled);
+    EXPECT_EQ(seenSourceId, kSourceId);
+    EXPECT_EQ(seenEvent.renderedFrames, expected.renderedFrames);
+    EXPECT_EQ(seenEvent.droppedFrames, expected.droppedFrames);
+    EXPECT_EQ(seenEvent.corruptedFrames, expected.corruptedFrames);
+    EXPECT_EQ(seenEvent.errorInfo, expected.errorInfo);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackStateStopped)
 {
     expectPostMessage();
