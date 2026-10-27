@@ -346,6 +346,43 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDeliverMetricEventToRegisteredC
     EXPECT_EQ(seenEvent.errorInfo, expected.errorInfo);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldKeepLatestMetricSnapshotAcrossRepeatedEvents)
+{
+    constexpr int32_t kSourceId{11};
+    std::vector<NotifyMetricEvent> seenEvents;
+    m_sut->setMetricCallback(
+        [&](int32_t sourceId, const NotifyMetricEvent &event)
+        {
+            EXPECT_EQ(sourceId, kSourceId);
+            seenEvents.push_back(event);
+        });
+
+    const NotifyMetricEvent first{10u, 2u, 1u, "first"};
+    const NotifyMetricEvent second{25u, 4u, 3u, "second"};
+    m_sut->notifyMetricEvent(kSourceId, first.renderedFrames, first.droppedFrames, first.corruptedFrames,
+                             first.errorInfo);
+    m_sut->notifyMetricEvent(kSourceId, second.renderedFrames, second.droppedFrames, second.corruptedFrames,
+                             second.errorInfo);
+
+    ASSERT_EQ(seenEvents.size(), 2u);
+    EXPECT_EQ(seenEvents.front().renderedFrames, first.renderedFrames);
+    EXPECT_EQ(seenEvents.back().renderedFrames, second.renderedFrames);
+    EXPECT_EQ(seenEvents.back().errorInfo, second.errorInfo);
+
+    const FrameCounters expected{77u, 9u, 6u, 4567u};
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
+        .WillOnce(DoAll(SetArgReferee<1>(expected.renderedFrames), SetArgReferee<2>(expected.droppedFrames),
+                        SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(expected.timestamp),
+                        Return(true)));
+
+    FrameCounters actual{};
+    EXPECT_EQ(m_sut->getFrameCounters(kSourceId, &actual), 0);
+    EXPECT_EQ(actual.renderedFrames, expected.renderedFrames);
+    EXPECT_EQ(actual.droppedFrames, expected.droppedFrames);
+    EXPECT_EQ(actual.corruptedFrames, expected.corruptedFrames);
+    EXPECT_EQ(actual.timestamp, expected.timestamp);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackStateStopped)
 {
     expectPostMessage();

@@ -8,8 +8,8 @@
 
 ## 2. Client-side consumable API
 
-- [ ] 2.1 Implement `getFrameCounters` and callback registration in the client-side sink API, and verify the API compiles and exposes the expected query/notify shape.
-- [ ] 2.2 Add the per-source cache and callback dispatch logic, and verify the latest counters and event delivery stay consistent across repeated calls.
+- [x] 2.1 Implement `getFrameCounters` and callback registration in the client-side sink API, and verify the API compiles and exposes the expected query/notify shape.
+- [x] 2.2 Add the per-source cache and callback dispatch logic, and verify the latest counters and event delivery stay consistent across repeated calls.
 - [ ] 2.3 Wire the client IPC layer to the server callback path, and verify push notifications reach the application callback without additional filtering.
 
 ## 3. Integration and regression checks
