@@ -233,9 +233,9 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames,
                                                     uint64_t droppedFrames, uint64_t corruptedFrames,
-                                                    const std::string &errorInfo)
+                                                    uint64_t ptsNs, const std::string &errorInfo)
 {
-    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, errorInfo});
+    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo});
 }
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
@@ -368,7 +368,7 @@ void GStreamerMSEMediaPlayerClient::setMetricCallback(
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)
 {
-    FrameCounters snapshot{event.renderedFrames, event.droppedFrames, event.corruptedFrames, 0};
+    FrameCounters snapshot{event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs};
     {
         std::lock_guard<std::mutex> lock{m_frameCountersMutex};
         m_lastCounters[sourceId] = snapshot;

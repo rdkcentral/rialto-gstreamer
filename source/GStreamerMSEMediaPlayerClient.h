@@ -74,6 +74,7 @@ struct NotifyMetricEvent
     uint64_t renderedFrames{0};
     uint64_t droppedFrames{0};
     uint64_t corruptedFrames{0};
+    uint64_t ptsNs{0};
     std::string errorInfo;
 };
 
@@ -298,7 +299,7 @@ public:
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
     void notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames, uint64_t droppedFrames, uint64_t corruptedFrames,
-                          const std::string &errorInfo) override;
+                          uint64_t ptsNs, const std::string &errorInfo) override;
 
     int64_t getPosition(int32_t sourceId);
     bool getDuration(int64_t &duration);

@@ -334,15 +334,16 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDeliverMetricEventToRegisteredC
             seenEvent = event;
         });
 
-    const NotifyMetricEvent expected{42u, 2u, 1u, "decoder error"};
+    const NotifyMetricEvent expected{42u, 2u, 1u, 1234567890u, "decoder error"};
     m_sut->notifyMetricEvent(kSourceId, expected.renderedFrames, expected.droppedFrames, expected.corruptedFrames,
-                             expected.errorInfo);
+                             expected.ptsNs, expected.errorInfo);
 
     EXPECT_TRUE(wasCalled);
     EXPECT_EQ(seenSourceId, kSourceId);
     EXPECT_EQ(seenEvent.renderedFrames, expected.renderedFrames);
     EXPECT_EQ(seenEvent.droppedFrames, expected.droppedFrames);
     EXPECT_EQ(seenEvent.corruptedFrames, expected.corruptedFrames);
+    EXPECT_EQ(seenEvent.ptsNs, expected.ptsNs);
     EXPECT_EQ(seenEvent.errorInfo, expected.errorInfo);
 }
 
@@ -357,16 +358,17 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldKeepLatestMetricSnapshotAcrossR
             seenEvents.push_back(event);
         });
 
-    const NotifyMetricEvent first{10u, 2u, 1u, "first"};
-    const NotifyMetricEvent second{25u, 4u, 3u, "second"};
+    const NotifyMetricEvent first{10u, 2u, 1u, 1111111111u, "first"};
+    const NotifyMetricEvent second{25u, 4u, 3u, 2222222222u, "second"};
     m_sut->notifyMetricEvent(kSourceId, first.renderedFrames, first.droppedFrames, first.corruptedFrames,
-                             first.errorInfo);
+                             first.ptsNs, first.errorInfo);
     m_sut->notifyMetricEvent(kSourceId, second.renderedFrames, second.droppedFrames, second.corruptedFrames,
-                             second.errorInfo);
+                             second.ptsNs, second.errorInfo);
 
     ASSERT_EQ(seenEvents.size(), 2u);
     EXPECT_EQ(seenEvents.front().renderedFrames, first.renderedFrames);
     EXPECT_EQ(seenEvents.back().renderedFrames, second.renderedFrames);
+    EXPECT_EQ(seenEvents.back().ptsNs, second.ptsNs);
     EXPECT_EQ(seenEvents.back().errorInfo, second.errorInfo);
 
     const FrameCounters expected{77u, 9u, 6u, 4567u};
