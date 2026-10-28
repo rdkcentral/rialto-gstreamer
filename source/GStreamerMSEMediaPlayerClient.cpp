@@ -235,6 +235,9 @@ void GStreamerMSEMediaPlayerClient::notifyMetricEvent(int32_t sourceId, uint64_t
                                                     uint64_t droppedFrames, uint64_t corruptedFrames,
                                                     uint64_t ptsNs, const std::string &errorInfo)
 {
+    GST_DEBUG("Metric event received for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
+              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " errorInfo=%s",
+              sourceId, renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo.c_str());
     onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo});
 }
 
@@ -333,6 +336,8 @@ int32_t GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameC
 {
     if (!out || !m_clientBackend)
     {
+        GST_WARNING("Frame counter query rejected for sourceId=%d: invalid output pointer or backend missing",
+                    sourceId);
         return -1;
     }
 
@@ -349,6 +354,7 @@ int32_t GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameC
         });
     if (!status)
     {
+        GST_WARNING("Frame counter query failed for sourceId=%d", sourceId);
         return -1;
     }
 
@@ -356,6 +362,10 @@ int32_t GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameC
 
     std::lock_guard<std::mutex> lock{m_frameCountersMutex};
     m_lastCounters[sourceId] = *out;
+
+    GST_DEBUG("Frame counters fetched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
+              " corrupted=%" G_GUINT64_FORMAT " timestamp=%" G_GUINT64_FORMAT,
+              sourceId, renderedFrames, droppedFrames, corruptedFrames, timestamp);
     return 0;
 }
 
@@ -364,6 +374,7 @@ void GStreamerMSEMediaPlayerClient::setMetricCallback(
 {
     std::lock_guard<std::mutex> lock{m_metricCallbackMutex};
     m_metricCallback = std::move(callback);
+    GST_DEBUG("Metric callback registered: %s", callback ? "enabled" : "disabled");
 }
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)
@@ -374,6 +385,11 @@ void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const Notify
         m_lastCounters[sourceId] = snapshot;
     }
 
+    GST_DEBUG("Metric event dispatched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
+              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " errorInfo=%s",
+              sourceId, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
+              event.errorInfo.c_str());
+
     std::function<void(int32_t, const NotifyMetricEvent &)> callback;
     {
         std::lock_guard<std::mutex> lock{m_metricCallbackMutex};
@@ -382,6 +398,10 @@ void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const Notify
     if (callback)
     {
         callback(sourceId, event);
+    }
+    else
+    {
+        GST_DEBUG("Metric event for sourceId=%d dropped because no callback is registered", sourceId);
     }
 }
 
