@@ -243,9 +243,10 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConsecutiveFlushCyclesWhenSubt
     for (int cycle = 0; cycle < 2; ++cycle)
     {
         EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_flush_start()));
-        EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_flush_stop(FALSE)));
+        EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_flush_stop(cycle == 0)));
     }
 
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_RESET_TIME));
     EXPECT_EQ(GST_STATE_PAUSED, GST_STATE(sink));
     GstState currentState{GST_STATE_NULL};
     EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_get_state(pipeline, &currentState, nullptr, GST_SECOND));
