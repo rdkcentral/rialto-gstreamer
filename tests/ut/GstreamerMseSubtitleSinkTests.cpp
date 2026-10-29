@@ -468,11 +468,13 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotRetrySubtitleAttachmentAfterFailu
     allSourcesWillBeAttached();
 
     GstCaps *caps{createDefaultCaps()};
+    GstCaps *replacementCaps{gst_caps_new_empty_simple("application/x-subtitle-vtt")};
     setCaps(sink, caps);
-    setCaps(sink, caps);
+    setCaps(sink, replacementCaps);
 
     setNullState(pipeline, -1);
 
+    gst_caps_unref(replacementCaps);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }

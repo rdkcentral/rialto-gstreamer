@@ -102,6 +102,12 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
+        if (m_sourceUnavailable)
+        {
+            GST_INFO_OBJECT(m_sink, "Source unavailable. Skip calling attachSource");
+            break;
+        }
+
         if (m_sourceAttached)
         {
             GST_INFO_OBJECT(m_sink, "Source already attached. Skip calling attachSource");
