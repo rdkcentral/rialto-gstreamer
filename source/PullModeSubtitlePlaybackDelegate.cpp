@@ -39,16 +39,22 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
                 return GST_STATE_CHANGE_FAILURE;
             }
             m_isSinkFlushOngoing = false;
-            m_isEos = false;
+            {
+                std::lock_guard<std::mutex> lock{m_sinkMutex};
+                m_isEos = false;
+            }
             return GST_STATE_CHANGE_SUCCESS;
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
         case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
             return GST_STATE_CHANGE_SUCCESS;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
             clearBuffers();
-            m_sourceAttached = false;
-            m_segmentSet = false;
-            m_isEos = false;
+            {
+                std::lock_guard<std::mutex> lock{m_sinkMutex};
+                m_sourceAttached = false;
+                m_segmentSet = false;
+                m_isEos = false;
+            }
             return GST_STATE_CHANGE_SUCCESS;
         default:
             break;
@@ -108,8 +114,12 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
         if (subtitleSource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if (!client || !client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
-                                                 PullModePlaybackDelegate::shared_from_this()))
+            if (!client)
+            {
+                GST_INFO_OBJECT(m_sink, "Deferring subtitle attachment until the media player client is ready");
+            }
+            else if (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
+                                           PullModePlaybackDelegate::shared_from_this()))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source; continuing without subtitles");
                 m_sourceUnavailable = true;

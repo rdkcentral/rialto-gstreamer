@@ -115,6 +115,30 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldRemainUnattachedWhenSubtitleCapsArri
     gst_object_unref(sink);
 }
 
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldDeferCapsUntilClientIsReadyAndPauseAttachedSource)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    GstCaps *caps{createDefaultCaps()};
+
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).Times(0);
+    setCaps(sink, caps);
+
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    const int32_t sourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+    EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
+    setCaps(sink, caps);
+    sendPlaybackStateNotification(sink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_get_state(pipeline, nullptr, nullptr, GST_SECOND));
+
+    setNullState(pipeline, sourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAdvertiseUnsupportedOrEmptySubtitleCaps)
 {
     GstElement *sink = gst_element_factory_make("rialtomsesubtitlesink", nullptr);
