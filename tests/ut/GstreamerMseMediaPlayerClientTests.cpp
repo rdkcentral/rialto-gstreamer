@@ -757,6 +757,193 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyUnknownPlaybackError)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotEscalateSubtitlePlaybackErrorsToDelegate)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    const int32_t sourceId{attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+
+    expectPostMessage();
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    m_sut->notifyPlaybackError(sourceId, firebolt::rialto::PlaybackError::UNKNOWN);
+    m_sut->notifyPlaybackError(sourceId, firebolt::rialto::PlaybackError::DECRYPTION);
+
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+    gst_object_unref(sink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldContinueAudioVideoRequestsAndPositionAfterRepeatedSubtitleErrors)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->handleStreamCollection(1, 1, 1);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
+    auto &audioQueue{bufferPullerWillBeCreated()};
+    const int32_t audioId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    auto &videoQueue{bufferPullerWillBeCreated()};
+    const int32_t videoId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
+    auto &subtitleQueue{bufferPullerWillBeCreated()};
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    const int32_t subtitleId{attachSource(subtitleSink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(3);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    for (int32_t sourceId : {audioId, videoId, subtitleId})
+        m_sut->pause(sourceId);
+    serverTransitionedToPaused(3);
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(3);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
+    for (int32_t sourceId : {audioId, videoId, subtitleId})
+        m_sut->play(sourceId);
+    serverTransitionedToPlaying(3);
+
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition, kVolume});
+    for (int errorIndex = 0; errorIndex < 10; ++errorIndex)
+    {
+        m_sut->notifyPlaybackError(subtitleId, errorIndex % 2 == 0 ? firebolt::rialto::PlaybackError::UNKNOWN
+                                                                   : firebolt::rialto::PlaybackError::DECRYPTION);
+    }
+    EXPECT_CALL(subtitleQueue, postMessage(_)).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, haveData(firebolt::rialto::MediaSourceStatus::ERROR, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(subtitleId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    EXPECT_CALL(audioQueue, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &message)
+            {
+                message->handle();
+                return true;
+            }));
+    EXPECT_CALL(videoQueue, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &message)
+            {
+                message->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).Times(2).WillRepeatedly(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+        .Times(2)
+        .WillRepeatedly(Return(true));
+    m_sut->notifyNeedMediaData(audioId, kFrameCount, kNeedDataRequestId, kShmInfo);
+    m_sut->notifyNeedMediaData(videoId, kFrameCount, kNeedDataRequestId, kShmInfo);
+    m_sut->notifyPlaybackInfo(firebolt::rialto::PlaybackInfo{kPosition + 100, kVolume});
+    EXPECT_EQ(m_sut->getPosition(audioId), kPosition + 100);
+    EXPECT_EQ(m_sut->getPosition(videoId), kPosition + 100);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldIgnoreLateErrorsForRemovedSubtitleSource)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->handleStreamCollection(1, 1, 1);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    const int32_t audioId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    bufferPullerWillBeCreated();
+    const int32_t videoId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
+    auto subtitleQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    EXPECT_CALL(*subtitleQueue, start());
+    EXPECT_CALL(*subtitleQueue, stop());
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(subtitleQueue))));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    const int32_t subtitleId{attachSource(subtitleSink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(3);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    for (int32_t sourceId : {audioId, videoId, subtitleId})
+        m_sut->pause(sourceId);
+    serverTransitionedToPaused(3);
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(3);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
+    for (int32_t sourceId : {audioId, videoId, subtitleId})
+        m_sut->play(sourceId);
+    serverTransitionedToPlaying(3);
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, removeSource(subtitleId)).WillOnce(Return(true));
+    m_sut->removeSource(subtitleId);
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    m_sut->notifyPlaybackError(subtitleId, firebolt::rialto::PlaybackError::UNKNOWN);
+    m_sut->notifyPlaybackError(subtitleId, firebolt::rialto::PlaybackError::DECRYPTION);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStillEscalateAudioVideoErrorsAfterSubtitleFailure)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    const int32_t audioId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    bufferPullerWillBeCreated();
+    const int32_t videoId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
+    bufferPullerWillBeCreated();
+    const int32_t subtitleId{attachSource(subtitleSink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+    expectPostMessage();
+
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    m_sut->notifyPlaybackError(subtitleId, firebolt::rialto::PlaybackError::UNKNOWN);
+    testing::Mock::VerifyAndClearExpectations(m_delegateMock.get());
+
+    {
+        testing::InSequence sequence;
+        EXPECT_CALL(*m_delegateMock, handleError(_, 0));
+        EXPECT_CALL(*m_delegateMock, handleError(_, GST_STREAM_ERROR_DECRYPT));
+    }
+    m_sut->notifyPlaybackError(audioId, firebolt::rialto::PlaybackError::UNKNOWN);
+    m_sut->notifyPlaybackError(videoId, firebolt::rialto::PlaybackError::DECRYPTION);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPreserveSubtitleOutputProtectionNotification)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    bufferPullerWillBeCreated();
+    const int32_t sourceId{attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+    expectPostMessage();
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    m_sut->notifyPlaybackError(sourceId, firebolt::rialto::PlaybackError::OUTPUT_PROTECTION);
+
+    GstMessage *message{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
+    EXPECT_NE(message, nullptr);
+    if (message)
+    {
+        const GstStructure *structure{gst_message_get_structure(message)};
+        ASSERT_NE(structure, nullptr);
+        EXPECT_STREQ(gst_structure_get_name(structure), "HDCPProtectionFailure");
+        EXPECT_STREQ(gst_structure_get_string(structure, "error"), "OUTPUT_PROTECTION");
+        gst_message_unref(message);
+    }
+    EXPECT_FALSE(getMessages(pipeline).contains(GST_MESSAGE_ERROR));
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostHdcpProtectionFailureApplicationMessage)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -1885,6 +2072,165 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachSubtitleSource)
     gst_object_unref(sink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldForwardSubtitleSampleWithTimingAndDisplayOffset)
+{
+    constexpr int64_t timestamp{1234};
+    constexpr int64_t duration{4321};
+    constexpr guint64 displayOffset{35};
+    RialtoMSEBaseSink *sink = createSinkWithMockedDelegate();
+    auto &bufferPullerQueue{bufferPullerWillBeCreated()};
+    const int32_t sourceId{attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+
+    GstBuffer *buffer{gst_buffer_new_allocate(nullptr, 4, nullptr)};
+    GST_BUFFER_PTS(buffer) = timestamp;
+    GST_BUFFER_DURATION(buffer) = duration;
+    GST_BUFFER_OFFSET(buffer) = displayOffset;
+    GstCaps *caps{gst_caps_new_empty_simple("application/ttml+xml")};
+    GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
+    EXPECT_CALL(*m_delegateMock, popSample());
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(bufferPullerQueue, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &message)
+            {
+                message->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, addSegment(kNeedDataRequestId, _))
+        .WillOnce(Invoke(
+            [&](unsigned int, const auto &segment)
+            {
+                EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
+                EXPECT_EQ(segment->getId(), sourceId);
+                EXPECT_EQ(segment->getTimeStamp(), timestamp);
+                EXPECT_EQ(segment->getDuration(), duration);
+                EXPECT_EQ(segment->getDisplayOffset().value(), displayOffset);
+                return firebolt::rialto::AddSegmentStatus::OK;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    m_sut->notifyNeedMediaData(sourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_sample_unref(sample);
+    gst_caps_unref(caps);
+    gst_buffer_unref(buffer);
+    gst_object_unref(sink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldForwardMalformedSubtitlePayloadWithoutClientFatalError)
+{
+    constexpr char malformedCue[]{"<tt><p begin='not-a-time'>broken cue"};
+    RialtoMSEBaseSink *sink = createSinkWithMockedDelegate();
+    auto &pullerQueue{bufferPullerWillBeCreated()};
+    const int32_t sourceId{attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+    GstBuffer *buffer{gst_buffer_new_allocate(nullptr, sizeof(malformedCue) - 1, nullptr)};
+    gst_buffer_fill(buffer, 0, malformedCue, sizeof(malformedCue) - 1);
+    GST_BUFFER_PTS(buffer) = kPosition;
+    GST_BUFFER_DURATION(buffer) = kDuration;
+    GstCaps *caps{gst_caps_new_empty_simple("application/ttml+xml")};
+    GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
+    EXPECT_CALL(*m_delegateMock, popSample());
+
+    expectCallInEventLoop();
+    expectPostMessage();
+    EXPECT_CALL(pullerQueue, postMessage(_))
+        .WillOnce(Invoke(
+            [](const auto &message)
+            {
+                message->handle();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, addSegment(kNeedDataRequestId, _))
+        .WillOnce(Invoke(
+            [&](unsigned int, const auto &segment)
+            {
+                EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
+                EXPECT_EQ(segment->getId(), sourceId);
+                return firebolt::rialto::AddSegmentStatus::OK;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    m_sut->notifyNeedMediaData(sourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_sample_unref(sample);
+    gst_caps_unref(caps);
+    gst_buffer_unref(buffer);
+    gst_object_unref(sink);
+}
+
+class SubtitleDataRecoveryTests : public GstreamerMseMediaPlayerClientTests, public testing::WithParamInterface<bool>
+{
+};
+
+TEST_P(SubtitleDataRecoveryTests, ShouldDeliverLaterSubtitleSampleAfterTemporaryDataFailure)
+{
+    const bool noSpace{GetParam()};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    auto &pullerQueue{bufferPullerWillBeCreated()};
+    const int32_t sourceId{attachSource(sink, firebolt::rialto::MediaSourceType::SUBTITLE)};
+    GstBuffer *buffer{gst_buffer_new_allocate(nullptr, 4, nullptr)};
+    GST_BUFFER_PTS(buffer) = kPosition;
+    GST_BUFFER_DURATION(buffer) = kDuration;
+    GstCaps *caps{gst_caps_new_empty_simple("text/vtt")};
+    GstSample *sample{gst_sample_new(buffer, caps, nullptr, nullptr)};
+    expectPostMessage();
+    EXPECT_CALL(*m_delegateMock, handleError(_, _)).Times(0);
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).Times(2).WillRepeatedly(Return(true));
+    EXPECT_CALL(pullerQueue, postMessage(_))
+        .Times(2)
+        .WillRepeatedly(Invoke(
+            [](const auto &message)
+            {
+                message->handle();
+                return true;
+            }));
+    {
+        testing::InSequence sequence;
+        EXPECT_CALL(*m_delegateMock, getFrontSample())
+            .WillOnce(Invoke([&]() { return noSpace ? GstRefSample{sample} : GstRefSample{}; }));
+        EXPECT_CALL(*m_delegateMock, getFrontSample()).WillOnce(Invoke([&]() { return GstRefSample{sample}; }));
+    }
+    if (noSpace)
+    {
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, addSegment(kNeedDataRequestId, _))
+            .WillOnce(Return(firebolt::rialto::AddSegmentStatus::NO_SPACE))
+            .WillOnce(Return(firebolt::rialto::AddSegmentStatus::OK));
+    }
+    else
+    {
+        EXPECT_CALL(*m_delegateMock, isEos()).WillOnce(Return(false));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, addSegment(kNeedDataRequestId, _))
+            .WillOnce(Return(firebolt::rialto::AddSegmentStatus::OK));
+    }
+    EXPECT_CALL(*m_delegateMock, popSample()).Times(1);
+    {
+        testing::InSequence sequence;
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                    haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+            .WillOnce(Return(true));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                    haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedDataRequestId))
+            .WillOnce(Return(true));
+    }
+    m_sut->notifyNeedMediaData(sourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+    m_sut->notifyNeedMediaData(sourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_sample_unref(sample);
+    gst_caps_unref(caps);
+    gst_buffer_unref(buffer);
+    gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+    gst_object_unref(sink);
+}
+
+INSTANTIATE_TEST_SUITE_P(TemporarySubtitleFailure, SubtitleDataRecoveryTests, testing::Bool());
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
 {
     constexpr int32_t kVideoStreams{1};
@@ -1904,6 +2250,227 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachAllSources)
     gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
     gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartAudioVideoWhenExpectedSubtitleFailsToAttach)
+{
+    constexpr int32_t kAudioStreams{1}, kVideoStreams{1}, kSubtitleStreams{1};
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(kAudioStreams, kVideoStreams, kSubtitleStreams);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    const int32_t audioSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    bufferPullerWillBeCreated();
+    const int32_t videoSourceId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
+
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> subtitleSource{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    auto &subtitleSourceMock{static_cast<StrictMock<MediaSourceMock> &>(*subtitleSource)};
+    EXPECT_CALL(subtitleSourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(subtitleSource.get()))).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    EXPECT_FALSE(m_sut->attachSource(subtitleSource, subtitleSink, m_delegateMock));
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(2);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(audioSourceId);
+    m_sut->pause(videoSourceId);
+    serverTransitionedToPaused(2);
+
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(2);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
+    m_sut->play(audioSourceId);
+    m_sut->play(videoSourceId);
+    serverTransitionedToPlaying(2);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartWhenFailedSubtitleIsReplacedBeforeVideoAttaches)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 1, 1);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *failedSubtitleSink = createSubtitleSink();
+    RialtoMSEBaseSink *replacementSubtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    constexpr int32_t kFailedSubtitleId{701};
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> failedSubtitle{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    failedSubtitle->setId(kFailedSubtitleId);
+    auto &failedSubtitleMock{static_cast<StrictMock<MediaSourceMock> &>(*failedSubtitle)};
+    EXPECT_CALL(failedSubtitleMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(failedSubtitle.get()))).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->attachSource(failedSubtitle, failedSubtitleSink, m_delegateMock));
+
+    constexpr int32_t kReplacementSubtitleId{702};
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> replacementSubtitle{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    replacementSubtitle->setId(kReplacementSubtitleId);
+    auto &replacementSubtitleMock{static_cast<StrictMock<MediaSourceMock> &>(*replacementSubtitle)};
+    EXPECT_CALL(replacementSubtitleMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(replacementSubtitle.get()))).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, setSourceId(kReplacementSubtitleId));
+    bufferPullerWillBeCreated();
+    EXPECT_TRUE(m_sut->attachSource(replacementSubtitle, replacementSubtitleSink, m_delegateMock));
+
+    bufferPullerWillBeCreated();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, failedSubtitleSink, replacementSubtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotDoubleCountFailedSubtitleSinksAgainstStreamCount)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 1, 1);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *firstSubtitleSink = createSubtitleSink();
+    RialtoMSEBaseSink *secondSubtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    for (RialtoMSEBaseSink *subtitleSink : {firstSubtitleSink, secondSubtitleSink})
+    {
+        std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> subtitleSource{
+            std::make_unique<StrictMock<MediaSourceMock>>()};
+        auto &subtitleSourceMock{static_cast<StrictMock<MediaSourceMock> &>(*subtitleSource)};
+        EXPECT_CALL(subtitleSourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(subtitleSource.get()))).WillOnce(Return(false));
+        EXPECT_FALSE(m_sut->attachSource(subtitleSource, subtitleSink, m_delegateMock));
+    }
+
+    bufferPullerWillBeCreated();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, firstSubtitleSink, secondSubtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldWaitForRequiredAudioAttachmentBeforeStartup)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 0, 0);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> source{std::make_unique<StrictMock<MediaSourceMock>>()};
+    auto &sourceMock{static_cast<StrictMock<MediaSourceMock> &>(*source)};
+    EXPECT_CALL(sourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::AUDIO));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(source.get()))).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).Times(0);
+
+    EXPECT_FALSE(m_sut->attachSource(source, audioSink, m_delegateMock));
+    EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldWaitForRequiredVideoAttachmentBeforeStartup)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(0, 1, 0);
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> source{std::make_unique<StrictMock<MediaSourceMock>>()};
+    auto &sourceMock{static_cast<StrictMock<MediaSourceMock> &>(*source)};
+    EXPECT_CALL(sourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::VIDEO));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(source.get()))).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).Times(0);
+
+    EXPECT_FALSE(m_sut->attachSource(source, videoSink, m_delegateMock));
+    EXPECT_EQ(m_sut->getClientState(), ClientState::IDLE);
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotRetryFailedSubtitleAttachmentAfterAvStartup)
+{
+    constexpr int32_t audioStreams{1}, videoStreams{1}, subtitleStreams{1};
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(audioStreams, videoStreams, subtitleStreams);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    auto makeSubtitleSource = []
+    {
+        return std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource>{
+            std::make_unique<StrictMock<MediaSourceMock>>()};
+    };
+    auto failedSource{makeSubtitleSource()};
+    auto &failedSourceMock{static_cast<StrictMock<MediaSourceMock> &>(*failedSource)};
+    EXPECT_CALL(failedSourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(failedSource.get()))).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    EXPECT_FALSE(m_sut->attachSource(failedSource, subtitleSink, m_delegateMock));
+
+    auto retrySource{makeSubtitleSource()};
+    auto &retrySourceMock{static_cast<StrictMock<MediaSourceMock> &>(*retrySource)};
+    EXPECT_CALL(retrySourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(_)).Times(0);
+    EXPECT_FALSE(m_sut->attachSource(retrySource, subtitleSink, m_delegateMock));
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartAudioVideoWhenSubtitleFailurePrecedesStreamCollection)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> subtitleSource{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    auto &subtitleSourceMock{static_cast<StrictMock<MediaSourceMock> &>(*subtitleSource)};
+    EXPECT_CALL(subtitleSourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(subtitleSource.get()))).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->attachSource(subtitleSource, subtitleSink, m_delegateMock));
+
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 1, 1);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    m_sut->sendAllSourcesAttachedIfPossible();
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSendAllSourcesAttached)

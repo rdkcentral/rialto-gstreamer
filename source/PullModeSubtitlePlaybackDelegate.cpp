@@ -29,6 +29,46 @@ PullModeSubtitlePlaybackDelegate::PullModeSubtitlePlaybackDelegate(GstElement *s
 
 GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChange transition)
 {
+    if (m_sourceUnavailable)
+    {
+        switch (transition)
+        {
+        case GST_STATE_CHANGE_READY_TO_PAUSED:
+        {
+            const auto previousClient{m_mediaPlayerManager.getMediaPlayerClient()};
+            if (!attachToMediaClientAndSetStreamsNumber())
+            {
+                return GST_STATE_CHANGE_FAILURE;
+            }
+            if (previousClient != m_mediaPlayerManager.getMediaPlayerClient())
+            {
+                m_sourceUnavailable = false;
+                return PullModePlaybackDelegate::changeState(transition);
+            }
+            m_isSinkFlushOngoing = false;
+            {
+                std::lock_guard<std::mutex> lock{m_sinkMutex};
+                m_isEos = false;
+            }
+            return GST_STATE_CHANGE_SUCCESS;
+        }
+        case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+        case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+            return GST_STATE_CHANGE_SUCCESS;
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            clearBuffers();
+            {
+                std::lock_guard<std::mutex> lock{m_sinkMutex};
+                m_sourceAttached = false;
+                m_segmentSet = false;
+                m_isEos = false;
+            }
+            return GST_STATE_CHANGE_SUCCESS;
+        default:
+            break;
+        }
+    }
+
     switch (transition)
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
@@ -44,14 +84,38 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
     return PullModePlaybackDelegate::changeState(transition);
 }
 
+GstFlowReturn PullModeSubtitlePlaybackDelegate::handleBuffer(GstBuffer *buffer)
+{
+    if (!m_sourceUnavailable)
+    {
+        return PullModePlaybackDelegate::handleBuffer(buffer);
+    }
+
+    const GstFlowReturn result{m_isSinkFlushOngoing ? GST_FLOW_FLUSHING : GST_FLOW_OK};
+    gst_buffer_unref(buffer);
+    return result;
+}
+
 gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     switch (GST_EVENT_TYPE(event))
     {
+    case GST_EVENT_EOS:
+        if (m_sourceUnavailable)
+        {
+            handleEos();
+        }
+        break;
     case GST_EVENT_CAPS:
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
+        if (m_sourceUnavailable)
+        {
+            GST_INFO_OBJECT(m_sink, "Source unavailable. Skip calling attachSource");
+            break;
+        }
+
         if (m_sourceAttached)
         {
             GST_INFO_OBJECT(m_sink, "Source already attached. Skip calling attachSource");
@@ -64,13 +128,20 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
         if (subtitleSource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
-                                                    PullModePlaybackDelegate::shared_from_this())))
+            if (!client)
             {
-                GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source");
+                GST_INFO_OBJECT(m_sink, "Deferring subtitle attachment until the media player client is ready");
+            }
+            else if (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
+                                           PullModePlaybackDelegate::shared_from_this()))
+            {
+                GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source; continuing without subtitles");
+                m_sourceUnavailable = true;
+                handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
             }
             else
             {
+                m_sourceUnavailable = false;
                 m_sourceAttached = true;
                 if (m_isMuteQueued)
                 {
@@ -104,7 +175,9 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
         }
         else
         {
-            GST_ERROR_OBJECT(m_sink, "Failed to create SUBTITLE source");
+            GST_ERROR_OBJECT(m_sink, "Failed to create SUBTITLE source; continuing without subtitles");
+            m_sourceUnavailable = true;
+            handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
         }
 
         break;

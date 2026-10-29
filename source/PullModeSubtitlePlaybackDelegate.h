@@ -30,6 +30,7 @@ public:
     ~PullModeSubtitlePlaybackDelegate() override = default;
 
     GstStateChangeReturn changeState(GstStateChange transition) override;
+    GstFlowReturn handleBuffer(GstBuffer *buffer) override;
     gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     void getProperty(const Property &type, GValue *value) override;
     void setProperty(const Property &type, const GValue *value) override;
@@ -43,6 +44,7 @@ private:
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};
     std::atomic<bool> m_isMuted{false};
+    std::atomic<bool> m_sourceUnavailable{false};
     bool m_isMuteQueued{false};
     uint32_t m_videoId{0};
     std::optional<int64_t> m_queuedOffset{};

@@ -345,6 +345,7 @@ public:
 
 private:
     bool areAllStreamsAttached();
+    void reconcileFailedSubtitleSinks();
     void sendAllSourcesAttachedIfPossibleInternal();
     bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
 
@@ -357,6 +358,7 @@ private:
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;
+    std::unordered_set<const RialtoMSEBaseSink *> m_failedSubtitleSinks;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
     int32_t m_subtitleStreams;
