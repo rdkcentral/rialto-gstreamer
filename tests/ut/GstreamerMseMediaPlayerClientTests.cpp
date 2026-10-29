@@ -2261,9 +2261,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartAudioVideoWhenExpectedSubt
     RialtoMSEBaseSink *videoSink = createVideoSink();
     RialtoMSEBaseSink *subtitleSink = createSubtitleSink();
     bufferPullerWillBeCreated();
-    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+    const int32_t audioSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     bufferPullerWillBeCreated();
-    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    const int32_t videoSourceId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
 
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> subtitleSource{
         std::make_unique<StrictMock<MediaSourceMock>>()};
@@ -2273,6 +2273,19 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartAudioVideoWhenExpectedSubt
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
     EXPECT_FALSE(m_sut->attachSource(subtitleSource, subtitleSink, m_delegateMock));
     EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(2);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->pause(audioSourceId);
+    m_sut->pause(videoSourceId);
+    serverTransitionedToPaused(2);
+
+    EXPECT_CALL(*m_delegateMock, postAsyncStart()).Times(2);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, play(_)).WillOnce(DoAll(SetArgReferee<0>(true), Return(true)));
+    m_sut->play(audioSourceId);
+    m_sut->play(videoSourceId);
+    serverTransitionedToPlaying(2);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::PLAYING);
 
     for (RialtoMSEBaseSink *sink : {audioSink, videoSink, subtitleSink})
     {
