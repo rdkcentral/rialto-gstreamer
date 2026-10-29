@@ -2294,6 +2294,82 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartAudioVideoWhenExpectedSubt
     }
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldStartWhenFailedSubtitleIsReplacedBeforeVideoAttaches)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 1, 1);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *failedSubtitleSink = createSubtitleSink();
+    RialtoMSEBaseSink *replacementSubtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    constexpr int32_t kFailedSubtitleId{701};
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> failedSubtitle{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    failedSubtitle->setId(kFailedSubtitleId);
+    auto &failedSubtitleMock{static_cast<StrictMock<MediaSourceMock> &>(*failedSubtitle)};
+    EXPECT_CALL(failedSubtitleMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(failedSubtitle.get()))).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->attachSource(failedSubtitle, failedSubtitleSink, m_delegateMock));
+
+    constexpr int32_t kReplacementSubtitleId{702};
+    std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> replacementSubtitle{
+        std::make_unique<StrictMock<MediaSourceMock>>()};
+    replacementSubtitle->setId(kReplacementSubtitleId);
+    auto &replacementSubtitleMock{static_cast<StrictMock<MediaSourceMock> &>(*replacementSubtitle)};
+    EXPECT_CALL(replacementSubtitleMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(replacementSubtitle.get()))).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, setSourceId(kReplacementSubtitleId));
+    bufferPullerWillBeCreated();
+    EXPECT_TRUE(m_sut->attachSource(replacementSubtitle, replacementSubtitleSink, m_delegateMock));
+
+    bufferPullerWillBeCreated();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, failedSubtitleSink, replacementSubtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotDoubleCountFailedSubtitleSinksAgainstStreamCount)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(1, 1, 1);
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    RialtoMSEBaseSink *firstSubtitleSink = createSubtitleSink();
+    RialtoMSEBaseSink *secondSubtitleSink = createSubtitleSink();
+    bufferPullerWillBeCreated();
+    attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    for (RialtoMSEBaseSink *subtitleSink : {firstSubtitleSink, secondSubtitleSink})
+    {
+        std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> subtitleSource{
+            std::make_unique<StrictMock<MediaSourceMock>>()};
+        auto &subtitleSourceMock{static_cast<StrictMock<MediaSourceMock> &>(*subtitleSource)};
+        EXPECT_CALL(subtitleSourceMock, getType()).WillRepeatedly(Return(firebolt::rialto::MediaSourceType::SUBTITLE));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachSource(PtrMatcher(subtitleSource.get()))).WillOnce(Return(false));
+        EXPECT_FALSE(m_sut->attachSource(subtitleSource, subtitleSink, m_delegateMock));
+    }
+
+    bufferPullerWillBeCreated();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    for (RialtoMSEBaseSink *sink : {audioSink, videoSink, firstSubtitleSink, secondSubtitleSink})
+    {
+        gst_element_set_state(GST_ELEMENT_CAST(sink), GST_STATE_NULL);
+        gst_object_unref(sink);
+    }
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldWaitForRequiredAudioAttachmentBeforeStartup)
 {
     expectCallInEventLoop();

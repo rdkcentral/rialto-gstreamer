@@ -564,6 +564,7 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                 {
                     GST_ERROR_OBJECT(rialtoSink, "Subtitle source attachment failed; continuing without subtitles");
                     m_failedSubtitleSinks.insert(rialtoSink);
+                    reconcileFailedSubtitleSinks();
                 }
             }
 
@@ -594,6 +595,10 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     delegate->setSourceId(source->getId());
                     m_flushAndDataSynchronizer.addSource(source->getId());
                     bufferPuller->start();
+                    if (sourceType == firebolt::rialto::MediaSourceType::SUBTITLE)
+                    {
+                        reconcileFailedSubtitleSinks();
+                    }
                 }
             }
 
@@ -963,6 +968,8 @@ void GStreamerMSEMediaPlayerClient::handleStreamCollection(int32_t audioStreams,
             if (m_subtitleStreams == UNKNOWN_STREAMS_NUMBER)
                 m_subtitleStreams = subtitleStreams;
 
+            reconcileFailedSubtitleSinks();
+
             GST_INFO("Updated number of streams. New streams' numbers; video=%d, audio=%d, text=%d", m_videoStreams,
                      m_audioStreams, m_subtitleStreams);
         });
@@ -1052,6 +1059,24 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
 
     return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams &&
            attachedSubtitleSources + static_cast<int32_t>(m_failedSubtitleSinks.size()) == m_subtitleStreams;
+}
+
+void GStreamerMSEMediaPlayerClient::reconcileFailedSubtitleSinks()
+{
+    if (m_subtitleStreams == UNKNOWN_STREAMS_NUMBER)
+    {
+        return;
+    }
+
+    const int32_t attachedSubtitleSources = static_cast<int32_t>(
+        std::count_if(m_attachedSources.begin(), m_attachedSources.end(), [](const auto &source)
+                      { return source.second.getType() == firebolt::rialto::MediaSourceType::SUBTITLE; }));
+    const auto maxFailedSubtitleSinks{std::max(0, m_subtitleStreams - attachedSubtitleSources)};
+    while (m_failedSubtitleSinks.size() > static_cast<std::size_t>(maxFailedSubtitleSinks))
+    {
+        GST_INFO("Replacing a previously failed subtitle sink with an attached subtitle source");
+        m_failedSubtitleSinks.erase(m_failedSubtitleSinks.begin());
+    }
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)

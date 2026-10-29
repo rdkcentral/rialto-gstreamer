@@ -345,6 +345,7 @@ public:
 
 private:
     bool areAllStreamsAttached();
+    void reconcileFailedSubtitleSinks();
     void sendAllSourcesAttachedIfPossibleInternal();
     bool checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states);
 
