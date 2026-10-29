@@ -67,6 +67,9 @@ public:
 
 protected:
     bool attachToMediaClientAndSetStreamsNumber(const uint32_t maxVideoWidth = 0, const uint32_t maxVideoHeight = 0);
+    void clearBuffers();
+    void startFlushing(bool waitForServer = true);
+    void stopFlushing(bool resetTime, bool flushServer = true);
 
 private:
     void clearBuffersUnlocked();
@@ -74,8 +77,6 @@ private:
     void copySegment(GstEvent *event);
     void setSegment();
     void changePlaybackRate(GstEvent *event);
-    void startFlushing();
-    void stopFlushing(bool resetTime);
     void flushServer(bool resetTime);
     bool setStreamsNumber(GstObject *parentObject);
     bool isLiveLatencyEnabled() const;

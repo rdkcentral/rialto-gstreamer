@@ -38,10 +38,17 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
             {
                 return GST_STATE_CHANGE_FAILURE;
             }
+            m_isSinkFlushOngoing = false;
+            m_isEos = false;
             return GST_STATE_CHANGE_SUCCESS;
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
         case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+            return GST_STATE_CHANGE_SUCCESS;
         case GST_STATE_CHANGE_PAUSED_TO_READY:
+            clearBuffers();
+            m_sourceAttached = false;
+            m_segmentSet = false;
+            m_isEos = false;
             return GST_STATE_CHANGE_SUCCESS;
         default:
             break;
@@ -63,10 +70,28 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
     return PullModePlaybackDelegate::changeState(transition);
 }
 
+GstFlowReturn PullModeSubtitlePlaybackDelegate::handleBuffer(GstBuffer *buffer)
+{
+    if (!m_sourceUnavailable)
+    {
+        return PullModePlaybackDelegate::handleBuffer(buffer);
+    }
+
+    const GstFlowReturn result{m_isSinkFlushOngoing ? GST_FLOW_FLUSHING : GST_FLOW_OK};
+    gst_buffer_unref(buffer);
+    return result;
+}
+
 gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, GstEvent *event)
 {
     switch (GST_EVENT_TYPE(event))
     {
+    case GST_EVENT_EOS:
+        if (m_sourceUnavailable)
+        {
+            handleEos();
+        }
+        break;
     case GST_EVENT_CAPS:
     {
         GstCaps *caps;

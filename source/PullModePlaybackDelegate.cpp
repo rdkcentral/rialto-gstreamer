@@ -721,7 +721,7 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
     }
     case GST_EVENT_FLUSH_START:
     {
-        startFlushing();
+        startFlushing(m_sourceAttached);
         break;
     }
     case GST_EVENT_FLUSH_STOP:
@@ -729,7 +729,7 @@ gboolean PullModePlaybackDelegate::handleEvent(GstPad *pad, GstObject *parent, G
         gboolean resetTime{FALSE};
         gst_event_parse_flush_stop(event, &resetTime);
 
-        stopFlushing(resetTime);
+        stopFlushing(resetTime, m_sourceAttached);
         break;
     }
     case GST_EVENT_STREAM_COLLECTION:
@@ -841,10 +841,16 @@ void PullModePlaybackDelegate::changePlaybackRate(GstEvent *event)
     }
 }
 
-void PullModePlaybackDelegate::startFlushing()
+void PullModePlaybackDelegate::clearBuffers()
+{
+    std::lock_guard<std::mutex> lock(m_sinkMutex);
+    clearBuffersUnlocked();
+}
+
+void PullModePlaybackDelegate::startFlushing(bool waitForServer)
 {
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-    if (client)
+    if (waitForServer && client)
     {
         client->getFlushAndDataSynchronizer().waitIfRequired(m_sourceId);
     }
@@ -863,10 +869,13 @@ void PullModePlaybackDelegate::startFlushing()
     }
 }
 
-void PullModePlaybackDelegate::stopFlushing(bool resetTime)
+void PullModePlaybackDelegate::stopFlushing(bool resetTime, bool flushServerSource)
 {
     GST_INFO_OBJECT(m_sink, "Stopping flushing");
-    flushServer(resetTime);
+    if (flushServerSource)
+    {
+        flushServer(resetTime);
+    }
     std::lock_guard<std::mutex> lock(m_sinkMutex);
     m_isSinkFlushOngoing = false;
 

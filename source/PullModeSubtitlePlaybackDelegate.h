@@ -30,6 +30,7 @@ public:
     ~PullModeSubtitlePlaybackDelegate() override = default;
 
     GstStateChangeReturn changeState(GstStateChange transition) override;
+    GstFlowReturn handleBuffer(GstBuffer *buffer) override;
     gboolean handleEvent(GstPad *pad, GstObject *parent, GstEvent *event) override;
     void getProperty(const Property &type, GValue *value) override;
     void setProperty(const Property &type, const GValue *value) override;

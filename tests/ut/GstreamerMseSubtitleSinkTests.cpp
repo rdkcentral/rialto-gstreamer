@@ -75,6 +75,21 @@ public:
         pipelineWillGoToPausedState(sink);
         setNullState(pipeline, sourceId);
     }
+
+    void failSubtitleAttachmentAndWaitForPaused(RialtoMSEBaseSink *sink, GstElement *pipeline, GstCaps *caps)
+    {
+        setPausedState(pipeline, sink);
+        EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).WillOnce(Return(false));
+        allSourcesWillBeAttached();
+        setCaps(sink, caps);
+        EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+    }
+
+    void stopPipelineWithoutSubtitleSource(GstElement *pipeline)
+    {
+        EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
+        EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_NULL));
+    }
 };
 
 class TestableSubtitleDelegate : public PullModeSubtitlePlaybackDelegate
@@ -183,6 +198,78 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldRemainPlayableWhenSubtitleAttachment
     EXPECT_FALSE(getMessages(pipeline).contains(GST_MESSAGE_ERROR));
 
     setNullState(pipeline, -1);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConsecutiveFlushCyclesWhenSubtitleIsUnavailable)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    GstCaps *caps{createDefaultCaps()};
+    failSubtitleAttachmentAndWaitForPaused(sink, pipeline, caps);
+
+    for (int cycle = 0; cycle < 2; ++cycle)
+    {
+        EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_flush_start()));
+        EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_flush_stop(FALSE)));
+    }
+
+    EXPECT_EQ(GST_STATE_PAUSED, GST_STATE(sink));
+    GstState currentState{GST_STATE_NULL};
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_get_state(pipeline, &currentState, nullptr, GST_SECOND));
+    EXPECT_EQ(GST_STATE_PAUSED, currentState);
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_PLAYING));
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_get_state(pipeline, nullptr, nullptr, GST_SECOND));
+    EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_eos()));
+    GstMessage *eosMessage{getMessage(pipeline, GST_MESSAGE_EOS)};
+    EXPECT_NE(eosMessage, nullptr);
+    EXPECT_FALSE(getMessages(pipeline).contains(GST_MESSAGE_ERROR));
+    if (eosMessage)
+    {
+        gst_message_unref(eosMessage);
+    }
+    stopPipelineWithoutSubtitleSource(pipeline);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldDiscardUnavailableSubtitleBuffersWithoutQueueing)
+{
+    constexpr int kNumBuffersAboveInternalQueueLimit{32};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    GstCaps *caps{createDefaultCaps()};
+    failSubtitleAttachmentAndWaitForPaused(sink, pipeline, caps);
+
+    for (int index = 0; index < kNumBuffersAboveInternalQueueLimit; ++index)
+    {
+        EXPECT_EQ(GST_FLOW_OK,
+                  rialto_mse_base_sink_chain(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_buffer_new()));
+    }
+
+    EXPECT_TRUE(rialto_mse_base_sink_event(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_flush_start()));
+    EXPECT_EQ(GST_FLOW_FLUSHING,
+              rialto_mse_base_sink_chain(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_buffer_new()));
+    EXPECT_TRUE(rialto_mse_base_sink_event(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_flush_stop(FALSE)));
+    stopPipelineWithoutSubtitleSource(pipeline);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldCompleteEosLocallyWhenSubtitleIsUnavailable)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    GstCaps *caps{createDefaultCaps()};
+    failSubtitleAttachmentAndWaitForPaused(sink, pipeline, caps);
+
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_set_state(pipeline, GST_STATE_PLAYING));
+    EXPECT_EQ(GST_STATE_CHANGE_SUCCESS, gst_element_get_state(pipeline, nullptr, nullptr, GST_SECOND));
+    EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_eos()));
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_EOS));
+
+    stopPipelineWithoutSubtitleSource(pipeline);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
