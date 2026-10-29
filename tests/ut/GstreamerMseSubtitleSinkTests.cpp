@@ -98,6 +98,12 @@ public:
     using PullModeSubtitlePlaybackDelegate::PullModeSubtitlePlaybackDelegate;
 
     bool isSourceAttached() const { return m_sourceAttached; }
+    bool attachClient() { return attachToMediaClientAndSetStreamsNumber(); }
+    void releaseClient() { m_mediaPlayerManager.releaseMediaPlayerClient(); }
+    void setStreamCollection(int32_t audio, int32_t video, int32_t subtitles)
+    {
+        m_mediaPlayerManager.getMediaPlayerClient()->handleStreamCollection(audio, video, subtitles);
+    }
 };
 
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldRemainUnattachedWhenSubtitleCapsArriveWithoutClient)
@@ -257,6 +263,53 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConsecutiveFlushCyclesWhenSubt
     stopPipelineWithoutSubtitleSource(pipeline);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldClearSubtitleUnavailableStateWhenSwitchingClients)
+{
+    RialtoMSEBaseSink *sink = RIALTO_MSE_BASE_SINK(gst_element_factory_make("rialtomsesubtitlesink", nullptr));
+    ASSERT_TRUE(sink);
+    GstElement *firstPipeline = createPipelineWithSink(sink);
+    auto delegate = std::make_shared<TestableSubtitleDelegate>(GST_ELEMENT_CAST(sink));
+    GstCaps *caps{createDefaultCaps()};
+    load(firstPipeline);
+    ASSERT_TRUE(delegate->attachClient());
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).WillOnce(Return(false));
+    allSourcesWillBeAttached();
+    EXPECT_TRUE(delegate->handleEvent(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_caps(caps)));
+    EXPECT_FALSE(delegate->isSourceAttached());
+
+    GstElement *secondPipeline = gst_pipeline_new("replacement-pipeline");
+    gst_object_ref(sink);
+    ASSERT_TRUE(gst_bin_remove(GST_BIN(firstPipeline), GST_ELEMENT_CAST(sink)));
+    ASSERT_TRUE(gst_bin_add(GST_BIN(secondPipeline), GST_ELEMENT_CAST(sink)));
+    gst_object_unref(sink);
+
+    EXPECT_CALL(m_mediaPipelineMock, stop()).WillOnce(Return(true));
+    auto secondMediaPipeline{std::make_unique<testing::StrictMock<firebolt::rialto::MediaPipelineMock>>()};
+    auto &secondMediaPipelineMock{*secondMediaPipeline};
+    EXPECT_CALL(secondMediaPipelineMock, load(_, _, _, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPipelineFactoryMock, createMediaPipeline(_, _))
+        .WillOnce(Return(testing::ByMove(std::move(secondMediaPipeline))));
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, delegate->changeState(GST_STATE_CHANGE_READY_TO_PAUSED));
+    delegate->setStreamCollection(0, 0, 1);
+    EXPECT_CALL(secondMediaPipelineMock, attachSource(_))
+        .WillOnce(testing::Invoke(
+            [](auto &source)
+            {
+                source->setId(71);
+                return true;
+            }));
+    EXPECT_CALL(secondMediaPipelineMock, allSourcesAttached()).WillOnce(Return(true));
+    EXPECT_TRUE(delegate->handleEvent(sink->priv->m_sinkPad, GST_OBJECT_CAST(sink), gst_event_new_caps(caps)));
+    EXPECT_TRUE(delegate->isSourceAttached());
+
+    EXPECT_CALL(secondMediaPipelineMock, stop()).WillOnce(Return(true));
+    delegate->releaseClient();
+    delegate.reset();
+    gst_caps_unref(caps);
+    gst_object_unref(firstPipeline);
+    gst_object_unref(secondPipeline);
 }
 
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldDiscardUnavailableSubtitleBuffersWithoutQueueing)

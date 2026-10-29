@@ -34,9 +34,16 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
         switch (transition)
         {
         case GST_STATE_CHANGE_READY_TO_PAUSED:
+        {
+            const auto previousClient{m_mediaPlayerManager.getMediaPlayerClient()};
             if (!attachToMediaClientAndSetStreamsNumber())
             {
                 return GST_STATE_CHANGE_FAILURE;
+            }
+            if (previousClient != m_mediaPlayerManager.getMediaPlayerClient())
+            {
+                m_sourceUnavailable = false;
+                return PullModePlaybackDelegate::changeState(transition);
             }
             m_isSinkFlushOngoing = false;
             {
@@ -44,6 +51,7 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
                 m_isEos = false;
             }
             return GST_STATE_CHANGE_SUCCESS;
+        }
         case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
         case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
             return GST_STATE_CHANGE_SUCCESS;
