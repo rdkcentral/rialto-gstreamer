@@ -122,7 +122,8 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldDeferCapsUntilClientIsReadyAndPauseA
     GstCaps *caps{createDefaultCaps()};
 
     EXPECT_CALL(m_mediaPipelineMock, attachSource(_)).Times(0);
-    setCaps(sink, caps);
+    ASSERT_TRUE(gst_pad_set_active(sink->priv->m_sinkPad, TRUE));
+    EXPECT_TRUE(gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_caps(caps)));
 
     load(pipeline);
     EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
