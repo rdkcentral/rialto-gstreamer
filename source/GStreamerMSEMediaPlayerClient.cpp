@@ -546,20 +546,39 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            result = m_clientBackend->attachSource(source);
+            const auto sourceType{source->getType()};
+            if (sourceType == firebolt::rialto::MediaSourceType::SUBTITLE && m_wasAllSourcesAttachedSent)
+            {
+                GST_ERROR_OBJECT(rialtoSink, "Cannot attach subtitle source after all sources were attached; "
+                                             "continuing without subtitles");
+            }
+            else if (sourceType == firebolt::rialto::MediaSourceType::SUBTITLE &&
+                     m_failedSubtitleSinks.find(rialtoSink) != m_failedSubtitleSinks.end())
+            {
+                GST_ERROR_OBJECT(rialtoSink, "Subtitle source attachment already failed; continuing without subtitles");
+            }
+            else
+            {
+                result = m_clientBackend->attachSource(source);
+                if (!result && sourceType == firebolt::rialto::MediaSourceType::SUBTITLE)
+                {
+                    GST_ERROR_OBJECT(rialtoSink, "Subtitle source attachment failed; continuing without subtitles");
+                    m_failedSubtitleSinks.insert(rialtoSink);
+                }
+            }
 
             if (result)
             {
                 std::shared_ptr<BufferParser> bufferParser;
-                if (source->getType() == firebolt::rialto::MediaSourceType::AUDIO)
+                if (sourceType == firebolt::rialto::MediaSourceType::AUDIO)
                 {
                     bufferParser = std::make_shared<AudioBufferParser>();
                 }
-                else if (source->getType() == firebolt::rialto::MediaSourceType::VIDEO)
+                else if (sourceType == firebolt::rialto::MediaSourceType::VIDEO)
                 {
                     bufferParser = std::make_shared<VideoBufferParser>();
                 }
-                else if (source->getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+                else if (sourceType == firebolt::rialto::MediaSourceType::SUBTITLE)
                 {
                     bufferParser = std::make_shared<SubtitleBufferParser>();
                 }
@@ -631,7 +650,12 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
             {
                 GST_WARNING("Remove source %d failed", sourceId);
             }
-            m_attachedSources.erase(sourceId);
+            auto sourceIt{m_attachedSources.find(sourceId)};
+            if (sourceIt != m_attachedSources.end())
+            {
+                sourceIt->second.m_bufferPuller->stop();
+                m_attachedSources.erase(sourceIt);
+            }
             m_flushAndDataSynchronizer.removeSource(sourceId);
         });
 }
@@ -1027,7 +1051,7 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
     }
 
     return attachedVideoSources == m_videoStreams && attachedAudioSources == m_audioStreams &&
-           attachedSubtitleSources == m_subtitleStreams;
+           attachedSubtitleSources + static_cast<int32_t>(m_failedSubtitleSinks.size()) == m_subtitleStreams;
 }
 
 bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
@@ -1146,6 +1170,13 @@ bool GStreamerMSEMediaPlayerClient::handlePlaybackError(int sourceId, firebolt::
                 {
                     GST_WARNING("Failed to post HDCPProtectionFailure application message");
                 }
+            }
+            else if (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::SUBTITLE)
+            {
+                GST_ERROR_OBJECT(sourceIt->second.m_rialtoSink,
+                                 "Subtitle playback error '%s' for source %d; continuing audio/video playback",
+                                 toString(error), sourceId);
+                result = true;
             }
             else
             {

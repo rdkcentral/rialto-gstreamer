@@ -29,6 +29,25 @@ PullModeSubtitlePlaybackDelegate::PullModeSubtitlePlaybackDelegate(GstElement *s
 
 GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChange transition)
 {
+    if (m_sourceUnavailable)
+    {
+        switch (transition)
+        {
+        case GST_STATE_CHANGE_READY_TO_PAUSED:
+            if (!attachToMediaClientAndSetStreamsNumber())
+            {
+                return GST_STATE_CHANGE_FAILURE;
+            }
+            return GST_STATE_CHANGE_SUCCESS;
+        case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
+        case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+        case GST_STATE_CHANGE_PAUSED_TO_READY:
+            return GST_STATE_CHANGE_SUCCESS;
+        default:
+            break;
+        }
+    }
+
     switch (transition)
     {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
@@ -64,13 +83,16 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
         if (subtitleSource)
         {
             std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-            if ((!client) || (!client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
-                                                    PullModePlaybackDelegate::shared_from_this())))
+            if (!client || !client->attachSource(subtitleSource, RIALTO_MSE_BASE_SINK(m_sink),
+                                                 PullModePlaybackDelegate::shared_from_this()))
             {
-                GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source");
+                GST_ERROR_OBJECT(m_sink, "Failed to attach SUBTITLE source; continuing without subtitles");
+                m_sourceUnavailable = true;
+                handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
             }
             else
             {
+                m_sourceUnavailable = false;
                 m_sourceAttached = true;
                 if (m_isMuteQueued)
                 {
@@ -104,7 +126,9 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
         }
         else
         {
-            GST_ERROR_OBJECT(m_sink, "Failed to create SUBTITLE source");
+            GST_ERROR_OBJECT(m_sink, "Failed to create SUBTITLE source; continuing without subtitles");
+            m_sourceUnavailable = true;
+            handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
         }
 
         break;
