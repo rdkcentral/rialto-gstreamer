@@ -70,6 +70,7 @@ jobs:
           sudo make install
 
       # Check, from which rialto branch should we download headers
+      #check whether the PR check points Fails here for Rialto branch
       - name: Check if rialto branch with the same name exists
         id: check-branch
         shell: sh +e {0}
