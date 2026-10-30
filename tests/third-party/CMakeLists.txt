@@ -85,12 +85,17 @@ set(FILE_LIST
     IClientLogControl.h
 )
 
+set(OCDM_REF "master")
+if(DEFINED ENV{RIALTO_OCDM_REF} AND NOT "$ENV{RIALTO_OCDM_REF}" STREQUAL "")
+    set(OCDM_REF "$ENV{RIALTO_OCDM_REF}")
+endif()
+
 # Loop through the list and call the function
 foreach(FILE_NAME ${FILE_LIST})
     if(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.h") # Special case for header file as the path is different
-        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/include/)
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/${OCDM_REF}/library/include/)
     elseif(FILE_NAME MATCHES "RialtoGStreamerEMEProtectionMetadata.cpp") # Special case for source file as the path is different
-        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/master/library/source/)
+        set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/${OCDM_REF}/library/source/)
     else()
         set(BASE_URL https://raw.githubusercontent.com/rdkcentral/rialto/${BUILD_BRANCH}/media/public/include/)
     endif()

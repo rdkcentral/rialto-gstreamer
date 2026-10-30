@@ -35,32 +35,45 @@ jobs:
         with:
           path: rialto-gstreamer
 
+      - name: Resolve 8.4 dependency pins
+        if: (github.base_ref || github.ref_name) == 'release/v0.14.0'
+        run: python3 rialto-gstreamer/scripts/resolve_8_4_pins.py
+
       - name: Check out rialto
         uses: actions/checkout@v4
         with:
           repository: rdkcentral/rialto
+          ref: ${{ env.RIALTO_REF }}
           path: ./rialto
           fetch-depth: 0
+
+      - name: Select Rialto branch
+        if: env.RIALTO_REF == ''
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+          BASE_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: |
+          cd rialto
+          for candidate in "$PR_BRANCH" "$BASE_BRANCH"; do
+            if [ -n "$candidate" ] && git show-ref --verify --quiet "refs/remotes/origin/$candidate"; then
+              echo "Using Rialto branch: $candidate"
+              git checkout --detach "refs/remotes/origin/$candidate"
+              exit 0
+            fi
+          done
+          echo "No matching Rialto branch for source '$PR_BRANCH' or target '$BASE_BRANCH'. Configure a compatible Rialto ref for this release." >&2
+          exit 1
 
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install build-essential
           sudo apt-get install cmake
-          sudo apt-get install libunwind-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev libgstreamer1.0-dev
+          sudo apt-get install libunwind-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev libgstreamer1.0-dev libyaml-cpp-dev
 
       - name: Install protobuf
         run: |
           sudo apt-get install protobuf-compiler
-
-      - name: Switch branch
-        continue-on-error: true
-        run: |
-          BRANCH=${GITHUB_HEAD_REF##*/}
-          cd rialto
-          # This will fail if there's no corresponding branch in rialto
-          # ...but that's ok since we set continue-on-error
-          git checkout $BRANCH
 
       - name: Native build Rialto
         run: |

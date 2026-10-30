@@ -76,9 +76,14 @@ jobs:
         run: |
           sudo apt-get install valgrind
 
+      - name: Resolve 8.4 dependency pins
+        if: (github.base_ref || github.ref_name) == 'release/v0.14.0'
+        run: python3 scripts/resolve_8_4_pins.py
+
       # Check, from which rialto branch should we download headers
       #check whether the PR check points Fails here for Rialto branch
       - name: Check if rialto branch with the same name exists
+        if: env.RIALTO_REF == ''
         id: check-branch
         shell: sh +e {0}
         run: |
@@ -100,8 +105,10 @@ jobs:
 
       # Run the build script with valgrind
       - name: Run unittests with valgrind
+        env:
+          RIALTO_BUILD_REF: ${{ env.RIALTO_REF || steps.check-branch.outputs.branch }}
         run: |
-              python build_ut.py -c -xml -f -val -b ${{ steps.check-branch.outputs.branch }}
+              python build_ut.py -c -xml -f -val -b "$RIALTO_BUILD_REF"
 
       # Process the valgrind results and create a csv
       - name: Process valgrind results
@@ -141,4 +148,3 @@ jobs:
           path: |
             gtest_result.log
             build/*valgrind_report.xml
-
