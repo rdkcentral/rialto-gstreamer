@@ -81,20 +81,28 @@ jobs:
       - name: Check if rialto branch with the same name exists
         id: check-branch
         shell: sh +e {0}
+        env:
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
         run: |
-          branch="${{ github.ref_name }}"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
-            if [ $? -eq 0 ]; then
-              branch="${{ github.event.pull_request.head.ref }}"
-            else
-              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
-              if [ $? -eq 0 ]; then
-                branch="${{ github.event.pull_request.base.ref }}"
-              else
-                branch="master"
-              fi
+          branch=""
+          for candidate in "$PR_HEAD_BRANCH" "$TARGET_BRANCH"; do
+            if [ -n "$candidate" ] && git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "refs/heads/$candidate" > /dev/null; then
+              branch="$candidate"
+              break
             fi
+          done
+
+          if [ -z "$branch" ]; then
+            case "$TARGET_BRANCH" in
+              release/v0.20.1)
+                # This is the RIALTO_SRCREV pinned by meta-rdk-video support/8.6.3.0.
+                branch="d7c1221bf9f39615177bc0cbe2cdc44e62156f36"
+                ;;
+              *)
+                branch="master"
+                ;;
+            esac
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
@@ -141,4 +149,3 @@ jobs:
           path: |
             gtest_result.log
             build/*valgrind_report.xml
-
