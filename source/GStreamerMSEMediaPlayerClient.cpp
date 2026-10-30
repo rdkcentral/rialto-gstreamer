@@ -37,7 +37,8 @@ namespace
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
 
-bool validateMediaPipelineMetricMessage(const GstStructure *structure)
+#if defined(RIALTO_GSTREAMER_UNIT_TESTS)
+[[maybe_unused]] bool validateMediaPipelineMetricMessage(const GstStructure *structure)
 {
     if (structure == nullptr)
     {
@@ -101,6 +102,7 @@ bool validateMediaPipelineMetricMessage(const GstStructure *structure)
     lastCounterSnapshots[sourceId] = std::make_tuple(renderedFrames, droppedFrames, corruptedFrames);
     return true;
 }
+#endif
 
 const char *toString(const firebolt::rialto::PlaybackError &error)
 {
