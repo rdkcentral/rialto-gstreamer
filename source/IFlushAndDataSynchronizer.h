@@ -33,6 +33,7 @@ public:
     virtual void notifyDataReceived(int32_t sourceId) = 0;
     virtual void notifyDataPushed(int32_t sourceId) = 0;
     virtual void waitIfRequired(int32_t sourceId) = 0;
+    virtual bool waitForAllFlushes(int32_t sourceId) = 0;
     virtual bool isAnySourceFlushing() const = 0;
 };
 
