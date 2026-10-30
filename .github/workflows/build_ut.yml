@@ -21,11 +21,11 @@ name: build_ut
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "master" and "release/*" branches
+  # Build target branches to publish coverage baselines, and compare PRs against them.
   push:
-    branches: ["master", "release/*"]
+    branches: ["master", "release/*", "support/*"]
   pull_request:
-    branches: ["master", "release/*"]
+    branches: ["master", "release/*", "support/*"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -138,10 +138,16 @@ jobs:
         with:
           name: coverage_report_stats
           path: build/coverage_statistics.txt
+          if-no-files-found: error
 
   checks-the-cov-report:
     name: Checks the Coverage Report
-    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'master' }}
+    if: ${{ github.event_name == 'pull_request' }}
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: write
 
     # Runs on ubuntu
     runs-on: ubuntu-24.04
@@ -163,21 +169,22 @@ jobs:
           name: coverage_report_stats
           path: build
         
-      # Download current master coverage statistics
-      - name: Download Master Coverage Statistics
+      # Use a successful push build, not another PR's coverage, as the baseline.
+      - name: Download Target Branch Coverage Statistics
         uses: dawidd6/action-download-artifact@v6
-        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
         with:
+          workflow: build_ut.yml
           workflow_conclusion: success
-          branch: master
+          event: push
+          branch: ${{ github.base_ref }}
           name: coverage_report_stats
-          path: master_artifacts
+          path: baseline_artifacts
+          if_no_artifact_found: fail
       
       # Run the process_coverage_stats script
       - name: Process Coverage Statistics
         id: compare-coverage
-        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
-        run: python scripts/coverage/process_coverage_stats.py ./master_artifacts/coverage_statistics.txt build/coverage_statistics.txt
+        run: python3 scripts/coverage/process_coverage_stats.py baseline_artifacts/coverage_statistics.txt build/coverage_statistics.txt
 
       
       # Create comment with coverage info
