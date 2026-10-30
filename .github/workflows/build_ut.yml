@@ -140,6 +140,7 @@ jobs:
 
   checks-the-cov-report:
     name: Checks the Coverage Report
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'master' }}
 
     # Runs on ubuntu
     runs-on: ubuntu-24.04
@@ -173,24 +174,15 @@ jobs:
       
       # Run the process_coverage_stats script
       - name: Process Coverage Statistics
+        id: compare-coverage
         if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
         run: python scripts/coverage/process_coverage_stats.py ./master_artifacts/coverage_statistics.txt build/coverage_statistics.txt
       
-      # Get process_coverage_stats script output
-      - id: get-comment-body
-        if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
-        run: |
-          body="$(cat comparison_output.txt)"
-          body="${body//'%'/'%25'}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
-          echo "::set-output name=body::$body"
-      
       # Create comment with coverage info
       - name: Create Coverage Comment
-        if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
+        if: ${{ (success() || failure()) && (steps.compare-coverage.outcome == 'success' || steps.compare-coverage.outcome == 'failure') && hashFiles('comparison_output.txt') != '' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ steps.get-comment-body.outputs.body }}
+          body-path: comparison_output.txt
   
