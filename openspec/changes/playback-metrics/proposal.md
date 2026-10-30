@@ -81,7 +81,7 @@ Consumer Applications (Netflix DPI, Cobalt, WPE-WebKit)
     - `std::map<int32_t, FrameCounters> m_lastCounters` (sourceId → latest counter snapshot: rendered/dropped/corrupted/timestamp)
     - `std::function<void(int32_t, const NotifyMetricEvent &)> m_metricCallback` (application callback)
   - Add public method: `int32_t getFrameCounters(int32_t sourceId, FrameCounters *out)` (QUERY FLOW)
-    - Call `MediaPipelineClient::callGetFrameCounters(sourceId, out)`
+    - Call `MediaPipelineClient::getFrameCounters(sourceId, out)`
     - Return 0 on success, non-zero on error
   - Add callback method: `void onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)` (PUSH FLOW - Phase 1: all events received, no filtering)
     - Forward to m_metricCallback if application registered one
@@ -93,7 +93,7 @@ Consumer Applications (Netflix DPI, Cobalt, WPE-WebKit)
 ### 4. **Integrate with IPC Client Layer** (Modification)
 - **File:** `rialto-gstreamer/source/MediaPipelineClient.cpp` / `.h`
 - **Changes (Phase 1):**
-  - Implement `bool callGetFrameCounters(int32_t sourceId, FrameCounters &out)` (QUERY FLOW)
+  - Implement `bool getFrameCounters(int32_t sourceId, FrameCounters &out)` (QUERY FLOW)
     - Build GetFrameCountersRequest protobuf message
     - Send IPC RPC call to Rialto-Server (blocking)
     - Copy response counters to out
@@ -161,7 +161,7 @@ Consumer Applications (Netflix DPI, Cobalt, WPE-WebKit)
 | **RialtoMSE Sink Metrics API** | New Public Methods | `rialto-gstreamer/source/GStreamerMSEMediaPlayerClient.cpp/.h` | Add `getFrameCounters()`, `onMetricEvent()`, `setMetricCallback()` (Phase 1, no subscription) |
 | **Counter Cache** | New Data Structure | `rialto-gstreamer/source/GStreamerMSEMediaPlayerClient.cpp` | Add map: `std::map<int32_t, FrameCounters>` (sourceId → last snapshot: rendered/dropped/corrupted/timestamp) |
 | **Callback Handler** | New Data Member | `rialto-gstreamer/source/GStreamerMSEMediaPlayerClient.cpp` | Add function pointer: `std::function<void(int32_t, const NotifyMetricEvent &)>` for app callback (Phase 1: receives all events) |
-| **IPC Client RPC Callers** | New RPC Stubs | `rialto-gstreamer/source/MediaPipelineClient.cpp/.h` | Implement `callGetFrameCounters()`, async callback handler for NotifyMetricEvent (Phase 1, no subscription) |
+| **IPC Client RPC Callers** | New RPC Stubs | `rialto-gstreamer/source/MediaPipelineClient.cpp/.h` | Implement `getFrameCounters()`, async callback handler for NotifyMetricEvent (Phase 1, no subscription) |
 | **Consumer Unit Tests** | New Test Suite | `rialto-gstreamer/tests/unittests/metrics_consumer_test.cpp` | Mock server: verify RPC calls, callback delivery, thread safety (Phase 1, no subscription filtering) |
 | **Consumer Component Tests** | New Test Suite | `rialto-gstreamer/tests/componenttests/metrics_consumer_integration_test.cpp` | Injected NotifyMetricEvent, verify callback delivery, query responses (Phase 1, no filtering) |
 | **Client API Documentation** | New Specification | `rialto-gstreamer/docs/MetricsIntegration.md` | API usage guide, code examples for QUERY and PUSH flows, consumer application patterns (Phase 1) |
@@ -184,7 +184,7 @@ Consumer Applications (Netflix DPI, Cobalt, WPE-WebKit)
 
 **Consumer-Side Implementation (Phase 1):**
 - ✅ RialtoMSEMediaPlayerClient::getFrameCounters() method compiles and callable
-- ✅ getFrameCounters() calls MediaPipelineClient::callGetFrameCounters() RPC and returns result
+- ✅ getFrameCounters() calls MediaPipelineClient::getFrameCounters() RPC and returns result
 - ✅ onMetricEvent() callback delivered for all NotifyMetricEvent messages from server (no filtering in Phase 1)
 - ✅ setMetricCallback() successfully registers application callback
 - ✅ Application callback invoked when server sends NotifyMetricEvent (PUSH FLOW)
