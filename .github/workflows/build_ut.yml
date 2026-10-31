@@ -140,7 +140,7 @@ jobs:
           if-no-files-found: error
 
       - name: Checkout target commit for coverage baseline
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/')) }}
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.sha }}
@@ -148,14 +148,14 @@ jobs:
           persist-credentials: false
 
       - name: Build target commit coverage
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/')) }}
         working-directory: coverage-baseline
         env:
           RIALTO_BUILD_REF: ${{ env.RIALTO_REF || steps.check-branch.outputs.branch }}
         run: python3 build_ut.py -c -xml -f -cov -b "$RIALTO_BUILD_REF"
 
       - name: Upload Target Commit Coverage Statistics
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/')) }}
         uses: actions/upload-artifact@v4
         with:
           name: baseline_coverage_report_stats
@@ -163,7 +163,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload baseline logs on failure
-        if: ${{ failure() && github.event_name == 'pull_request' }}
+        if: ${{ failure() && github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/')) }}
         uses: actions/upload-artifact@v4
         with:
           name: baseline_logs
@@ -200,7 +200,17 @@ jobs:
           name: coverage_report_stats
           path: build
         
+      - name: Download Master Coverage Statistics
+        if: ${{ github.base_ref == 'master' }}
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow_conclusion: success
+          branch: master
+          name: coverage_report_stats
+          path: baseline_artifacts
+
       - name: Download Target Commit Coverage Statistics
+        if: ${{ startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/') }}
         uses: actions/download-artifact@v4
         with:
           name: baseline_coverage_report_stats
