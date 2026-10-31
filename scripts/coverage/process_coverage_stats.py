@@ -16,14 +16,20 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+import re
 import sys
 
 def main():
     if len(sys.argv) < 3:
         write_output("Can't compare coverage stats - Wrong number of script arguments")
         sys.exit("Wrong number of script arguments")
-    master_stats = parse_statistics(sys.argv[1])
-    current_stats = parse_statistics(sys.argv[2])
+    try:
+        master_stats = parse_statistics(sys.argv[1])
+        current_stats = parse_statistics(sys.argv[2])
+    except (OSError, ValueError) as error:
+        message = f"Can't compare coverage stats - {error}"
+        write_output(message)
+        sys.exit(message)
     comparison_output = compare_coverage(master_stats, current_stats)
     write_output(comparison_output)
 
@@ -36,18 +42,15 @@ def main():
         sys.exit("Function coverage has decreased. Exiting...")
         
 def parse_statistics(file_path):
-    try:
-        file = open(file_path, "r")
-        lines = file.readlines()
-        covered_lines_line = [i for i in lines if "lines......" in i][0]
-        covered_functions_line = [i for i in lines if "functions.." in i][0]
-        covered_lines_str = covered_lines_line[15:covered_lines_line.find('%')]
-        covered_functions_str = covered_functions_line[15:covered_functions_line.find('%')]
-        file.close()
-        return (float(covered_lines_str), float(covered_functions_str))
-    except:
-        write_output("Can't compare coverage stats - Could not open statistics file")
-        return (0.0, 0.0)
+    with open(file_path, "r") as file:
+        contents = file.read()
+    statistics = []
+    for metric in ("lines", "functions"):
+        match = re.search(r"^\s*" + metric + r"\.+:\s*(\d+(?:\.\d+)?)%", contents, re.MULTILINE)
+        if match is None or not 0 <= float(match.group(1)) <= 100:
+            raise ValueError(f"Missing or invalid {metric} coverage in {file_path}")
+        statistics.append(float(match.group(1)))
+    return tuple(statistics)
 
 def compare_coverage(master_stats, current_stats):
     output_text = "Coverage statistics of your commit:\n"
