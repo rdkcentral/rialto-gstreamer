@@ -21,7 +21,7 @@ name: build_ut
 
 # Controls when the workflow will run
 on:
-  # Build target branches to publish coverage baselines, and compare PRs against them.
+  # Build branch coverage and compare PRs against their target commit.
   push:
     branches: ["master", "release/*", "support/*"]
   pull_request:
@@ -140,6 +140,38 @@ jobs:
           path: build/coverage_statistics.txt
           if-no-files-found: error
 
+      - name: Checkout target commit for coverage baseline
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: coverage-baseline
+          persist-credentials: false
+
+      - name: Build target commit coverage
+        if: ${{ github.event_name == 'pull_request' }}
+        working-directory: coverage-baseline
+        env:
+          RIALTO_REF: ${{ steps.check-branch.outputs.branch }}
+        run: python3 build_ut.py -c -xml -f -cov -b "$RIALTO_REF"
+
+      - name: Upload Target Commit Coverage Statistics
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline_coverage_report_stats
+          path: coverage-baseline/build/coverage_statistics.txt
+          if-no-files-found: error
+
+      - name: Upload baseline logs on failure
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline_logs
+          path: |
+            coverage-baseline/gtest_result.log
+            coverage-baseline/build/*gtest_result.xml
+
   checks-the-cov-report:
     name: Checks the Coverage Report
     if: ${{ github.event_name == 'pull_request' }}
@@ -169,17 +201,11 @@ jobs:
           name: coverage_report_stats
           path: build
         
-      # Use a successful push build, not another PR's coverage, as the baseline.
-      - name: Download Target Branch Coverage Statistics
-        uses: dawidd6/action-download-artifact@v6
+      - name: Download Target Commit Coverage Statistics
+        uses: actions/download-artifact@v4
         with:
-          workflow: build_ut.yml
-          workflow_conclusion: success
-          event: push
-          branch: ${{ github.base_ref }}
-          name: coverage_report_stats
+          name: baseline_coverage_report_stats
           path: baseline_artifacts
-          if_no_artifact_found: fail
       
       # Run the process_coverage_stats script
       - name: Process Coverage Statistics

@@ -11,14 +11,16 @@ https://wiki.rdkcentral.com/display/ASP/Unit+Tests
 
 ### CI coverage comparisons
 Pull requests targeting `master`, `release/*`, or `support/*` compare line and
-function coverage against a successful push run of `build_ut.yml` on the PR's
-target branch. A decrease in either metric fails the comparison.
+function coverage against the PR's exact target commit (`pull_request.base.sha`).
+The workflow builds that commit in a separate directory with the same Rialto
+dependency ref selected for the PR build, then compares the two coverage reports
+from the current run. No previous coverage artifacts or manual baseline runs are
+required.
 
-The target branch must have a successful push build with an unexpired
-`coverage_report_stats` artifact. Missing baseline artifacts or invalid statistics
-fail explicitly; they are not treated as zero coverage. If a baseline is missing
-or expired, generate a new successful push build on the target branch before
-rerunning the PR check.
+A decrease in either metric fails the comparison. Baseline build failures,
+missing statistics, or invalid statistics fail explicitly; they are not treated
+as zero coverage. PR checks perform an additional build to generate the baseline;
+push and manual runs only build the selected branch.
 
 ## Building Rialto using Yocto:
 https://wiki.rdkcentral.com/display/ASP/Building+Rialto+using+Yocto
