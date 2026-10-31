@@ -96,10 +96,26 @@ jobs:
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
+      - name: Pin Rialto dependency revision
+        id: pin-rialto
+        env:
+          SELECTED_REF: ${{ env.RIALTO_REF || steps.check-branch.outputs.branch }}
+        run: |
+          ref="$SELECTED_REF"
+          if ! printf '%s\n' "$ref" | grep -Eq '^[0-9a-f]{40}$'; then
+            resolved_ref=$(git ls-remote --exit-code --heads https://github.com/rdkcentral/rialto.git "refs/heads/$ref")
+            ref="${resolved_ref%%[[:space:]]*}"
+          fi
+          if ! printf '%s\n' "$ref" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Could not resolve the Rialto dependency to a commit SHA" >&2
+            exit 1
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       # Run the build script
       - name: build_ut.py script
         env:
-          RIALTO_BUILD_REF: ${{ env.RIALTO_REF || steps.check-branch.outputs.branch }}
+          RIALTO_BUILD_REF: ${{ steps.pin-rialto.outputs.ref }}
         run: |
               python build_ut.py -c -xml -f -cov -b "$RIALTO_BUILD_REF"
 
@@ -151,8 +167,16 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/')) }}
         working-directory: coverage-baseline
         env:
-          RIALTO_BUILD_REF: ${{ env.RIALTO_REF || steps.check-branch.outputs.branch }}
-        run: python3 build_ut.py -c -xml -f -cov -b "$RIALTO_BUILD_REF"
+          RIALTO_BUILD_REF: ${{ steps.pin-rialto.outputs.ref }}
+        run: |
+          # Historical baseline CMake does not read RIALTO_OCDM_REF.
+          # Seed its metadata downloads before building this fresh checkout.
+          if [ -n "${RIALTO_OCDM_REF:-}" ]; then
+            mkdir -p tests/third-party/include tests/third-party/source
+            curl --fail --show-error --location "https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/$RIALTO_OCDM_REF/library/include/RialtoGStreamerEMEProtectionMetadata.h" -o tests/third-party/include/RialtoGStreamerEMEProtectionMetadata.h
+            curl --fail --show-error --location "https://raw.githubusercontent.com/rdkcentral/rialto-ocdm/$RIALTO_OCDM_REF/library/source/RialtoGStreamerEMEProtectionMetadata.cpp" -o tests/third-party/source/RialtoGStreamerEMEProtectionMetadata.cpp
+          fi
+          python3 build_ut.py -xml -f -cov -b "$RIALTO_BUILD_REF"
 
       - name: Upload Target Commit Coverage Statistics
         if: ${{ github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'support/')) }}
@@ -173,7 +197,7 @@ jobs:
 
   checks-the-cov-report:
     name: Checks the Coverage Report
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ always() && github.event_name == 'pull_request' }}
     permissions:
       contents: read
       actions: read
@@ -190,6 +214,12 @@ jobs:
     needs: [build-test]
     
     steps:
+      - name: Require successful coverage builds
+        if: ${{ needs.build-test.result != 'success' }}
+        run: |
+          echo "PR or baseline coverage build did not succeed; coverage comparison cannot pass." >&2
+          exit 1
+
       - name: Checkout repo
         uses: actions/checkout@v4
     
