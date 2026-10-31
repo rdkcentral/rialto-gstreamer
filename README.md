@@ -10,6 +10,10 @@ https://wiki.rdkcentral.com/display/ASP/Rialto+Coding+Guidelines
 https://wiki.rdkcentral.com/display/ASP/Unit+Tests
 
 ### CI coverage comparisons
+Rialto branch selections are resolved once to a commit SHA before the coverage
+builds. PR and automatic baseline builds reuse that SHA. The coverage check runs
+even when its prerequisite build fails and explicitly rejects that failure.
+
 PRs targeting `master` retain the existing baseline lookup: coverage statistics
 are downloaded from a successful `master` workflow run. They do not perform an
 additional baseline build.
