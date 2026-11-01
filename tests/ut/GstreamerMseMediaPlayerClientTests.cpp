@@ -399,6 +399,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyNeedMediaDataWhenSo
     m_sut->notifyNeedMediaData(kUnknownSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldIgnoreHaveDataWhenSourceIsNotKnown)
+{
+    HaveDataMessage message{firebolt::rialto::MediaSourceStatus::ERROR, kUnknownSourceId, kNeedDataRequestId,
+                            m_sut.get()};
+
+    message.handle();
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldIgnoreNeedMediaDataForRemovedSource)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
