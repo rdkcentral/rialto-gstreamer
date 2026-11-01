@@ -98,4 +98,12 @@ void Timer::doCancel()
         m_cv.notify_one();
         m_thread.join();
     }
+    else if (m_thread.joinable())
+    {
+        // Cancel invoked from the timer's own callback thread: join would
+        // deadlock, so detach instead of leaving the thread joinable (a
+        // joinable std::thread at destruction calls std::terminate).
+        m_cv.notify_one();
+        m_thread.detach();
+    }
 }
