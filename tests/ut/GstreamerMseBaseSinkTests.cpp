@@ -2270,9 +2270,8 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldWaitForServerFlushCompletionBeforePullin
 
     constexpr int kNeedMediaDataReqId{0};
     constexpr int kNumOfSamples{1};
-    EXPECT_CALL(m_mediaPipelineMock, addSegment(kNeedMediaDataReqId, _))
-        .WillOnce(Return(firebolt::rialto::AddSegmentStatus::OK));
-    EXPECT_CALL(m_mediaPipelineMock, haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedMediaDataReqId))
+    EXPECT_CALL(m_mediaPipelineMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedMediaDataReqId))
         .WillOnce(Invoke(
             [&](firebolt::rialto::MediaSourceStatus, int32_t)
             {
