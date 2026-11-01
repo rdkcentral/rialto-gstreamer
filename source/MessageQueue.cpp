@@ -77,6 +77,12 @@ void MessageQueue::start()
     }
     m_running = true;
     m_acceptingMessages = true;
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_workerDone = false;
+        m_workerDetached = false;
+        m_detachedWorkerId = std::thread::id{};
+    }
     std::thread startThread(&MessageQueue::processMessages, this);
     m_workerThread.swap(startThread);
 }
@@ -124,6 +130,12 @@ void MessageQueue::processMessages()
         std::shared_ptr<Message> message = waitForMessage();
         message->handle();
     } while (m_running);
+
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_workerDone = true;
+    }
+    m_workerDoneCv.notify_all();
 }
 
 bool MessageQueue::scheduleInEventLoop(const std::function<void()> &func)
@@ -163,30 +175,44 @@ bool MessageQueue::callInEventLoopInternal(const std::function<void()> &func)
 
 void MessageQueue::doStop()
 {
-    if (!m_running)
+    if (m_running)
     {
-        // queue is not running
-        return;
-    }
-    if (std::this_thread::get_id() == m_workerThread.get_id())
-    {
-        m_acceptingMessages = false;
-        m_running = false;
-        m_workerThread.detach();
-    }
-    else
-    {
-        auto message = std::make_shared<CallInEventLoopMessage>([this]() { m_running = false; });
+        if (std::this_thread::get_id() == m_workerThread.get_id())
         {
-            const std::lock_guard<std::mutex> lock(m_mutex);
-            m_acceptingMessages = false;
-            m_queue.push_back(message);
-            m_condVar.notify_all();
+            {
+                const std::lock_guard<std::mutex> lock(m_mutex);
+                m_acceptingMessages = false;
+                m_workerDetached = true;
+                m_detachedWorkerId = std::this_thread::get_id();
+            }
+            m_running = false;
+            m_workerThread.detach();
         }
-        message->wait();
+        else
+        {
+            auto message = std::make_shared<CallInEventLoopMessage>([this]() { m_running = false; });
+            {
+                const std::lock_guard<std::mutex> lock(m_mutex);
+                m_acceptingMessages = false;
+                m_queue.push_back(message);
+                m_condVar.notify_all();
+            }
+            message->wait();
 
-        if (m_workerThread.joinable())
-            m_workerThread.join();
+            if (m_workerThread.joinable())
+                m_workerThread.join();
+        }
+    }
+
+    // If the worker detached itself (stop called from the worker thread), it may
+    // still be finishing inside processMessages(). Wait for it to exit before
+    // the caller destroys this object, otherwise members are freed under it.
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        if (m_workerDetached && std::this_thread::get_id() != m_detachedWorkerId)
+        {
+            m_workerDoneCv.wait(lock, [this]() { return m_workerDone; });
+        }
     }
 
     doClear();
