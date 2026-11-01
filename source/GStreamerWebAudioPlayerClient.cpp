@@ -91,6 +91,7 @@ GStreamerWebAudioPlayerClient::GStreamerWebAudioPlayerClient(
 
 GStreamerWebAudioPlayerClient::~GStreamerWebAudioPlayerClient()
 {
+    m_pushSamplesTimer.reset();
     m_backendQueue->stop();
 }
 
