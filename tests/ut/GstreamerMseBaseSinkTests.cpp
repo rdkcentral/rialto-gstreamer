@@ -2235,7 +2235,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToPullBufferWhenNotInitialised)
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
+TEST_F(GstreamerMseBaseSinkTests, ShouldWaitForServerFlushCompletionBeforePullingBuffer)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -2270,8 +2270,9 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
 
     constexpr int kNeedMediaDataReqId{0};
     constexpr int kNumOfSamples{1};
-    EXPECT_CALL(m_mediaPipelineMock,
-                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedMediaDataReqId))
+    EXPECT_CALL(m_mediaPipelineMock, addSegment(kNeedMediaDataReqId, _))
+        .WillOnce(Return(firebolt::rialto::AddSegmentStatus::OK));
+    EXPECT_CALL(m_mediaPipelineMock, haveData(firebolt::rialto::MediaSourceStatus::OK, kNeedMediaDataReqId))
         .WillOnce(Invoke(
             [&](firebolt::rialto::MediaSourceStatus, int32_t)
             {
@@ -2285,8 +2286,15 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
     mediaPipelineClient->notifyNeedMediaData(kSourceId, kNumOfSamples, kNeedMediaDataReqId, nullptr);
 
     std::unique_lock<std::mutex> lock{mtx};
+    EXPECT_FALSE(cv.wait_for(lock, std::chrono::milliseconds{100}, [&]() { return haveDataFlag; }));
+    lock.unlock();
+
+    mediaPipelineClient->notifySourceFlushed(kSourceId);
+
+    lock.lock();
     cv.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return haveDataFlag; });
     EXPECT_TRUE(haveDataFlag);
+    lock.unlock();
 
     setNullState(pipeline, kSourceId);
 
