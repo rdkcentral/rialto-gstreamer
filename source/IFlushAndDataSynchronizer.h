@@ -29,10 +29,12 @@ public:
     virtual void addSource(int32_t sourceId) = 0;
     virtual void removeSource(int32_t sourceId) = 0;
     virtual void notifyFlushStarted(int32_t sourceId) = 0;
+    virtual void notifyFlushFailed(int32_t sourceId) = 0;
     virtual void notifyFlushCompleted(int32_t sourceId) = 0;
     virtual void notifyDataReceived(int32_t sourceId) = 0;
     virtual void notifyDataPushed(int32_t sourceId) = 0;
     virtual void waitIfRequired(int32_t sourceId) = 0;
+    virtual bool waitForAllFlushes(int32_t sourceId) = 0;
     virtual bool isAnySourceFlushing() const = 0;
 };
 

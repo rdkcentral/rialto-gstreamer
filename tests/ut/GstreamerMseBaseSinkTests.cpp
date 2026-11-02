@@ -2235,7 +2235,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldFailToPullBufferWhenNotInitialised)
     gst_object_unref(pipeline);
 }
 
-TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
+TEST_F(GstreamerMseBaseSinkTests, ShouldWaitForServerFlushCompletionBeforePullingBuffer)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
     GstElement *pipeline = createPipelineWithSink(audioSink);
@@ -2285,8 +2285,15 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldNotPullBufferWhenServerFlushIsOngoing)
     mediaPipelineClient->notifyNeedMediaData(kSourceId, kNumOfSamples, kNeedMediaDataReqId, nullptr);
 
     std::unique_lock<std::mutex> lock{mtx};
+    EXPECT_FALSE(cv.wait_for(lock, std::chrono::milliseconds{100}, [&]() { return haveDataFlag; }));
+    lock.unlock();
+
+    mediaPipelineClient->notifySourceFlushed(kSourceId);
+
+    lock.lock();
     cv.wait_for(lock, std::chrono::milliseconds{500}, [&]() { return haveDataFlag; });
     EXPECT_TRUE(haveDataFlag);
+    lock.unlock();
 
     setNullState(pipeline, kSourceId);
 
