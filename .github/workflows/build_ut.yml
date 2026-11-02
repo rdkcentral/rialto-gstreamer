@@ -159,7 +159,7 @@ jobs:
       # Download current master coverage statistics
       - name: Download Master Coverage Statistics
         uses: dawidd6/action-download-artifact@v6
-        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == ${{ env.RIALTO_FALLBACK_BRANCH }} }}
+        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
         with:
           workflow_conclusion: success
           branch: master
@@ -169,7 +169,7 @@ jobs:
       # Run the process_coverage_stats script
       - name: Process Coverage Statistics
         id: compare-coverage
-        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == ${{ env.RIALTO_FALLBACK_BRANCH }} }}
+        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == env.RIALTO_FALLBACK_BRANCH }}
         run: python scripts/coverage/process_coverage_stats.py ./master_artifacts/coverage_statistics.txt build/coverage_statistics.txt
       
       # Get process_coverage_stats script output
@@ -184,7 +184,7 @@ jobs:
 
       # Create comment with coverage info
       - name: Create Coverage Comment
-        if: ${{ (success() || failure()) && github.event_name == 'pull_request' && github.base_ref == ${{ env.RIALTO_FALLBACK_BRANCH }} && steps.get-comment-body.outcome == 'success' }}
+        if: ${{ (success() || failure()) && github.event_name == 'pull_request' && github.base_ref == env.RIALTO_FALLBACK_BRANCH && steps.get-comment-body.outcome == 'success' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
