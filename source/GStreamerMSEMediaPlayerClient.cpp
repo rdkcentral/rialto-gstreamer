@@ -650,10 +650,16 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
     m_backendQueue->callInEventLoop(
         [&]()
         {
-            m_flushAndDataSynchronizer.removeSource(sourceId);
             {
                 std::lock_guard<std::mutex> lock{m_bufferPullersMutex};
                 m_bufferPullers.erase(sourceId);
+            }
+            m_flushAndDataSynchronizer.removeSource(sourceId);
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt != m_attachedSources.end())
+            {
+                // Finish in-flight backend calls before removing their source.
+                sourceIt->second.m_bufferPuller->stop();
             }
             if (!m_clientBackend->removeSource(sourceId))
             {
