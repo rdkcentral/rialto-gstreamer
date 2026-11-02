@@ -158,6 +158,16 @@ TEST_F(FlushAndDataSynchronizerTests, ShouldReleaseOtherSourceWhenFlushFails)
     m_sut.waitIfRequired(kAudioSourceId);
 }
 
+TEST_F(FlushAndDataSynchronizerTests, ShouldIgnoreDataPushedWhileFlushing)
+{
+    m_sut.notifyFlushStarted(kAudioSourceId);
+    m_sut.notifyDataPushed(kAudioSourceId);
+    EXPECT_TRUE(m_sut.isAnySourceFlushing());
+
+    m_sut.notifyFlushCompleted(kAudioSourceId);
+    EXPECT_FALSE(m_sut.isAnySourceFlushing());
+}
+
 TEST_F(FlushAndDataSynchronizerTests, ShouldIgnoreLateNotificationsForRemovedSource)
 {
     for (auto notification :

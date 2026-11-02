@@ -106,6 +106,11 @@ void FlushAndDataSynchronizer::notifyDataPushed(int32_t sourceId)
         GST_WARNING("Ignoring data pushed for removed source %d", sourceId);
         return;
     }
+    if (source->second.flushState == FlushState::FLUSHING)
+    {
+        GST_INFO("Ignoring data pushed for flushing source %d", sourceId);
+        return;
+    }
     source->second.dataState = DataState::DATA_PUSHED;
     source->second.flushState = FlushState::IDLE;
     m_cv.notify_all();
