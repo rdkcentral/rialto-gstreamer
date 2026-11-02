@@ -30,6 +30,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  RIALTO_FALLBACK_BRANCH: release/v0.22.4
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This job sets up the repo with the dependancies then runs the tests
@@ -72,8 +75,6 @@ jobs:
       # Check, from which rialto branch should we download headers
       - name: Check if rialto branch with the same name exists
         id: check-branch
-        env:
-          RIALTO_FALLBACK_BRANCH: release/v0.22.4
         shell: sh +e {0}
         run: |
           branch="${{ github.ref_name }}"
@@ -158,7 +159,7 @@ jobs:
       # Download current master coverage statistics
       - name: Download Master Coverage Statistics
         uses: dawidd6/action-download-artifact@v6
-        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
+        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == ${{ env.RIALTO_FALLBACK_BRANCH }} }}
         with:
           workflow_conclusion: success
           branch: master
@@ -167,22 +168,23 @@ jobs:
       
       # Run the process_coverage_stats script
       - name: Process Coverage Statistics
-        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == 'master' }}
+        id: compare-coverage
+        if: ${{ success() && github.event_name == 'pull_request' && github.base_ref == ${{ env.RIALTO_FALLBACK_BRANCH }} }}
         run: python scripts/coverage/process_coverage_stats.py ./master_artifacts/coverage_statistics.txt build/coverage_statistics.txt
       
       # Get process_coverage_stats script output
       - id: get-comment-body
-        if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
+        if: ${{ (success() || failure()) && (steps.compare-coverage.outcome == 'success' || steps.compare-coverage.outcome == 'failure') }}
         run: |
           body="$(cat comparison_output.txt)"
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
           echo "::set-output name=body::$body"
-      
+
       # Create comment with coverage info
       - name: Create Coverage Comment
-        if: ${{ (success() || failure()) && github.ref != 'refs/heads/master' }}
+        if: ${{ (success() || failure()) && github.event_name == 'pull_request' && github.base_ref == ${{ env.RIALTO_FALLBACK_BRANCH }} && steps.get-comment-body.outcome == 'success' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
