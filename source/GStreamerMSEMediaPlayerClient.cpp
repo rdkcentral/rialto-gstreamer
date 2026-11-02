@@ -371,12 +371,94 @@ int32_t GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameC
     return 0;
 }
 
-void GStreamerMSEMediaPlayerClient::setMetricCallback(
-    std::function<void(int32_t, const NotifyMetricEvent &)> callback)
+void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const NotifyMetricEvent &event)
 {
-    std::lock_guard<std::mutex> lock{m_metricCallbackMutex};
-    m_metricCallback = std::move(callback);
-    GST_DEBUG("Metric callback registered: %s", callback ? "enabled" : "disabled");
+    const auto sourceIt = m_attachedSources.find(sourceId);
+    if (sourceIt == m_attachedSources.end())
+    {
+        GST_WARNING("Metric event for unknown sourceId=%d cannot be forwarded to the app bus", sourceId);
+        return;
+    }
+
+    guint metricType{0u};
+    switch (sourceIt->second.getType())
+    {
+        case firebolt::rialto::MediaSourceType::VIDEO:
+            if (event.corruptedFrames > 0u)
+            {
+                metricType = 2u;
+            }
+            else if (event.droppedFrames > 0u)
+            {
+                metricType = 0u;
+            }
+            else
+            {
+                metricType = 4u;
+            }
+            break;
+        case firebolt::rialto::MediaSourceType::AUDIO:
+            if (event.corruptedFrames > 0u)
+            {
+                metricType = 3u;
+            }
+            else if (event.droppedFrames > 0u)
+            {
+                metricType = 1u;
+            }
+            else
+            {
+                metricType = 5u;
+            }
+            break;
+        default:
+            metricType = 0u;
+            break;
+    }
+
+    if (!event.errorInfo.empty())
+    {
+        gchar *lowerErrorInfo = g_ascii_strdown(event.errorInfo.c_str(), -1);
+        if (lowerErrorInfo)
+        {
+            if (strstr(lowerErrorInfo, "decode") != nullptr)
+            {
+                metricType = (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO) ? 2u : 3u;
+            }
+            else if (strstr(lowerErrorInfo, "drop") != nullptr)
+            {
+                metricType = (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO) ? 0u : 1u;
+            }
+            g_free(lowerErrorInfo);
+        }
+    }
+
+    GstStructure *metricStructure = gst_structure_new("media-pipeline-metric", "metric_type", G_TYPE_UINT, metricType,
+                                                      "source_id", G_TYPE_INT, sourceId, "rendered_frames",
+                                                      G_TYPE_UINT64, event.renderedFrames, "dropped_frames",
+                                                      G_TYPE_UINT64, event.droppedFrames, "corrupted_frames",
+                                                      G_TYPE_UINT64, event.corruptedFrames, "pts_ns", G_TYPE_UINT64,
+                                                      event.ptsNs, nullptr);
+    if (!metricStructure)
+    {
+        GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
+        return;
+    }
+
+    GstMessage *metricMessage = gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), metricStructure);
+    if (!metricMessage || !gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), metricMessage))
+    {
+        GST_WARNING("Failed to post media-pipeline-metric message for sourceId=%d", sourceId);
+        if (metricMessage)
+        {
+            gst_message_unref(metricMessage);
+        }
+        return;
+    }
+
+    GST_INFO("Posted media-pipeline-metric message for sourceId=%d metricType=%u rendered=%" G_GUINT64_FORMAT
+             " dropped=%" G_GUINT64_FORMAT " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT,
+             sourceId, metricType, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs);
 }
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)
@@ -392,19 +474,8 @@ void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const Notify
               sourceId, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
               event.errorInfo.c_str());
 
-    std::function<void(int32_t, const NotifyMetricEvent &)> callback;
-    {
-        std::lock_guard<std::mutex> lock{m_metricCallbackMutex};
-        callback = m_metricCallback;
-    }
-    if (callback)
-    {
-        callback(sourceId, event);
-    }
-    else
-    {
-        GST_DEBUG("Metric event for sourceId=%d dropped because no callback is registered", sourceId);
-    }
+    postMetricEventOnBus(sourceId, event);
+    GST_DEBUG("Metric event for sourceId=%d was posted to the app bus", sourceId);
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()
