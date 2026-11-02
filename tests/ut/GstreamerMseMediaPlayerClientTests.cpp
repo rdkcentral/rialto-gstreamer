@@ -320,69 +320,64 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersFromBackend)
     EXPECT_EQ(actual.timestamp, expected.timestamp);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDeliverMetricEventToRegisteredCallback)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMessageOnBus)
 {
-    constexpr int32_t kSourceId{9};
-    bool wasCalled{false};
-    int32_t seenSourceId{-1};
-    NotifyMetricEvent seenEvent{};
-    m_sut->setMetricCallback(
-        [&](int32_t sourceId, const NotifyMetricEvent &event)
-        {
-            wasCalled = true;
-            seenSourceId = sourceId;
-            seenEvent = event;
-        });
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    rialto_mse_base_sink_initialise_delegate(audioSink, m_delegateMock);
 
-    const NotifyMetricEvent expected{42u, 2u, 1u, 1234567890u, "decoder error"};
-    m_sut->notifyMetricEvent(kSourceId, expected.renderedFrames, expected.droppedFrames, expected.corruptedFrames,
-                             expected.ptsNs, expected.errorInfo);
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
-    EXPECT_TRUE(wasCalled);
-    EXPECT_EQ(seenSourceId, kSourceId);
-    EXPECT_EQ(seenEvent.renderedFrames, expected.renderedFrames);
-    EXPECT_EQ(seenEvent.droppedFrames, expected.droppedFrames);
-    EXPECT_EQ(seenEvent.corruptedFrames, expected.corruptedFrames);
-    EXPECT_EQ(seenEvent.ptsNs, expected.ptsNs);
-    EXPECT_EQ(seenEvent.errorInfo, expected.errorInfo);
+    expectPostMessage();
+    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error");
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
+    ASSERT_NE(receivedMessage, nullptr);
+
+    const GstStructure *messageStructure = gst_message_get_structure(receivedMessage);
+    ASSERT_NE(messageStructure, nullptr);
+    EXPECT_STREQ(gst_structure_get_name(messageStructure), "media-pipeline-metric");
+    EXPECT_FALSE(gst_structure_has_field(messageStructure, "session_id"));
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric_type")), 3u);
+    EXPECT_EQ(g_value_get_int(gst_structure_get_value(messageStructure, "source_id")), kSourceId);
+    EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "rendered_frames")), 42u);
+    EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "dropped_frames")), 2u);
+    EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "corrupted_frames")), 1u);
+    EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "pts_ns")), 1234567890u);
+
+    gst_message_unref(receivedMessage);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldKeepLatestMetricSnapshotAcrossRepeatedEvents)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostRepeatedMetricEventsToBus)
 {
-    constexpr int32_t kSourceId{11};
-    std::vector<NotifyMetricEvent> seenEvents;
-    m_sut->setMetricCallback(
-        [&](int32_t sourceId, const NotifyMetricEvent &event)
-        {
-            EXPECT_EQ(sourceId, kSourceId);
-            seenEvents.push_back(event);
-        });
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    rialto_mse_base_sink_initialise_delegate(audioSink, m_delegateMock);
 
-    const NotifyMetricEvent first{10u, 2u, 1u, 1111111111u, "first"};
-    const NotifyMetricEvent second{25u, 4u, 3u, 2222222222u, "second"};
-    m_sut->notifyMetricEvent(kSourceId, first.renderedFrames, first.droppedFrames, first.corruptedFrames,
-                             first.ptsNs, first.errorInfo);
-    m_sut->notifyMetricEvent(kSourceId, second.renderedFrames, second.droppedFrames, second.corruptedFrames,
-                             second.ptsNs, second.errorInfo);
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
-    ASSERT_EQ(seenEvents.size(), 2u);
-    EXPECT_EQ(seenEvents.front().renderedFrames, first.renderedFrames);
-    EXPECT_EQ(seenEvents.back().renderedFrames, second.renderedFrames);
-    EXPECT_EQ(seenEvents.back().ptsNs, second.ptsNs);
-    EXPECT_EQ(seenEvents.back().errorInfo, second.errorInfo);
+    expectPostMessage();
+    m_sut->notifyMetricEvent(kSourceId, 10u, 2u, 1u, 1111111111u, "first");
+    m_sut->notifyMetricEvent(kSourceId, 25u, 4u, 3u, 2222222222u, "second");
 
-    const FrameCounters expected{77u, 9u, 6u, 4567u};
-    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
-        .WillOnce(DoAll(SetArgReferee<1>(expected.renderedFrames), SetArgReferee<2>(expected.droppedFrames),
-                        SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(expected.timestamp),
-                        Return(true)));
+    std::vector<GstMessage *> messages = getMessages(pipeline);
+    ASSERT_GE(messages.size(), 2u);
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(gst_message_get_structure(messages[0]), "rendered_frames")), 10u);
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(gst_message_get_structure(messages[1]), "rendered_frames")), 25u);
 
-    FrameCounters actual{};
-    EXPECT_EQ(m_sut->getFrameCounters(kSourceId, &actual), 0);
-    EXPECT_EQ(actual.renderedFrames, expected.renderedFrames);
-    EXPECT_EQ(actual.droppedFrames, expected.droppedFrames);
-    EXPECT_EQ(actual.corruptedFrames, expected.corruptedFrames);
-    EXPECT_EQ(actual.timestamp, expected.timestamp);
+    for (auto *message : messages)
+    {
+        gst_message_unref(message);
+    }
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotifyPlaybackStateStopped)
