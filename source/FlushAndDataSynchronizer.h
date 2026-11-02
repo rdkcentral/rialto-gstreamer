@@ -60,6 +60,7 @@ public:
     void addSource(int32_t sourceId) override;
     void removeSource(int32_t sourceId) override;
     void notifyFlushStarted(int32_t sourceId) override;
+    void notifyFlushFailed(int32_t sourceId) override;
     void notifyFlushCompleted(int32_t sourceId) override;
     void notifyDataReceived(int32_t sourceId) override;
     void notifyDataPushed(int32_t sourceId) override;

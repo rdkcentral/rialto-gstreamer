@@ -148,6 +148,32 @@ TEST_F(FlushAndDataSynchronizerTests, SecondReceivedDataShouldNotMessUpTheStateI
     m_sut.waitIfRequired(kAudioSourceId);     // should not block
 }
 
+TEST_F(FlushAndDataSynchronizerTests, ShouldReleaseOtherSourceWhenFlushFails)
+{
+    m_sut.notifyFlushStarted(kAudioSourceId);
+    m_sut.notifyFlushFailed(kAudioSourceId);
+
+    EXPECT_FALSE(m_sut.isAnySourceFlushing());
+    EXPECT_TRUE(m_sut.waitForAllFlushes(kVideoSourceId));
+    m_sut.waitIfRequired(kAudioSourceId);
+}
+
+TEST_F(FlushAndDataSynchronizerTests, ShouldIgnoreLateNotificationsForRemovedSource)
+{
+    for (auto notification :
+         {&FlushAndDataSynchronizer::notifyDataReceived, &FlushAndDataSynchronizer::notifyDataPushed,
+          &FlushAndDataSynchronizer::notifyFlushCompleted, &FlushAndDataSynchronizer::notifyFlushFailed})
+    {
+        m_sut.addSource(kAudioSourceId);
+        m_sut.removeSource(kAudioSourceId);
+        (m_sut.*notification)(kAudioSourceId);
+        EXPECT_FALSE(m_sut.waitForAllFlushes(kAudioSourceId));
+    }
+
+    m_sut.notifyFlushStarted(kAudioSourceId);
+    EXPECT_FALSE(m_sut.isAnySourceFlushing());
+}
+
 TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForDataPush)
 {
     std::mutex mutex;

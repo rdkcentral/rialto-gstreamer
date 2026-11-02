@@ -24,6 +24,7 @@
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
 
+#include <future>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -432,6 +433,73 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldIgnoreNeedMediaDataWhenStreamin
 
     m_sut->stopStreaming();
     m_sut->notifyNeedMediaData(kSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldCancelPullsAfterSourceRemovalDespiteLateData)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    auto &pullerQueue{bufferPullerWillBeCreated()};
+    const int32_t sourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    std::shared_ptr<Message> pendingPull;
+    EXPECT_CALL(pullerQueue, postMessage(_))
+        .WillOnce(Invoke(
+            [&](const auto &message)
+            {
+                pendingPull = message;
+                return true;
+            }));
+    m_sut->notifyNeedMediaData(sourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+
+    auto &synchronizer = m_sut->getFlushAndDataSynchronizer();
+    synchronizer.addSource(kUnknownSourceId);
+    synchronizer.notifyFlushStarted(kUnknownSourceId);
+    pullerQueue.stop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, removeSource(sourceId))
+        .WillOnce(Invoke(
+            [&](int32_t)
+            {
+                synchronizer.notifyDataPushed(sourceId);
+                return true;
+            }));
+    m_sut->removeSource(sourceId);
+
+    // A queued pull must stay cancelled even while another source is flushing.
+    auto pull = std::async(std::launch::async, [&]() { pendingPull->handle(); });
+    EXPECT_EQ(pull.wait_for(std::chrono::milliseconds{500}), std::future_status::ready);
+    synchronizer.removeSource(sourceId);
+    pull.get();
+    synchronizer.removeSource(kUnknownSourceId);
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldDrainAttachmentsAndCancelPullsBeforeStoppingWorkers)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    int32_t sourceId{kUnknownSourceId};
+    ON_CALL(m_messageQueueMock, stop())
+        .WillByDefault(Invoke(
+            [&]()
+            {
+                auto &pullerQueue{bufferPullerWillBeCreated()};
+                sourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+                m_sut->getFlushAndDataSynchronizer().notifyFlushStarted(sourceId);
+                ON_CALL(pullerQueue, stop())
+                    .WillByDefault(Invoke(
+                        [&]()
+                        {
+                            EXPECT_FALSE(m_sut->getFlushAndDataSynchronizer().isAnySourceFlushing());
+                            m_sut->getFlushAndDataSynchronizer().notifyFlushCompleted(sourceId);
+                            EXPECT_FALSE(m_sut->getFlushAndDataSynchronizer().waitForAllFlushes(sourceId));
+                        }));
+            }));
+
+    m_sut->stopStreaming();
+    EXPECT_NE(sourceId, kUnknownSourceId);
+    m_sut->notifyNeedMediaData(sourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
 
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
@@ -1265,11 +1333,35 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     RialtoMSEBaseSink *audioSink = createAudioSink();
     bufferPullerWillBeCreated();
     const auto kSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    auto &videoQueue{bufferPullerWillBeCreated()};
+    const auto videoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
 
     expectPostMessage();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(false));
     m_sut->flush(kSourceId, kResetTime);
+    EXPECT_FALSE(m_sut->getFlushAndDataSynchronizer().isAnySourceFlushing());
 
+    std::shared_ptr<Message> pendingPull;
+    EXPECT_CALL(videoQueue, postMessage(_))
+        .WillOnce(Invoke(
+            [&](const auto &message)
+            {
+                pendingPull = message;
+                return true;
+            }));
+    m_sut->notifyNeedMediaData(videoSourceId, kFrameCount, kNeedDataRequestId, kShmInfo);
+    EXPECT_CALL(*m_delegateMock, isReadyToSendData()).WillOnce(Return(false));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock,
+                haveData(firebolt::rialto::MediaSourceStatus::NO_AVAILABLE_SAMPLES, kNeedDataRequestId))
+        .WillOnce(Return(true));
+    auto pull = std::async(std::launch::async, [&]() { pendingPull->handle(); });
+    EXPECT_EQ(pull.wait_for(std::chrono::milliseconds{500}), std::future_status::ready);
+    m_sut->getFlushAndDataSynchronizer().notifyFlushCompleted(kSourceId);
+    pull.get();
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
     gst_object_unref(audioSink);
 }
@@ -1279,6 +1371,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(_, _, _)).Times(0);
     m_sut->flush(0, kResetTime);
+    EXPECT_FALSE(m_sut->getFlushAndDataSynchronizer().isAnySourceFlushing());
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifySourceFlushedWhenSourceIsNotFlushing)

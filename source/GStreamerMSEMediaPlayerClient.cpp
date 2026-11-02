@@ -89,6 +89,8 @@ void GStreamerMSEMediaPlayerClient::stopStreaming()
 {
     if (!m_streamingStopped)
     {
+        // Drain attachment/removal operations before accessing their source maps.
+        m_backendQueue->stop();
         {
             std::lock_guard<std::mutex> lock{m_bufferPullersMutex};
             m_bufferPullers.clear();
@@ -97,8 +99,6 @@ void GStreamerMSEMediaPlayerClient::stopStreaming()
         {
             m_flushAndDataSynchronizer.removeSource(source.first);
         }
-        m_backendQueue->stop();
-
         for (auto &source : m_attachedSources)
         {
             source.second.m_bufferPuller->stop();
@@ -459,7 +459,6 @@ void GStreamerMSEMediaPlayerClient::setPlaybackRate(double rate)
 
 void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
 {
-    m_flushAndDataSynchronizer.notifyFlushStarted(sourceId);
     m_backendQueue->callInEventLoop(
         [&]()
         {
@@ -471,9 +470,11 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
                 GST_ERROR("Cannot flush - there's no attached source with id %d", sourceId);
                 return;
             }
+            m_flushAndDataSynchronizer.notifyFlushStarted(sourceId);
             if (!m_clientBackend->flush(sourceId, resetTime, async))
             {
                 GST_ERROR("Flush operation failed for source with id %d", sourceId);
+                m_flushAndDataSynchronizer.notifyFlushFailed(sourceId);
                 return;
             }
             sourceIt->second.m_isFlushing = true;
