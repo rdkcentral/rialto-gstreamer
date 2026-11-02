@@ -72,6 +72,8 @@ jobs:
       # Check, from which rialto branch should we download headers
       - name: Check if rialto branch with the same name exists
         id: check-branch
+        env:
+          RIALTO_FALLBACK_BRANCH: release/v0.22.4
         shell: sh +e {0}
         run: |
           branch="${{ github.ref_name }}"
@@ -84,7 +86,7 @@ jobs:
               if [ $? -eq 0 ]; then
                 branch="${{ github.event.pull_request.base.ref }}"
               else
-                branch="master"
+                branch="$RIALTO_FALLBACK_BRANCH"
               fi
             fi
           fi
