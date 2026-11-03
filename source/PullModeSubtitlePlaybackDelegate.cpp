@@ -125,6 +125,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                 if (!client || !m_sourceAttached)
                 {
                     GST_DEBUG_OBJECT(m_sink, "offset setting enqueued");
+                    std::unique_lock queueLock{m_mutex};
                     m_queuedOffset = static_cast<int64_t>(ptsOffset);
                 }
                 else
