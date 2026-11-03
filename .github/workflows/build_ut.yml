@@ -82,8 +82,15 @@ jobs:
             git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
             if [ $? -eq 0 ]; then
               branch="${{ github.event.pull_request.head.ref }}"
+            elif [ "${{ github.event.pull_request.base.ref }}" = "release/v0.14.0" ]; then
+              branch="$RIALTO_FALLBACK_BRANCH"
             else
+              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
+              if [ $? -eq 0 ]; then
+                branch="${{ github.event.pull_request.base.ref }}"
+              else
                 branch="${{ env.RIALTO_FALLBACK_BRANCH }}"
+              fi
             fi
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
