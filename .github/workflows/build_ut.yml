@@ -84,7 +84,6 @@ jobs:
               branch="${{ github.event.pull_request.head.ref }}"
             else
                 branch="${{ env.RIALTO_FALLBACK_BRANCH }}"
-              fi
             fi
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
