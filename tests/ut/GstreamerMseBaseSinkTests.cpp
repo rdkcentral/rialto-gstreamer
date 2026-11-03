@@ -318,6 +318,45 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetFrameCountersProperty)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getFrameCounters(_, _, _, _, _))
+        .WillOnce(DoAll(SetArgReferee<1>(100u), SetArgReferee<2>(7u), SetArgReferee<3>(3u), SetArgReferee<4>(12345u),
+                        Return(true)));
+
+    GstStructure *frameCounters{nullptr};
+    g_object_get(audioSink, "frame-counters", &frameCounters, nullptr);
+    ASSERT_NE(frameCounters, nullptr);
+
+    guint64 rendered{0};
+    guint64 dropped{0};
+    guint64 corrupted{0};
+    guint64 timestamp{0};
+    EXPECT_TRUE(gst_structure_get_uint64(frameCounters, "rendered", &rendered));
+    EXPECT_TRUE(gst_structure_get_uint64(frameCounters, "dropped", &dropped));
+    EXPECT_TRUE(gst_structure_get_uint64(frameCounters, "corrupted", &corrupted));
+    EXPECT_TRUE(gst_structure_get_uint64(frameCounters, "timestamp", &timestamp));
+    EXPECT_EQ(rendered, 100u);
+    EXPECT_EQ(dropped, 7u);
+    EXPECT_EQ(corrupted, 3u);
+    EXPECT_EQ(timestamp, 12345u);
+
+    gst_structure_free(frameCounters);
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

@@ -34,6 +34,7 @@ public:
         NumberOfStreams,
         HasDrm,
         Stats,
+        FrameCounters,
         EnableLastSample,
         LastSample,
 
