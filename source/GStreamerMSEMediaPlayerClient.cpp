@@ -50,10 +50,10 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         return false;
     }
 
-    const std::array<const char *, 6> requiredFields = {"metric_type", "source_id", "rendered_frames",
-                                                        "dropped_frames", "corrupted_frames", "pts_ns"};
-    const std::array<GType, 6> requiredTypes = {G_TYPE_UINT, G_TYPE_INT, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT,
-                                                G_TYPE_INT64};
+    const std::array<const char *, 7> requiredFields = {"metric_type", "source_id", "rendered_frames",
+                                                        "dropped_frames", "corrupted_frames", "pts_ns", "phase"};
+    const std::array<GType, 7> requiredTypes = {G_TYPE_UINT, G_TYPE_INT, G_TYPE_UINT64, G_TYPE_UINT64, G_TYPE_UINT64,
+                                                G_TYPE_UINT64, G_TYPE_UINT};
 
     for (size_t i = 0; i < requiredFields.size(); ++i)
     {
@@ -74,6 +74,13 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         return false;
     }
 
+    const guint phase = g_value_get_uint(gst_structure_get_value(structure, "phase"));
+    const std::array<guint, 3> validPhases = {0u, 1u, 2u};
+    if (std::find(validPhases.begin(), validPhases.end(), phase) == validPhases.end())
+    {
+        return false;
+    }
+
     static std::mutex metricValidationMutex;
     static std::unordered_map<int32_t, std::tuple<uint64_t, uint64_t, uint64_t>> lastCounterSnapshots;
 
@@ -83,9 +90,9 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         return false;
     }
 
-    const uint64_t renderedFrames = static_cast<uint64_t>(g_value_get_uint(gst_structure_get_value(structure, "rendered_frames")));
-    const uint64_t droppedFrames = static_cast<uint64_t>(g_value_get_uint(gst_structure_get_value(structure, "dropped_frames")));
-    const uint64_t corruptedFrames = static_cast<uint64_t>(g_value_get_uint(gst_structure_get_value(structure, "corrupted_frames")));
+    const uint64_t renderedFrames = static_cast<uint64_t>(g_value_get_uint64(gst_structure_get_value(structure, "rendered_frames")));
+    const uint64_t droppedFrames = static_cast<uint64_t>(g_value_get_uint64(gst_structure_get_value(structure, "dropped_frames")));
+    const uint64_t corruptedFrames = static_cast<uint64_t>(g_value_get_uint64(gst_structure_get_value(structure, "corrupted_frames")));
 
     std::lock_guard<std::mutex> lock{metricValidationMutex};
     const auto iter = lastCounterSnapshots.find(sourceId);
@@ -235,12 +242,12 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames,
                                                     uint64_t droppedFrames, uint64_t corruptedFrames,
-                                                    uint64_t ptsNs, const std::string &errorInfo)
+                                                    uint64_t ptsNs, const std::string &errorInfo, uint32_t phase)
 {
     GST_DEBUG("Metric event received for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
-              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " errorInfo=%s",
-              sourceId, renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo.c_str());
-    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo});
+              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " phase=%u errorInfo=%s",
+              sourceId, renderedFrames, droppedFrames, corruptedFrames, ptsNs, phase, errorInfo.c_str());
+    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo, phase});
 }
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
@@ -438,7 +445,7 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
                                                       G_TYPE_UINT64, event.renderedFrames, "dropped_frames",
                                                       G_TYPE_UINT64, event.droppedFrames, "corrupted_frames",
                                                       G_TYPE_UINT64, event.corruptedFrames, "pts_ns", G_TYPE_UINT64,
-                                                      event.ptsNs, nullptr);
+                                                      event.ptsNs, "phase", G_TYPE_UINT, event.phase, nullptr);
     if (!metricStructure)
     {
         GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
@@ -457,8 +464,10 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
     }
 
     GST_INFO("Posted media-pipeline-metric message for sourceId=%d metricType=%u rendered=%" G_GUINT64_FORMAT
-             " dropped=%" G_GUINT64_FORMAT " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT,
-             sourceId, metricType, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs);
+             " dropped=%" G_GUINT64_FORMAT " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT
+             " phase=%u",
+             sourceId, metricType, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
+             event.phase);
 }
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)
@@ -470,9 +479,9 @@ void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const Notify
     }
 
     GST_DEBUG("Metric event dispatched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
-              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " errorInfo=%s",
+              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " phase=%u errorInfo=%s",
               sourceId, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
-              event.errorInfo.c_str());
+              event.phase, event.errorInfo.c_str());
 
     postMetricEventOnBus(sourceId, event);
     GST_DEBUG("Metric event for sourceId=%d was posted to the app bus", sourceId);

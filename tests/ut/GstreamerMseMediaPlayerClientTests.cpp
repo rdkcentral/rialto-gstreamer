@@ -329,9 +329,10 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMes
     EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+    constexpr uint32_t kPhase{2u};
 
     expectPostMessage();
-    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error");
+    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error", kPhase);
 
     GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
     ASSERT_NE(receivedMessage, nullptr);
@@ -346,6 +347,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMes
     EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "dropped_frames")), 2u);
     EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "corrupted_frames")), 1u);
     EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "pts_ns")), 1234567890u);
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "phase")), kPhase);
 
     gst_message_unref(receivedMessage);
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
@@ -363,8 +365,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostRepeatedMetricEventsToBus)
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
     expectPostMessage();
-    m_sut->notifyMetricEvent(kSourceId, 10u, 2u, 1u, 1111111111u, "first");
-    m_sut->notifyMetricEvent(kSourceId, 25u, 4u, 3u, 2222222222u, "second");
+    m_sut->notifyMetricEvent(kSourceId, 10u, 2u, 1u, 1111111111u, "first", 0u);
+    m_sut->notifyMetricEvent(kSourceId, 25u, 4u, 3u, 2222222222u, "second", 1u);
 
     std::vector<GstMessage *> messages = getMessages(pipeline);
     ASSERT_GE(messages.size(), 2u);
