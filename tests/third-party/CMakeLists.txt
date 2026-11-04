@@ -30,21 +30,21 @@ else()
     execute_process(
         COMMAND git rev-parse --abbrev-ref HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE RIALTO_OCDM_BRANCH_NAME
+        OUTPUT_VARIABLE RIALTO_GSTREAMER_BRANCH_NAME
         OUTPUT_STRIP_TRAILING_WHITESPACE
 	)
     # Check if branch with the same name exists in rialto repository
     execute_process(
-        COMMAND git ls-remote --exit-code --heads git@github.com:rdkcentral/rialto.git refs/heads/${RIALTO_OCDM_BRANCH_NAME}
+        COMMAND git ls-remote --exit-code --heads git@github.com:rdkcentral/rialto.git refs/heads/${RIALTO_GSTREAMER_BRANCH_NAME}
         RESULT_VARIABLE LS_REMOTE_RESULT
     )
 
     if("0" STREQUAL ${LS_REMOTE_RESULT})
-        message("======= No branch specified, using: '${RIALTO_OCDM_BRANCH_NAME}' branch as default =======")
-        set(BUILD_BRANCH ${RIALTO_OCDM_BRANCH_NAME})
+        message("======= No branch specified, using: '${RIALTO_GSTREAMER_BRANCH_NAME}' branch as default =======")
+        set(BUILD_BRANCH ${RIALTO_GSTREAMER_BRANCH_NAME})
     else()
-        message("======= No branch specified, using 'master' branch as default =======")
-        set(BUILD_BRANCH "master")
+        message("======= No matching Rialto branch, using 'release/v0.15.2' branch as default =======")
+        set(BUILD_BRANCH "release/v0.15.2")
     endif()
 endif()
 

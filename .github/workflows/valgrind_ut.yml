@@ -31,6 +31,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  RIALTO_FALLBACK_BRANCH: release/v0.15.2
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This job sets up the repo with the dependancies then runs the tests with valgrind
@@ -70,7 +72,7 @@ jobs:
       # Setup gstreamer 1.0
       - name: Build gstreamer library
         run: |
-          sudo apt-get install libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+          sudo apt-get install libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio libyaml-cpp-dev
 
       - name: Install valgrind library
         run: |
@@ -86,6 +88,8 @@ jobs:
             git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
             if [ $? -eq 0 ]; then
               branch="${{ github.event.pull_request.head.ref }}"
+            elif [ "${{ github.event.pull_request.base.ref }}" = "release/v0.14.0" ]; then
+              branch="${{ env.RIALTO_FALLBACK_BRANCH }}"
             else
               git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref}} > /dev/null
               if [ $? -eq 0 ]; then
