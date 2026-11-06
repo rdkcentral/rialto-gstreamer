@@ -242,12 +242,16 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
 
 void GStreamerMSEMediaPlayerClient::notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames,
                                                     uint64_t droppedFrames, uint64_t corruptedFrames,
-                                                    uint64_t ptsNs, const std::string &errorInfo, uint32_t phase)
+                                                    uint64_t ptsNs, const std::string &errorInfo, uint32_t phase,
+                                                    uint64_t count, uint64_t durationNs)
 {
     GST_DEBUG("Metric event received for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
-              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " phase=%u errorInfo=%s",
-              sourceId, renderedFrames, droppedFrames, corruptedFrames, ptsNs, phase, errorInfo.c_str());
-    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo, phase});
+              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " phase=%u count=%" G_GUINT64_FORMAT
+              " durationNs=%" G_GUINT64_FORMAT " errorInfo=%s",
+              sourceId, renderedFrames, droppedFrames, corruptedFrames, ptsNs, phase, count, durationNs,
+              errorInfo.c_str());
+    onMetricEvent(sourceId, NotifyMetricEvent{renderedFrames, droppedFrames, corruptedFrames, ptsNs, errorInfo, phase,
+                                            count, durationNs});
 }
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
@@ -440,12 +444,12 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
         }
     }
 
-    GstStructure *metricStructure = gst_structure_new("media-pipeline-metric", "metric_type", G_TYPE_UINT, metricType,
-                                                      "source_id", G_TYPE_INT, sourceId, "rendered_frames",
-                                                      G_TYPE_UINT64, event.renderedFrames, "dropped_frames",
-                                                      G_TYPE_UINT64, event.droppedFrames, "corrupted_frames",
-                                                      G_TYPE_UINT64, event.corruptedFrames, "pts_ns", G_TYPE_UINT64,
-                                                      event.ptsNs, "phase", G_TYPE_UINT, event.phase, nullptr);
+    GstStructure *metricStructure = gst_structure_new(
+        "media-pipeline-metric", "metric_type", G_TYPE_UINT, metricType, "source_id", G_TYPE_INT, sourceId,
+        "rendered_frames", G_TYPE_UINT64, event.renderedFrames, "dropped_frames", G_TYPE_UINT64,
+        event.droppedFrames, "corrupted_frames", G_TYPE_UINT64, event.corruptedFrames, "pts_ns", G_TYPE_UINT64,
+        event.ptsNs, "phase", G_TYPE_UINT, event.phase, "count", G_TYPE_UINT64, event.count, "duration_ns",
+        G_TYPE_UINT64, event.durationNs, nullptr);
     if (!metricStructure)
     {
         GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
@@ -465,9 +469,9 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
 
     GST_INFO("Posted media-pipeline-metric message for sourceId=%d metricType=%u rendered=%" G_GUINT64_FORMAT
              " dropped=%" G_GUINT64_FORMAT " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT
-             " phase=%u",
+             " phase=%u count=%" G_GUINT64_FORMAT " durationNs=%" G_GUINT64_FORMAT,
              sourceId, metricType, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
-             event.phase);
+             event.phase, event.count, event.durationNs);
 }
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)
@@ -479,9 +483,10 @@ void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const Notify
     }
 
     GST_DEBUG("Metric event dispatched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
-              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " phase=%u errorInfo=%s",
+              " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT " phase=%u count=%" G_GUINT64_FORMAT
+              " durationNs=%" G_GUINT64_FORMAT " errorInfo=%s",
               sourceId, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
-              event.phase, event.errorInfo.c_str());
+              event.phase, event.count, event.durationNs, event.errorInfo.c_str());
 
     postMetricEventOnBus(sourceId, event);
     GST_DEBUG("Metric event for sourceId=%d was posted to the app bus", sourceId);
