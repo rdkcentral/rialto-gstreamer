@@ -874,7 +874,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldValidateMediaPipelineMetricMess
     GstStructure *messageStructure{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
         "rendered_frames", G_TYPE_UINT64, guint64{100}, "dropped_frames", G_TYPE_UINT64, guint64{2},
-        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(messageStructure));
@@ -887,7 +888,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMalformedMediaPipelineMet
     GstStructure *messageStructure{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
         "rendered_frames", G_TYPE_UINT64, guint64{100}, "dropped_frames", G_TYPE_UINT64, guint64{2}, "pts_ns",
-        G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        G_TYPE_UINT64, guint64{1234567890}, "phase", G_TYPE_UINT, 0u, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
@@ -897,7 +898,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMalformedMediaPipelineMet
     GstStructure *invalidName{gst_structure_new(
         "not-media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 7,
         "rendered_frames", G_TYPE_UINT64, guint64{100}, "dropped_frames", G_TYPE_UINT64, guint64{2},
-        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
 
     ASSERT_NE(invalidName, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(invalidName));
@@ -909,7 +911,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectInvalidMetricTypeValues)
     GstStructure *messageStructure{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 7u, "source_id", G_TYPE_INT, 7,
         "rendered_frames", G_TYPE_UINT64, guint64{100}, "dropped_frames", G_TYPE_UINT64, guint64{2},
-        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
@@ -922,7 +925,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectNonMonotonicCountersForTh
     GstStructure *firstMessage{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 8,
         "rendered_frames", G_TYPE_UINT64, guint64{100}, "dropped_frames", G_TYPE_UINT64, guint64{2},
-        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
     ASSERT_NE(firstMessage, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(firstMessage));
     gst_structure_free(firstMessage);
@@ -930,7 +934,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectNonMonotonicCountersForTh
     GstStructure *secondMessage{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 8,
         "rendered_frames", G_TYPE_UINT64, guint64{99}, "dropped_frames", G_TYPE_UINT64, guint64{2},
-        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567891}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567891}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
     ASSERT_NE(secondMessage, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(secondMessage));
 
@@ -942,7 +947,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAcceptDropScenarioMetricMessage
     GstStructure *dropMessage{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 9,
         "rendered_frames", G_TYPE_UINT64, guint64{110}, "dropped_frames", G_TYPE_UINT64, guint64{5},
-        "corrupted_frames", G_TYPE_UINT64, guint64{0}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{0}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
     ASSERT_NE(dropMessage, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(dropMessage));
     gst_structure_free(dropMessage);
@@ -950,7 +956,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAcceptDropScenarioMetricMessage
     GstStructure *nextDropMessage{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 1u, "source_id", G_TYPE_INT, 9,
         "rendered_frames", G_TYPE_UINT64, guint64{115}, "dropped_frames", G_TYPE_UINT64, guint64{7},
-        "corrupted_frames", G_TYPE_UINT64, guint64{0}, "pts_ns", G_TYPE_UINT64, guint64{1234567891}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{0}, "pts_ns", G_TYPE_UINT64, guint64{1234567891}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
     ASSERT_NE(nextDropMessage, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(nextDropMessage));
     gst_structure_free(nextDropMessage);
@@ -961,7 +968,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAcceptDecodeErrorScenarioMetric
     GstStructure *decodeErrorMessage{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 2u, "source_id", G_TYPE_INT, 10,
         "rendered_frames", G_TYPE_UINT64, guint64{200}, "dropped_frames", G_TYPE_UINT64, guint64{0},
-        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{1}, "pts_ns", G_TYPE_UINT64, guint64{1234567890}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
     ASSERT_NE(decodeErrorMessage, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(decodeErrorMessage));
     gst_structure_free(decodeErrorMessage);
@@ -969,7 +977,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAcceptDecodeErrorScenarioMetric
     GstStructure *nextDecodeErrorMessage{gst_structure_new(
         "media-pipeline-metric", "metric_type", G_TYPE_UINT, 2u, "source_id", G_TYPE_INT, 10,
         "rendered_frames", G_TYPE_UINT64, guint64{210}, "dropped_frames", G_TYPE_UINT64, guint64{0},
-        "corrupted_frames", G_TYPE_UINT64, guint64{3}, "pts_ns", G_TYPE_UINT64, guint64{1234567891}, nullptr)};
+        "corrupted_frames", G_TYPE_UINT64, guint64{3}, "pts_ns", G_TYPE_UINT64, guint64{1234567891}, "phase",
+        G_TYPE_UINT, 0u, nullptr)};
     ASSERT_NE(nextDecodeErrorMessage, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(nextDecodeErrorMessage));
     gst_structure_free(nextDecodeErrorMessage);
