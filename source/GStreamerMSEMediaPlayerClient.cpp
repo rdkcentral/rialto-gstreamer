@@ -36,6 +36,7 @@ namespace
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
+} // namespace
 
 #if defined(RIALTO_GSTREAMER_UNIT_TESTS)
 [[maybe_unused]] bool validateMediaPipelineMetricMessage(const GstStructure *structure)
@@ -111,6 +112,8 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
 }
 #endif
 
+namespace
+{
 const char *toString(const firebolt::rialto::PlaybackError &error)
 {
     switch (error)

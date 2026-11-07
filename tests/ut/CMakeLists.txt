@@ -118,6 +118,11 @@ target_include_directories(
         $<TARGET_PROPERTY:gstRialtoStubs,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
+target_compile_definitions(GstRialtoUnitTests
+        PRIVATE
+        RIALTO_GSTREAMER_UNIT_TESTS
+)
+
 target_link_libraries(
         GstRialtoUnitTests
 
