@@ -50,13 +50,13 @@ class VL VL
 - **Playback lifecycle management**: Maps GStreamer element state transitions (NULL→READY→PAUSED→PLAYING and reverse) to the corresponding Rialto pipeline operations (load, attach source, play, pause, stop, flush).
 - **Multi-sink coordination**: Coordinates audio and video sinks sharing the same parent GstBin so that a single Rialto media pipeline session is created and managed jointly by all active sinks through `MediaPlayerManager`.
 - **Flush and data synchronization**: Uses `FlushAndDataSynchronizer` to guard against race conditions between flush operations and data submissions across multiple media sources.
-- **Rialto log bridging**: Forwards internal Rialto client library log messages into the GStreamer debug log system via `LogToGstHandler`.
+- **Rialto log bridging**: Forwards internal Rialto client library log messages into the GStreamer debug log system via `LogToGstHandler`; when built with `USE_ETHANLOG`, the logging macros instead route exclusively to EthanLog (not both outputs).
 
 ---
 
 ## Design
 
-The plugin is designed around a delegate pattern layered over standard GStreamer element infrastructure. Each sink element type (`RialtoMSEBaseSink`, `RialtoGStreamerMSEVideoSink`, `RialtoGStreamerMSEAudioSink`, `RialtoGStreamerMSESubtitleSink`, `RialtoGStreamerWebAudioSink`) inherits the low-level GStreamer element boilerplate from a common base while delegating all media pipeline logic to a `IPlaybackDelegate` implementation. Delegates are created at the NULL→READY state transition and destroyed at READY→NULL, cleanly separating GStreamer element lifecycle from Rialto session lifecycle. The base sink element routes all GStreamer callbacks — `chain`, `event`, `query`, `change_state`, `send_event` — through the delegate, keeping the GStreamer element code minimal and testable.
+The plugin is designed around a delegate pattern layered over standard GStreamer element infrastructure. The four MSE sink element types (`RialtoMSEBaseSink`, `RialtoGStreamerMSEVideoSink`, `RialtoGStreamerMSEAudioSink`, `RialtoGStreamerMSESubtitleSink`) inherit the low-level GStreamer element boilerplate from a common base while delegating all media pipeline logic to a `IPlaybackDelegate` implementation; on these sinks delegates are created at the NULL→READY state transition and destroyed at READY→NULL, cleanly separating GStreamer element lifecycle from Rialto session lifecycle. The web audio sink (`RialtoGStreamerWebAudioSink`) is a separate implementation deriving directly from `GST_TYPE_ELEMENT` — it creates its `PushModeAudioPlaybackDelegate` at NULL→READY but does not reset the delegate on READY→NULL, so MSE lifecycle assumptions do not apply to the web audio path. The base sink element routes all GStreamer callbacks — `chain`, `event`, `query`, `change_state`, `send_event` — through the delegate, keeping the GStreamer element code minimal and testable.
 
 The design separates two distinct data-flow modes. In pull mode, used by MSE video, audio, and subtitle sinks, `PullModePlaybackDelegate` maintains a local queue of incoming GStreamer samples and satisfies Rialto server `NeedData` requests by dequeuing, parsing, and submitting samples asynchronously. In push mode, used by the web audio path, `PushModeAudioPlaybackDelegate` drives the `GStreamerWebAudioPlayerClient` which opens a Rialto web audio session and feeds audio frames directly.
 
@@ -137,8 +137,8 @@ flowchart LR
   - _MessageQueue worker thread_: Owned by `GStreamerMSEMediaPlayerClient`. Processes all messages posted from Rialto server callbacks (`NeedDataMessage`, `PlaybackStateMessage`, `SetPositionMessage`, `QosMessage`, `BufferUnderflowMessage`, `SourceFlushedMessage`, etc.) serially to prevent concurrent access to pipeline state.
   - _BufferPuller queue thread_: One per attached source in pull mode. Receives `PullBufferMessage` requests, dequeues buffered `GstSample` objects from `PullModePlaybackDelegate`, parses them with `BufferParser`, and submits segments via `addSegment`.
   - _Timer thread_: Used by `Timer` for one-shot or periodic callbacks, primarily in the web audio path.
-- **Synchronization**: `m_sinkMutex` (per sink) protects the delegate pointer and queued properties. `m_mediaPlayerClientsMutex` (static on `MediaPlayerManager`) protects the shared media player client map. `m_playbackInfoMutex` protects the `PlaybackInfo` struct updated by the Rialto server notification. `FlushAndDataSynchronizer` uses a `std::condition_variable` to block data submissions while a flush is in progress.
-- **Async / Event Dispatch**: Rialto server callbacks (e.g., `notifyPlaybackState`, `notifyNeedMediaData`) are received on the Rialto client IPC thread and immediately posted as `Message` objects to the `MessageQueue`, which processes them on the worker thread. This prevents IPC callback threads from blocking on GStreamer pipeline operations.
+- **Synchronization**: `m_sinkMutex` (per sink) protects the delegate pointer and queued properties. `m_mediaPlayerClientsMutex` (static on `MediaPlayerManager`) protects the shared media player client map. `m_playbackInfoMutex` protects the `PlaybackInfo` struct updated by the Rialto server notification. `FlushAndDataSynchronizer` uses a `std::condition_variable` in `waitIfRequired()` to delay the start of a new flush until the source is neither mid-flush nor holding post-flush data; sample pulling during a server flush is suppressed separately by the delegate.
+- **Async / Event Dispatch**: Most Rialto server callbacks (e.g., `notifyPlaybackState`, `notifyNeedMediaData`) are received on the Rialto client IPC thread and immediately posted as `Message` objects to the `MessageQueue`, which processes them on the worker thread. This prevents IPC callback threads from blocking on GStreamer pipeline operations. Exceptions: `notifyPlaybackInfo` updates a mutex-protected `PlaybackInfo` cache directly, and web audio `notifyState` invokes delegate EOS/error handlers synchronously — neither goes through the `MessageQueue`.
 
 ### Prerequisites and Dependencies
 
@@ -146,7 +146,7 @@ flowchart LR
 
 - **Build Dependencies**: `gstreamer1.0`, `gstreamer1.0-plugins-base` (`gstreamer-app-1.0`, `gstreamer-audio-1.0`, `gstreamer-pbutils-1.0`), `glib-2.0`, `openssl`, `jsoncpp`, `protobuf`, `rialto` (RialtoClient), `rialto-ocdm`. Requires `enable_rialto` Yocto distro feature flag.
 - **HAL**: Hardware abstraction is fully handled by the Rialto server; this component operates exclusively through the Rialto Client library interfaces.
-- **Systemd Services**: The Rialto server daemon must be running and have signaled the `RUNNING` application state before sink elements can transition beyond the READY state. `ControlBackend::waitForRunning` blocks with a 1-second timeout waiting for this signal.
+- **Systemd Services**: The Rialto server daemon must be running and have signaled the `RUNNING` application state before sink elements can reach READY at all. `ControlBackend::waitForRunning` runs during the NULL→READY transition in both `PullModePlaybackDelegate::changeState()` and `PushModeAudioPlaybackDelegate::changeState()`; if its 1-second wait expires, NULL→READY itself returns `GST_STATE_CHANGE_FAILURE`, so the sink never enters READY.
 - **Runtime Configuration**: Runtime behavior is governed by the `RIALTO_SOCKET_PATH` and `RIALTO_SINKS_RANK` environment variables.
 - **Startup Order**: The Rialto server process must be active and its Unix domain socket available at `RIALTO_SOCKET_PATH` before any sink element transitions from NULL to READY.
 
@@ -156,9 +156,9 @@ flowchart LR
 
 #### Initialization to Active State
 
-The plugin is loaded by the GStreamer plugin registry when the runtime process starts a GStreamer pipeline. Sink registration occurs inside `rialto_mse_sinks_init`, which checks the `RIALTO_SOCKET_PATH` and `RIALTO_SINKS_RANK` environment variables to determine the element rank. When the rank resolves to zero, the GStreamer pipeline proceeds with its standard element selection.
+The plugin is loaded by the GStreamer plugin registry when the runtime process starts a GStreamer pipeline. Sink registration occurs inside `rialto_mse_sinks_init`, which checks the `RIALTO_SOCKET_PATH` and `RIALTO_SINKS_RANK` environment variables to determine the element rank. When the rank resolves to zero, `rialto_mse_sinks_init` returns before any `gst_element_register` call, so the sink factories are not registered at all — automatic selection falls back to standard elements and even explicit `gst_element_factory_make("rialtomsevideosink", ...)` fails.
 
-Each sink element transitions through the following states: **NULL** (element constructed, no resources allocated) → **READY** (delegate created, `ControlBackend` initialized, Rialto server `RUNNING` state awaited, media player client attached via `MediaPlayerManager`) → **PAUSED** (source attached to Rialto pipeline, streaming started, data requested) → **PLAYING** (Rialto pipeline play issued) → **PAUSED** → **READY** → **NULL** (flush, stop, source removal, delegate destroyed, media player client released).
+Each MSE sink element transitions through the following states: **NULL** (element constructed, no resources allocated) → **READY** (delegate created, `ControlBackend` initialized, Rialto server `RUNNING` state awaited) → **PAUSED** (shared media player client attached via `MediaPlayerManager`; sources attached later when `GST_EVENT_CAPS` arrives) → **PLAYING** (Rialto pipeline play issued) → **PAUSED** → **READY** → **NULL** (flush, stop, source removal, delegate destroyed, media player client released).
 
 ```mermaid
 sequenceDiagram
@@ -176,13 +176,14 @@ sequenceDiagram
     Delegate->>CtrlBackend: createControlBackend()
     CtrlBackend->>RialtoClient: IControl::registerClient()
     RialtoClient-->>CtrlBackend: notifyApplicationState(RUNNING)
+    Sink-->>GSTPipeline: READY
+
+    GSTPipeline->>Sink: READY_TO_PAUSED state change
     Delegate->>MPMgr: attachMediaPlayerClient()
     MPMgr->>MPClient: create GStreamerMSEMediaPlayerClient
     MPClient->>RialtoClient: createMediaPlayerBackend() + load(MSE)
     RialtoClient-->>MPClient: Backend created
-    Sink-->>GSTPipeline: READY
-
-    GSTPipeline->>Sink: READY_TO_PAUSED state change
+    GSTPipeline->>Sink: GST_EVENT_CAPS
     Delegate->>RialtoClient: attachSource(MediaSource)
     RialtoClient-->>Delegate: sourceId assigned
     GSTPipeline->>Sink: chain() - push GstBuffer
@@ -218,19 +219,19 @@ sequenceDiagram
 
 #### Runtime State Changes
 
-During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which are forwarded to the GStreamer segment and posted as messages.
+During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which post backend-queue messages that update internal caches (per-source position, `m_duration`) — they do not update the GStreamer segment or emit bus notifications. Position queries instead read the `PlaybackInfo` snapshot refreshed by `notifyPlaybackInfo`, while duration queries consult upstream first and then the backend cache.
 
 **State Change Triggers:**
 
 - `notifyPlaybackState(PLAYING/PAUSED/STOPPED/END_OF_STREAM)` posted to the MessageQueue triggers corresponding GStreamer state or EOS message propagation upstream.
-- A flush event from the GStreamer pipeline (`GST_EVENT_FLUSH_START/STOP`) triggers `flush()` on the Rialto pipeline via `MediaPlayerClientBackendInterface::flush()`, and `FlushAndDataSynchronizer` blocks any concurrent `addSegment` calls until the server confirms flush completion via `notifySourceFlushed`.
+- A flush event from the GStreamer pipeline (`GST_EVENT_FLUSH_START/STOP`) triggers `flush()` on the Rialto pipeline via `MediaPlayerClientBackendInterface::flush()`, and `FlushAndDataSynchronizer::waitIfRequired()` delays starting a new flush while the source is mid-flush; separately, the delegate suppresses sample pulling while the server flush is ongoing.
 - `notifyBufferUnderflow` emits the `buffer-underflow-callback` GObject signal on the sink element, which the parent pipeline can handle to adjust buffering.
 - `notifyPlaybackError(DECRYPTION)` posts a GStreamer error message to the pipeline bus; `OUTPUT_PROTECTION` instead posts an `HDCPProtectionFailure` application message.
 
 **Context Switching Scenarios:**
 
-- If `notifyApplicationState` delivers `INACTIVE` from the Rialto server, `lostState()` is called on the delegate, which can trigger recovery or error propagation.
-- A seek event (`GST_EVENT_SEEK`) results in a `setSourcePosition` call followed by a flush sequence to realign the server-side pipeline to the new position.
+- `PullModePlaybackDelegate::notifyApplicationState()` ignores `INACTIVE`; only `UNKNOWN` posts an error via `handleError()`. (`gst_element_lost_state` is invoked on a different path — during asynchronous source flushing, not on an INACTIVE notification.)
+- A seek event (`GST_EVENT_SEEK`) updates the local segment and forwards a flushing seek upstream; the subsequent `FLUSH_STOP` invokes `flushServer()`, and the following `SEGMENT` event invokes `setSourcePosition()` to realign the server-side pipeline to the new position.
 - Rate change events trigger `setPlaybackRate` on the media player backend.
 
 ---
@@ -251,13 +252,15 @@ sequenceDiagram
     GSTPipeline->>Sink: NULL_TO_READY
     Sink->>Delegate: new PullModeVideoPlaybackDelegate(element)
     Delegate->>Delegate: createControlBackend()
+    Sink-->>GSTPipeline: READY
+    GSTPipeline->>Sink: READY_TO_PAUSED
     Delegate->>MPMgr: attachMediaPlayerClient(gstBinParent, maxW, maxH)
     MPMgr->>MPClient: new GStreamerMSEMediaPlayerClient(backend)
     MPClient->>RialtoClient: createMediaPlayerBackend(maxW, maxH)
     MPClient->>RialtoClient: load(MSE, url)
     RialtoClient-->>MPClient: load acknowledged
     MPMgr-->>Delegate: client attached
-    Sink-->>GSTPipeline: READY
+    Note over Delegate: attachSource() occurs on GST_EVENT_CAPS
 ```
 
 #### Request Processing Call Flow
@@ -313,7 +316,7 @@ sequenceDiagram
 | `MediaPlayerManager`               | Manages the lifecycle of shared `GStreamerMSEMediaPlayerClient` instances, keyed by the top-level `GstBin` parent. Allows multiple sink elements in the same pipeline to share a single Rialto media pipeline session and coordinates control acquisition.                                                                                                                                     | `MediaPlayerManager.cpp`, `MediaPlayerManager.h`                                                        |
 | `BufferParser`                     | Abstract base for per-media-type GstBuffer parsing. Extracts timestamp, duration, codec data, display offset, and DRM protection metadata from a `GstSample`, producing an `IMediaPipeline::MediaSegment`. Concrete subclasses: `AudioBufferParser`, `VideoBufferParser`, `SubtitleBufferParser`.                                                                                              | `BufferParser.cpp`, `BufferParser.h`                                                                    |
 | `MessageQueue`                     | Thread-safe FIFO queue backed by a dedicated `std::thread`. Supports `postMessage` (asynchronous), `callInEventLoop` (synchronous, caller blocks until processed), and `scheduleInEventLoop` (asynchronous dispatch).                                                                                                                                                                          | `MessageQueue.cpp`, `MessageQueue.h`                                                                    |
-| `FlushAndDataSynchronizer`         | Tracks per-source flush and data states. Blocks `addSegment` calls on sources that are currently being flushed or that have not yet received their first data after a flush, preventing stale data from reaching the Rialto server.                                                                                                                                                            | `FlushAndDataSynchronizer.cpp`, `FlushAndDataSynchronizer.h`                                            |
+| `FlushAndDataSynchronizer`         | Tracks per-source flush and data states. `waitIfRequired()` delays starting a new flush while the source is mid-flush or holding post-flush data; suppression of sample pulling during a server flush is handled separately by the delegate.                                                                                                                                                            | `FlushAndDataSynchronizer.cpp`, `FlushAndDataSynchronizer.h`                                            |
 | `ControlBackend`                   | Wraps the Rialto `IControl` interface. Registers the sink as a control client, receives `notifyApplicationState` transitions from the Rialto server, and exposes a `waitForRunning()` method that blocks until the server is active.                                                                                                                                                           | `ControlBackend.h`                                                                                      |
 | `GStreamerEMEUtils`                | Reads GStreamer protection metadata from a `GstBuffer` (CENC and WebM encryption formats) and populates a `BufferProtectionMetadata` struct with key ID, IV, subsample map, and cipher mode for downstream attachment to media segments.                                                                                                                                                       | `GStreamerEMEUtils.cpp`, `GStreamerEMEUtils.h`                                                          |
 | `GStreamerMSEUtils`                | Utility functions for capabilities setup: translates GstCaps structures into Rialto-native types (`Layout`, `Format`, `StreamFormat`, `SegmentAlignment`, codec data, Dolby Vision profile). Also sets supported caps on element classes using `IMediaPipelineCapabilities`.                                                                                                                   | `GStreamerMSEUtils.cpp`, `GStreamerMSEUtils.h`                                                          |
@@ -379,7 +382,7 @@ sequenceDiagram
 
 **Event Notification Flow:**
 
-Rialto server callbacks arrive on the IPC receiver thread, are immediately wrapped as `Message` objects and posted to the backend `MessageQueue`, then processed on the worker thread to update pipeline state or propagate events into the GStreamer pipeline. Data-request notifications (`notifyNeedMediaData`) additionally hand off to a per-source `BufferPuller` queue, which dequeues the buffered sample, parses it, and calls `addSegment` directly from its own thread, before the backend queue sends `haveData` back to the Rialto server.
+Most Rialto server callbacks arrive on the IPC receiver thread, are immediately wrapped as `Message` objects and posted to the backend `MessageQueue`, then processed on the worker thread to update pipeline state or propagate events into the GStreamer pipeline. Two exceptions bypass the queue: `notifyPlaybackInfo` updates a mutex-protected `PlaybackInfo` cache directly, and web audio `notifyState` calls delegate EOS/error/state handlers synchronously on the IPC thread. Data-request notifications (`notifyNeedMediaData`) additionally hand off to a per-source `BufferPuller` queue, which dequeues the buffered sample, parses it, and calls `addSegment` directly from its own thread, before the backend queue sends `haveData` back to the Rialto server.
 
 ```mermaid
 sequenceDiagram
@@ -446,13 +449,13 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
   - Sink element state dispatch: `RialtoGStreamerMSEBaseSink.cpp`
   - Rialto session lifecycle: `PullModePlaybackDelegate.cpp`, `GStreamerMSEMediaPlayerClient.cpp`
 
-- **Event Processing**: Rialto server callbacks are received on the IPC thread and posted immediately to the backend `MessageQueue` as typed `Message` subclasses. For data requests, the backend worker thread hands off to the attached source's `BufferPuller`, whose own `IMessageQueue` dequeues the buffered sample, parses it, and calls `addSegment` directly from the `BufferPuller` thread; the outcome is then posted back to the backend queue, which sends `haveData` to the Rialto server. Other server callbacks (playback state, position, QoS, underflow) are processed serially on the backend worker thread without this additional hop.
+- **Event Processing**: Most Rialto server callbacks are received on the IPC thread and posted immediately to the backend `MessageQueue` as typed `Message` subclasses (`notifyPlaybackInfo` and web audio `notifyState` are exceptions — they update state or invoke delegate handlers directly on the IPC thread). For data requests, the backend worker thread hands off to the attached source's `BufferPuller`, whose own `IMessageQueue` dequeues the buffered sample, parses it, and calls `addSegment` directly from the `BufferPuller` thread; the outcome is then posted back to the backend queue, which sends `haveData` to the Rialto server. Other server callbacks (playback state, position, QoS, underflow) are processed serially on the backend worker thread without this additional hop.
   - Message dispatch: `GStreamerMSEMediaPlayerClient.cpp`
   - Buffer pull: `GStreamerMSEMediaPlayerClient.cpp` (`BufferPuller`, `PullBufferMessage`)
 
 - **Error Handling Strategy**: Errors from Rialto Client calls are checked for boolean return values; failures are logged with `GST_ERROR_OBJECT` and, where appropriate, propagated as `GstMessageError` on the pipeline bus. `notifyPlaybackError(DECRYPTION)` maps to a GStreamer error message via the delegate's `handleError()`, while `notifyPlaybackError(OUTPUT_PROTECTION)` instead posts an `HDCPProtectionFailure` application message rather than failing the pipeline. State change failures return `GST_STATE_CHANGE_FAILURE`, which propagates naturally through the GStreamer state machine.
 
-- **Logging & Diagnostics**: GStreamer debug categories are defined per sink element (`RialtoMSEBaseSinkDebug`, `RialtoMSEVideoSinkDebug`, `RialtoMSEAudioSinkDebug`, `RialtoMSESubtitleSinkDebug`, `RialtoWebAudioSinkDebug`) and a shared plugin-level category (`rialtoGStreamerCat`). Internal Rialto client library logs are redirected to the GStreamer logging system via `LogToGstHandler`. When the `USE_ETHANLOG` compile-time flag is set, logs are also forwarded to the EthanLog subsystem.
+- **Logging & Diagnostics**: GStreamer debug categories are defined per sink element (`RialtoMSEBaseSinkDebug`, `RialtoMSEVideoSinkDebug`, `RialtoMSEAudioSinkDebug`, `RialtoMSESubtitleSinkDebug`, `RialtoWebAudioSinkDebug`) and a shared plugin-level category (`rialtoGStreamerCat`). Internal Rialto client library logs are redirected to the GStreamer logging system via `LogToGstHandler`. When the `USE_ETHANLOG` compile-time flag is set, `LogToGstHandler` selects a mutually exclusive set of logging macros, so logs go to EthanLog instead of the GStreamer log — not to both.
 
 ---
 
@@ -462,14 +465,14 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 
 | Parameter            | Type                                    | Default           | Description                                                                                                                                                                                                                                               |
 | -------------------- | --------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RIALTO_SOCKET_PATH` | Environment variable (string)           | Not set           | Path to the Rialto server Unix domain socket. When set, sink elements are registered at maximum GStreamer rank, enabling automatic selection by the pipeline. When unset, the rank resolves to zero and the pipeline uses its standard element selection. |
+| `RIALTO_SOCKET_PATH` | Environment variable (string)           | Not set           | Path to the Rialto server Unix domain socket. When set, sink elements are registered at maximum GStreamer rank, enabling automatic selection by the pipeline. When unset, the rank resolves to zero and `rialto_mse_sinks_init` returns before any `gst_element_register` call — the sink factories are not registered at all, so even explicit `gst_element_factory_make` fails. |
 | `RIALTO_SINKS_RANK`  | Environment variable (unsigned integer) | Not set           | Overrides the GStreamer element rank for all registered sink elements. When set, takes precedence over the rank derived from `RIALTO_SOCKET_PATH`.                                                                                                        |
 | `max-video-width`    | GObject property (uint)                 | 3840              | Maximum video width constraint passed to the Rialto server when creating the media player backend.                                                                                                                                                        |
 | `max-video-height`   | GObject property (uint)                 | 2160              | Maximum video height constraint passed to the Rialto server when creating the media player backend.                                                                                                                                                       |
 | `volume`             | GObject property (double)               | 1.0               | Audio volume level (0.0–1.0) forwarded to the Rialto audio pipeline.                                                                                                                                                                                      |
 | `mute`               | GObject property (bool)                 | false             | Audio or subtitle mute state forwarded to the Rialto pipeline.                                                                                                                                                                                            |
 | `low-latency`        | GObject property (bool)                 | false             | Audio sink. Enables low-latency audio mode for gaming (no audio decoding, no A/V sync). Installed only when reported by `IMediaPipelineCapabilities::getSupportedProperties(AUDIO)`.                                                                                                                                                                                             |
-| `limit-buffering-ms` | GObject property (uint)                 | 750               | Audio sink. Buffering threshold in milliseconds (0-20000) used when `use-buffering` is enabled; forwarded via `setBufferingLimit()`. Also installed conditionally via `getSupportedProperties`.                                                                                                                                                                                |
+| `limit-buffering-ms` | GObject property (uint)                 | 750               | Audio sink. Buffering threshold in milliseconds (0-20000) used when `use-buffering` is enabled; forwarded via `setBufferingLimit()`. Installed unconditionally — its presence is not evidence of backend capability support.                                                                                                                                                                                |
 | `use-buffering`      | GObject property (bool)                 | false             | Audio sink. Emit `GST_MESSAGE_BUFFERING` based on low-/high-percent thresholds; forwarded via `setUseBuffering()`.                                                                                                                                                                                                                 |
 | `immediate-output`   | GObject property (bool)                 | true              | Enables immediate output mode for the video decoder in the Rialto server.                                                                                                                                                                                 |
 | `syncmode-streaming` | GObject property (bool)                 | false             | Enables streaming sync mode for video playback.                                                                                                                                                                                                           |
@@ -489,7 +492,7 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 | `sync` / `sync-off`   | GObject property (bool)             | false              | Audio sink. Clock sync / free-running audio. Installed only when reported by `IMediaPipelineCapabilities::getSupportedProperties(AUDIO)`. `sync-off` must be set before PLAYING.
 | `stream-sync-mode`    | GObject property (int)              | 0                  | Audio sink. Stream sync mode (0 = no frame sync, 1 = next frame sync after decode). Capability-gated like `sync`/`sync-off`.
 | `single-path-stream`  | GObject property (bool)             | false              | Base sink. Single-path stream flag forwarded to the Rialto source configuration.
-| `streams-number`      | GObject property (int)              | 1                  | Base sink. Number of streams the application intends to attach (used for `setStreamsNumber` on the Rialto pipeline).
+| `streams-number`      | GObject property (int)              | 1                  | Base sink. Deprecated fallback stream count used when coordinating `allSourcesAttached()`. The `streams-info` context takes precedence, followed by parent (playbin) properties; this property only supplies counts when neither is available, so setting it does not override explicit stream information.
 | `has-drm`             | GObject property (bool)             | true               | Base sink. Whether the source stream carries DRM; feeds the `hasDrm` flag in the media source configuration.
 | `stats`               | GObject property (pointer, read-only) | —                | Base sink. Pointer to a `GstStructure` containing playback statistics.
 | `enable-last-sample` / `last-sample` | GObject property (bool / boxed) | false / —   | Base sink. Enable the `last-sample` property; `last-sample` returns the most recent sample received by the sink.
