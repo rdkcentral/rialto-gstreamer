@@ -248,3 +248,72 @@ TEST_F(BufferParserTests, ShouldParseSubtitleBuffer)
     EXPECT_EQ(segment->getDisplayOffset().value(), kDisplayOffset);
     gst_caps_unref(caps);
 }
+
+TEST_F(BufferParserTests, ShouldParseWebVttSubtitleBufferWithoutDisplayOffset)
+{
+    SubtitleBufferParser parser;
+    GST_BUFFER_OFFSET(m_buffer) = GST_BUFFER_OFFSET_NONE;
+    GstCaps *caps = gst_caps_new_empty_simple("text/vtt");
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+
+    ASSERT_TRUE(segment);
+    EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
+    EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
+    EXPECT_EQ(segment->getDuration(), kDuration);
+    EXPECT_FALSE(segment->getDisplayOffset().has_value());
+    gst_caps_unref(caps);
+}
+
+TEST_F(BufferParserTests, ShouldParseClosedCaptionSubtitleBuffer)
+{
+    SubtitleBufferParser parser;
+    GstCaps *caps = gst_caps_new_empty_simple("closedcaption/x-cea-608");
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+
+    ASSERT_TRUE(segment);
+    EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
+    EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
+    EXPECT_EQ(segment->getDuration(), kDuration);
+    EXPECT_EQ(segment->getDisplayOffset().value(), kDisplayOffset);
+    gst_caps_unref(caps);
+}
+
+TEST_F(BufferParserTests, ShouldParseEmptySubtitlePayloadWithoutDisplayOffset)
+{
+    SubtitleBufferParser parser;
+    GST_BUFFER_OFFSET(m_buffer) = GST_BUFFER_OFFSET_NONE;
+    m_mapInfo.data = nullptr;
+    m_mapInfo.size = 0;
+    GstCaps *caps = gst_caps_new_empty_simple("application/ttml+xml");
+    GstRefSample sample = buildSample(caps);
+    auto segment = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+
+    ASSERT_TRUE(segment);
+    EXPECT_EQ(segment->getType(), firebolt::rialto::MediaSourceType::SUBTITLE);
+    EXPECT_EQ(segment->getTimeStamp(), kTimestamp);
+    EXPECT_EQ(segment->getDuration(), kDuration);
+    EXPECT_FALSE(segment->getDisplayOffset().has_value());
+    gst_caps_unref(caps);
+}
+
+TEST_F(BufferParserTests, ShouldPreserveChangedSubtitleTimestampAndDuration)
+{
+    SubtitleBufferParser parser;
+    GstCaps *caps = gst_caps_new_empty_simple("application/ttml+xml");
+    GstRefSample sample = buildSample(caps);
+
+    auto first = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+    ASSERT_TRUE(first);
+    GST_BUFFER_PTS(m_buffer) = kTimestamp + kDuration;
+    GST_BUFFER_DURATION(m_buffer) = kDuration / 2;
+    auto second = parser.parseBuffer(sample, m_buffer, m_mapInfo, kStreamId);
+
+    ASSERT_TRUE(second);
+    EXPECT_EQ(first->getTimeStamp(), kTimestamp);
+    EXPECT_EQ(first->getDuration(), kDuration);
+    EXPECT_EQ(second->getTimeStamp(), kTimestamp + kDuration);
+    EXPECT_EQ(second->getDuration(), kDuration / 2);
+    gst_caps_unref(caps);
+}
