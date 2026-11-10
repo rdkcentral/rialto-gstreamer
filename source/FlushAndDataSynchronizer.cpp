@@ -42,15 +42,41 @@ void FlushAndDataSynchronizer::removeSource(int32_t sourceId)
 void FlushAndDataSynchronizer::notifyFlushStarted(int32_t sourceId)
 {
     std::unique_lock lock(m_mutex);
-    m_sourceStates[sourceId].flushState = FlushState::FLUSHING;
-    m_sourceStates[sourceId].dataState = DataState::NO_DATA;
+    auto source = m_sourceStates.find(sourceId);
+    if (source == m_sourceStates.end())
+    {
+        GST_WARNING("Ignoring flush start for removed source %d", sourceId);
+        return;
+    }
+    source->second.flushState = FlushState::FLUSHING;
+    source->second.dataState = DataState::NO_DATA;
     GST_INFO("FlushAndDataSynchronizer: Flush started for source %d", sourceId);
+}
+
+void FlushAndDataSynchronizer::notifyFlushFailed(int32_t sourceId)
+{
+    std::unique_lock lock(m_mutex);
+    auto source = m_sourceStates.find(sourceId);
+    if (source == m_sourceStates.end())
+    {
+        GST_WARNING("Ignoring flush failure for removed source %d", sourceId);
+        return;
+    }
+    source->second = {FlushState::IDLE, DataState::NO_DATA};
+    m_cv.notify_all();
+    GST_INFO("FlushAndDataSynchronizer: Flush failed for source %d", sourceId);
 }
 
 void FlushAndDataSynchronizer::notifyFlushCompleted(int32_t sourceId)
 {
     std::unique_lock lock(m_mutex);
-    m_sourceStates[sourceId].flushState = FlushState::FLUSHED;
+    auto source = m_sourceStates.find(sourceId);
+    if (source == m_sourceStates.end())
+    {
+        GST_WARNING("Ignoring flush completion for removed source %d", sourceId);
+        return;
+    }
+    source->second.flushState = FlushState::FLUSHED;
     m_cv.notify_all();
     GST_INFO("FlushAndDataSynchronizer: Flush completed for source %d", sourceId);
 }
@@ -58,9 +84,15 @@ void FlushAndDataSynchronizer::notifyFlushCompleted(int32_t sourceId)
 void FlushAndDataSynchronizer::notifyDataReceived(int32_t sourceId)
 {
     std::unique_lock lock(m_mutex);
-    if (m_sourceStates[sourceId].dataState == DataState::NO_DATA)
+    auto source = m_sourceStates.find(sourceId);
+    if (source == m_sourceStates.end())
     {
-        m_sourceStates[sourceId].dataState = DataState::DATA_RECEIVED;
+        GST_WARNING("Ignoring data received for removed source %d", sourceId);
+        return;
+    }
+    if (source->second.dataState == DataState::NO_DATA)
+    {
+        source->second.dataState = DataState::DATA_RECEIVED;
         GST_INFO("FlushAndDataSynchronizer: Data received for source %d", sourceId);
     }
 }
@@ -68,8 +100,19 @@ void FlushAndDataSynchronizer::notifyDataReceived(int32_t sourceId)
 void FlushAndDataSynchronizer::notifyDataPushed(int32_t sourceId)
 {
     std::unique_lock lock(m_mutex);
-    m_sourceStates[sourceId].dataState = DataState::DATA_PUSHED;
-    m_sourceStates[sourceId].flushState = FlushState::IDLE;
+    auto source = m_sourceStates.find(sourceId);
+    if (source == m_sourceStates.end())
+    {
+        GST_WARNING("Ignoring data pushed for removed source %d", sourceId);
+        return;
+    }
+    if (source->second.flushState == FlushState::FLUSHING)
+    {
+        GST_INFO("Ignoring data pushed for flushing source %d", sourceId);
+        return;
+    }
+    source->second.dataState = DataState::DATA_PUSHED;
+    source->second.flushState = FlushState::IDLE;
     m_cv.notify_all();
     GST_INFO("FlushAndDataSynchronizer: Data pushed for source %d", sourceId);
 }
@@ -91,6 +134,22 @@ void FlushAndDataSynchronizer::waitIfRequired(int32_t sourceId)
                                       });
               });
     GST_INFO("FlushAndDataSynchronizer: waitIfRequired exit for source %d", sourceId);
+}
+
+bool FlushAndDataSynchronizer::waitForAllFlushes(int32_t sourceId)
+{
+    std::unique_lock lock(m_mutex);
+    GST_INFO("FlushAndDataSynchronizer: waitForAllFlushes enter for source %d", sourceId);
+    m_cv.wait(lock,
+              [&]()
+              {
+                  return m_sourceStates.find(sourceId) == m_sourceStates.end() ||
+                         std::none_of(m_sourceStates.begin(), m_sourceStates.end(), [](const auto &state)
+                                      { return state.second.flushState == FlushState::FLUSHING; });
+              });
+    const bool sourceExists = m_sourceStates.find(sourceId) != m_sourceStates.end();
+    GST_INFO("FlushAndDataSynchronizer: waitForAllFlushes exit for source %d (exists=%d)", sourceId, sourceExists);
+    return sourceExists;
 }
 
 bool FlushAndDataSynchronizer::isAnySourceFlushing() const
