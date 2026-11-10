@@ -17,6 +17,7 @@
  */
 
 #include "FlushAndDataSynchronizer.h"
+#include <atomic>
 #include <condition_variable>
 #include <gtest/gtest.h>
 #include <mutex>
@@ -80,6 +81,58 @@ TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForPreviousFlushCompletion)
     EXPECT_FALSE(waitFinished);
     m_sut.notifyFlushCompleted(kAudioSourceId);
     waitingThread.join();
+}
+
+TEST_F(FlushAndDataSynchronizerTests, ShouldWaitForAllSourceFlushNotificationsToComplete)
+{
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool waiting{false};
+    std::atomic<bool> waitFinished{false};
+
+    m_sut.notifyFlushStarted(kAudioSourceId);
+    m_sut.notifyFlushStarted(kVideoSourceId);
+
+    std::thread waitingThread(
+        [&]()
+        {
+            std::unique_lock lock(mutex);
+            waiting = true;
+            cv.notify_one();
+            lock.unlock();
+            m_sut.waitForAllFlushes(kAudioSourceId);
+            waitFinished = true;
+        });
+
+    std::unique_lock lock(mutex);
+    cv.wait(lock, [&waiting]() { return waiting; });
+    EXPECT_FALSE(waitFinished);
+    m_sut.notifyFlushCompleted(kAudioSourceId);
+    EXPECT_FALSE(waitFinished);
+    m_sut.notifyFlushCompleted(kVideoSourceId);
+    lock.unlock();
+    waitingThread.join();
+    EXPECT_TRUE(waitFinished);
+}
+
+TEST_F(FlushAndDataSynchronizerTests, ShouldStopWaitingWhenSourceIsRemoved)
+{
+    std::atomic<bool> waitFinished{false};
+    std::atomic<bool> sourceExists{true};
+
+    m_sut.notifyFlushStarted(kAudioSourceId);
+    m_sut.notifyFlushStarted(kVideoSourceId);
+    std::thread waitingThread(
+        [&]()
+        {
+            sourceExists = m_sut.waitForAllFlushes(kAudioSourceId);
+            waitFinished = true;
+        });
+
+    m_sut.removeSource(kAudioSourceId);
+    waitingThread.join();
+    EXPECT_TRUE(waitFinished);
+    EXPECT_FALSE(sourceExists);
 }
 
 TEST_F(FlushAndDataSynchronizerTests, SecondReceivedDataShouldNotMessUpTheStateIfPushedEarlier)

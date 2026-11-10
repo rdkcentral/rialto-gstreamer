@@ -89,6 +89,14 @@ void GStreamerMSEMediaPlayerClient::stopStreaming()
 {
     if (!m_streamingStopped)
     {
+        {
+            std::lock_guard<std::mutex> lock{m_bufferPullersMutex};
+            m_bufferPullers.clear();
+        }
+        for (const auto &source : m_attachedSources)
+        {
+            m_flushAndDataSynchronizer.removeSource(source.first);
+        }
         m_backendQueue->stop();
 
         for (auto &source : m_attachedSources)
@@ -133,9 +141,21 @@ void GStreamerMSEMediaPlayerClient::notifyNeedMediaData(
     int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
     const std::shared_ptr<firebolt::rialto::MediaPlayerShmInfo> & /*shmInfo*/)
 {
-    m_backendQueue->postMessage(std::make_shared<NeedDataMessage>(sourceId, frameCount, needDataRequestId, this));
-
-    return;
+    // NeedMediaData is routed directly to the per-source BufferPuller (source worker), bypassing m_backendQueue.
+    // The worker pulls samples, writes them to shm (addSegment) and issues haveData on its own thread.
+    std::lock_guard<std::mutex> lock{m_bufferPullersMutex};
+    auto pullerIt = m_bufferPullers.find(sourceId);
+    if (pullerIt == m_bufferPullers.end())
+    {
+        GST_ERROR("There's no attached source with id %d", sourceId);
+        return;
+    }
+    if (!pullerIt->second->requestPullBuffer(sourceId, frameCount, needDataRequestId, this))
+    {
+        GST_ERROR("Failed to pull buffer for sourceId=%d and NeedDataRequestId %u", sourceId, needDataRequestId);
+        m_backendQueue->postMessage(std::make_shared<HaveDataMessage>(firebolt::rialto::MediaSourceStatus::ERROR,
+                                                                      sourceId, needDataRequestId, this));
+    }
 }
 
 void GStreamerMSEMediaPlayerClient::notifyCancelNeedMediaData(int sourceId) {}
@@ -575,6 +595,8 @@ bool GStreamerMSEMediaPlayerClient::attachSource(std::unique_ptr<firebolt::rialt
                     delegate->setSourceId(source->getId());
                     m_flushAndDataSynchronizer.addSource(source->getId());
                     bufferPuller->start();
+                    std::lock_guard<std::mutex> lock{m_bufferPullersMutex};
+                    m_bufferPullers[source->getId()] = bufferPuller;
                 }
             }
 
@@ -627,12 +649,16 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
     m_backendQueue->callInEventLoop(
         [&]()
         {
+            m_flushAndDataSynchronizer.removeSource(sourceId);
+            {
+                std::lock_guard<std::mutex> lock{m_bufferPullersMutex};
+                m_bufferPullers.erase(sourceId);
+            }
             if (!m_clientBackend->removeSource(sourceId))
             {
                 GST_WARNING("Remove source %d failed", sourceId);
             }
             m_attachedSources.erase(sourceId);
-            m_flushAndDataSynchronizer.removeSource(sourceId);
         });
 }
 
@@ -1030,26 +1056,6 @@ bool GStreamerMSEMediaPlayerClient::areAllStreamsAttached()
            attachedSubtitleSources == m_subtitleStreams;
 }
 
-bool GStreamerMSEMediaPlayerClient::requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId)
-{
-    bool result = false;
-    m_backendQueue->callInEventLoop(
-        [&]()
-        {
-            auto sourceIt = m_attachedSources.find(streamId);
-            if (sourceIt == m_attachedSources.end())
-            {
-                GST_ERROR("There's no attached source with id %d", streamId);
-
-                result = false;
-                return;
-            }
-            result = sourceIt->second.m_bufferPuller->requestPullBuffer(streamId, frameCount, needDataRequestId, this);
-        });
-
-    return result;
-}
-
 bool GStreamerMSEMediaPlayerClient::handleQos(int sourceId, firebolt::rialto::QosInfo qosInfo)
 {
     bool result = false;
@@ -1176,6 +1182,12 @@ firebolt::rialto::AddSegmentStatus GStreamerMSEMediaPlayerClient::addSegment(
     return m_clientBackend->addSegment(needDataRequestId, mediaSegment);
 }
 
+bool GStreamerMSEMediaPlayerClient::haveData(firebolt::rialto::MediaSourceStatus status, unsigned int needDataRequestId)
+{
+    // rialto client's haveData call is MT safe, so it's ok to call it from the Puller's thread
+    return m_clientBackend->haveData(status, needDataRequestId);
+}
+
 BufferPuller::BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
                            const std::shared_ptr<BufferParser> &bufferParser,
                            const std::shared_ptr<IPullModePlaybackDelegate> &delegate)
@@ -1229,6 +1241,11 @@ PullBufferMessage::PullBufferMessage(int sourceId, size_t frameCount, unsigned i
 
 void PullBufferMessage::handle()
 {
+    if (!m_player->getFlushAndDataSynchronizer().waitForAllFlushes(m_sourceId))
+    {
+        return;
+    }
+
     bool isEos = false;
     bool isNoSpace{false};
     unsigned int addedSegments = 0;
@@ -1308,25 +1325,7 @@ void PullBufferMessage::handle()
         m_player->getFlushAndDataSynchronizer().notifyDataPushed(m_sourceId);
     }
 
-    m_player->m_backendQueue->postMessage(
-        std::make_shared<HaveDataMessage>(status, m_sourceId, m_needDataRequestId, m_player));
-}
-
-NeedDataMessage::NeedDataMessage(int sourceId, size_t frameCount, unsigned int needDataRequestId,
-                                 GStreamerMSEMediaPlayerClient *player)
-    : m_sourceId(sourceId), m_frameCount(frameCount), m_needDataRequestId(needDataRequestId), m_player(player)
-{
-}
-
-void NeedDataMessage::handle()
-{
-    if (!m_player->requestPullBuffer(m_sourceId, m_frameCount, m_needDataRequestId))
-    {
-        GST_ERROR("Failed to pull buffer for sourceId=%d and NeedDataRequestId %u", m_sourceId, m_needDataRequestId);
-        m_player->m_backendQueue->postMessage(
-            std::make_shared<HaveDataMessage>(firebolt::rialto::MediaSourceStatus::ERROR, m_sourceId,
-                                              m_needDataRequestId, m_player));
-    }
+    m_player->haveData(status, m_needDataRequestId);
 }
 
 PlaybackStateMessage::PlaybackStateMessage(firebolt::rialto::PlaybackState state, GStreamerMSEMediaPlayerClient *player)

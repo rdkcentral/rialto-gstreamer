@@ -93,6 +93,21 @@ void FlushAndDataSynchronizer::waitIfRequired(int32_t sourceId)
     GST_INFO("FlushAndDataSynchronizer: waitIfRequired exit for source %d", sourceId);
 }
 
+bool FlushAndDataSynchronizer::waitForAllFlushes(int32_t sourceId)
+{
+    std::unique_lock lock(m_mutex);
+    GST_INFO("FlushAndDataSynchronizer: waitForAllFlushes enter for source %d", sourceId);
+    m_cv.wait(lock, [&]()
+              {
+                  return m_sourceStates.find(sourceId) == m_sourceStates.end() ||
+                         std::none_of(m_sourceStates.begin(), m_sourceStates.end(), [](const auto &state)
+                                      { return state.second.flushState == FlushState::FLUSHING; });
+              });
+    const bool sourceExists = m_sourceStates.find(sourceId) != m_sourceStates.end();
+    GST_INFO("FlushAndDataSynchronizer: waitForAllFlushes exit for source %d (exists=%d)", sourceId, sourceExists);
+    return sourceExists;
+}
+
 bool FlushAndDataSynchronizer::isAnySourceFlushing() const
 {
     std::unique_lock lock(m_mutex);

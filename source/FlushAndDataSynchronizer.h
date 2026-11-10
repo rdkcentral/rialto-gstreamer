@@ -64,6 +64,7 @@ public:
     void notifyDataReceived(int32_t sourceId) override;
     void notifyDataPushed(int32_t sourceId) override;
     void waitIfRequired(int32_t sourceId) override;
+    bool waitForAllFlushes(int32_t sourceId) override;
     bool isAnySourceFlushing() const override;
 
 private:
