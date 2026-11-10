@@ -82,6 +82,7 @@ public:
     MOCK_METHOD(bool, switchSource, (const std::unique_ptr<MediaSource> &source), (override));
     MOCK_METHOD(bool, setSubtitleOffset, (int32_t sourceId, int64_t position), (override));
     MOCK_METHOD(bool, getDuration, (int64_t & duration), (override));
+    MOCK_METHOD(bool, setBatchDecryption, (bool batchDecryption), (override));
 };
 } // namespace firebolt::rialto
 
