@@ -433,6 +433,31 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
         }
         break;
     }
+    case Property::FrameCounters:
+    {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            GST_ERROR_OBJECT(m_sink, "Could not get the media player client");
+            break;
+        }
+
+        FrameCounters counters{};
+        if (client->getFrameCounters(m_sourceId, &counters) == 0)
+        {
+            GstStructure *frameCounters{gst_structure_new("frame-counters", "rendered", G_TYPE_UINT64,
+                                                        counters.renderedFrames, "dropped", G_TYPE_UINT64,
+                                                        counters.droppedFrames, "corrupted", G_TYPE_UINT64,
+                                                        counters.corruptedFrames, "timestamp", G_TYPE_UINT64,
+                                                        counters.timestamp, nullptr)};
+            g_value_set_pointer(value, frameCounters);
+        }
+        else
+        {
+            GST_ERROR_OBJECT(m_sink, "No frame counters returned from client");
+        }
+        break;
+    }
     case Property::EnableLastSample:
     {
         std::lock_guard<std::mutex> lock(m_sinkMutex);

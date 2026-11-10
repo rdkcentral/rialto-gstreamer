@@ -112,6 +112,13 @@ public:
         return m_mediaPlayerBackend->getStats(sourceId, renderedFrames, droppedFrames);
     }
 
+    bool getFrameCounters(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames,
+                         uint64_t &corruptedFrames, uint64_t &timestamp) override
+    {
+        return m_mediaPlayerBackend->getFrameCounters(sourceId, renderedFrames, droppedFrames, corruptedFrames,
+                                                      timestamp);
+    }
+
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }
 
     bool setVolume(double targetVolume, uint32_t volumeDuration, EaseType easeType) override

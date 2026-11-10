@@ -21,6 +21,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -46,6 +47,10 @@
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
 
+#if defined(RIALTO_GSTREAMER_UNIT_TESTS)
+[[maybe_unused]] bool validateMediaPipelineMetricMessage(const GstStructure *structure);
+#endif
+
 class GStreamerMSEMediaPlayerClient;
 
 enum class ClientState
@@ -56,6 +61,26 @@ enum class ClientState
     PAUSED,
     AWAITING_PLAYING,
     PLAYING
+};
+
+struct FrameCounters
+{
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    uint64_t timestamp{0};
+};
+
+struct NotifyMetricEvent
+{
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    uint64_t ptsNs{0};
+    std::string errorInfo;
+    uint32_t phase{0};
+    uint64_t count{0};
+    uint64_t durationNs{0};
 };
 
 class BufferPuller
@@ -278,6 +303,9 @@ public:
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
+    void notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames, uint64_t droppedFrames, uint64_t corruptedFrames,
+                          uint64_t ptsNs, const std::string &errorInfo, uint32_t phase, uint64_t count = 0,
+                          uint64_t durationNs = 0) override;
 
     int64_t getPosition(int32_t sourceId);
     bool getDuration(int64_t &duration);
@@ -286,6 +314,9 @@ public:
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
     bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
+    int32_t getFrameCounters(int32_t sourceId, FrameCounters *out);
+    void onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event);
+    void postMetricEventOnBus(int32_t sourceId, const NotifyMetricEvent &event);
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
@@ -354,7 +385,9 @@ private:
     int64_t m_position;
     int64_t m_duration;
     std::mutex m_playbackInfoMutex;
+    std::mutex m_frameCountersMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
+    std::map<int32_t, FrameCounters> m_lastCounters;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;
     int32_t m_audioStreams;

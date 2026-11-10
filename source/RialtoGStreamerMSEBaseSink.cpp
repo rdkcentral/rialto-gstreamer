@@ -47,6 +47,7 @@ enum
     PROP_N_STREAMS,
     PROP_HAS_DRM,
     PROP_STATS,
+    PROP_FRAME_COUNTERS,
     PROP_LAST_SAMPLE,
     PROP_ENABLE_LAST_SAMPLE,
     PROP_LAST
@@ -219,6 +220,10 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
     case PROP_STATS:
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Stats, value);
         break;
+    case PROP_FRAME_COUNTERS:
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::FrameCounters,
+                                                 value);
+        break;
     case PROP_ENABLE_LAST_SAMPLE:
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::EnableLastSample, value);
@@ -348,6 +353,10 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                                          GParamFlags(G_PARAM_READWRITE)));
     g_object_class_install_property(gobjectClass, PROP_STATS,
                                     g_param_spec_pointer("stats", NULL, "pointer to a gst_structure",
+                                                         GParamFlags(G_PARAM_READABLE)));
+
+    g_object_class_install_property(gobjectClass, PROP_FRAME_COUNTERS,
+                                    g_param_spec_pointer("frame-counters", NULL, "pointer to a gst_structure",
                                                          GParamFlags(G_PARAM_READABLE)));
 
     g_object_class_install_property(gobjectClass, PROP_ENABLE_LAST_SAMPLE,
