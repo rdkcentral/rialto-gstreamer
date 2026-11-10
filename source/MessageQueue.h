@@ -90,5 +90,9 @@ protected:
     std::thread m_workerThread;
     std::atomic_bool m_running;
     std::atomic_bool m_acceptingMessages;
+    std::condition_variable m_workerDoneCv;
+    std::thread::id m_detachedWorkerId;
+    bool m_workerDone{false};
+    bool m_workerDetached{false};
 };
 } // namespace rialto
