@@ -22,6 +22,7 @@
 #include <IMediaPipeline.h>
 #include <gst/gst.h>
 #include <memory>
+#include <vector>
 
 namespace firebolt::rialto::client
 {
@@ -110,6 +111,16 @@ public:
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames) override
     {
         return m_mediaPlayerBackend->getStats(sourceId, renderedFrames, droppedFrames);
+    }
+
+    bool getFrameCounters(int32_t sourceId, VideoFrameCounters &counters) override
+    {
+        return m_mediaPlayerBackend->getFrameCounters(sourceId, counters);
+    }
+
+    bool setMetricSubscription(const std::vector<MetricType> &types) override
+    {
+        return m_mediaPlayerBackend->setMetricSubscription(types);
     }
 
     bool renderFrame() override { return m_mediaPlayerBackend->renderFrame(); }

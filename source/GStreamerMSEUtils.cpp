@@ -22,6 +22,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <map>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -409,4 +411,48 @@ firebolt::rialto::StreamFormat get_stream_format(const GstStructure *structure)
     }
 
     return format;
+}
+
+bool rialto_mse_sink_parse_metric_subscription(const std::string &text, std::vector<firebolt::rialto::MetricType> &types)
+{
+    static const std::map<std::string, firebolt::rialto::MetricType>
+        kMetricNames{{"video-frame-drop", firebolt::rialto::MetricType::VIDEO_FRAME_DROP},
+                     {"audio-frame-drop", firebolt::rialto::MetricType::AUDIO_FRAME_DROP},
+                     {"video-frame-repeat", firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT},
+                     {"audio-gap", firebolt::rialto::MetricType::AUDIO_GAP},
+                     {"video-decode-error", firebolt::rialto::MetricType::VIDEO_DECODE_ERROR},
+                     {"audio-decode-error", firebolt::rialto::MetricType::AUDIO_DECODE_ERROR},
+                     {"buffer-underflow", firebolt::rialto::MetricType::BUFFER_UNDERFLOW}};
+    constexpr const char *kWhitespace{" \t"};
+
+    types.clear();
+    if (text.find_first_not_of(kWhitespace) == std::string::npos)
+    {
+        return true;
+    }
+
+    const auto kLastChar{text.find_last_not_of(kWhitespace)};
+    if (text[kLastChar] == ',')
+    {
+        return false;
+    }
+
+    std::stringstream stream{text};
+    std::string token;
+    while (std::getline(stream, token, ','))
+    {
+        const auto kFirst{token.find_first_not_of(kWhitespace)};
+        if (kFirst == std::string::npos)
+        {
+            return false;
+        }
+        const auto kLast{token.find_last_not_of(kWhitespace)};
+        const auto kIt{kMetricNames.find(token.substr(kFirst, kLast - kFirst + 1))};
+        if (kIt == kMetricNames.end())
+        {
+            return false;
+        }
+        types.push_back(kIt->second);
+    }
+    return true;
 }

@@ -355,6 +355,8 @@ rialto-gstreamer communicates upward with the GStreamer pipeline through standar
 | EOS message                  | `GstMessageEOS` on pipeline bus                                   | `notifyPlaybackState(END_OF_STREAM)` from Rialto server                 | GStreamer pipeline               |
 | Error message                | `GstMessageError` on pipeline bus                                 | `notifyPlaybackError(DECRYPTION)` from Rialto server                    | GStreamer pipeline               |
 | Application message          | `GstMessageApplication` (`HDCPProtectionFailure`) on pipeline bus | `notifyPlaybackError(OUTPUT_PROTECTION)` from Rialto server             | GStreamer pipeline               |
+| Media metric message         | `GST_MESSAGE_ELEMENT` (`media-pipeline-metric`) from the sink owning the source | `notifyMetric()` from Rialto server for a subscribed metric type | Application |
+| Missed metrics message       | `GST_MESSAGE_ELEMENT` (`media-pipeline-metrics-missed`) from the video sink, or another attached sink | `notifyEventsMissed()` from Rialto server | Application |
 
 ### IPC Flow Patterns
 
@@ -435,6 +437,8 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 | `setImmediateOutput()`                      | Enables or disables immediate output mode for the video decoder                                          | `PullModeVideoPlaybackDelegate.cpp`                                         |
 | `setReportDecodeErrors()`                   | Enables or disables decode error reporting per source                                                    | `PullModeVideoPlaybackDelegate.cpp`                                         |
 | `getStats()`                                | Retrieves rendered and dropped frame counts                                                              | `GStreamerMSEMediaPlayerClient.cpp`                                         |
+| `getFrameCounters()`                        | Retrieves rendered, dropped and corrupted counters of a video source                                     | `GStreamerMSEMediaPlayerClient.cpp`                                         |
+| `setMetricSubscription()`                   | Replaces the set of media metric types the Rialto server delivers for the pipeline                       | `PullModePlaybackDelegate.cpp`                                              |
 | `getQueuedFrames()`                         | Retrieves the count of frames queued in the Rialto server pipeline                                       | `GStreamerMSEMediaPlayerClient.cpp`                                         |
 | `getDuration()`                             | Queries the current media duration                                                                       | `GStreamerMSEMediaPlayerClient.cpp`                                         |
 | `setTextTrackIdentifier()`                  | Sets the text track identifier for subtitle selection                                                    | `PullModeSubtitlePlaybackDelegate.cpp`                                      |
@@ -494,7 +498,8 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 | `single-path-stream`  | GObject property (bool)             | false              | Base sink. Single-path stream flag forwarded to the Rialto source configuration.
 | `streams-number`      | GObject property (int)              | 1                  | Base sink. Deprecated fallback stream count used when coordinating `allSourcesAttached()`. The `streams-info` context takes precedence, followed by parent (playbin) properties; this property only supplies counts when neither is available, so setting it does not override explicit stream information.
 | `has-drm`             | GObject property (bool)             | true               | Base sink. Whether the source stream carries DRM; feeds the `hasDrm` flag in the media source configuration.
-| `stats`               | GObject property (pointer, read-only) | —                | Base sink. Pointer to a `GstStructure` containing playback statistics.
+| `stats`               | GObject property (pointer, read-only) | —                | Base sink. Pointer to a `GstStructure` with `rendered` and `dropped` (`guint64`). The video sink also adds `corrupted` when the server returns all three counters through `getFrameCounters()`; otherwise it falls back to `getStats()`.
+| `media-metric-subscription` | GObject property (string)     | `""`             | Base sink. Comma separated media metric types to deliver for the whole pipeline: `video-frame-drop`, `audio-frame-drop`, `video-frame-repeat`, `audio-gap`, `video-decode-error`, `audio-decode-error`, `buffer-underflow`. Each set replaces the previous subscription; empty disables delivery. Set before the pipeline exists, it is applied on READY→PAUSED. See [Media metrics](#media-metrics).
 | `enable-last-sample` / `last-sample` | GObject property (bool / boxed) | false / —   | Base sink. Enable the `last-sample` property; `last-sample` returns the most recent sample received by the sink.
 | `text-track-identifier` | GObject property (string)         | not set (valid: CC[1-4], TEXT[1-4], SERVICE[1-64]) | Subtitle sink. Text track identifier forwarded to the Rialto pipeline.
 | `window-id`           | GObject property (uint)             | 0                  | Subtitle sink. Window ID placeholder (0-256).
@@ -515,3 +520,25 @@ export RIALTO_SINKS_RANK=268435455
 ### Configuration Persistence
 
 Properties set before the NULL→READY transition are queued in `m_queuedProperties` and applied to the delegate once it is initialized.
+
+## Media metrics
+
+Rialto V1.1 media metrics (SoC Media Metrics GStreamer Specification v0.7) are delivered to the application as element messages.
+
+1. The application sets `media-metric-subscription` on any Rialto sink of the pipeline. The sink calls `IMediaPipeline::setMetricSubscription()`; nothing is delivered until then.
+2. For each `notifyMetric()` the sink that owns `MetricEvent::sourceId` posts a `GST_MESSAGE_ELEMENT` named `media-pipeline-metric`. The fields use the v0.7 names and values, so applications parse it like a SoC producer message:
+
+| Field | GType | Presence | Meaning |
+|---|---|---|---|
+| `metric` | `G_TYPE_UINT` | always | 1 video frame drop, 2 audio frame drop, 3 video decode error, 4 audio decode error, 5 video frame repeat, 6 audio gap, 7 buffer underflow |
+| `observation-kind` | `G_TYPE_UINT` | always | 1 occurrence, 2 episode started, 3 episode resolved |
+| `pts-ns` | `G_TYPE_INT64` | optional | Presentation timestamp; 0 is valid |
+| `duration-ns` | `G_TYPE_UINT64` | resolved episodes | Monotonic episode duration measured by the producer |
+| `count` | `G_TYPE_UINT64` | resolved repeat and audio gap | Number of repeated frames or gap units |
+| `source-id` | `G_TYPE_INT` | always | Rialto source id |
+| `observed-at-monotonic-ns` | `G_TYPE_UINT64` | always | Server acceptance time, monotonic clock |
+| `observed-at-unix-ns` | `G_TYPE_INT64` | always | Server acceptance time, wall clock |
+
+3. For `notifyEventsMissed()` a `media-pipeline-metrics-missed` element message with `count` (`G_TYPE_UINT`) is posted before the following metrics. Occurrence totals for that interval are incomplete; open episodes are not reset.
+
+`report-decode-errors` is unchanged and still controls `setReportDecodeErrors()`.

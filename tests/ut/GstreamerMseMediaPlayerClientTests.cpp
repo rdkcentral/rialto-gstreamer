@@ -2019,3 +2019,162 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToGetDurationIfNoClientBack
     int64_t duration{-1};
     EXPECT_FALSE(m_sut->getDuration(duration));
 }
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMediaMetricElementMessage)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+    rialto_mse_base_sink_initialise_delegate(videoSink, m_delegateMock);
+
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO)};
+
+    firebolt::rialto::MetricEvent metric;
+    metric.type = firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT;
+    metric.phase = firebolt::rialto::MetricPhase::RESOLVED;
+    metric.sourceId = kSourceId;
+    metric.presentationTimeStampNs = 0;
+    metric.count = 2;
+    metric.durationNs = 40000000;
+    metric.observedAtMonotonicNs = 123;
+    metric.observedAtUnixNs = 456;
+
+    expectPostMessage();
+    m_sut->notifyMetric(metric);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ELEMENT)};
+    ASSERT_NE(receivedMessage, nullptr);
+    EXPECT_EQ(GST_MESSAGE_SRC(receivedMessage), GST_OBJECT_CAST(videoSink));
+
+    const GstStructure *structure = gst_message_get_structure(receivedMessage);
+    ASSERT_NE(structure, nullptr);
+    EXPECT_STREQ(gst_structure_get_name(structure), "media-pipeline-metric");
+    guint metricValue{0};
+    guint observationKind{0};
+    gint sourceId{-1};
+    gint64 ptsNs{-1};
+    guint64 count{0};
+    guint64 durationNs{0};
+    guint64 observedAtMonotonicNs{0};
+    gint64 observedAtUnixNs{0};
+    EXPECT_TRUE(gst_structure_get_uint(structure, "metric", &metricValue));
+    EXPECT_EQ(metricValue, 5u);
+    EXPECT_TRUE(gst_structure_get_uint(structure, "observation-kind", &observationKind));
+    EXPECT_EQ(observationKind, 3u);
+    EXPECT_TRUE(gst_structure_get_int(structure, "source-id", &sourceId));
+    EXPECT_EQ(sourceId, kSourceId);
+    EXPECT_TRUE(gst_structure_get_int64(structure, "pts-ns", &ptsNs));
+    EXPECT_EQ(ptsNs, 0);
+    EXPECT_TRUE(gst_structure_get_uint64(structure, "count", &count));
+    EXPECT_EQ(count, 2u);
+    EXPECT_TRUE(gst_structure_get_uint64(structure, "duration-ns", &durationNs));
+    EXPECT_EQ(durationNs, 40000000u);
+    EXPECT_TRUE(gst_structure_get_uint64(structure, "observed-at-monotonic-ns", &observedAtMonotonicNs));
+    EXPECT_EQ(observedAtMonotonicNs, 123u);
+    EXPECT_TRUE(gst_structure_get_int64(structure, "observed-at-unix-ns", &observedAtUnixNs));
+    EXPECT_EQ(observedAtUnixNs, 456);
+
+    gst_message_unref(receivedMessage);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMediaMetricOccurrenceWithoutOptionalFields)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    rialto_mse_base_sink_initialise_delegate(audioSink, m_delegateMock);
+
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    firebolt::rialto::MetricEvent metric;
+    metric.type = firebolt::rialto::MetricType::AUDIO_FRAME_DROP;
+    metric.phase = firebolt::rialto::MetricPhase::OCCURRENCE;
+    metric.sourceId = kSourceId;
+
+    expectPostMessage();
+    m_sut->notifyMetric(metric);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ELEMENT)};
+    ASSERT_NE(receivedMessage, nullptr);
+    const GstStructure *structure = gst_message_get_structure(receivedMessage);
+    ASSERT_NE(structure, nullptr);
+    guint metricValue{0};
+    guint observationKind{0};
+    EXPECT_TRUE(gst_structure_get_uint(structure, "metric", &metricValue));
+    EXPECT_EQ(metricValue, 2u);
+    EXPECT_TRUE(gst_structure_get_uint(structure, "observation-kind", &observationKind));
+    EXPECT_EQ(observationKind, 1u);
+    EXPECT_FALSE(gst_structure_has_field(structure, "pts-ns"));
+    EXPECT_FALSE(gst_structure_has_field(structure, "count"));
+    EXPECT_FALSE(gst_structure_has_field(structure, "duration-ns"));
+
+    gst_message_unref(receivedMessage);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyMetricWhenSourceIdIsNotKnown)
+{
+    firebolt::rialto::MetricEvent metric;
+    metric.sourceId = kUnknownSourceId;
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->notifyMetric(metric);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostEventsMissedElementMessage)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+    rialto_mse_base_sink_initialise_delegate(videoSink, m_delegateMock);
+
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    constexpr uint32_t kMissedCount{7};
+    expectPostMessage();
+    m_sut->notifyEventsMissed(kMissedCount);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_ELEMENT)};
+    ASSERT_NE(receivedMessage, nullptr);
+    const GstStructure *structure = gst_message_get_structure(receivedMessage);
+    ASSERT_NE(structure, nullptr);
+    EXPECT_STREQ(gst_structure_get_name(structure), "media-pipeline-metrics-missed");
+    guint count{0};
+    EXPECT_TRUE(gst_structure_get_uint(structure, "count", &count));
+    EXPECT_EQ(count, kMissedCount);
+
+    gst_message_unref(receivedMessage);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToNotifyEventsMissedWhenNoSourceIsAttached)
+{
+    expectCallInEventLoop();
+    expectPostMessage();
+    m_sut->notifyEventsMissed(1);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetFrameCounters)
+{
+    constexpr int32_t kSourceId{3};
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _)).WillOnce(Return(true));
+    firebolt::rialto::VideoFrameCounters counters;
+    EXPECT_TRUE(m_sut->getFrameCounters(kSourceId, counters));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMetricSubscription)
+{
+    const std::vector<firebolt::rialto::MetricType> kTypes{firebolt::rialto::MetricType::AUDIO_GAP};
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMetricSubscription(kTypes)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setMetricSubscription(kTypes, "audio-gap"));
+    EXPECT_EQ(m_sut->getMetricSubscription(), "audio-gap");
+}
