@@ -23,6 +23,7 @@
 #include <gst/gst.h>
 
 #include <string>
+#include <vector>
 
 #include "ControlBackendInterface.h"
 #include "MediaPlayerManager.h"
@@ -81,6 +82,7 @@ private:
     bool isLiveLatencyEnabled() const;
     GstSample *getLastSample() const;
     void setLastBuffer(GstBuffer *buffer);
+    void applyQueuedMetricSubscription(GStreamerMSEMediaPlayerClient &client);
 
 protected:
     GstElement *m_sink{nullptr};
@@ -108,6 +110,8 @@ protected:
     std::atomic<bool> m_hasDrm{true};
     std::atomic<bool> m_isAsync{false};
     bool m_enableLastSample{false};
+    std::string m_metricSubscription{};
+    bool m_isMetricSubscriptionQueued{false};
     GstBuffer *m_lastBuffer{nullptr};
     firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};

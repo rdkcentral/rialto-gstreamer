@@ -23,6 +23,7 @@
 
 using testing::_;
 using testing::DoAll;
+using testing::ElementsAre;
 using testing::Invoke;
 using testing::Return;
 using testing::SaveArg;
@@ -2495,4 +2496,148 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueuePropertyWithoutDelegate)
     g_object_get(audioSink, "streams-number", &streamsNumber, nullptr);
     EXPECT_EQ(streamsNumber, kStreamsNumber);
     gst_object_unref(audioSink);
+}
+TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsWithCorruptedFramesForVideo)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    firebolt::rialto::VideoFrameCounters counters;
+    counters.renderedFrames = 100;
+    counters.droppedFrames = 3;
+    counters.corruptedFrames = 2;
+    EXPECT_CALL(m_mediaPipelineMock, getFrameCounters(textContext.m_sourceId, _))
+        .WillOnce(DoAll(SetArgReferee<1>(counters), Return(true)));
+    GstStructure *stats{nullptr};
+    g_object_get(textContext.m_sink, "stats", &stats, nullptr);
+    ASSERT_NE(stats, nullptr);
+
+    guint64 rendered{0};
+    guint64 dropped{0};
+    guint64 corrupted{0};
+    EXPECT_TRUE(gst_structure_get_uint64(stats, "rendered", &rendered));
+    EXPECT_TRUE(gst_structure_get_uint64(stats, "dropped", &dropped));
+    EXPECT_TRUE(gst_structure_get_uint64(stats, "corrupted", &corrupted));
+    EXPECT_EQ(rendered, 100u);
+    EXPECT_EQ(dropped, 3u);
+    EXPECT_EQ(corrupted, 2u);
+
+    gst_structure_free(stats);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFallBackToGetStatsWhenFrameCountersAreUnavailable)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    EXPECT_CALL(m_mediaPipelineMock, getFrameCounters(textContext.m_sourceId, _)).WillOnce(Return(false));
+    EXPECT_CALL(m_mediaPipelineMock, getStats(textContext.m_sourceId, _, _))
+        .WillOnce(DoAll(SetArgReferee<1>(10u), SetArgReferee<2>(1u), Return(true)));
+    GstStructure *stats{nullptr};
+    g_object_get(textContext.m_sink, "stats", &stats, nullptr);
+    ASSERT_NE(stats, nullptr);
+
+    guint64 rendered{0};
+    guint64 dropped{0};
+    EXPECT_TRUE(gst_structure_get_uint64(stats, "rendered", &rendered));
+    EXPECT_TRUE(gst_structure_get_uint64(stats, "dropped", &dropped));
+    EXPECT_EQ(rendered, 10u);
+    EXPECT_EQ(dropped, 1u);
+    EXPECT_FALSE(gst_structure_has_field(stats, "corrupted"));
+
+    gst_structure_free(stats);
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldSetMediaMetricSubscription)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    EXPECT_CALL(m_mediaPipelineMock, setMetricSubscription(ElementsAre(firebolt::rialto::MetricType::VIDEO_FRAME_DROP,
+                                                                       firebolt::rialto::MetricType::BUFFER_UNDERFLOW)))
+        .WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "media-metric-subscription", " video-frame-drop, buffer-underflow", nullptr);
+
+    gchar *subscription{nullptr};
+    g_object_get(textContext.m_sink, "media-metric-subscription", &subscription, nullptr);
+    EXPECT_STREQ(subscription, " video-frame-drop, buffer-underflow");
+    g_free(subscription);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldDisableMediaMetricsWithEmptySubscription)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    EXPECT_CALL(m_mediaPipelineMock, setMetricSubscription(std::vector<firebolt::rialto::MetricType>{}))
+        .WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "media-metric-subscription", "", nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldRejectInvalidMediaMetricSubscription)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    // No call to setMetricSubscription is expected
+    g_object_set(textContext.m_sink, "media-metric-subscription", "video-frame-drop,unknown-metric", nullptr);
+    g_object_set(textContext.m_sink, "media-metric-subscription", "video-frame-drop,,audio-gap", nullptr);
+
+    gchar *subscription{nullptr};
+    g_object_get(textContext.m_sink, "media-metric-subscription", &subscription, nullptr);
+    EXPECT_STREQ(subscription, "");
+    g_free(subscription);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldKeepPreviousMediaMetricSubscriptionWhenServerRejectsIt)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    EXPECT_CALL(m_mediaPipelineMock, setMetricSubscription(ElementsAre(firebolt::rialto::MetricType::AUDIO_GAP)))
+        .WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "media-metric-subscription", "audio-gap", nullptr);
+    EXPECT_CALL(m_mediaPipelineMock, setMetricSubscription(ElementsAre(firebolt::rialto::MetricType::AUDIO_GAP,
+                                                                       firebolt::rialto::MetricType::AUDIO_GAP)))
+        .WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "media-metric-subscription", "audio-gap,audio-gap", nullptr);
+
+    gchar *subscription{nullptr};
+    g_object_get(textContext.m_sink, "media-metric-subscription", &subscription, nullptr);
+    EXPECT_STREQ(subscription, "audio-gap");
+    g_free(subscription);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldApplyQueuedMediaMetricSubscription)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    g_object_set(videoSink, "media-metric-subscription", "video-decode-error", nullptr);
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    EXPECT_CALL(m_mediaPipelineMock, setMetricSubscription(ElementsAre(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR)))
+        .WillOnce(Return(true));
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    gchar *subscription{nullptr};
+    g_object_get(videoSink, "media-metric-subscription", &subscription, nullptr);
+    EXPECT_STREQ(subscription, "video-decode-error");
+    g_free(subscription);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
 }

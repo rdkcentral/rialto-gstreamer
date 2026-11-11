@@ -350,3 +350,35 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetDuration)
     EXPECT_TRUE(m_sut.getDuration(resultDuration));
     EXPECT_EQ(kDuration, resultDuration);
 }
+TEST_F(MediaPlayerClientBackendTests, ShouldGetFrameCounters)
+{
+    constexpr int32_t kSourceId{1};
+    firebolt::rialto::VideoFrameCounters expected;
+    expected.renderedFrames = 100;
+    expected.droppedFrames = 2;
+    expected.corruptedFrames = 1;
+    EXPECT_CALL(*m_mediaPipelineMock, getFrameCounters(kSourceId, _))
+        .WillOnce(testing::Invoke(
+            [&](int32_t, firebolt::rialto::VideoFrameCounters &out)
+            {
+                out = expected;
+                return true;
+            }));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    firebolt::rialto::VideoFrameCounters counters;
+    EXPECT_TRUE(m_sut.getFrameCounters(kSourceId, counters));
+    EXPECT_EQ(counters.renderedFrames, expected.renderedFrames);
+    EXPECT_EQ(counters.droppedFrames, expected.droppedFrames);
+    EXPECT_EQ(counters.corruptedFrames, expected.corruptedFrames);
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldSetMetricSubscription)
+{
+    const std::vector<firebolt::rialto::MetricType> kTypes{firebolt::rialto::MetricType::VIDEO_FRAME_DROP,
+                                                           firebolt::rialto::MetricType::BUFFER_UNDERFLOW};
+    EXPECT_CALL(*m_mediaPipelineMock, setMetricSubscription(kTypes)).WillOnce(Return(true));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.setMetricSubscription(kTypes));
+}

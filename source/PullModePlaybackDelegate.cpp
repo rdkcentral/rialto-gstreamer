@@ -22,10 +22,51 @@
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 
+#include <map>
+#include <sstream>
+
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
 namespace
 {
+bool parseMetricSubscription(const std::string &text, std::vector<firebolt::rialto::MetricType> &types)
+{
+    static const std::map<std::string, firebolt::rialto::MetricType>
+        kMetricNames{{"video-frame-drop", firebolt::rialto::MetricType::VIDEO_FRAME_DROP},
+                     {"audio-frame-drop", firebolt::rialto::MetricType::AUDIO_FRAME_DROP},
+                     {"video-frame-repeat", firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT},
+                     {"audio-gap", firebolt::rialto::MetricType::AUDIO_GAP},
+                     {"video-decode-error", firebolt::rialto::MetricType::VIDEO_DECODE_ERROR},
+                     {"audio-decode-error", firebolt::rialto::MetricType::AUDIO_DECODE_ERROR},
+                     {"buffer-underflow", firebolt::rialto::MetricType::BUFFER_UNDERFLOW}};
+    constexpr const char *kWhitespace{" \t"};
+
+    types.clear();
+    if (text.find_first_not_of(kWhitespace) == std::string::npos)
+    {
+        return true;
+    }
+
+    std::stringstream stream{text};
+    std::string token;
+    while (std::getline(stream, token, ','))
+    {
+        const auto kFirst{token.find_first_not_of(kWhitespace)};
+        if (kFirst == std::string::npos)
+        {
+            return false;
+        }
+        const auto kLast{token.find_last_not_of(kWhitespace)};
+        const auto kIt{kMetricNames.find(token.substr(kFirst, kLast - kFirst + 1))};
+        if (kIt == kMetricNames.end())
+        {
+            return false;
+        }
+        types.push_back(kIt->second);
+    }
+    return true;
+}
+
 GstObject *getOldestGstBinParent(GstElement *element)
 {
     GstObject *parent = gst_object_get_parent(GST_OBJECT_CAST(element));
@@ -223,6 +264,7 @@ GstStateChangeReturn PullModePlaybackDelegate::changeState(GstStateChange transi
         }
 
         client->setStopping(false);
+        applyQueuedMetricSubscription(*client);
 
         m_isSinkFlushOngoing = false;
 
@@ -345,6 +387,28 @@ void PullModePlaybackDelegate::postAsyncDone()
     gst_element_post_message(m_sink, gst_message_new_async_done(GST_OBJECT_CAST(m_sink), GST_CLOCK_TIME_NONE));
 }
 
+void PullModePlaybackDelegate::applyQueuedMetricSubscription(GStreamerMSEMediaPlayerClient &client)
+{
+    std::string subscription;
+    {
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        if (!m_isMetricSubscriptionQueued)
+        {
+            return;
+        }
+        m_isMetricSubscriptionQueued = false;
+        subscription = m_metricSubscription;
+    }
+
+    std::vector<firebolt::rialto::MetricType> types;
+    if (!parseMetricSubscription(subscription, types) || !client.setMetricSubscription(types))
+    {
+        GST_ERROR_OBJECT(m_sink, "Could not set queued media-metric-subscription: '%s'", subscription.c_str());
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        m_metricSubscription.clear();
+    }
+}
+
 void PullModePlaybackDelegate::setProperty(const Property &type, const GValue *value)
 {
     switch (type)
@@ -379,6 +443,37 @@ void PullModePlaybackDelegate::setProperty(const Property &type, const GValue *v
                 m_lastBuffer = nullptr;
             }
         }
+        break;
+    }
+    case Property::MetricSubscription:
+    {
+        const gchar *text = g_value_get_string(value);
+        const std::string kSubscription{text ? text : ""};
+        std::vector<firebolt::rialto::MetricType> types;
+        if (!parseMetricSubscription(kSubscription, types))
+        {
+            GST_ERROR_OBJECT(m_sink, "Invalid media-metric-subscription: '%s'", kSubscription.c_str());
+            break;
+        }
+
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+        if (!client)
+        {
+            GST_DEBUG_OBJECT(m_sink, "Queue media-metric-subscription until the media player client is available");
+            std::lock_guard<std::mutex> lock(m_sinkMutex);
+            m_metricSubscription = kSubscription;
+            m_isMetricSubscriptionQueued = true;
+            break;
+        }
+
+        if (!client->setMetricSubscription(types))
+        {
+            GST_ERROR_OBJECT(m_sink, "Could not set media-metric-subscription: '%s'", kSubscription.c_str());
+            break;
+        }
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        m_metricSubscription = kSubscription;
+        m_isMetricSubscriptionQueued = false;
         break;
     }
     default:
@@ -419,9 +514,19 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
             break;
         }
 
+        firebolt::rialto::VideoFrameCounters counters;
         guint64 totalVideoFrames{0};
         guint64 droppedVideoFrames{0};
-        if (client->getStats(m_sourceId, totalVideoFrames, droppedVideoFrames))
+        if (m_mediaSourceType == firebolt::rialto::MediaSourceType::VIDEO &&
+            client->getFrameCounters(m_sourceId, counters))
+        {
+            GstStructure *stats{
+                gst_structure_new("stats", "rendered", G_TYPE_UINT64, static_cast<guint64>(counters.renderedFrames),
+                                  "dropped", G_TYPE_UINT64, static_cast<guint64>(counters.droppedFrames), "corrupted",
+                                  G_TYPE_UINT64, static_cast<guint64>(counters.corruptedFrames), nullptr)};
+            g_value_set_pointer(value, stats);
+        }
+        else if (client->getStats(m_sourceId, totalVideoFrames, droppedVideoFrames))
         {
             GstStructure *stats{gst_structure_new("stats", "rendered", G_TYPE_UINT64, totalVideoFrames, "dropped",
                                                   G_TYPE_UINT64, droppedVideoFrames, nullptr)};
@@ -437,6 +542,12 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
     {
         std::lock_guard<std::mutex> lock(m_sinkMutex);
         g_value_set_boolean(value, m_enableLastSample ? TRUE : FALSE);
+        break;
+    }
+    case Property::MetricSubscription:
+    {
+        std::lock_guard<std::mutex> lock(m_sinkMutex);
+        g_value_set_string(value, m_metricSubscription.c_str());
         break;
     }
     case Property::LastSample:

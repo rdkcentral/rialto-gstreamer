@@ -34,6 +34,7 @@ public:
         NumberOfStreams,
         HasDrm,
         Stats,
+        MetricSubscription,
         EnableLastSample,
         LastSample,
 

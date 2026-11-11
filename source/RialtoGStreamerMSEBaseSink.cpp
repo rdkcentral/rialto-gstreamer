@@ -49,6 +49,7 @@ enum
     PROP_STATS,
     PROP_LAST_SAMPLE,
     PROP_ENABLE_LAST_SAMPLE,
+    PROP_MEDIA_METRIC_SUBSCRIPTION,
     PROP_LAST
 };
 
@@ -227,6 +228,12 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::LastSample,
                                                  value);
         break;
+    case PROP_MEDIA_METRIC_SUBSCRIPTION:
+        // Set default value if it can't be acquired
+        g_value_set_string(value, "");
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::MetricSubscription, value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -252,6 +259,10 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
     case PROP_ENABLE_LAST_SAMPLE:
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::EnableLastSample, value);
+        break;
+    case PROP_MEDIA_METRIC_SUBSCRIPTION:
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::MetricSubscription, value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
@@ -359,4 +370,12 @@ static void rialto_mse_base_sink_class_init(RialtoMSEBaseSinkClass *klass)
                                     g_param_spec_boxed("last-sample", "Last Sample",
                                                        "The last sample received in the sink", GST_TYPE_SAMPLE,
                                                        GParamFlags(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(gobjectClass, PROP_MEDIA_METRIC_SUBSCRIPTION,
+                                    g_param_spec_string("media-metric-subscription", "Media metric subscription",
+                                                        "Comma separated media metric types posted as "
+                                                        "media-pipeline-metric element messages, for example "
+                                                        "\"video-frame-drop,buffer-underflow\". Applies to the whole "
+                                                        "pipeline. Empty disables delivery",
+                                                        "", GParamFlags(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
