@@ -24,6 +24,7 @@
 #include <gst/gst.h>
 
 #include "ControlBackend.h"
+#include "GStreamerMSEUtils.h"
 #include "GStreamerUtils.h"
 #include "IClientLogControl.h"
 #include "IMediaPipeline.h"
@@ -261,9 +262,18 @@ static void rialto_mse_base_sink_set_property(GObject *object, guint propId, con
                                                  IPlaybackDelegate::Property::EnableLastSample, value);
         break;
     case PROP_MEDIA_METRIC_SUBSCRIPTION:
+    {
+        const gchar *text = g_value_get_string(value);
+        std::vector<firebolt::rialto::MetricType> types;
+        if (!rialto_mse_sink_parse_metric_subscription(text ? text : "", types))
+        {
+            GST_ERROR_OBJECT(object, "Invalid media-metric-subscription: '%s'", text ? text : "");
+            break;
+        }
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
                                                  IPlaybackDelegate::Property::MetricSubscription, value);
         break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;

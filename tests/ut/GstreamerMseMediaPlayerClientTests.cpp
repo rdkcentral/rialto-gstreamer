@@ -2175,5 +2175,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMetricSubscription)
     const std::vector<firebolt::rialto::MetricType> kTypes{firebolt::rialto::MetricType::AUDIO_GAP};
     expectCallInEventLoop();
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMetricSubscription(kTypes)).WillOnce(Return(true));
-    EXPECT_TRUE(m_sut->setMetricSubscription(kTypes));
+    EXPECT_TRUE(m_sut->setMetricSubscription(kTypes, "audio-gap"));
+    EXPECT_EQ(m_sut->getMetricSubscription(), "audio-gap");
 }

@@ -311,7 +311,8 @@ public:
     bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
     bool getFrameCounters(int32_t sourceId, firebolt::rialto::VideoFrameCounters &counters);
-    bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types);
+    bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types, const std::string &text);
+    std::string getMetricSubscription();
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
@@ -382,6 +383,8 @@ private:
     int64_t m_position;
     int64_t m_duration;
     std::mutex m_playbackInfoMutex;
+    std::mutex m_metricSubscriptionMutex;
+    std::string m_metricSubscription;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;

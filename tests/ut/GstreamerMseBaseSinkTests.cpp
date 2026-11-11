@@ -2587,6 +2587,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldRejectInvalidMediaMetricSubscription)
     // No call to setMetricSubscription is expected
     g_object_set(textContext.m_sink, "media-metric-subscription", "video-frame-drop,unknown-metric", nullptr);
     g_object_set(textContext.m_sink, "media-metric-subscription", "video-frame-drop,,audio-gap", nullptr);
+    g_object_set(textContext.m_sink, "media-metric-subscription", "video-frame-drop,", nullptr);
 
     gchar *subscription{nullptr};
     g_object_get(textContext.m_sink, "media-metric-subscription", &subscription, nullptr);
@@ -2622,6 +2623,7 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldApplyQueuedMediaMetricSubscription)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
     g_object_set(videoSink, "media-metric-subscription", "video-decode-error", nullptr);
+    g_object_set(videoSink, "media-metric-subscription", "unknown-metric", nullptr);
     GstElement *pipeline = createPipelineWithSink(videoSink);
 
     EXPECT_CALL(m_mediaPipelineMock, setMetricSubscription(ElementsAre(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR)))

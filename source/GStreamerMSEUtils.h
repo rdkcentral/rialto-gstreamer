@@ -41,4 +41,5 @@ std::shared_ptr<firebolt::rialto::CodecData> get_codec_data(const GstStructure *
 firebolt::rialto::SegmentAlignment get_segment_alignment(const GstStructure *s);
 bool get_dv_profile(const GstStructure *s, uint32_t &dvProfile);
 firebolt::rialto::StreamFormat get_stream_format(const GstStructure *structure);
+bool rialto_mse_sink_parse_metric_subscription(const std::string &text, std::vector<firebolt::rialto::MetricType> &types);
 #endif // GSTREAMERMSEUTILS_H

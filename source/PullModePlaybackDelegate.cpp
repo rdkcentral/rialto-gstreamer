@@ -18,54 +18,15 @@
 
 #include "PullModePlaybackDelegate.h"
 #include "ControlBackend.h"
+#include "GStreamerMSEUtils.h"
 #include "GstreamerCatLog.h"
 #include "RialtoGStreamerMSEBaseSink.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
-
-#include <map>
-#include <sstream>
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
 namespace
 {
-bool parseMetricSubscription(const std::string &text, std::vector<firebolt::rialto::MetricType> &types)
-{
-    static const std::map<std::string, firebolt::rialto::MetricType>
-        kMetricNames{{"video-frame-drop", firebolt::rialto::MetricType::VIDEO_FRAME_DROP},
-                     {"audio-frame-drop", firebolt::rialto::MetricType::AUDIO_FRAME_DROP},
-                     {"video-frame-repeat", firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT},
-                     {"audio-gap", firebolt::rialto::MetricType::AUDIO_GAP},
-                     {"video-decode-error", firebolt::rialto::MetricType::VIDEO_DECODE_ERROR},
-                     {"audio-decode-error", firebolt::rialto::MetricType::AUDIO_DECODE_ERROR},
-                     {"buffer-underflow", firebolt::rialto::MetricType::BUFFER_UNDERFLOW}};
-    constexpr const char *kWhitespace{" \t"};
-
-    types.clear();
-    if (text.find_first_not_of(kWhitespace) == std::string::npos)
-    {
-        return true;
-    }
-
-    std::stringstream stream{text};
-    std::string token;
-    while (std::getline(stream, token, ','))
-    {
-        const auto kFirst{token.find_first_not_of(kWhitespace)};
-        if (kFirst == std::string::npos)
-        {
-            return false;
-        }
-        const auto kLast{token.find_last_not_of(kWhitespace)};
-        const auto kIt{kMetricNames.find(token.substr(kFirst, kLast - kFirst + 1))};
-        if (kIt == kMetricNames.end())
-        {
-            return false;
-        }
-        types.push_back(kIt->second);
-    }
-    return true;
-}
 
 GstObject *getOldestGstBinParent(GstElement *element)
 {
@@ -389,6 +350,7 @@ void PullModePlaybackDelegate::postAsyncDone()
 
 void PullModePlaybackDelegate::applyQueuedMetricSubscription(GStreamerMSEMediaPlayerClient &client)
 {
+    std::lock_guard<std::mutex> subscriptionLock(m_metricSubscriptionMutex);
     std::string subscription;
     {
         std::lock_guard<std::mutex> lock(m_sinkMutex);
@@ -401,11 +363,10 @@ void PullModePlaybackDelegate::applyQueuedMetricSubscription(GStreamerMSEMediaPl
     }
 
     std::vector<firebolt::rialto::MetricType> types;
-    if (!parseMetricSubscription(subscription, types) || !client.setMetricSubscription(types))
+    if (!rialto_mse_sink_parse_metric_subscription(subscription, types) ||
+        !client.setMetricSubscription(types, subscription))
     {
         GST_ERROR_OBJECT(m_sink, "Could not set queued media-metric-subscription: '%s'", subscription.c_str());
-        std::lock_guard<std::mutex> lock(m_sinkMutex);
-        m_metricSubscription.clear();
     }
 }
 
@@ -450,12 +411,13 @@ void PullModePlaybackDelegate::setProperty(const Property &type, const GValue *v
         const gchar *text = g_value_get_string(value);
         const std::string kSubscription{text ? text : ""};
         std::vector<firebolt::rialto::MetricType> types;
-        if (!parseMetricSubscription(kSubscription, types))
+        if (!rialto_mse_sink_parse_metric_subscription(kSubscription, types))
         {
             GST_ERROR_OBJECT(m_sink, "Invalid media-metric-subscription: '%s'", kSubscription.c_str());
             break;
         }
 
+        std::lock_guard<std::mutex> subscriptionLock(m_metricSubscriptionMutex);
         std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
@@ -466,14 +428,14 @@ void PullModePlaybackDelegate::setProperty(const Property &type, const GValue *v
             break;
         }
 
-        if (!client->setMetricSubscription(types))
+        {
+            std::lock_guard<std::mutex> lock(m_sinkMutex);
+            m_isMetricSubscriptionQueued = false;
+        }
+        if (!client->setMetricSubscription(types, kSubscription))
         {
             GST_ERROR_OBJECT(m_sink, "Could not set media-metric-subscription: '%s'", kSubscription.c_str());
-            break;
         }
-        std::lock_guard<std::mutex> lock(m_sinkMutex);
-        m_metricSubscription = kSubscription;
-        m_isMetricSubscriptionQueued = false;
         break;
     }
     default:
@@ -546,8 +508,16 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
     }
     case Property::MetricSubscription:
     {
+        std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
         std::lock_guard<std::mutex> lock(m_sinkMutex);
-        g_value_set_string(value, m_metricSubscription.c_str());
+        if (client && !m_isMetricSubscriptionQueued)
+        {
+            g_value_set_string(value, client->getMetricSubscription().c_str());
+        }
+        else
+        {
+            g_value_set_string(value, m_metricSubscription.c_str());
+        }
         break;
     }
     case Property::LastSample:

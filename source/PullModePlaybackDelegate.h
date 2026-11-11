@@ -112,6 +112,7 @@ protected:
     bool m_enableLastSample{false};
     std::string m_metricSubscription{};
     bool m_isMetricSubscriptionQueued{false};
+    std::mutex m_metricSubscriptionMutex{};
     GstBuffer *m_lastBuffer{nullptr};
     firebolt::rialto::PlaybackState m_serverPlaybackState{firebolt::rialto::PlaybackState::UNKNOWN};
     firebolt::rialto::MediaSourceType m_mediaSourceType{firebolt::rialto::MediaSourceType::UNKNOWN};

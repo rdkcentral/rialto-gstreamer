@@ -318,16 +318,29 @@ bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, firebolt:
     return status;
 }
 
-bool GStreamerMSEMediaPlayerClient::setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types)
+bool GStreamerMSEMediaPlayerClient::setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types,
+                                                          const std::string &text)
 {
     if (!m_clientBackend)
     {
         return false;
     }
 
+    // The subscription is pipeline wide: serialize the server call and the stored value for all sinks
+    std::lock_guard<std::mutex> lock{m_metricSubscriptionMutex};
     bool status{false};
     m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setMetricSubscription(types); });
+    if (status)
+    {
+        m_metricSubscription = text;
+    }
     return status;
+}
+
+std::string GStreamerMSEMediaPlayerClient::getMetricSubscription()
+{
+    std::lock_guard<std::mutex> lock{m_metricSubscriptionMutex};
+    return m_metricSubscription;
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()
