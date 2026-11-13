@@ -294,6 +294,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSou
     propertyThread.join();
     EXPECT_FALSE(synchronizationFailed.load());
     EXPECT_FALSE(setterFinishedWhileAttachmentLockWasHeld);
+    setNullState(pipeline, kSourceId);
     std::vector<int> appliedMuteValuesSnapshot;
     {
         std::lock_guard<std::mutex> lock{muteCallsMutex};
@@ -311,7 +312,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSou
         EXPECT_EQ(0, appliedMuteValuesSnapshot.front());
     }
 
-    setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
