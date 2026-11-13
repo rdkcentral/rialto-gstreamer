@@ -516,6 +516,24 @@ void GStreamerMSEMediaPlayerClient::setSubtitleOffset(int32_t sourceId, int64_t 
         });
 }
 
+bool GStreamerMSEMediaPlayerClient::scheduleSetSubtitleOffset(int32_t sourceId, int64_t position)
+{
+    return m_backendQueue->scheduleInEventLoop(
+        [this, sourceId, position]()
+        {
+            auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt == m_attachedSources.end())
+            {
+                GST_ERROR("Cannot Set Subtitle Offset - there's no attached source with id %d", sourceId);
+                return;
+            }
+            if (!m_clientBackend->setSubtitleOffset(sourceId, position))
+            {
+                GST_ERROR("Set Subtitle Offset operation failed for source with id %d", sourceId);
+            }
+        });
+}
+
 void GStreamerMSEMediaPlayerClient::processAudioGap(int64_t position, uint32_t duration, int64_t discontinuityGap,
                                                     bool audioAac)
 {
@@ -827,6 +845,19 @@ void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
+bool GStreamerMSEMediaPlayerClient::scheduleSetMute(bool mute, int32_t sourceId, std::function<void()> completion)
+{
+    return m_backendQueue->scheduleInEventLoop(
+        [this, mute, sourceId, completion = std::move(completion)]()
+        {
+            m_clientBackend->setMute(mute, sourceId);
+            if (completion)
+            {
+                completion();
+            }
+        });
+}
+
 bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
 {
     bool mute{false};
@@ -838,6 +869,20 @@ bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
 void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string &textTrackIdentifier)
 {
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
+}
+
+bool GStreamerMSEMediaPlayerClient::scheduleSetTextTrackIdentifier(const std::string &textTrackIdentifier,
+                                                                   std::function<void()> completion)
+{
+    return m_backendQueue->scheduleInEventLoop(
+        [this, textTrackIdentifier, completion = std::move(completion)]()
+        {
+            m_clientBackend->setTextTrackIdentifier(textTrackIdentifier);
+            if (completion)
+            {
+                completion();
+            }
+        });
 }
 
 std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()

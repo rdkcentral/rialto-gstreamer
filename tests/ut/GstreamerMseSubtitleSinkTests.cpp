@@ -17,14 +17,30 @@
  */
 
 #include "Matchers.h"
+#include "PullModeSubtitlePlaybackDelegate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSESubtitleSink.h"
 #include "RialtoGstTest.h"
 
+#include <atomic>
+#include <chrono>
+#include <future>
+#include <mutex>
+#include <thread>
+#include <vector>
+
 using testing::_;
 using testing::DoAll;
+using testing::InSequence;
+using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
+
+class PullModeSubtitlePlaybackDelegateTestPeer
+{
+public:
+    static std::mutex &getMutex(const PullModeSubtitlePlaybackDelegate &delegate) { return delegate.m_mutex; }
+};
 
 namespace
 {
@@ -194,6 +210,315 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSourceAttachment)
+{
+    constexpr int32_t kSourceId{12};
+    constexpr auto kBarrierTimeout{std::chrono::seconds{5}};
+    constexpr auto kSetterBlockingWindow{std::chrono::milliseconds{250}};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    g_object_set(sink, "mute", TRUE, nullptr);
+    allSourcesWillBeAttached();
+
+    std::promise<void> attachCallEntered;
+    std::promise<void> allowAttachSourceToReturn;
+    std::promise<void> propertySetterStarted;
+    std::promise<void> propertySetterFinished;
+    auto attachCallEnteredFuture{attachCallEntered.get_future()};
+    auto allowAttachSourceToReturnFuture{allowAttachSourceToReturn.get_future()};
+    auto propertySetterStartedFuture{propertySetterStarted.get_future()};
+    auto propertySetterFinishedFuture{propertySetterFinished.get_future()};
+    std::atomic<bool> synchronizationFailed{false};
+    std::mutex muteCallsMutex;
+    std::vector<int> appliedMuteValues;
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_))
+        .WillOnce(Invoke(
+            [&](auto &source)
+            {
+                source->setId(kSourceId);
+                attachCallEntered.set_value();
+                if (allowAttachSourceToReturnFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+                {
+                    synchronizationFailed = true;
+                }
+                return true;
+            }));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Invoke(
+            [&](int32_t, bool mute)
+            {
+                std::lock_guard<std::mutex> lock{muteCallsMutex};
+                appliedMuteValues.push_back(mute ? 1 : 0);
+                return true;
+            }));
+
+    GstCaps *caps{createDefaultCaps()};
+    auto delegate{std::dynamic_pointer_cast<PullModeSubtitlePlaybackDelegate>(sink->priv->m_delegate)};
+    ASSERT_TRUE(delegate);
+    std::thread attachmentThread{[&]() { setCaps(sink, caps); }};
+    if (attachCallEnteredFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+    {
+        synchronizationFailed = true;
+        allowAttachSourceToReturn.set_value();
+        attachmentThread.join();
+        gst_caps_unref(caps);
+        setNullState(pipeline, kSourceId);
+        gst_object_unref(pipeline);
+        FAIL() << "Source attachment did not reach the queue handoff";
+        return;
+    }
+    std::unique_lock<std::mutex> attachmentQueueLock{PullModeSubtitlePlaybackDelegateTestPeer::getMutex(*delegate)};
+    allowAttachSourceToReturn.set_value();
+
+    std::thread propertyThread{[&]()
+                               {
+                                   propertySetterStarted.set_value();
+                                   GValue muteValue = G_VALUE_INIT;
+                                   g_value_init(&muteValue, G_TYPE_BOOLEAN);
+                                   g_value_set_boolean(&muteValue, FALSE);
+                                   sink->priv->m_delegate->setProperty(IPlaybackDelegate::Property::Mute, &muteValue);
+                                   g_value_unset(&muteValue);
+                                   propertySetterFinished.set_value();
+                               }};
+    if (propertySetterStartedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+    {
+        synchronizationFailed = true;
+    }
+    const bool setterFinishedWhileAttachmentLockWasHeld = propertySetterFinishedFuture.wait_for(kSetterBlockingWindow) ==
+                                                          std::future_status::ready;
+    attachmentQueueLock.unlock();
+    attachmentThread.join();
+    propertyThread.join();
+    EXPECT_FALSE(synchronizationFailed.load());
+    EXPECT_FALSE(setterFinishedWhileAttachmentLockWasHeld);
+    setNullState(pipeline, kSourceId);
+    std::vector<int> appliedMuteValuesSnapshot;
+    {
+        std::lock_guard<std::mutex> lock{muteCallsMutex};
+        appliedMuteValuesSnapshot = appliedMuteValues;
+    }
+    ASSERT_FALSE(appliedMuteValuesSnapshot.empty());
+    EXPECT_EQ(0, appliedMuteValuesSnapshot.back());
+    if (appliedMuteValuesSnapshot.size() == 2)
+    {
+        EXPECT_EQ(1, appliedMuteValuesSnapshot.front());
+    }
+    else
+    {
+        EXPECT_EQ(1U, appliedMuteValuesSnapshot.size());
+        EXPECT_EQ(0, appliedMuteValuesSnapshot.front());
+    }
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotHoldMuteMutexWhileApplyingQueuedMute)
+{
+    constexpr int32_t kSourceId{14};
+    constexpr auto kCallbackTimeout{std::chrono::milliseconds{250}};
+    const std::string kUpdatedTextTrackIdentifier{"UPDATED"};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    g_object_set(sink, "mute", TRUE, nullptr);
+    allSourcesWillBeAttached();
+    auto delegate{std::dynamic_pointer_cast<PullModeSubtitlePlaybackDelegate>(sink->priv->m_delegate)};
+    ASSERT_TRUE(delegate);
+
+    std::promise<void> followupMuteApplied;
+    std::promise<void> followupTextTrackIdentifierApplied;
+    auto followupMuteAppliedFuture{followupMuteApplied.get_future()};
+    auto followupTextTrackIdentifierAppliedFuture{followupTextTrackIdentifierApplied.get_future()};
+    std::atomic<bool> backendCallbackTimedOutWaitingForMuteMutex{false};
+    std::atomic<bool> backendCallbackCouldAcquireMuteMutex{false};
+
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_))
+        .WillOnce(Invoke(
+            [&](auto &source)
+            {
+                source->setId(kSourceId);
+                return true;
+            }));
+    {
+        InSequence orderedBackendCalls;
+        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, true))
+            .WillOnce(Invoke(
+                [&](int32_t, bool)
+                {
+                    auto deadline{std::chrono::steady_clock::now() + kCallbackTimeout};
+                    std::unique_lock<std::mutex> lock{PullModeSubtitlePlaybackDelegateTestPeer::getMutex(*delegate),
+                                                      std::defer_lock};
+                    while (!lock.try_lock() && std::chrono::steady_clock::now() < deadline)
+                    {
+                        std::this_thread::yield();
+                    }
+                    backendCallbackCouldAcquireMuteMutex = lock.owns_lock();
+                    if (lock.owns_lock())
+                    {
+                        lock.unlock();
+                        GValue muteValue = G_VALUE_INIT;
+                        g_value_init(&muteValue, G_TYPE_BOOLEAN);
+                        g_value_set_boolean(&muteValue, FALSE);
+                        delegate->setProperty(IPlaybackDelegate::Property::Mute, &muteValue);
+                        g_value_unset(&muteValue);
+
+                        GValue muteResult = G_VALUE_INIT;
+                        g_value_init(&muteResult, G_TYPE_BOOLEAN);
+                        delegate->getProperty(IPlaybackDelegate::Property::Mute, &muteResult);
+                        EXPECT_FALSE(g_value_get_boolean(&muteResult));
+                        g_value_unset(&muteResult);
+
+                        GValue textTrackIdentifierValue = G_VALUE_INIT;
+                        g_value_init(&textTrackIdentifierValue, G_TYPE_STRING);
+                        g_value_set_string(&textTrackIdentifierValue, kUpdatedTextTrackIdentifier.c_str());
+                        delegate->setProperty(IPlaybackDelegate::Property::TextTrackIdentifier,
+                                              &textTrackIdentifierValue);
+                        g_value_unset(&textTrackIdentifierValue);
+
+                        GValue textTrackIdentifierResult = G_VALUE_INIT;
+                        g_value_init(&textTrackIdentifierResult, G_TYPE_STRING);
+                        delegate->getProperty(IPlaybackDelegate::Property::TextTrackIdentifier,
+                                              &textTrackIdentifierResult);
+                        EXPECT_STREQ(kUpdatedTextTrackIdentifier.c_str(), g_value_get_string(&textTrackIdentifierResult));
+                        g_value_unset(&textTrackIdentifierResult);
+                    }
+                    else
+                    {
+                        backendCallbackTimedOutWaitingForMuteMutex = true;
+                    }
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, false))
+            .WillOnce(Invoke(
+                [&](int32_t, bool)
+                {
+                    followupMuteApplied.set_value();
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kUpdatedTextTrackIdentifier))
+            .WillOnce(Invoke(
+                [&]()
+                {
+                    followupTextTrackIdentifierApplied.set_value();
+                    return true;
+                }));
+    }
+
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(sink, caps);
+    EXPECT_EQ(std::future_status::ready, followupMuteAppliedFuture.wait_for(std::chrono::seconds{5}));
+    EXPECT_EQ(std::future_status::ready, followupTextTrackIdentifierAppliedFuture.wait_for(std::chrono::seconds{5}));
+    EXPECT_FALSE(backendCallbackTimedOutWaitingForMuteMutex.load());
+    EXPECT_TRUE(backendCallbackCouldAcquireMuteMutex.load());
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentOffsetEventsDuringSourceAttachment)
+{
+    constexpr int32_t kSourceId{13};
+    constexpr guint64 kQueuedOffset{111};
+    constexpr guint64 kFollowupOffset{222};
+    constexpr auto kBarrierTimeout{std::chrono::seconds{5}};
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    allSourcesWillBeAttached();
+
+    std::promise<void> attachmentStarted;
+    std::promise<void> initialUpdatesQueued;
+    std::promise<void> triggerFollowupUpdate;
+    auto attachmentStartedFuture{attachmentStarted.get_future()};
+    auto initialUpdatesQueuedFuture{initialUpdatesQueued.get_future()};
+    auto triggerFollowupUpdateFuture{triggerFollowupUpdate.get_future()};
+    std::atomic<bool> synchronizationFailed{false};
+    std::atomic<int64_t> lastAppliedOffset{-1};
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_))
+        .WillOnce(Invoke(
+            [&](auto &source)
+            {
+                source->setId(kSourceId);
+                attachmentStarted.set_value();
+                if (initialUpdatesQueuedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+                {
+                    synchronizationFailed = true;
+                }
+                return true;
+            }));
+    {
+        InSequence orderedBackendCalls;
+        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, true))
+            .WillOnce(Invoke(
+                [&](int32_t, bool)
+                {
+                    triggerFollowupUpdate.set_value();
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kQueuedOffset))
+            .WillOnce(Invoke(
+                [&](int32_t, int64_t offset)
+                {
+                    lastAppliedOffset = offset;
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kFollowupOffset))
+            .WillOnce(Invoke(
+                [&](int32_t, int64_t offset)
+                {
+                    lastAppliedOffset = offset;
+                    return true;
+                }));
+    }
+
+    GstCaps *caps{createDefaultCaps()};
+    std::thread eventThread{
+        [&]()
+        {
+            if (attachmentStartedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+            {
+                synchronizationFailed = true;
+                return;
+            }
+            g_object_set(sink, "mute", TRUE, nullptr);
+            GstStructure *queuedStructure{
+                gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kQueuedOffset, nullptr)};
+            gboolean queuedEventAccepted =
+                gst_pad_send_event(sink->priv->m_sinkPad,
+                                   gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, queuedStructure));
+            initialUpdatesQueued.set_value();
+            if (triggerFollowupUpdateFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+            {
+                synchronizationFailed = true;
+            }
+            GstStructure *followupStructure{
+                gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kFollowupOffset, nullptr)};
+            gboolean followupEventAccepted =
+                gst_pad_send_event(sink->priv->m_sinkPad,
+                                   gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, followupStructure));
+            if (!queuedEventAccepted || !followupEventAccepted)
+            {
+                synchronizationFailed = true;
+            }
+        }};
+
+    setCaps(sink, caps);
+    eventThread.join();
+    EXPECT_FALSE(synchronizationFailed.load());
+
+    setNullState(pipeline, kSourceId);
+    EXPECT_EQ(kFollowupOffset, lastAppliedOffset.load());
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();
@@ -209,7 +534,9 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
     EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
     g_object_set(sink, "mute", kMute, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, getMute(kSourceId, _)).WillOnce(DoAll(SetArgReferee<1>(kMute), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, getMute(kSourceId, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(DoAll(SetArgReferee<1>(kMute), Return(true)));
     gboolean mute{FALSE};
     g_object_get(sink, "mute", &mute, nullptr);
     EXPECT_EQ(kMute, mute);
@@ -249,7 +576,8 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdProperty)
     g_object_set(sink, "text-track-identifier", kTextTrackIdentifier.c_str(), nullptr);
 
     EXPECT_CALL(m_mediaPipelineMock, getTextTrackIdentifier(_))
-        .WillOnce(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
     gchar *textTrackId{nullptr};
     g_object_get(sink, "text-track-identifier", &textTrackId, nullptr);
     EXPECT_EQ(kTextTrackIdentifier, std::string{textTrackId});
