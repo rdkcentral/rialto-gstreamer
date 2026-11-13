@@ -75,19 +75,28 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                 m_sourceAttached = true;
                 if (m_isMuteQueued)
                 {
-                    client->setMute(m_isMuted, m_sourceId);
+                    if (!client->scheduleSetMute(m_isMuted, m_sourceId))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle mute update");
+                    }
                     m_isMuteQueued = false;
                 }
                 if (m_isTextTrackIdentifierQueued)
                 {
-                    client->setTextTrackIdentifier(m_textTrackIdentifier);
+                    if (!client->scheduleSetTextTrackIdentifier(m_textTrackIdentifier))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Failed to queue text track identifier update");
+                    }
                     m_isTextTrackIdentifierQueued = false;
                 }
                 if (m_queuedOffset)
                 {
                     GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
                                      GST_TIME_ARGS(m_queuedOffset.value()));
-                    client->setSubtitleOffset(m_sourceId, m_queuedOffset.value());
+                    if (!client->scheduleSetSubtitleOffset(m_sourceId, m_queuedOffset.value()))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle offset update");
+                    }
                     m_queuedOffset.reset();
                 }
                 lock.unlock();
@@ -126,7 +135,10 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                 else
                 {
                     GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
-                    client->setSubtitleOffset(m_sourceId, ptsOffset);
+                    if (!client->scheduleSetSubtitleOffset(m_sourceId, static_cast<int64_t>(ptsOffset)))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle offset update");
+                    }
                 }
             }
             else
@@ -206,7 +218,10 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
             m_isMuteQueued = true;
             return;
         }
-        client->setMute(muteValue, m_sourceId);
+        if (!client->scheduleSetMute(muteValue, m_sourceId))
+        {
+            GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle mute update");
+        }
         break;
     }
     case Property::TextTrackIdentifier:
@@ -227,7 +242,10 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         }
         else
         {
-            client->setTextTrackIdentifier(m_textTrackIdentifier);
+            if (!client->scheduleSetTextTrackIdentifier(m_textTrackIdentifier))
+            {
+                GST_ERROR_OBJECT(m_sink, "Failed to queue text track identifier update");
+            }
         }
 
         break;
