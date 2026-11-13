@@ -22,10 +22,13 @@
 #include "RialtoGstTest.h"
 
 #include <atomic>
+#include <chrono>
+#include <future>
 #include <thread>
 
 using testing::_;
 using testing::DoAll;
+using testing::InSequence;
 using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
@@ -200,40 +203,75 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
 
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSourceAttachment)
 {
+    constexpr int32_t kSourceId{12};
+    constexpr auto kBarrierTimeout{std::chrono::seconds{5}};
     RialtoMSEBaseSink *sink = createSubtitleSink();
     GstElement *pipeline = createPipelineWithSink(sink);
 
     setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
     allSourcesWillBeAttached();
+
+    std::promise<void> attachmentStarted;
+    std::promise<void> initialUpdateQueued;
+    std::promise<void> triggerFollowupUpdate;
+    auto attachmentStartedFuture{attachmentStarted.get_future()};
+    auto initialUpdateQueuedFuture{initialUpdateQueued.get_future()};
+    auto triggerFollowupUpdateFuture{triggerFollowupUpdate.get_future()};
+    std::atomic<bool> synchronizationFailed{false};
     std::atomic<bool> lastAppliedMute{false};
-    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, _))
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(Invoke(
-            [&](int32_t, bool mute)
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_))
+        .WillOnce(Invoke(
+            [&](auto &source)
             {
-                lastAppliedMute.store(mute, std::memory_order_relaxed);
+                source->setId(kSourceId);
+                attachmentStarted.set_value();
+                if (initialUpdateQueuedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+                {
+                    synchronizationFailed = true;
+                }
                 return true;
             }));
 
+    {
+        InSequence orderedBackendCalls;
+        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, true))
+            .WillOnce(Invoke(
+                [&](int32_t, bool mute)
+                {
+                    lastAppliedMute = mute;
+                    triggerFollowupUpdate.set_value();
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, false))
+            .WillOnce(Invoke(
+                [&](int32_t, bool mute)
+                {
+                    lastAppliedMute = mute;
+                    return true;
+                }));
+    }
+
     GstCaps *caps{createDefaultCaps()};
-    std::atomic<bool> start{false};
     std::thread propertyThread{[&]()
                                {
-                                   while (!start.load(std::memory_order_acquire))
+                                   if (attachmentStartedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
                                    {
-                                       std::this_thread::yield();
+                                       synchronizationFailed = true;
+                                       return;
                                    }
-                                   for (int i = 0; i < 1000; ++i)
+                                   g_object_set(sink, "mute", TRUE, nullptr);
+                                   initialUpdateQueued.set_value();
+                                   if (triggerFollowupUpdateFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
                                    {
-                                       g_object_set(sink, "mute", (i % 2) ? TRUE : FALSE, nullptr);
+                                       synchronizationFailed = true;
                                    }
+                                   g_object_set(sink, "mute", FALSE, nullptr);
                                }};
 
-    start.store(true, std::memory_order_release);
     setCaps(sink, caps);
     propertyThread.join();
-    EXPECT_TRUE(lastAppliedMute.load(std::memory_order_relaxed));
+    EXPECT_FALSE(synchronizationFailed.load());
+    EXPECT_FALSE(lastAppliedMute.load());
 
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
@@ -242,43 +280,97 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSou
 
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentOffsetEventsDuringSourceAttachment)
 {
+    constexpr int32_t kSourceId{13};
+    constexpr guint64 kQueuedOffset{111};
+    constexpr guint64 kFollowupOffset{222};
+    constexpr auto kBarrierTimeout{std::chrono::seconds{5}};
     RialtoMSEBaseSink *sink = createSubtitleSink();
     GstElement *pipeline = createPipelineWithSink(sink);
 
     setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
     allSourcesWillBeAttached();
+
+    std::promise<void> attachmentStarted;
+    std::promise<void> initialUpdatesQueued;
+    std::promise<void> triggerFollowupUpdate;
+    auto attachmentStartedFuture{attachmentStarted.get_future()};
+    auto initialUpdatesQueuedFuture{initialUpdatesQueued.get_future()};
+    auto triggerFollowupUpdateFuture{triggerFollowupUpdate.get_future()};
+    std::atomic<bool> synchronizationFailed{false};
     std::atomic<int64_t> lastAppliedOffset{-1};
-    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, _))
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(Invoke(
-            [&](int32_t, int64_t offset)
+    EXPECT_CALL(m_mediaPipelineMock, attachSource(_))
+        .WillOnce(Invoke(
+            [&](auto &source)
             {
-                lastAppliedOffset.store(offset, std::memory_order_relaxed);
+                source->setId(kSourceId);
+                attachmentStarted.set_value();
+                if (initialUpdatesQueuedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+                {
+                    synchronizationFailed = true;
+                }
                 return true;
             }));
 
-    GstCaps *caps{createDefaultCaps()};
-    std::atomic<bool> start{false};
-    std::thread eventThread{[&]()
-                            {
-                                while (!start.load(std::memory_order_acquire))
-                                {
-                                    std::this_thread::yield();
-                                }
-                                for (guint64 offset = 0; offset < 1000; ++offset)
-                                {
-                                    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset",
-                                                                              G_TYPE_UINT64, offset, nullptr)};
-                                    gst_pad_send_event(sink->priv->m_sinkPad,
-                                                       gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure));
-                                }
-                            }};
+    {
+        InSequence orderedBackendCalls;
+        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, true))
+            .WillOnce(Invoke(
+                [&](int32_t, bool)
+                {
+                    triggerFollowupUpdate.set_value();
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kQueuedOffset))
+            .WillOnce(Invoke(
+                [&](int32_t, int64_t offset)
+                {
+                    lastAppliedOffset = offset;
+                    return true;
+                }));
+        EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, kFollowupOffset))
+            .WillOnce(Invoke(
+                [&](int32_t, int64_t offset)
+                {
+                    lastAppliedOffset = offset;
+                    return true;
+                }));
+    }
 
-    start.store(true, std::memory_order_release);
+    GstCaps *caps{createDefaultCaps()};
+    std::thread eventThread{
+        [&]()
+        {
+            if (attachmentStartedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+            {
+                synchronizationFailed = true;
+                return;
+            }
+            g_object_set(sink, "mute", TRUE, nullptr);
+            GstStructure *queuedStructure{
+                gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kQueuedOffset, nullptr)};
+            gboolean queuedEventAccepted =
+                gst_pad_send_event(sink->priv->m_sinkPad,
+                                   gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, queuedStructure));
+            initialUpdatesQueued.set_value();
+            if (triggerFollowupUpdateFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+            {
+                synchronizationFailed = true;
+            }
+            GstStructure *followupStructure{
+                gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kFollowupOffset, nullptr)};
+            gboolean followupEventAccepted =
+                gst_pad_send_event(sink->priv->m_sinkPad,
+                                   gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, followupStructure));
+            if (!queuedEventAccepted || !followupEventAccepted)
+            {
+                synchronizationFailed = true;
+            }
+        }};
+
     setCaps(sink, caps);
     eventThread.join();
-    EXPECT_EQ(999, lastAppliedOffset.load(std::memory_order_relaxed));
+    EXPECT_FALSE(synchronizationFailed.load());
+    EXPECT_EQ(kFollowupOffset, lastAppliedOffset.load());
 
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
