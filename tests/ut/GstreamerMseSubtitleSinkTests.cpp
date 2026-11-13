@@ -17,6 +17,7 @@
  */
 
 #include "Matchers.h"
+#include "PullModeSubtitlePlaybackDelegate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSESubtitleSink.h"
 #include "RialtoGstTest.h"
@@ -24,7 +25,9 @@
 #include <atomic>
 #include <chrono>
 #include <future>
+#include <mutex>
 #include <thread>
+#include <vector>
 
 using testing::_;
 using testing::DoAll;
@@ -32,6 +35,12 @@ using testing::InSequence;
 using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
+
+class PullModeSubtitlePlaybackDelegateTestPeer
+{
+public:
+    static std::mutex &getMutex(PullModeSubtitlePlaybackDelegate &delegate) { return delegate.m_mutex; }
+};
 
 namespace
 {
@@ -205,73 +214,97 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSou
 {
     constexpr int32_t kSourceId{12};
     constexpr auto kBarrierTimeout{std::chrono::seconds{5}};
+    constexpr auto kSetterBlockingWindow{std::chrono::milliseconds{250}};
     RialtoMSEBaseSink *sink = createSubtitleSink();
     GstElement *pipeline = createPipelineWithSink(sink);
 
     setPausedState(pipeline, sink);
+    g_object_set(sink, "mute", TRUE, nullptr);
     allSourcesWillBeAttached();
 
-    std::promise<void> attachmentStarted;
-    std::promise<void> initialUpdateQueued;
-    std::promise<void> triggerFollowupUpdate;
-    auto attachmentStartedFuture{attachmentStarted.get_future()};
-    auto initialUpdateQueuedFuture{initialUpdateQueued.get_future()};
-    auto triggerFollowupUpdateFuture{triggerFollowupUpdate.get_future()};
+    std::promise<void> attachCallEntered;
+    std::promise<void> allowAttachSourceToReturn;
+    std::promise<void> propertySetterStarted;
+    std::promise<void> propertySetterFinished;
+    auto attachCallEnteredFuture{attachCallEntered.get_future()};
+    auto allowAttachSourceToReturnFuture{allowAttachSourceToReturn.get_future()};
+    auto propertySetterStartedFuture{propertySetterStarted.get_future()};
+    auto propertySetterFinishedFuture{propertySetterFinished.get_future()};
     std::atomic<bool> synchronizationFailed{false};
-    std::atomic<bool> lastAppliedMute{false};
+    std::mutex muteCallsMutex;
+    std::vector<bool> appliedMuteValues;
     EXPECT_CALL(m_mediaPipelineMock, attachSource(_))
         .WillOnce(Invoke(
             [&](auto &source)
             {
                 source->setId(kSourceId);
-                attachmentStarted.set_value();
-                if (initialUpdateQueuedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+                attachCallEntered.set_value();
+                if (allowAttachSourceToReturnFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
                 {
                     synchronizationFailed = true;
                 }
                 return true;
             }));
-
-    {
-        InSequence orderedBackendCalls;
-        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, true))
-            .WillOnce(Invoke(
-                [&](int32_t, bool mute)
-                {
-                    lastAppliedMute = mute;
-                    triggerFollowupUpdate.set_value();
-                    return true;
-                }));
-        EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, false))
-            .WillOnce(Invoke(
-                [&](int32_t, bool mute)
-                {
-                    lastAppliedMute = mute;
-                    return true;
-                }));
-    }
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Invoke(
+            [&](int32_t, bool mute)
+            {
+                std::lock_guard<std::mutex> lock{muteCallsMutex};
+                appliedMuteValues.push_back(mute);
+                return true;
+            }));
 
     GstCaps *caps{createDefaultCaps()};
+    auto delegate{std::dynamic_pointer_cast<PullModeSubtitlePlaybackDelegate>(sink->priv->m_delegate)};
+    ASSERT_TRUE(delegate);
+    std::thread attachmentThread{[&]() { setCaps(sink, caps); }};
+    if (attachCallEnteredFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+    {
+        synchronizationFailed = true;
+        allowAttachSourceToReturn.set_value();
+        attachmentThread.join();
+        gst_caps_unref(caps);
+        setNullState(pipeline, kSourceId);
+        gst_object_unref(pipeline);
+        FAIL() << "Source attachment did not reach the queue handoff";
+        return;
+    }
+    std::unique_lock<std::mutex> attachmentQueueLock{PullModeSubtitlePlaybackDelegateTestPeer::getMutex(*delegate)};
+    allowAttachSourceToReturn.set_value();
+
     std::thread propertyThread{[&]()
                                {
-                                   if (attachmentStartedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
-                                   {
-                                       synchronizationFailed = true;
-                                       return;
-                                   }
-                                   g_object_set(sink, "mute", TRUE, nullptr);
-                                   initialUpdateQueued.set_value();
-                                   if (triggerFollowupUpdateFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
-                                   {
-                                       synchronizationFailed = true;
-                                   }
-                                   g_object_set(sink, "mute", FALSE, nullptr);
+                                   propertySetterStarted.set_value();
+                                   GValue muteValue = G_VALUE_INIT;
+                                   g_value_init(&muteValue, G_TYPE_BOOLEAN);
+                                   g_value_set_boolean(&muteValue, FALSE);
+                                   sink->priv->m_delegate->setProperty(IPlaybackDelegate::Property::Mute, &muteValue);
+                                   g_value_unset(&muteValue);
+                                   propertySetterFinished.set_value();
                                }};
-
-    setCaps(sink, caps);
+    if (propertySetterStartedFuture.wait_for(kBarrierTimeout) != std::future_status::ready)
+    {
+        synchronizationFailed = true;
+    }
+    const bool setterFinishedWhileAttachmentLockWasHeld = propertySetterFinishedFuture.wait_for(kSetterBlockingWindow) ==
+                                                          std::future_status::ready;
+    attachmentQueueLock.unlock();
+    attachmentThread.join();
     propertyThread.join();
     EXPECT_FALSE(synchronizationFailed.load());
-    EXPECT_FALSE(lastAppliedMute.load());
+    EXPECT_FALSE(setterFinishedWhileAttachmentLockWasHeld);
+    ASSERT_FALSE(appliedMuteValues.empty());
+    EXPECT_FALSE(appliedMuteValues.back());
+    if (appliedMuteValues.size() == 2)
+    {
+        EXPECT_TRUE(appliedMuteValues.front());
+    }
+    else
+    {
+        EXPECT_EQ(1U, appliedMuteValues.size());
+        EXPECT_FALSE(appliedMuteValues.front());
+    }
 
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
@@ -310,7 +343,6 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentOffsetEventsDuringSo
                 }
                 return true;
             }));
-
     {
         InSequence orderedBackendCalls;
         EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, true))
