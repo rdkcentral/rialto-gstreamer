@@ -39,13 +39,20 @@ private:
     friend class PullModeSubtitlePlaybackDelegateTestPeer;
 
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
+    bool scheduleMuteUpdateLocked(const std::shared_ptr<GStreamerMSEMediaPlayerClient> &client, bool mute);
+    bool scheduleTextTrackIdentifierUpdateLocked(const std::shared_ptr<GStreamerMSEMediaPlayerClient> &client,
+                                                 const std::string &textTrackIdentifier);
 
 private:
     mutable std::mutex m_mutex;
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};
+    bool m_textTrackIdentifierUpdatePending{false};
+    uint64_t m_textTrackIdentifierUpdateGeneration{0};
     std::atomic<bool> m_isMuted{false};
     bool m_isMuteQueued{false};
+    bool m_muteUpdatePending{false};
+    uint64_t m_muteUpdateGeneration{0};
     uint32_t m_videoId{0};
     std::optional<int64_t> m_queuedOffset{};
 };

@@ -326,10 +326,10 @@ public:
     bool getVolume(double &volume);
     bool getCachedVolume(double &volume);
     void setMute(bool mute, int32_t sourceId);
-    bool scheduleSetMute(bool mute, int32_t sourceId);
+    bool scheduleSetMute(bool mute, int32_t sourceId, std::function<void()> completion);
     bool getMute(int sourceId);
     void setTextTrackIdentifier(const std::string &textTrackIdentifier);
-    bool scheduleSetTextTrackIdentifier(const std::string &textTrackIdentifier);
+    bool scheduleSetTextTrackIdentifier(const std::string &textTrackIdentifier, std::function<void()> completion);
     std::string getTextTrackIdentifier();
     bool setLowLatency(bool lowLatency);
     bool setSync(bool sync);

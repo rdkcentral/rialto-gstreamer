@@ -1507,6 +1507,72 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleMuteAndTextTrackIdentifierWithoutCompletion)
+{
+    EXPECT_CALL(m_messageQueueMock, scheduleInEventLoop(_))
+        .Times(2)
+        .WillRepeatedly(Invoke(
+            [](const auto &func)
+            {
+                func();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute, kUnknownSourceId)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
+
+    EXPECT_TRUE(m_sut->scheduleSetMute(kMute, kUnknownSourceId, {}));
+    EXPECT_TRUE(m_sut->scheduleSetTextTrackIdentifier(kTextTrackIdentifier, {}));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleSubtitleOffsetForUnknownSource)
+{
+    EXPECT_CALL(m_messageQueueMock, scheduleInEventLoop(_))
+        .WillOnce(Invoke(
+            [](const auto &func)
+            {
+                func();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSubtitleOffset(_, _)).Times(0);
+
+    EXPECT_TRUE(m_sut->scheduleSetSubtitleOffset(kUnknownSourceId, kPosition));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleSubtitleOffsetWhenBackendFails)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    EXPECT_CALL(m_messageQueueMock, scheduleInEventLoop(_))
+        .WillOnce(Invoke(
+            [](const auto &func)
+            {
+                func();
+                return true;
+            }));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSubtitleOffset(kAudioSourceId, kPosition)).WillOnce(Return(false));
+
+    EXPECT_TRUE(m_sut->scheduleSetSubtitleOffset(kAudioSourceId, kPosition));
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetSubtitleOffsetSynchronously)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    bufferPullerWillBeCreated();
+    const int32_t kAudioSourceId = attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setSubtitleOffset(kAudioSourceId, kPosition)).WillOnce(Return(true));
+    m_sut->setSubtitleOffset(kAudioSourceId, kPosition);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldGetMute)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

@@ -75,19 +75,13 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                 m_sourceAttached = true;
                 if (m_isMuteQueued)
                 {
-                    if (!client->scheduleSetMute(m_isMuted, m_sourceId))
-                    {
-                        GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle mute update");
-                    }
                     m_isMuteQueued = false;
+                    scheduleMuteUpdateLocked(client, m_isMuted.load());
                 }
                 if (m_isTextTrackIdentifierQueued)
                 {
-                    if (!client->scheduleSetTextTrackIdentifier(m_textTrackIdentifier))
-                    {
-                        GST_ERROR_OBJECT(m_sink, "Failed to queue text track identifier update");
-                    }
                     m_isTextTrackIdentifierQueued = false;
+                    scheduleTextTrackIdentifierUpdateLocked(client, m_textTrackIdentifier);
                 }
                 if (m_queuedOffset)
                 {
@@ -162,25 +156,40 @@ void PullModeSubtitlePlaybackDelegate::getProperty(const Property &type, GValue 
     {
     case Property::Mute:
     {
-        if (!client)
+        bool muteValue{false};
+        bool updatePending{false};
         {
-            g_value_set_boolean(value, m_isMuted);
-            return;
+            std::lock_guard lock{m_mutex};
+            muteValue = m_isMuted.load();
+            updatePending = m_isMuteQueued || m_muteUpdatePending;
         }
-        g_value_set_boolean(value, client->getMute(m_sourceId));
+        if (!client || updatePending)
+        {
+            g_value_set_boolean(value, muteValue);
+        }
+        else
+        {
+            g_value_set_boolean(value, client->getMute(m_sourceId));
+        }
         break;
     }
     case Property::TextTrackIdentifier:
     {
+        std::string textTrackIdentifier;
+        bool updatePending{false};
         {
-            std::unique_lock lock{m_mutex};
-            if (!client)
-            {
-                g_value_set_string(value, m_textTrackIdentifier.c_str());
-                return;
-            }
+            std::lock_guard lock{m_mutex};
+            textTrackIdentifier = m_textTrackIdentifier;
+            updatePending = m_isTextTrackIdentifierQueued || m_textTrackIdentifierUpdatePending;
         }
-        g_value_set_string(value, client->getTextTrackIdentifier().c_str());
+        if (!client || updatePending)
+        {
+            g_value_set_string(value, textTrackIdentifier.c_str());
+        }
+        else
+        {
+            g_value_set_string(value, client->getTextTrackIdentifier().c_str());
+        }
 
         break;
     }
@@ -218,7 +227,7 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
             m_isMuteQueued = true;
             return;
         }
-        if (!client->scheduleSetMute(muteValue, m_sourceId))
+        if (!scheduleMuteUpdateLocked(client, muteValue))
         {
             GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle mute update");
         }
@@ -242,7 +251,7 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         }
         else
         {
-            if (!client->scheduleSetTextTrackIdentifier(m_textTrackIdentifier))
+            if (!scheduleTextTrackIdentifierUpdateLocked(client, m_textTrackIdentifier))
             {
                 GST_ERROR_OBJECT(m_sink, "Failed to queue text track identifier update");
             }
@@ -266,6 +275,58 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         break;
     }
     }
+}
+
+bool PullModeSubtitlePlaybackDelegate::scheduleMuteUpdateLocked(const std::shared_ptr<GStreamerMSEMediaPlayerClient> &client,
+                                                                bool mute)
+{
+    const uint64_t kGeneration{++m_muteUpdateGeneration};
+    m_muteUpdatePending = true;
+    const std::weak_ptr<PullModeSubtitlePlaybackDelegate> kWeakSelf{
+        std::dynamic_pointer_cast<PullModeSubtitlePlaybackDelegate>(shared_from_this())};
+    if (!client->scheduleSetMute(mute, m_sourceId,
+                                 [kWeakSelf, kGeneration]()
+                                 {
+                                     if (auto self = kWeakSelf.lock())
+                                     {
+                                         std::lock_guard lock{self->m_mutex};
+                                         if (self->m_muteUpdateGeneration == kGeneration)
+                                         {
+                                             self->m_muteUpdatePending = false;
+                                         }
+                                     }
+                                 }))
+    {
+        m_muteUpdatePending = false;
+        return false;
+    }
+    return true;
+}
+
+bool PullModeSubtitlePlaybackDelegate::scheduleTextTrackIdentifierUpdateLocked(
+    const std::shared_ptr<GStreamerMSEMediaPlayerClient> &client, const std::string &textTrackIdentifier)
+{
+    const uint64_t kGeneration{++m_textTrackIdentifierUpdateGeneration};
+    m_textTrackIdentifierUpdatePending = true;
+    const std::weak_ptr<PullModeSubtitlePlaybackDelegate> kWeakSelf{
+        std::dynamic_pointer_cast<PullModeSubtitlePlaybackDelegate>(shared_from_this())};
+    if (!client->scheduleSetTextTrackIdentifier(textTrackIdentifier,
+                                                [kWeakSelf, kGeneration]()
+                                                {
+                                                    if (auto self = kWeakSelf.lock())
+                                                    {
+                                                        std::lock_guard lock{self->m_mutex};
+                                                        if (self->m_textTrackIdentifierUpdateGeneration == kGeneration)
+                                                        {
+                                                            self->m_textTrackIdentifierUpdatePending = false;
+                                                        }
+                                                    }
+                                                }))
+    {
+        m_textTrackIdentifierUpdatePending = false;
+        return false;
+    }
+    return true;
 }
 
 void PullModeSubtitlePlaybackDelegate::handleQos(uint64_t processed, uint64_t dropped) const

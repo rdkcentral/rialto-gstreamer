@@ -845,9 +845,17 @@ void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
-bool GStreamerMSEMediaPlayerClient::scheduleSetMute(bool mute, int32_t sourceId)
+bool GStreamerMSEMediaPlayerClient::scheduleSetMute(bool mute, int32_t sourceId, std::function<void()> completion)
 {
-    return m_backendQueue->scheduleInEventLoop([this, mute, sourceId]() { m_clientBackend->setMute(mute, sourceId); });
+    return m_backendQueue->scheduleInEventLoop(
+        [this, mute, sourceId, completion = std::move(completion)]()
+        {
+            m_clientBackend->setMute(mute, sourceId);
+            if (completion)
+            {
+                completion();
+            }
+        });
 }
 
 bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
@@ -863,10 +871,18 @@ void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string &te
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
 }
 
-bool GStreamerMSEMediaPlayerClient::scheduleSetTextTrackIdentifier(const std::string &textTrackIdentifier)
+bool GStreamerMSEMediaPlayerClient::scheduleSetTextTrackIdentifier(const std::string &textTrackIdentifier,
+                                                                   std::function<void()> completion)
 {
-    return m_backendQueue->scheduleInEventLoop([this, textTrackIdentifier]()
-                                               { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
+    return m_backendQueue->scheduleInEventLoop(
+        [this, textTrackIdentifier, completion = std::move(completion)]()
+        {
+            m_clientBackend->setTextTrackIdentifier(textTrackIdentifier);
+            if (completion)
+            {
+                completion();
+            }
+        });
 }
 
 std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()
