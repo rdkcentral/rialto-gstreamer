@@ -43,7 +43,7 @@ private:
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};
     std::atomic<bool> m_isMuted{false};
-    std::atomic<bool> m_isMuteQueued{false};
+    bool m_isMuteQueued{false};
     uint32_t m_videoId{0};
     std::optional<int64_t> m_queuedOffset{};
 };

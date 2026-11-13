@@ -21,8 +21,12 @@
 #include "RialtoGStreamerMSESubtitleSink.h"
 #include "RialtoGstTest.h"
 
+#include <atomic>
+#include <thread>
+
 using testing::_;
 using testing::DoAll;
+using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
 
@@ -190,6 +194,93 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
 
     setNullState(pipeline, kSourceId);
 
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentMuteUpdatesDuringSourceAttachment)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+    std::atomic<bool> lastAppliedMute{false};
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Invoke(
+            [&](int32_t, bool mute)
+            {
+                lastAppliedMute.store(mute, std::memory_order_relaxed);
+                return true;
+            }));
+
+    GstCaps *caps{createDefaultCaps()};
+    std::atomic<bool> start{false};
+    std::thread propertyThread{[&]()
+                               {
+                                   while (!start.load(std::memory_order_acquire))
+                                   {
+                                       std::this_thread::yield();
+                                   }
+                                   for (int i = 0; i < 1000; ++i)
+                                   {
+                                       g_object_set(sink, "mute", (i % 2) ? TRUE : FALSE, nullptr);
+                                   }
+                               }};
+
+    start.store(true, std::memory_order_release);
+    setCaps(sink, caps);
+    propertyThread.join();
+    EXPECT_TRUE(lastAppliedMute.load(std::memory_order_relaxed));
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldHandleConcurrentOffsetEventsDuringSourceAttachment)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+    std::atomic<int64_t> lastAppliedOffset{-1};
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, _))
+        .Times(testing::AnyNumber())
+        .WillRepeatedly(Invoke(
+            [&](int32_t, int64_t offset)
+            {
+                lastAppliedOffset.store(offset, std::memory_order_relaxed);
+                return true;
+            }));
+
+    GstCaps *caps{createDefaultCaps()};
+    std::atomic<bool> start{false};
+    std::thread eventThread{[&]()
+                            {
+                                while (!start.load(std::memory_order_acquire))
+                                {
+                                    std::this_thread::yield();
+                                }
+                                for (guint64 offset = 0; offset < 1000; ++offset)
+                                {
+                                    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset",
+                                                                              G_TYPE_UINT64, offset, nullptr)};
+                                    gst_pad_send_event(sink->priv->m_sinkPad,
+                                                       gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure));
+                                }
+                            }};
+
+    start.store(true, std::memory_order_release);
+    setCaps(sink, caps);
+    eventThread.join();
+    EXPECT_EQ(999, lastAppliedOffset.load(std::memory_order_relaxed));
+
+    setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
