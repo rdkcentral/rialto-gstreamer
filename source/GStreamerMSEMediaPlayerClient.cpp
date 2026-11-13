@@ -51,10 +51,12 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         return false;
     }
 
-    const std::array<const char *, 7> requiredFields = {"metric_type", "source_id", "rendered_frames",
-                                                        "dropped_frames", "corrupted_frames", "pts_ns", "phase"};
-    const std::array<GType, 7> requiredTypes = {G_TYPE_UINT, G_TYPE_INT, G_TYPE_UINT64, G_TYPE_UINT64, G_TYPE_UINT64,
-                                                G_TYPE_UINT64, G_TYPE_UINT};
+    // This validation applies to the Rialto-enriched client payload that is emitted after the server maps the
+    // GStreamer source element to the corresponding source/session context. The raw SoC producer payload is the
+    // minimal `media-pipeline-metric` shape with `metric` and `observation-kind`; `source_id` and the optional
+    // `session_id` are added by Rialto at the integration boundary from GST_MESSAGE_SRC().
+    const std::array<const char *, 3> requiredFields = {"metric", "observation-kind", "source_id"};
+    const std::array<GType, 3> requiredTypes = {G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT};
 
     for (size_t i = 0; i < requiredFields.size(); ++i)
     {
@@ -68,46 +70,89 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         }
     }
 
-    const guint metricType = g_value_get_uint(gst_structure_get_value(structure, "metric_type"));
-    const std::array<guint, 7> validMetricTypes = {0u, 1u, 2u, 3u, 4u, 5u, 6u};
-    if (std::find(validMetricTypes.begin(), validMetricTypes.end(), metricType) == validMetricTypes.end())
+    if (gst_structure_has_field(structure, "session_id") &&
+        gst_structure_get_field_type(structure, "session_id") != G_TYPE_UINT)
     {
         return false;
     }
 
-    const guint phase = g_value_get_uint(gst_structure_get_value(structure, "phase"));
-    const std::array<guint, 3> validPhases = {0u, 1u, 2u};
-    if (std::find(validPhases.begin(), validPhases.end(), phase) == validPhases.end())
+    // Validate metric field: numeric values per 0.7 spec
+    const guint metric = g_value_get_uint(gst_structure_get_value(structure, "metric"));
+    const std::array<guint, 7> validMetrics = {MEDIA_METRIC_VIDEO_FRAME_DROP, MEDIA_METRIC_AUDIO_FRAME_DROP,
+                                               MEDIA_METRIC_VIDEO_DECODE_ERROR, MEDIA_METRIC_AUDIO_DECODE_ERROR,
+                                               MEDIA_METRIC_VIDEO_FRAME_REPEAT, MEDIA_METRIC_AUDIO_GAP,
+                                               MEDIA_METRIC_BUFFER_UNDERFLOW};
+    if (std::find(validMetrics.begin(), validMetrics.end(), metric) == validMetrics.end())
     {
         return false;
     }
 
-    static std::mutex metricValidationMutex;
-    static std::unordered_map<int32_t, std::tuple<uint64_t, uint64_t, uint64_t>> lastCounterSnapshots;
-
-    const int32_t sourceId = g_value_get_int(gst_structure_get_value(structure, "source_id"));
-    if (sourceId < 0)
+    // Validate observation-kind field: occurrence, episode-started, episode-resolved
+    const guint observationKind = g_value_get_uint(gst_structure_get_value(structure, "observation-kind"));
+    const std::array<guint, 3> validObservationKinds = {OBSERVATION_KIND_OCCURRENCE, OBSERVATION_KIND_EPISODE_STARTED,
+                                                        OBSERVATION_KIND_EPISODE_RESOLVED};
+    if (std::find(validObservationKinds.begin(), validObservationKinds.end(), observationKind) ==
+        validObservationKinds.end())
     {
         return false;
     }
 
-    const uint64_t renderedFrames = static_cast<uint64_t>(g_value_get_uint64(gst_structure_get_value(structure, "rendered_frames")));
-    const uint64_t droppedFrames = static_cast<uint64_t>(g_value_get_uint64(gst_structure_get_value(structure, "dropped_frames")));
-    const uint64_t corruptedFrames = static_cast<uint64_t>(g_value_get_uint64(gst_structure_get_value(structure, "corrupted_frames")));
-
-    std::lock_guard<std::mutex> lock{metricValidationMutex};
-    const auto iter = lastCounterSnapshots.find(sourceId);
-    if (iter != lastCounterSnapshots.end())
+    // Validate source_id is populated (non-zero) while session_id remains optional at the raw source boundary
+    const guint sourceId = g_value_get_uint(gst_structure_get_value(structure, "source_id"));
+    if (sourceId == 0)
     {
-        const auto &[lastRenderedFrames, lastDroppedFrames, lastCorruptedFrames] = iter->second;
-        if ((renderedFrames < lastRenderedFrames) || (droppedFrames < lastDroppedFrames) ||
-            (corruptedFrames < lastCorruptedFrames))
+        return false;
+    }
+
+    // Validate optional fields with correct GTypes if present
+    const std::array<const char *, 3> optionalFields = {"pts-ns", "duration-ns", "count"};
+    const std::array<GType, 3> optionalTypes = {G_TYPE_INT64, G_TYPE_UINT64, G_TYPE_UINT64};
+
+    for (size_t i = 0; i < optionalFields.size(); ++i)
+    {
+        if (gst_structure_has_field(structure, optionalFields[i]))
+        {
+            if (gst_structure_get_field_type(structure, optionalFields[i]) != optionalTypes[i])
+            {
+                return false;
+            }
+        }
+    }
+
+    // Enforce metric-specific rules for count and duration-ns per 0.7 spec
+    const bool isVideoFrameRepeat = (metric == MEDIA_METRIC_VIDEO_FRAME_REPEAT);
+    const bool isAudioGap = (metric == MEDIA_METRIC_AUDIO_GAP);
+    const bool isBufferUnderflow = (metric == MEDIA_METRIC_BUFFER_UNDERFLOW);
+    const bool isOccurrence = (observationKind == OBSERVATION_KIND_OCCURRENCE);
+    const bool isEpisodeResolved = (observationKind == OBSERVATION_KIND_EPISODE_RESOLVED);
+
+    bool hasCount = gst_structure_has_field(structure, "count");
+    bool hasDurationNs = gst_structure_has_field(structure, "duration-ns");
+
+    // For OCCURRENCE messages, count and duration-ns must not be present
+    if (isOccurrence)
+    {
+        if (hasCount || hasDurationNs)
         {
             return false;
         }
     }
 
-    lastCounterSnapshots[sourceId] = std::make_tuple(renderedFrames, droppedFrames, corruptedFrames);
+    // For EPISODE_RESOLVED messages
+    if (isEpisodeResolved)
+    {
+        // BUFFER_UNDERFLOW episodes must not have count
+        if (isBufferUnderflow && hasCount)
+        {
+            return false;
+        }
+        // VIDEO_FRAME_REPEAT and AUDIO_GAP must have count in EPISODE_RESOLVED
+        if ((isVideoFrameRepeat || isAudioGap) && !hasCount)
+        {
+            return false;
+        }
+    }
+
     return true;
 }
 #endif
@@ -448,11 +493,9 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
     }
 
     GstStructure *metricStructure = gst_structure_new(
-        "media-pipeline-metric", "metric_type", G_TYPE_UINT, metricType, "source_id", G_TYPE_INT, sourceId,
-        "rendered_frames", G_TYPE_UINT64, event.renderedFrames, "dropped_frames", G_TYPE_UINT64,
-        event.droppedFrames, "corrupted_frames", G_TYPE_UINT64, event.corruptedFrames, "pts_ns", G_TYPE_UINT64,
-        event.ptsNs, "phase", G_TYPE_UINT, event.phase, "count", G_TYPE_UINT64, event.count, "duration_ns",
-        G_TYPE_UINT64, event.durationNs, nullptr);
+        "media-pipeline-metric", "metric", G_TYPE_UINT, metricType, "observation-kind", G_TYPE_UINT, event.phase,
+        "source_id", G_TYPE_UINT, sourceId, "pts-ns", G_TYPE_INT64, static_cast<gint64>(event.ptsNs), 
+        "duration-ns", G_TYPE_UINT64, event.durationNs, "count", G_TYPE_UINT64, event.count, nullptr);
     if (!metricStructure)
     {
         GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
@@ -470,11 +513,9 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
         return;
     }
 
-    GST_INFO("Posted media-pipeline-metric message for sourceId=%d metricType=%u rendered=%" G_GUINT64_FORMAT
-             " dropped=%" G_GUINT64_FORMAT " corrupted=%" G_GUINT64_FORMAT " ptsNs=%" G_GUINT64_FORMAT
-             " phase=%u count=%" G_GUINT64_FORMAT " durationNs=%" G_GUINT64_FORMAT,
-             sourceId, metricType, event.renderedFrames, event.droppedFrames, event.corruptedFrames, event.ptsNs,
-             event.phase, event.count, event.durationNs);
+    GST_INFO("Posted media-pipeline-metric message for sourceId=%d metric=%u observation-kind=%u pts-ns=%" G_GINT64_FORMAT
+             " count=%" G_GUINT64_FORMAT " durationNs=%" G_GUINT64_FORMAT,
+             sourceId, metricType, event.phase, static_cast<gint64>(event.ptsNs), event.count, event.durationNs);
 }
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event)

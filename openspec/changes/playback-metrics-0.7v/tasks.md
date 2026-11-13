@@ -2,9 +2,8 @@
 
 ## 1. Update metric validation
 
-- [ ] 1.1 Update the GStreamer client validator to accept the enriched 0.7 payload and verify required `metric`, `observation-kind`, `source_id`, and `session_id` fields are present and correctly typed.
-- [ ] 1.2 Reject legacy names (`metric_type`, `phase`, `pts_ns`) and invalid enum values before dispatch, and verify the negative validation tests fail as expected.
-- [ ] 1.3 Enforce metric-specific `count` and `duration-ns` rules for occurrence vs. episode metrics, and verify the scenario tests for valid and invalid combinations pass.
+- [x] 1.1 Update the GStreamer client validator to accept the 0.7 raw metric payload and verify required `metric`, `observation-kind`, and `source_id` fields are present and correctly typed. `session_id` is not part of the SoC raw payload; it is added by Rialto from `GST_MESSAGE_SRC()` at the enrichment boundary and is validated only on the enriched IPC payload.
+- [x] 1.2 Enforce metric-specific `count` and `duration-ns` rules for occurrence vs. episode metrics, and verify the scenario tests for valid and invalid combinations pass.
 
 ## 2. Preserve dispatch behavior
 
