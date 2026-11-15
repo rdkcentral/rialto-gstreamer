@@ -309,63 +309,62 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersFromBackend)
 {
     expectCallInEventLoop();
     constexpr int32_t kSourceId{7};
-    const FrameCounters expected{101u, 7u, 3u, 12345u};
+    const firebolt::rialto::VideoFrameCounters expected{sizeof(firebolt::rialto::VideoFrameCounters), 101u, 7u, 3u};
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
         .WillOnce(DoAll(SetArgReferee<1>(expected.renderedFrames), SetArgReferee<2>(expected.droppedFrames),
-                        SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(expected.timestamp),
+                        SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(12345u),
                         Return(true)));
 
-    FrameCounters actual{};
-    EXPECT_EQ(m_sut->getFrameCounters(kSourceId, &actual), 0);
+    firebolt::rialto::VideoFrameCounters actual{};
+    EXPECT_TRUE(m_sut->getFrameCounters(kSourceId, actual));
     EXPECT_EQ(actual.renderedFrames, expected.renderedFrames);
     EXPECT_EQ(actual.droppedFrames, expected.droppedFrames);
     EXPECT_EQ(actual.corruptedFrames, expected.corruptedFrames);
-    EXPECT_EQ(actual.timestamp, expected.timestamp);
+    EXPECT_EQ(actual.size, sizeof(firebolt::rialto::VideoFrameCounters));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPreserveFrameCountersWhenBackendQueryFails)
 {
     expectCallInEventLoop();
     constexpr int32_t kSourceId{7};
-    const FrameCounters expected{101u, 7u, 3u, 12345u};
-    FrameCounters actual{expected};
+    const firebolt::rialto::VideoFrameCounters expected{sizeof(firebolt::rialto::VideoFrameCounters), 101u, 7u, 3u};
+    firebolt::rialto::VideoFrameCounters actual{expected};
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
         .WillOnce(DoAll(SetArgReferee<1>(999u), Return(false)));
 
-    EXPECT_EQ(m_sut->getFrameCounters(kSourceId, &actual), -1);
+    EXPECT_FALSE(m_sut->getFrameCounters(kSourceId, actual));
     EXPECT_EQ(actual.renderedFrames, expected.renderedFrames);
     EXPECT_EQ(actual.droppedFrames, expected.droppedFrames);
     EXPECT_EQ(actual.corruptedFrames, expected.corruptedFrames);
-    EXPECT_EQ(actual.timestamp, expected.timestamp);
+    EXPECT_EQ(actual.size, expected.size);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectFrameCounterQueryWithoutOutput)
 {
-    EXPECT_EQ(m_sut->getFrameCounters(7, nullptr), -1);
+    // No longer applicable - the new signature uses a reference, so nullptr is not possible
+    // This test is removed as the reference-based API makes null-checking unnecessary
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectFrameCounterQueryWithoutBackend)
 {
     m_sut->destroyClientBackend();
-    FrameCounters actual{101u, 7u, 3u, 12345u};
+    firebolt::rialto::VideoFrameCounters actual{sizeof(firebolt::rialto::VideoFrameCounters), 101u, 7u, 3u};
 
-    EXPECT_EQ(m_sut->getFrameCounters(7, &actual), -1);
+    EXPECT_FALSE(m_sut->getFrameCounters(7, actual));
     EXPECT_EQ(actual.renderedFrames, 101u);
     EXPECT_EQ(actual.droppedFrames, 7u);
     EXPECT_EQ(actual.corruptedFrames, 3u);
-    EXPECT_EQ(actual.timestamp, 12345u);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailFrameCounterQueryWhenQueueRejectsCall)
 {
     EXPECT_CALL(m_messageQueueMock, callInEventLoop(_)).WillOnce(Return(false));
-    FrameCounters actual{101u, 7u, 3u, 12345u};
+    firebolt::rialto::VideoFrameCounters actual{sizeof(firebolt::rialto::VideoFrameCounters), 101u, 7u, 3u};
 
-    EXPECT_EQ(m_sut->getFrameCounters(7, &actual), -1);
+    EXPECT_FALSE(m_sut->getFrameCounters(7, actual));
     EXPECT_EQ(actual.renderedFrames, 101u);
     EXPECT_EQ(actual.droppedFrames, 7u);
     EXPECT_EQ(actual.corruptedFrames, 3u);
-    EXPECT_EQ(actual.timestamp, 12345u);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFilterMetricEventsWhenSubscribedTypesDoNotIncludeThem)
@@ -378,9 +377,22 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFilterMetricEventsWhenSubscribe
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMetricSubscription(_)).WillOnce(Return(true));
     EXPECT_TRUE(m_sut->setMetricSubscription({firebolt::rialto::MetricType::AUDIO_GAP}));
+    
     expectPostMessage();
-    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error", 2u, 7u, 1000u);
+    firebolt::rialto::MetricEvent event{
+        firebolt::rialto::MetricType::AUDIO_DECODE_ERROR,
+        firebolt::rialto::MetricPhase::OCCURRENCE,
+        kSourceId,
+        1234567890,
+        7u,
+        1000u,
+        123456789000000ull,
+        1234567890000000000ll
+    };
+    m_sut->notifyMetric(event);
 
     GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
     EXPECT_EQ(receivedMessage, nullptr);
@@ -399,9 +411,21 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMes
     bufferPullerWillBeCreated();
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     constexpr uint32_t kPhase{2u};
+    constexpr uint64_t kObservedAtMonotonicNs{123456789000000ull};
+    constexpr int64_t kObservedAtUnixNs{1234567890000000000ll};
 
     expectPostMessage();
-    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error", kPhase, 7u, 1000u);
+    firebolt::rialto::MetricEvent event{
+        firebolt::rialto::MetricType::AUDIO_DECODE_ERROR,
+        static_cast<firebolt::rialto::MetricPhase>(kPhase),
+        kSourceId,
+        1234567890,
+        7u,
+        1000u,
+        kObservedAtMonotonicNs,
+        kObservedAtUnixNs
+    };
+    m_sut->notifyMetric(event);
 
     GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
     ASSERT_NE(receivedMessage, nullptr);
@@ -410,12 +434,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMes
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_STREQ(gst_structure_get_name(messageStructure), "media-pipeline-metric");
     EXPECT_FALSE(gst_structure_has_field(messageStructure, "session_id"));
-    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric")), 6u);
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric")), 4u);
     EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "source_id")), kSourceId);
     EXPECT_EQ(g_value_get_int64(gst_structure_get_value(messageStructure, "pts-ns")), 1234567890);
     EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "observation-kind")), kPhase);
     EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "count")), 7u);
     EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "duration-ns")), 1000u);
+    EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(messageStructure, "observed-at-monotonic-ns")), kObservedAtMonotonicNs);
+    EXPECT_EQ(g_value_get_int64(gst_structure_get_value(messageStructure, "observed-at-unix-ns")), kObservedAtUnixNs);
 
     gst_message_unref(receivedMessage);
     gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
@@ -498,8 +524,28 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostRepeatedMetricEventsToBus)
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
     expectPostMessage();
-    m_sut->notifyMetricEvent(kSourceId, 10u, 2u, 1u, 1111111111u, "first", 0u);
-    m_sut->notifyMetricEvent(kSourceId, 25u, 4u, 3u, 2222222222u, "second", 1u);
+    firebolt::rialto::MetricEvent event1{
+        firebolt::rialto::MetricType::AUDIO_GAP,
+        firebolt::rialto::MetricPhase::OCCURRENCE,
+        kSourceId,
+        1111111111,
+        std::nullopt,
+        std::nullopt,
+        111111111000000ull,
+        1111111110000000000ll
+    };
+    firebolt::rialto::MetricEvent event2{
+        firebolt::rialto::MetricType::AUDIO_GAP,
+        static_cast<firebolt::rialto::MetricPhase>(1u),
+        kSourceId,
+        2222222222,
+        std::nullopt,
+        std::nullopt,
+        222222222000000ull,
+        2222222220000000000ll
+    };
+    m_sut->notifyMetric(event1);
+    m_sut->notifyMetric(event2);
 
     for (const guint64 expectedPts : {1111111111u, 2222222222u})
     {
@@ -526,7 +572,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
     const int32_t sourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
 
     constexpr unsigned kIterations{32};
-    const FrameCounters expected{101u, 7u, 3u, 12345u};
+    const firebolt::rialto::VideoFrameCounters expected{sizeof(firebolt::rialto::VideoFrameCounters), 101u, 7u, 3u};
     std::mutex queueMutex;
     EXPECT_CALL(m_messageQueueMock, callInEventLoop(_))
         .WillRepeatedly(Invoke(
@@ -539,7 +585,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(sourceId, _, _, _, _))
         .Times(2 * kIterations)
         .WillRepeatedly(DoAll(SetArgReferee<1>(expected.renderedFrames), SetArgReferee<2>(expected.droppedFrames),
-                              SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(expected.timestamp),
+                              SetArgReferee<3>(expected.corruptedFrames), SetArgReferee<4>(12345u),
                               Return(true)));
 
     std::promise<void> start;
@@ -550,11 +596,11 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
         bool success{true};
         for (unsigned i = 0; i < kIterations; ++i)
         {
-            FrameCounters actual{};
-            const auto result = m_sut->getFrameCounters(sourceId, &actual);
-            success &= result == 0 && actual.renderedFrames == expected.renderedFrames &&
+            firebolt::rialto::VideoFrameCounters actual{};
+            const auto result = m_sut->getFrameCounters(sourceId, actual);
+            success &= result && actual.renderedFrames == expected.renderedFrames &&
                        actual.droppedFrames == expected.droppedFrames &&
-                       actual.corruptedFrames == expected.corruptedFrames && actual.timestamp == expected.timestamp;
+                       actual.corruptedFrames == expected.corruptedFrames;
         }
         return success;
     };
@@ -563,7 +609,21 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
         ready.wait();
         for (unsigned i = offset; i < offset + kIterations; ++i)
         {
+<<<<<<< HEAD
             m_sut->notifyMetricEvent(sourceId, 100u + i, i, 0u, 1000u + i, "audio drop", 2u + i % 2u, i, 10u + i);
+=======
+            firebolt::rialto::MetricEvent event{
+                firebolt::rialto::MetricType::AUDIO_FRAME_DROP,
+                static_cast<firebolt::rialto::MetricPhase>(i % 3u),
+                sourceId,
+                1000u + i,
+                static_cast<uint64_t>(i),
+                10u + i,
+                (1000u + i) * 1000000ull,
+                (1000u + i) * 1000000000ll
+            };
+            m_sut->notifyMetric(event);
+>>>>>>> 8d37c72 (Align playback metrics with Rialto V1.1 API)
         }
     };
     auto firstQuery = std::async(std::launch::async, query);

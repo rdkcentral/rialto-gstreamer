@@ -70,20 +70,6 @@ struct FrameCounters
     uint64_t corruptedFrames{0};
     uint64_t timestamp{0};
 };
-
-struct NotifyMetricEvent
-{
-    uint64_t renderedFrames{0};
-    uint64_t droppedFrames{0};
-    uint64_t corruptedFrames{0};
-    uint64_t ptsNs{0};
-    std::string errorInfo;
-    uint32_t phase{0};
-    uint64_t count{0};
-    uint64_t durationNs{0};
-};
-
-class BufferPuller
 {
 public:
     BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
@@ -303,9 +289,7 @@ public:
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
-    void notifyMetricEvent(int32_t sourceId, uint64_t renderedFrames, uint64_t droppedFrames, uint64_t corruptedFrames,
-                          uint64_t ptsNs, const std::string &errorInfo, uint32_t phase, uint64_t count = 0,
-                          uint64_t durationNs = 0) override;
+    void notifyMetric(const firebolt::rialto::MetricEvent &metric) override;
 
     int64_t getPosition(int32_t sourceId);
     bool getDuration(int64_t &duration);
@@ -314,9 +298,9 @@ public:
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
     bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
-    int32_t getFrameCounters(int32_t sourceId, FrameCounters *out);
-    void onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event);
-    void postMetricEventOnBus(int32_t sourceId, const NotifyMetricEvent &event);
+    bool getFrameCounters(int32_t sourceId, firebolt::rialto::VideoFrameCounters &out) const;
+    void onMetricEvent(int32_t sourceId, const firebolt::rialto::MetricEvent &event);
+    void postMetricEventOnBus(int32_t sourceId, const firebolt::rialto::MetricEvent &event);
     bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types);
 
     firebolt::rialto::AddSegmentStatus
@@ -388,7 +372,7 @@ private:
     std::mutex m_playbackInfoMutex;
     std::mutex m_frameCountersMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
-    std::map<int32_t, FrameCounters> m_lastCounters;
+    std::map<int32_t, firebolt::rialto::VideoFrameCounters> m_lastCounters;
     std::unordered_set<uint32_t> m_subscribedMetricTypes;
     std::mutex m_metricSubscriptionMutex;
     bool m_wasAllSourcesAttachedSent = false;
