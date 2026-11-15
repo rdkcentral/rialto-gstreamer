@@ -64,7 +64,6 @@ add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 # Config and target for building the unit tests
 if( NOT CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
     add_subdirectory(source)
-    add_subdirectory(tests/metrics-cli)
 else() # UnitTests
     include( cmake/googletest.cmake )
 
