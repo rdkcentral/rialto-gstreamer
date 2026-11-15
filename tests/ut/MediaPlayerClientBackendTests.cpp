@@ -87,6 +87,15 @@ TEST_F(MediaPlayerClientBackendTests, ShouldCreateMediaPipeline)
     EXPECT_TRUE(m_sut.isMediaPlayerBackendCreated());
 }
 
+TEST_F(MediaPlayerClientBackendTests, ShouldForwardMetricSubscriptionAndResult)
+{
+    const std::vector<firebolt::rialto::MetricType> types{firebolt::rialto::MetricType::AUDIO_GAP};
+    EXPECT_CALL(*m_mediaPipelineMock, setMetricSubscription(types)).WillOnce(Return(true)).WillOnce(Return(false));
+    initializeMediaPipeline();
+    EXPECT_TRUE(m_sut.setMetricSubscription(types));
+    EXPECT_FALSE(m_sut.setMetricSubscription(types));
+}
+
 TEST_F(MediaPlayerClientBackendTests, ShouldAttachSource)
 {
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> mediaSourceAudio{

@@ -97,6 +97,11 @@ public:
         return m_mediaPlayerBackend->setReportDecodeErrors(sourceId, reportDecodeErrors);
     }
 
+    bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types) override
+    {
+        return m_mediaPlayerBackend->setMetricSubscription(types);
+    }
+
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) override
     {
         return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);

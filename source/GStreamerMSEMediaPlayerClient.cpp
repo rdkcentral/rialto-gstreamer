@@ -399,6 +399,21 @@ bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &rendere
 
 bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, firebolt::rialto::VideoFrameCounters &out) const
 {
+    FrameCounters counters{};
+    if (!getFrameCounters(sourceId, counters))
+    {
+        return false;
+    }
+
+    out.size = sizeof(firebolt::rialto::VideoFrameCounters);
+    out.renderedFrames = counters.renderedFrames;
+    out.droppedFrames = counters.droppedFrames;
+    out.corruptedFrames = counters.corruptedFrames;
+    return true;
+}
+
+bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameCounters &out) const
+{
     if (!m_clientBackend)
     {
         GST_WARNING("Frame counter query rejected for sourceId=%d: client backend is not available", sourceId);
@@ -422,13 +437,14 @@ bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, firebolt:
         return false;
     }
 
-    out.size = sizeof(firebolt::rialto::VideoFrameCounters);
     out.renderedFrames = renderedFrames;
     out.droppedFrames = droppedFrames;
     out.corruptedFrames = corruptedFrames;
+    out.timestamp = timestamp;
 
     std::lock_guard<std::mutex> lock{m_frameCountersMutex};
-    m_lastCounters[sourceId] = out;
+    m_lastCounters[sourceId] = {sizeof(firebolt::rialto::VideoFrameCounters), renderedFrames, droppedFrames,
+                               corruptedFrames};
 
     GST_DEBUG("Frame counters fetched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
               " corrupted=%" G_GUINT64_FORMAT,
