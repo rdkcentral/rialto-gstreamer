@@ -443,7 +443,7 @@ void PullModePlaybackDelegate::getProperty(const Property &type, GValue *value)
         }
 
         FrameCounters counters{};
-        if (client->getFrameCounters(m_sourceId, &counters) == 0)
+        if (client->getFrameCounters(m_sourceId, counters))
         {
             GstStructure *frameCounters{gst_structure_new("frame-counters", "rendered", G_TYPE_UINT64,
                                                         counters.renderedFrames, "dropped", G_TYPE_UINT64,

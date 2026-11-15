@@ -70,6 +70,8 @@ struct FrameCounters
     uint64_t corruptedFrames{0};
     uint64_t timestamp{0};
 };
+
+class BufferPuller
 {
 public:
     BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
@@ -299,6 +301,7 @@ public:
     bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
     bool getFrameCounters(int32_t sourceId, firebolt::rialto::VideoFrameCounters &out) const;
+    bool getFrameCounters(int32_t sourceId, FrameCounters &out) const;
     void onMetricEvent(int32_t sourceId, const firebolt::rialto::MetricEvent &event);
     void postMetricEventOnBus(int32_t sourceId, const firebolt::rialto::MetricEvent &event);
     bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types);
@@ -370,9 +373,9 @@ private:
     int64_t m_position;
     int64_t m_duration;
     std::mutex m_playbackInfoMutex;
-    std::mutex m_frameCountersMutex;
+    mutable std::mutex m_frameCountersMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
-    std::map<int32_t, firebolt::rialto::VideoFrameCounters> m_lastCounters;
+    mutable std::map<int32_t, firebolt::rialto::VideoFrameCounters> m_lastCounters;
     std::unordered_set<uint32_t> m_subscribedMetricTypes;
     std::mutex m_metricSubscriptionMutex;
     bool m_wasAllSourcesAttachedSent = false;

@@ -339,10 +339,35 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPreserveFrameCountersWhenBacken
     EXPECT_EQ(actual.size, expected.size);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectFrameCounterQueryWithoutOutput)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWithTimestamp)
 {
-    // No longer applicable - the new signature uses a reference, so nullptr is not possible
-    // This test is removed as the reference-based API makes null-checking unnecessary
+    expectCallInEventLoop();
+    constexpr int32_t kSourceId{7};
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
+        .WillOnce(DoAll(SetArgReferee<1>(101u), SetArgReferee<2>(7u), SetArgReferee<3>(3u),
+                        SetArgReferee<4>(12345u), Return(true)));
+
+    FrameCounters actual{};
+    EXPECT_TRUE(m_sut->getFrameCounters(kSourceId, actual));
+    EXPECT_EQ(actual.renderedFrames, 101u);
+    EXPECT_EQ(actual.droppedFrames, 7u);
+    EXPECT_EQ(actual.corruptedFrames, 3u);
+    EXPECT_EQ(actual.timestamp, 12345u);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPreserveTimestampedCountersWhenBackendQueryFails)
+{
+    expectCallInEventLoop();
+    constexpr int32_t kSourceId{7};
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, getFrameCounters(kSourceId, _, _, _, _))
+        .WillOnce(DoAll(SetArgReferee<1>(999u), SetArgReferee<4>(999u), Return(false)));
+
+    FrameCounters actual{101u, 7u, 3u, 12345u};
+    EXPECT_FALSE(m_sut->getFrameCounters(kSourceId, actual));
+    EXPECT_EQ(actual.renderedFrames, 101u);
+    EXPECT_EQ(actual.droppedFrames, 7u);
+    EXPECT_EQ(actual.corruptedFrames, 3u);
+    EXPECT_EQ(actual.timestamp, 12345u);
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectFrameCounterQueryWithoutBackend)
