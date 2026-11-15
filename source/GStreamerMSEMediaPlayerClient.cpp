@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <thread>
 
@@ -36,6 +37,65 @@ namespace
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
+
+firebolt::rialto::MetricType getMetricTypeForEvent(const firebolt::rialto::MediaSourceType sourceType,
+                                                  const NotifyMetricEvent &event)
+{
+    const auto lowerErrorInfo = [&event]()
+    {
+        if (event.errorInfo.empty())
+        {
+            return std::string{};
+        }
+
+        std::string lowerErrorInfo{event.errorInfo};
+        std::transform(lowerErrorInfo.begin(), lowerErrorInfo.end(), lowerErrorInfo.begin(), [](unsigned char c)
+                       { return static_cast<char>(std::tolower(c)); });
+        return lowerErrorInfo;
+    }();
+
+    if (!lowerErrorInfo.empty())
+    {
+        if (lowerErrorInfo.find("decode") != std::string::npos)
+        {
+            return (sourceType == firebolt::rialto::MediaSourceType::VIDEO) ? firebolt::rialto::MetricType::VIDEO_DECODE_ERROR
+                                                                           : firebolt::rialto::MetricType::AUDIO_DECODE_ERROR;
+        }
+        if (lowerErrorInfo.find("drop") != std::string::npos)
+        {
+            return (sourceType == firebolt::rialto::MediaSourceType::VIDEO) ? firebolt::rialto::MetricType::VIDEO_FRAME_DROP
+                                                                           : firebolt::rialto::MetricType::AUDIO_FRAME_DROP;
+        }
+    }
+
+    if (sourceType == firebolt::rialto::MediaSourceType::VIDEO)
+    {
+        if (event.corruptedFrames > 0u)
+        {
+            return firebolt::rialto::MetricType::VIDEO_DECODE_ERROR;
+        }
+        if (event.droppedFrames > 0u)
+        {
+            return firebolt::rialto::MetricType::VIDEO_FRAME_DROP;
+        }
+        return firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT;
+    }
+
+    if (sourceType == firebolt::rialto::MediaSourceType::AUDIO)
+    {
+        if (event.corruptedFrames > 0u)
+        {
+            return firebolt::rialto::MetricType::AUDIO_DECODE_ERROR;
+        }
+        if (event.droppedFrames > 0u)
+        {
+            return firebolt::rialto::MetricType::AUDIO_FRAME_DROP;
+        }
+        return firebolt::rialto::MetricType::AUDIO_GAP;
+    }
+
+    return firebolt::rialto::MetricType::VIDEO_FRAME_DROP;
+}
 } // namespace
 
 #if defined(RIALTO_GSTREAMER_UNIT_TESTS)
@@ -200,6 +260,13 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight), m_isLive{isLive}
 {
+    m_subscribedMetricTypes = {static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_DROP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_FRAME_DROP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_GAP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_DECODE_ERROR),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW)};
     m_backendQueue->start();
 }
 
@@ -430,6 +497,17 @@ int32_t GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameC
     return 0;
 }
 
+bool GStreamerMSEMediaPlayerClient::setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types)
+{
+    std::lock_guard<std::mutex> lock{m_metricSubscriptionMutex};
+    m_subscribedMetricTypes.clear();
+    for (const auto &type : types)
+    {
+        m_subscribedMetricTypes.insert(static_cast<uint32_t>(type));
+    }
+    return true;
+}
+
 void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const NotifyMetricEvent &event)
 {
     const auto sourceIt = m_attachedSources.find(sourceId);
@@ -439,58 +517,24 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
         return;
     }
 
-    guint metricType{0u};
-    switch (sourceIt->second.getType())
+    const auto metricTypeEnum = getMetricTypeForEvent(sourceIt->second.getType(), event);
     {
-        case firebolt::rialto::MediaSourceType::VIDEO:
-            if (event.corruptedFrames > 0u)
-            {
-                metricType = 2u;
-            }
-            else if (event.droppedFrames > 0u)
-            {
-                metricType = 0u;
-            }
-            else
-            {
-                metricType = 4u;
-            }
-            break;
-        case firebolt::rialto::MediaSourceType::AUDIO:
-            if (event.corruptedFrames > 0u)
-            {
-                metricType = 3u;
-            }
-            else if (event.droppedFrames > 0u)
-            {
-                metricType = 1u;
-            }
-            else
-            {
-                metricType = 5u;
-            }
-            break;
-        default:
-            metricType = 0u;
-            break;
-    }
-
-    if (!event.errorInfo.empty())
-    {
-        gchar *lowerErrorInfo = g_ascii_strdown(event.errorInfo.c_str(), -1);
-        if (lowerErrorInfo)
+        std::lock_guard<std::mutex> lock{m_metricSubscriptionMutex};
+        if (m_subscribedMetricTypes.empty())
         {
-            if (strstr(lowerErrorInfo, "decode") != nullptr)
-            {
-                metricType = (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO) ? 2u : 3u;
-            }
-            else if (strstr(lowerErrorInfo, "drop") != nullptr)
-            {
-                metricType = (sourceIt->second.getType() == firebolt::rialto::MediaSourceType::VIDEO) ? 0u : 1u;
-            }
-            g_free(lowerErrorInfo);
+            GST_DEBUG("Metric event for sourceId=%d suppressed because subscription list is empty", sourceId);
+            return;
+        }
+
+        if (m_subscribedMetricTypes.find(static_cast<uint32_t>(metricTypeEnum)) == m_subscribedMetricTypes.end())
+        {
+            GST_DEBUG("Metric event for sourceId=%d type=%u suppressed by subscription filter", sourceId,
+                      static_cast<uint32_t>(metricTypeEnum));
+            return;
         }
     }
+
+    const guint metricType = static_cast<guint>(metricTypeEnum);
 
     GstStructure *metricStructure = gst_structure_new(
         "media-pipeline-metric", "metric", G_TYPE_UINT, metricType, "observation-kind", G_TYPE_UINT, event.phase,

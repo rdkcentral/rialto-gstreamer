@@ -317,6 +317,7 @@ public:
     int32_t getFrameCounters(int32_t sourceId, FrameCounters *out);
     void onMetricEvent(int32_t sourceId, const NotifyMetricEvent &event);
     void postMetricEventOnBus(int32_t sourceId, const NotifyMetricEvent &event);
+    bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types);
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
@@ -388,6 +389,8 @@ private:
     std::mutex m_frameCountersMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     std::map<int32_t, FrameCounters> m_lastCounters;
+    std::unordered_set<uint32_t> m_subscribedMetricTypes;
+    std::mutex m_metricSubscriptionMutex;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;
     int32_t m_audioStreams;

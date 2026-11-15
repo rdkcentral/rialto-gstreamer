@@ -368,6 +368,27 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailFrameCounterQueryWhenQueueR
     EXPECT_EQ(actual.timestamp, 12345u);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFilterMetricEventsWhenSubscribedTypesDoNotIncludeThem)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+    rialto_mse_base_sink_initialise_delegate(audioSink, m_delegateMock);
+
+    EXPECT_CALL(*m_delegateMock, changeState(_)).Times(testing::AnyNumber()).WillRepeatedly(Return(GST_STATE_CHANGE_SUCCESS));
+    bufferPullerWillBeCreated();
+    const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
+
+    EXPECT_TRUE(m_sut->setMetricSubscription({firebolt::rialto::MetricType::AUDIO_GAP}));
+    expectPostMessage();
+    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error", 2u, 7u, 1000u);
+
+    GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
+    EXPECT_EQ(receivedMessage, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMessageOnBus)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
@@ -389,7 +410,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMes
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_STREQ(gst_structure_get_name(messageStructure), "media-pipeline-metric");
     EXPECT_FALSE(gst_structure_has_field(messageStructure, "session_id"));
-    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric")), 3u);
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric")), 6u);
     EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "source_id")), kSourceId);
     EXPECT_EQ(g_value_get_int64(gst_structure_get_value(messageStructure, "pts-ns")), 1234567890);
     EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "observation-kind")), kPhase);
@@ -502,7 +523,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
             const auto count = g_value_get_uint64(gst_structure_get_value(structure, "count"));
             EXPECT_TRUE(receivedCounts.insert(count).second);
             EXPECT_EQ(g_value_get_uint(gst_structure_get_value(structure, "source_id")), sourceId);
-            EXPECT_EQ(g_value_get_uint(gst_structure_get_value(structure, "metric")), 1u);
+            EXPECT_EQ(g_value_get_uint(gst_structure_get_value(structure, "metric")), 2u);
             EXPECT_EQ(g_value_get_int64(gst_structure_get_value(structure, "pts-ns")), 1000 + static_cast<int64_t>(count));
             EXPECT_EQ(g_value_get_uint(gst_structure_get_value(structure, "observation-kind")), count % 3u);
             EXPECT_EQ(g_value_get_uint64(gst_structure_get_value(structure, "duration-ns")), 10u + count);
