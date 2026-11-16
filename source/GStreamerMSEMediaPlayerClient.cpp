@@ -536,14 +536,21 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
 
     const guint metricType = static_cast<guint>(metricTypeEnum);
 
-    GstStructure *metricStructure = gst_structure_new(
-        "media-pipeline-metric", "metric", G_TYPE_UINT, metricType, "observation-kind", G_TYPE_UINT, event.phase,
-        "source_id", G_TYPE_UINT, sourceId, "pts-ns", G_TYPE_INT64, static_cast<gint64>(event.ptsNs), 
-        "duration-ns", G_TYPE_UINT64, event.durationNs, "count", G_TYPE_UINT64, event.count, nullptr);
+    GstStructure *metricStructure =
+        gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT, metricType, "observation-kind", G_TYPE_UINT,
+                          event.phase, "source_id", G_TYPE_UINT, sourceId, "pts-ns", G_TYPE_INT64,
+                          static_cast<gint64>(event.ptsNs), nullptr);
     if (!metricStructure)
     {
         GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
         return;
+    }
+
+    // An occurrence has no duration or repetition count, so those fields are absent rather than zero.
+    if (event.phase != static_cast<uint32_t>(firebolt::rialto::MetricPhase::OCCURRENCE))
+    {
+        gst_structure_set(metricStructure, "duration-ns", G_TYPE_UINT64, event.durationNs, "count", G_TYPE_UINT64,
+                          event.count, nullptr);
     }
 
     GstMessage *metricMessage = gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), metricStructure);
