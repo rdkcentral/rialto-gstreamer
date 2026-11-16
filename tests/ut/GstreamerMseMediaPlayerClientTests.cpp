@@ -484,9 +484,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldOmitCountAndDurationFromOccurre
     const int32_t kSourceId{attachSource(audioSink, firebolt::rialto::MediaSourceType::AUDIO)};
     constexpr uint32_t kOccurrence{static_cast<uint32_t>(firebolt::rialto::MetricPhase::OCCURRENCE)};
 
-    // Non-zero count and duration are supplied to show they are dropped, not merely zero.
+    // Count and duration are left unset on an occurrence, so they must be absent from the message.
     expectPostMessage();
-    m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error", kOccurrence, 7u, 1000u);
+    firebolt::rialto::MetricEvent occurrence{};
+    occurrence.type = firebolt::rialto::MetricType::AUDIO_FRAME_DROP;
+    occurrence.phase = firebolt::rialto::MetricPhase::OCCURRENCE;
+    occurrence.sourceId = kSourceId;
+    occurrence.presentationTimeStampNs = 1234567890;
+    m_sut->notifyMetric(occurrence);
 
     GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
     ASSERT_NE(receivedMessage, nullptr);
@@ -518,8 +523,14 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldIncludeCountAndDurationInEpisod
     for (const firebolt::rialto::MetricPhase phase :
          {firebolt::rialto::MetricPhase::EPISODE_STARTED, firebolt::rialto::MetricPhase::EPISODE_RESOLVED})
     {
-        m_sut->notifyMetricEvent(kSourceId, 42u, 2u, 1u, 1234567890u, "decode error", static_cast<uint32_t>(phase), 7u,
-                                 1000u);
+        firebolt::rialto::MetricEvent episode{};
+        episode.type = firebolt::rialto::MetricType::AUDIO_FRAME_DROP;
+        episode.phase = phase;
+        episode.sourceId = kSourceId;
+        episode.presentationTimeStampNs = 1234567890;
+        episode.count = 7u;
+        episode.durationNs = 1000u;
+        m_sut->notifyMetric(episode);
 
         GstMessage *receivedMessage{getMessage(pipeline, GST_MESSAGE_APPLICATION)};
         ASSERT_NE(receivedMessage, nullptr);
@@ -634,9 +645,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
         ready.wait();
         for (unsigned i = offset; i < offset + kIterations; ++i)
         {
-<<<<<<< HEAD
-            m_sut->notifyMetricEvent(sourceId, 100u + i, i, 0u, 1000u + i, "audio drop", 2u + i % 2u, i, 10u + i);
-=======
             firebolt::rialto::MetricEvent event{
                 firebolt::rialto::MetricType::AUDIO_FRAME_DROP,
                 static_cast<firebolt::rialto::MetricPhase>(i % 3u),
@@ -648,7 +656,6 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldQueryFrameCountersWhileReceivin
                 (1000u + i) * 1000000000ll
             };
             m_sut->notifyMetric(event);
->>>>>>> 8d37c72 (Align playback metrics with Rialto V1.1 API)
         }
     };
     auto firstQuery = std::async(std::launch::async, query);

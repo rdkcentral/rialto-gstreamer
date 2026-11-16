@@ -511,19 +511,19 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
 
     const guint metricType = static_cast<guint>(event.type);
 
-<<<<<<< HEAD
-    GstStructure *metricStructure =
-        gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT, metricType, "observation-kind", G_TYPE_UINT,
-                          event.phase, "source_id", G_TYPE_UINT, sourceId, "pts-ns", G_TYPE_INT64,
-                          static_cast<gint64>(event.ptsNs), nullptr);
-=======
     GstStructure *metricStructure = gst_structure_new(
         "media-pipeline-metric", 
         "metric", G_TYPE_UINT, metricType, 
         "observation-kind", G_TYPE_UINT, static_cast<guint>(event.phase),
         "source_id", G_TYPE_UINT, sourceId, 
         nullptr);
-    
+
+    if (!metricStructure)
+    {
+        GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
+        return;
+    }
+
     if (event.presentationTimeStampNs.has_value())
     {
         gst_structure_set(metricStructure, "pts-ns", G_TYPE_INT64, 
@@ -544,20 +544,6 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
                      "observed-at-monotonic-ns", G_TYPE_UINT64, event.observedAtMonotonicNs,
                      "observed-at-unix-ns", G_TYPE_INT64, event.observedAtUnixNs,
                      nullptr);
-
->>>>>>> 8d37c72 (Align playback metrics with Rialto V1.1 API)
-    if (!metricStructure)
-    {
-        GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
-        return;
-    }
-
-    // An occurrence has no duration or repetition count, so those fields are absent rather than zero.
-    if (event.phase != static_cast<uint32_t>(firebolt::rialto::MetricPhase::OCCURRENCE))
-    {
-        gst_structure_set(metricStructure, "duration-ns", G_TYPE_UINT64, event.durationNs, "count", G_TYPE_UINT64,
-                          event.count, nullptr);
-    }
 
     GstMessage *metricMessage = gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), metricStructure);
     if (!metricMessage || !gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), metricMessage))
