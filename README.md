@@ -53,7 +53,10 @@ and the run fails if no buffer was affected. `frame-repeat` is also implemented:
 it holds a single video buffer for `--fault-delay-frames` frame durations
 (taken from the caps framerate, or the buffer duration), so the renderer
 repeats the preceding frame; it fails if the frame duration is unknown or the
-delay does not fit in `--fault-window-seconds`. The other scenarios fail with a
+delay does not fit in `--fault-window-seconds`. `buffer-underflow` is also implemented: once playback has advanced past two
+seconds, it blocks the video sink pad for `--fault-stall-ms` (the video stream
+only; audio keeps flowing), then releases it so the starvation ends; it fails
+if the stall does not fit in `--fault-window-seconds`. The other scenarios fail with a
 "not implemented" error rather than silently running without the fault.
 
 Exit codes are deterministic: `0` means playback reached EOS or help was

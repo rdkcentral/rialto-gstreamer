@@ -61,6 +61,8 @@ public:
         }
     }
     bool failed() const { return m_failed.load(); }
+    void cancel() { m_cancelled = true; }
+    bool cancelled() const { return m_cancelled.load(); }
     std::string failure() const
     {
         std::lock_guard<std::mutex> lock{m_mutex};
@@ -76,9 +78,13 @@ public:
     // Set by frame-repeat: how long its buffer was held, in nanoseconds.
     std::optional<std::uint64_t> appliedDelay;
 
+    // Set by buffer-underflow: how long video buffers were blocked, in milliseconds.
+    std::optional<std::uint32_t> appliedStallMs;
+
 private:
     mutable std::mutex m_mutex;
     std::atomic<bool> m_failed{false};
+    std::atomic<bool> m_cancelled{false};
     std::string m_failure;
 };
 
@@ -103,10 +109,31 @@ namespace detail
 // this far behind the playback position so they are unambiguously late.
 constexpr GstClockTime kFrameDropSettleTime{2 * GST_SECOND};
 constexpr GstClockTime kFrameDropLateMargin{1 * GST_SECOND};
+constexpr gulong kStallSliceUs{50000};
 
 inline GstClockTime subtractClamped(GstClockTime value, GstClockTime amount)
 {
     return value > amount ? value - amount : 0;
+}
+
+enum class PlaybackState
+{
+    Failed,
+    NotSettled,
+    Settled
+};
+
+// Reports a failure on the context if the playback position cannot be queried.
+inline PlaybackState checkPlaybackSettled(FaultContext &context, const char *scenario)
+{
+    gint64 position{0};
+    if (!gst_element_query_position(context.pipeline, GST_FORMAT_TIME, &position) || position < 0)
+    {
+        context.fail(std::string{scenario} + ": failed to query the current playback position.");
+        return PlaybackState::Failed;
+    }
+    return static_cast<GstClockTime>(position) < kFrameDropSettleTime ? PlaybackState::NotSettled
+                                                                       : PlaybackState::Settled;
 }
 
 // frame-drop (late frames): moves the PTS (and DTS, where set) of consecutive video buffers back
@@ -218,17 +245,14 @@ inline GstPadProbeReturn frameRepeatHandler(GstPad *pad, GstPadProbeInfo *info, 
     }
 
     // A frame must already have been presented for there to be a preceding frame to repeat.
-    gint64 position{0};
-    if (!gst_element_query_position(context.pipeline, GST_FORMAT_TIME, &position) || position < 0)
+    switch (checkPlaybackSettled(context, "frame-repeat"))
     {
-        context.fail("frame-repeat: failed to query the current playback position.");
+    case PlaybackState::Failed:
+    case PlaybackState::NotSettled:
         return GST_PAD_PROBE_PASS;
+    case PlaybackState::Settled:
+        break;
     }
-    if (static_cast<GstClockTime>(position) < kFrameDropSettleTime)
-    {
-        return GST_PAD_PROBE_PASS; // Playback has not settled yet; try the next buffer
-    }
-
     const GstClockTime duration{frameDuration(pad, buffer)};
     if (duration == GST_CLOCK_TIME_NONE)
     {
@@ -250,6 +274,45 @@ inline GstPadProbeReturn frameRepeatHandler(GstPad *pad, GstPadProbeInfo *info, 
     return GST_PAD_PROBE_OK;
 }
 
+// buffer-underflow (decoder input starvation): blocks the video sink pad for stallMs by holding the
+// streaming thread inside the probe, so no video buffer reaches the sink. Once the client and server
+// queues drain the decoder starves; releasing the buffer lets input resume and the starvation end.
+// Only the video pad is held, so audio keeps flowing. Independent of need-data flow control.
+inline GstPadProbeReturn bufferUnderflowHandler(GstPad *, GstPadProbeInfo *info, FaultContext &context,
+                                                std::uint32_t, bool &applied)
+{
+    if (!GST_PAD_PROBE_INFO_BUFFER(info))
+    {
+        return GST_PAD_PROBE_PASS;
+    }
+
+    switch (checkPlaybackSettled(context, "buffer-underflow"))
+    {
+    case PlaybackState::Failed:
+    case PlaybackState::NotSettled:
+        return GST_PAD_PROBE_PASS;
+    case PlaybackState::Settled:
+        break;
+    }
+
+    if (static_cast<std::uint64_t>(context.parameters.stallMs) >
+        static_cast<std::uint64_t>(context.parameters.windowSeconds) * 1000)
+    {
+        context.fail("buffer-underflow: the requested stall does not fit in the fault window.");
+        return GST_PAD_PROBE_PASS;
+    }
+
+    context.appliedStallMs = context.parameters.stallMs;
+    applied = true;
+    const gint64 endUs{g_get_monotonic_time() + static_cast<gint64>(context.parameters.stallMs) * 1000};
+    // Sleep in slices so a cancelled run is not held up by a long stall.
+    while (!context.cancelled() && g_get_monotonic_time() < endUs)
+    {
+        g_usleep(kStallSliceUs);
+    }
+    return GST_PAD_PROBE_OK;
+}
+
 inline std::uint32_t bufferCountLimit(const FaultParameters &parameters)
 {
     return parameters.bufferCount;
@@ -265,7 +328,7 @@ inline const FaultScenarioInfo *scenarioTable(std::size_t &size)
     static const FaultScenarioInfo table[]{
         {FaultScenario::FrameDrop, "frame-drop", frameDropHandler, bufferCountLimit},
         {FaultScenario::FrameRepeat, "frame-repeat", frameRepeatHandler, singleBufferLimit},
-        {FaultScenario::BufferUnderflow, "buffer-underflow", nullptr, singleBufferLimit},
+        {FaultScenario::BufferUnderflow, "buffer-underflow", bufferUnderflowHandler, singleBufferLimit},
         {FaultScenario::DecoderError, "decoder-error", nullptr, bufferCountLimit},
     };
     size = sizeof(table) / sizeof(table[0]);
@@ -357,6 +420,7 @@ public:
         {
             return;
         }
+        m_context.cancel();
         const gulong id{m_probeId.exchange(0)};
         if (id != 0)
         {
