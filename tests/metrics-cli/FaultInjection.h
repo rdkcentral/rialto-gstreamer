@@ -682,6 +682,37 @@ public:
     const FaultScenarioInfo &info() const { return m_info; }
     const FaultContext &context() const { return m_context; }
 
+    // One-line summary of what was injected. Call after stop(), once the streaming thread can no
+    // longer update the values.
+    std::string summary() const
+    {
+        const FaultParameters &parameters{m_context.parameters};
+        std::string text{std::string{"scenario="} + m_info.name +
+                         ", buffers-affected=" + std::to_string(m_seen.load())};
+        switch (m_info.scenario)
+        {
+        case FaultScenario::FrameDrop:
+            text += ", buffers-requested=" + std::to_string(parameters.bufferCount);
+            text += ", pts-shift-ns=" + (m_context.ptsShift ? std::to_string(*m_context.ptsShift) : "none");
+            break;
+        case FaultScenario::FrameRepeat:
+            text += ", delay-frames=" + std::to_string(parameters.delayFrames);
+            text += ", delay-ns=" + (m_context.appliedDelay ? std::to_string(*m_context.appliedDelay) : "none");
+            break;
+        case FaultScenario::BufferUnderflow:
+            text += ", stall-ms-requested=" + std::to_string(parameters.stallMs);
+            text += ", stall-ms-applied=" +
+                    (m_context.appliedStallMs ? std::to_string(*m_context.appliedStallMs) : "none");
+            break;
+        case FaultScenario::DecodeError:
+            text += ", buffers-requested=" + std::to_string(parameters.bufferCount);
+            text += ", slices-corrupted=" + std::to_string(m_context.corruptedSlices.load());
+            break;
+        }
+        text += ", window-seconds=" + std::to_string(parameters.windowSeconds);
+        return text;
+    }
+
 private:
     static GstPadProbeReturn probeCallback(GstPad *pad, GstPadProbeInfo *info, gpointer userData)
     {

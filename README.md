@@ -63,7 +63,10 @@ parameter sets, NAL headers and the start of each slice header intact. Buffers
 containing an IDR/IRAP slice are skipped. It fails for encrypted media and
 unsupported codecs. Corruption can propagate to later frames until the next key
 frame, so the decoder may report more errors than the buffers affected. All four
-scenarios are now implemented.
+scenarios are now implemented. At the end of every fault run the CLI prints one
+`Fault injected:` line with the scenario, buffers affected, and the values
+actually applied (`pts-shift-ns`, `delay-ns`, `stall-ms-applied`, or
+`slices-corrupted`), so a run can be matched with the metric messages observed.
 
 Exit codes are deterministic: `0` means playback reached EOS or help was
 shown, `1` means playback/setup failed, timed out, or a requested fault

@@ -413,6 +413,8 @@ int runPlayback(const Options &options)
     }
     if (faultInjector)
     {
+        faultInjector->stop();
+        std::cout << "Fault injected: " << faultInjector->summary() << '\n';
         if (faultInjector->context().failed())
         {
             std::cerr << faultInjector->context().failure() << '\n';
@@ -422,11 +424,6 @@ int runPlayback(const Options &options)
         {
             std::cerr << "Fault scenario '" << faultInjector->info().name << "' did not affect any buffers.\n";
             exitCode = EXIT_PLAYBACK_FAILURE;
-        }
-        else if (faultInjector->buffersAffected() > 0)
-        {
-            std::cout << "Fault scenario '" << faultInjector->info().name << "' affected "
-                      << faultInjector->buffersAffected() << " buffer(s).\n";
         }
     }
     faultInjector.reset();
