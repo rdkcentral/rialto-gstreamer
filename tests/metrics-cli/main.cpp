@@ -194,6 +194,27 @@ bool validateFrameCounters(GstElement *videoSink)
         }
     }
 
+    if (valid)
+    {
+        guint64 rendered{0};
+        guint64 dropped{0};
+        guint64 corrupted{0};
+        guint64 timestamp{0};
+        if (!gst_structure_get_uint64(frameCounters, "rendered", &rendered) ||
+            !gst_structure_get_uint64(frameCounters, "dropped", &dropped) ||
+            !gst_structure_get_uint64(frameCounters, "corrupted", &corrupted) ||
+            !gst_structure_get_uint64(frameCounters, "timestamp", &timestamp))
+        {
+            std::cerr << "Failed to read the required values from frame-counters.\n";
+            valid = false;
+        }
+        else
+        {
+            std::cout << "Frame counters: rendered=" << rendered << ", dropped=" << dropped
+                      << ", corrupted=" << corrupted << ", timestamp=" << timestamp << '\n';
+        }
+    }
+
     gst_structure_free(frameCounters);
     return valid;
 }

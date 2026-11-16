@@ -35,7 +35,8 @@ uses `rialtomsevideosink` as `playbin`'s video sink; the Rialto plugin and a
 working Rialto client/server are required at runtime. Once the video source is
 active, the CLI queries `frame-counters` and fails if the returned structure
 does not contain `rendered`, `dropped`, `corrupted`, and `timestamp` as
-`G_TYPE_UINT64` fields. Use `--help` to display
+`G_TYPE_UINT64` fields. It prints the returned values without requiring fixed
+or non-zero counts. Use `--help` to display
 the command syntax. `--fault-scenario NAME` is reserved for configured
 GStreamer-level scenarios; until those scenarios are implemented, requesting
 one fails rather than silently running without the fault.
