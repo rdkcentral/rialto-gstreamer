@@ -81,13 +81,24 @@ type: `session_id` `G_TYPE_UINT`, `pts-ns` `G_TYPE_INT64`, and `duration-ns` and
 A message that fails validation is reported as `Invalid metric message:` and is
 not counted as valid. The `metric` value is printed raw and its numeric category
 is not validated. At the end the CLI prints `Metric messages observed: valid=N,
-invalid=M`. At this stage messages are only reported; they do not change the
-exit code.
+invalid=M`.
 
-Exit codes are deterministic: `0` means playback reached EOS or help was
-shown, `1` means playback/setup failed, timed out, or a requested fault
-scenario is not implemented, `2` means invalid or missing command-line
-arguments, and `3` means GStreamer initialization failed.
+Without `--fault-scenario`, observed metric messages are only reported and never
+change the exit code. With `--fault-scenario`, at least one valid message is
+required: if the fault was applied but no valid `media-pipeline-metric` message
+has arrived by the end of playback, the CLI keeps waiting until `--timeout`
+expires (the metric can arrive over IPC after EOS) and then exits with code `1`.
+Any valid message satisfies the requirement, and further messages are reported
+but not treated as failures, because the scenarios overlap (for example a
+delayed buffer can cause a frame drop as well as a repeat). Invalid messages are
+reported but never count towards the requirement. If the fault itself could not
+be applied, the run fails for that reason instead.
+
+Exit codes are deterministic: `0` means playback reached EOS (and, for a fault
+run, a valid metric message was observed) or help was shown, `1` means
+playback/setup failed, timed out, a requested fault scenario failed, or a
+required metric message was not received, `2` means invalid or missing
+command-line arguments, and `3` means GStreamer initialization failed.
 
 ## Main (Rialto) project webpage:
 https://rdkcentral.github.io/rialto/

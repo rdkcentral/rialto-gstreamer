@@ -298,6 +298,39 @@ void drainMetricMessages(GstBus *bus, metricscli::MetricObserver &observer)
     }
 }
 
+// Waits until a valid metric message has been observed or the timeout expires. Returns false if the
+// pipeline reported an error while waiting.
+bool waitForValidMetric(GstBus *bus, GstClockTime timeout, metricscli::MetricObserver &observer)
+{
+    const GstClockTime start{gst_util_get_timestamp()};
+    while (observer.validCount() == 0)
+    {
+        const GstClockTime elapsed{gst_util_get_timestamp() - start};
+        const GstClockTime remaining{elapsed >= timeout ? GstClockTime{0} : timeout - elapsed};
+        GstMessage *message{gst_bus_timed_pop_filtered(
+            bus, remaining, static_cast<GstMessageType>(GST_MESSAGE_APPLICATION | GST_MESSAGE_ERROR))};
+        if (!message)
+        {
+            return true;
+        }
+        const bool isError{GST_MESSAGE_TYPE(message) == GST_MESSAGE_ERROR};
+        if (isError)
+        {
+            reportPipelineError(message);
+        }
+        else
+        {
+            observer.handle(message);
+        }
+        gst_message_unref(message);
+        if (isError)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 int runPlayback(const Options &options)
 {
     if (options.faultScenario && !options.faultScenario->handler)
@@ -442,6 +475,16 @@ int runPlayback(const Options &options)
                         }
                     }
                 }
+
+                // Playback can end before the metric crosses IPC, so a fault run keeps waiting until the timeout.
+                if (faultInjector && exitCode == EXIT_SUCCESS_CODE && metricObserver.validCount() == 0)
+                {
+                    std::cout << "Waiting for a valid " << metricscli::kMetricMessageName << " message.\n";
+                    if (!waitForValidMetric(bus, remainingTimeout(), metricObserver))
+                    {
+                        exitCode = EXIT_PLAYBACK_FAILURE;
+                    }
+                }
             }
         }
     }
@@ -465,6 +508,18 @@ int runPlayback(const Options &options)
         else if (exitCode == EXIT_SUCCESS_CODE && faultInjector->buffersAffected() == 0)
         {
             std::cerr << "Fault scenario '" << faultInjector->info().name << "' did not affect any buffers.\n";
+            exitCode = EXIT_PLAYBACK_FAILURE;
+        }
+        else if (metricObserver.validCount() == 0 && faultInjector->buffersAffected() > 0)
+        {
+            std::cerr << "Fault scenario '" << faultInjector->info().name << "' was applied but no valid "
+                      << metricscli::kMetricMessageName << " message arrived within " << options.timeoutSeconds
+                      << " seconds";
+            if (metricObserver.invalidCount() > 0)
+            {
+                std::cerr << " (" << metricObserver.invalidCount() << " invalid message(s) were observed)";
+            }
+            std::cerr << ".\n";
             exitCode = EXIT_PLAYBACK_FAILURE;
         }
     }
