@@ -1,0 +1,116 @@
+#
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2026 Sky UK
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation;
+# version 2.1 of the License.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+
+# Component tests: real plugin + real RialtoClient against the ServerStub (simulated RialtoServer)
+# of the Rialto client component tests. See tests/componenttests.
+name: build_ct
+
+on:
+  push:
+    branches: ["master", "release/*", "rialto-gstreamer-componenttest"]
+  pull_request:
+    branches: ["master", "release/*"]
+  workflow_dispatch:
+
+jobs:
+  component-tests:
+    name: Build and run component tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout rialto-gstreamer
+        uses: actions/checkout@v4
+        with:
+          path: rialto-gstreamer
+
+      # Use the rialto branch with the same name if it exists, otherwise the base branch, otherwise master
+      - name: Check if rialto branch with the same name exists
+        id: check-branch
+        shell: sh +e {0}
+        run: |
+          branch="${{ github.ref_name }}"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.head.ref }} > /dev/null
+            if [ $? -eq 0 ]; then
+              branch="${{ github.event.pull_request.head.ref }}"
+            else
+              git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" ${{ github.event.pull_request.base.ref }} > /dev/null
+              if [ $? -eq 0 ]; then
+                branch="${{ github.event.pull_request.base.ref }}"
+              else
+                branch="master"
+              fi
+            fi
+          else
+            git ls-remote --exit-code --heads "https://github.com/rdkcentral/rialto.git" "$branch" > /dev/null
+            if [ $? -ne 0 ]; then
+              branch="master"
+            fi
+          fi
+          echo "Using rialto branch: $branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout rialto
+        uses: actions/checkout@v4
+        with:
+          repository: rdkcentral/rialto
+          ref: ${{ steps.check-branch.outputs.branch }}
+          path: rialto
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config \
+            protobuf-compiler libprotobuf-dev libunwind-dev libyaml-cpp-dev libjsoncpp-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev \
+            gstreamer1.0-plugins-base libgtest-dev libgmock-dev
+
+      - name: Configure
+        working-directory: rialto-gstreamer
+        run: |
+          cmake -B build-ct \
+            -DCMAKE_BUILD_FLAG=ComponentTests \
+            -DRIALTO_SOURCE_DIR=${{ github.workspace }}/rialto \
+            -DRIALTO_BUILD_TYPE=Debug
+
+      - name: Build
+        working-directory: rialto-gstreamer
+        run: cmake --build build-ct --target GstRialtoComponentTests -j$(nproc)
+
+      - name: Run component tests
+        working-directory: rialto-gstreamer
+        env:
+          GST_DEBUG: "rialto*:4"
+          GST_DEBUG_NO_COLOR: "1"
+        run: |
+          set -o pipefail
+          ./build-ct/tests/componenttests/GstRialtoComponentTests \
+            --gtest_output=xml:build-ct/gtest_ct_result.xml 2>&1 | tee ct_result.log
+
+      - name: Upload results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: component-test-results
+          path: |
+            rialto-gstreamer/ct_result.log
+            rialto-gstreamer/build-ct/gtest_ct_result.xml

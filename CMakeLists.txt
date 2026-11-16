@@ -62,15 +62,18 @@ add_compile_definitions(TAGS="${TAGS}")
 add_compile_definitions(COMMIT_ID="${COMMIT_ID}")
 
 # Config and target for building the unit tests
-if( NOT CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
-    add_subdirectory(source)
-else() # UnitTests
+if( CMAKE_BUILD_FLAG STREQUAL "UnitTests" )
     include( cmake/googletest.cmake )
 
     add_subdirectory( tests/third-party EXCLUDE_FROM_ALL )
     add_subdirectory( tests/mocks EXCLUDE_FROM_ALL )
     add_subdirectory( tests/stubs EXCLUDE_FROM_ALL )
     add_subdirectory( tests/ut EXCLUDE_FROM_ALL )
+elseif( CMAKE_BUILD_FLAG STREQUAL "ComponentTests" )
+    # Real plugin code + real RialtoClient, RialtoServer replaced by the Rialto component-test ServerStub
+    add_subdirectory( tests/componenttests )
+else()
+    add_subdirectory(source)
 endif()
 
 if( NATIVE_BUILD )
