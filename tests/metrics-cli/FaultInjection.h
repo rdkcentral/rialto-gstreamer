@@ -22,6 +22,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -43,10 +45,45 @@ struct FaultParameters
     std::uint32_t windowSeconds{10};   // Upper bound on how long a probe stays installed
 };
 
+// State shared between the CLI and a scenario handler running on the streaming thread.
+class FaultContext
+{
+public:
+    FaultContext(const FaultParameters &parameters, GstElement *pipeline) : parameters{parameters}, pipeline{pipeline} {}
+
+    void fail(const std::string &message)
+    {
+        std::lock_guard<std::mutex> lock{m_mutex};
+        if (!m_failed.load())
+        {
+            m_failure = message;
+            m_failed = true;
+        }
+    }
+    bool failed() const { return m_failed.load(); }
+    std::string failure() const
+    {
+        std::lock_guard<std::mutex> lock{m_mutex};
+        return m_failure;
+    }
+
+    const FaultParameters parameters;
+    GstElement *const pipeline;
+
+    // Set by frame-drop on its first buffer: how far buffer timestamps are moved back, in nanoseconds.
+    std::optional<GstClockTime> ptsShift;
+
+private:
+    mutable std::mutex m_mutex;
+    std::atomic<bool> m_failed{false};
+    std::string m_failure;
+};
+
 // Called on the streaming thread for each buffer inside the fault window. bufferIndex is the
-// zero-based count of buffers already handed to the handler since the probe was installed.
-using FaultHandler = GstPadProbeReturn (*)(GstPadProbeInfo *info, const FaultParameters &parameters,
-                                           std::uint32_t bufferIndex);
+// zero-based count of buffers affected so far. A handler sets applied only when it acted on the
+// buffer; buffers it did not act on do not count towards the scenario's buffer limit.
+using FaultHandler = GstPadProbeReturn (*)(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
+                                           std::uint32_t bufferIndex, bool &applied);
 using FaultBufferLimit = std::uint32_t (*)(const FaultParameters &parameters);
 
 struct FaultScenarioInfo
@@ -59,6 +96,89 @@ struct FaultScenarioInfo
 
 namespace detail
 {
+// Playback must have advanced this far before frame-drop retimes buffers, and buffers are moved to
+// this far behind the playback position so they are unambiguously late.
+constexpr GstClockTime kFrameDropSettleTime{2 * GST_SECOND};
+constexpr GstClockTime kFrameDropLateMargin{1 * GST_SECOND};
+
+inline GstClockTime subtractClamped(GstClockTime value, GstClockTime amount)
+{
+    return value > amount ? value - amount : 0;
+}
+
+// frame-drop (late frames): moves the PTS (and DTS, where set) of consecutive video buffers back
+// so each lands behind the current playback position and misses its presentation deadline. No
+// seek, flush or EOS is involved, since those are excluded from the drop definition.
+inline GstPadProbeReturn frameDropHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
+                                          std::uint32_t, bool &applied)
+{
+    GstBuffer *buffer{GST_PAD_PROBE_INFO_BUFFER(info)};
+    if (!buffer || !GST_BUFFER_PTS_IS_VALID(buffer))
+    {
+        return GST_PAD_PROBE_PASS;
+    }
+
+    if (!context.ptsShift)
+    {
+        gint64 position{0};
+        if (!gst_element_query_position(context.pipeline, GST_FORMAT_TIME, &position) || position < 0)
+        {
+            context.fail("frame-drop: failed to query the current playback position.");
+            return GST_PAD_PROBE_PASS;
+        }
+        if (static_cast<GstClockTime>(position) < kFrameDropSettleTime)
+        {
+            return GST_PAD_PROBE_PASS; // Playback has not settled yet; try the next buffer
+        }
+
+        GstEvent *segmentEvent{gst_pad_get_sticky_event(pad, GST_EVENT_SEGMENT, 0)};
+        if (!segmentEvent)
+        {
+            context.fail("frame-drop: no segment received on the video sink pad.");
+            return GST_PAD_PROBE_PASS;
+        }
+        const GstSegment *eventSegment{nullptr};
+        gst_event_parse_segment(segmentEvent, &eventSegment);
+        GstSegment segment;
+        gst_segment_init(&segment, GST_FORMAT_UNDEFINED);
+        gst_segment_copy_into(eventSegment, &segment);
+        gst_event_unref(segmentEvent);
+
+        // Position is a stream time, so compare in the same domain.
+        if (segment.format != GST_FORMAT_TIME)
+        {
+            context.fail("frame-drop: the video sink pad segment is not in time format.");
+            return GST_PAD_PROBE_PASS;
+        }
+        const guint64 streamTime{gst_segment_to_stream_time(&segment, GST_FORMAT_TIME, GST_BUFFER_PTS(buffer))};
+        if (streamTime == GST_CLOCK_TIME_NONE)
+        {
+            context.fail("frame-drop: cannot convert the buffer timestamp to stream time.");
+            return GST_PAD_PROBE_PASS;
+        }
+
+        const GstClockTime target{static_cast<GstClockTime>(position) - kFrameDropLateMargin};
+        if (streamTime <= target)
+        {
+            context.ptsShift = 0; // Already late enough
+        }
+        else
+        {
+            context.ptsShift = streamTime - target;
+        }
+    }
+
+    buffer = gst_buffer_make_writable(buffer);
+    info->data = buffer;
+    GST_BUFFER_PTS(buffer) = subtractClamped(GST_BUFFER_PTS(buffer), *context.ptsShift);
+    if (GST_BUFFER_DTS_IS_VALID(buffer))
+    {
+        GST_BUFFER_DTS(buffer) = subtractClamped(GST_BUFFER_DTS(buffer), *context.ptsShift);
+    }
+    applied = true;
+    return GST_PAD_PROBE_OK;
+}
+
 inline std::uint32_t bufferCountLimit(const FaultParameters &parameters)
 {
     return parameters.bufferCount;
@@ -72,7 +192,7 @@ inline std::uint32_t singleBufferLimit(const FaultParameters &)
 inline const FaultScenarioInfo *scenarioTable(std::size_t &size)
 {
     static const FaultScenarioInfo table[]{
-        {FaultScenario::FrameDrop, "frame-drop", nullptr, bufferCountLimit},
+        {FaultScenario::FrameDrop, "frame-drop", frameDropHandler, bufferCountLimit},
         {FaultScenario::FrameRepeat, "frame-repeat", nullptr, singleBufferLimit},
         {FaultScenario::BufferUnderflow, "buffer-underflow", nullptr, singleBufferLimit},
         {FaultScenario::DecoderError, "decoder-error", nullptr, bufferCountLimit},
@@ -114,8 +234,8 @@ inline std::string faultScenarioNames()
 class FaultInjector
 {
 public:
-    FaultInjector(const FaultScenarioInfo &info, const FaultParameters &parameters)
-        : m_info{info}, m_parameters{parameters}
+    FaultInjector(const FaultScenarioInfo &info, const FaultParameters &parameters, GstElement *pipeline)
+        : m_info{info}, m_context{parameters, pipeline}
     {
     }
     FaultInjector(const FaultInjector &) = delete;
@@ -142,9 +262,10 @@ public:
             return false;
         }
 
-        m_limit = m_info.bufferLimit ? m_info.bufferLimit(m_parameters) : m_parameters.bufferCount;
+        const FaultParameters &parameters{m_context.parameters};
+        m_limit = m_info.bufferLimit ? m_info.bufferLimit(parameters) : parameters.bufferCount;
         m_seen = 0;
-        m_deadlineUs = g_get_monotonic_time() + static_cast<gint64>(m_parameters.windowSeconds) * G_USEC_PER_SEC;
+        m_deadlineUs = g_get_monotonic_time() + static_cast<gint64>(parameters.windowSeconds) * G_USEC_PER_SEC;
 
         const gulong id{gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, &FaultInjector::probeCallback, this, nullptr)};
         if (id == 0)
@@ -176,26 +297,32 @@ public:
 
     std::uint32_t buffersAffected() const { return m_seen.load(); }
     const FaultScenarioInfo &info() const { return m_info; }
-    const FaultParameters &parameters() const { return m_parameters; }
+    const FaultContext &context() const { return m_context; }
 
 private:
-    static GstPadProbeReturn probeCallback(GstPad *, GstPadProbeInfo *info, gpointer userData)
+    static GstPadProbeReturn probeCallback(GstPad *pad, GstPadProbeInfo *info, gpointer userData)
     {
-        return static_cast<FaultInjector *>(userData)->onBuffer(info);
+        return static_cast<FaultInjector *>(userData)->onBuffer(pad, info);
     }
 
-    GstPadProbeReturn onBuffer(GstPadProbeInfo *info)
+    GstPadProbeReturn onBuffer(GstPad *pad, GstPadProbeInfo *info)
     {
-        if (m_seen.load() >= m_limit || g_get_monotonic_time() >= m_deadlineUs)
+        if (m_context.failed() || m_seen.load() >= m_limit || g_get_monotonic_time() >= m_deadlineUs)
         {
             // Only the side that clears the id may remove the probe, avoiding a double removal.
             return m_probeId.exchange(0) != 0 ? GST_PAD_PROBE_REMOVE : GST_PAD_PROBE_PASS;
         }
-        return m_info.handler(info, m_parameters, m_seen.fetch_add(1));
+        bool applied{false};
+        const GstPadProbeReturn result{m_info.handler(pad, info, m_context, m_seen.load(), applied)};
+        if (applied)
+        {
+            ++m_seen;
+        }
+        return result;
     }
 
     const FaultScenarioInfo &m_info;
-    FaultParameters m_parameters;
+    FaultContext m_context;
     GstPad *m_pad{nullptr};
     std::atomic<gulong> m_probeId{0};
     std::atomic<std::uint32_t> m_seen{0};

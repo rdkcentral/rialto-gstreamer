@@ -45,8 +45,12 @@ removed when the run ends (or after `--fault-window-seconds`, default 10). The
 optional positive-integer tuning options `--fault-buffers` (default 3),
 `--fault-delay-frames` (default 3), `--fault-stall-ms` (default 2000), and
 `--fault-window-seconds` require `--fault-scenario`. The scenarios themselves
-are implemented individually; until a scenario is implemented, requesting it
-fails rather than silently running without the fault.
+are implemented individually. `frame-drop` is implemented: once playback has
+advanced past two seconds, it moves the PTS (and DTS, where set) of
+`--fault-buffers` consecutive video buffers back so each lands one second behind
+the playback position; it fails if the position or segment cannot be obtained,
+and the run fails if no buffer was affected. The other scenarios fail with a
+"not implemented" error rather than silently running without the fault.
 
 Exit codes are deterministic: `0` means playback reached EOS or help was
 shown, `1` means playback/setup failed, timed out, or a requested fault

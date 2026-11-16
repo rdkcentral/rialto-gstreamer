@@ -360,7 +360,7 @@ int runPlayback(const Options &options)
                     }
                     else
                     {
-                        faultInjector.emplace(*options.faultScenario, options.faultParameters);
+                        faultInjector.emplace(*options.faultScenario, options.faultParameters, pipeline);
                         faultReady = faultInjector->start(videoSink, faultError);
                         if (faultReady)
                         {
@@ -410,6 +410,24 @@ int runPlayback(const Options &options)
     if (bus)
     {
         gst_object_unref(bus);
+    }
+    if (faultInjector)
+    {
+        if (faultInjector->context().failed())
+        {
+            std::cerr << faultInjector->context().failure() << '\n';
+            exitCode = EXIT_PLAYBACK_FAILURE;
+        }
+        else if (exitCode == EXIT_SUCCESS_CODE && faultInjector->buffersAffected() == 0)
+        {
+            std::cerr << "Fault scenario '" << faultInjector->info().name << "' did not affect any buffers.\n";
+            exitCode = EXIT_PLAYBACK_FAILURE;
+        }
+        else if (faultInjector->buffersAffected() > 0)
+        {
+            std::cout << "Fault scenario '" << faultInjector->info().name << "' affected "
+                      << faultInjector->buffersAffected() << " buffer(s).\n";
+        }
     }
     faultInjector.reset();
     if (gst_element_set_state(pipeline, GST_STATE_NULL) == GST_STATE_CHANGE_FAILURE)
