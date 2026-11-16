@@ -73,6 +73,9 @@ public:
     // Set by frame-drop on its first buffer: how far buffer timestamps are moved back, in nanoseconds.
     std::optional<GstClockTime> ptsShift;
 
+    // Set by frame-repeat: how long its buffer was held, in nanoseconds.
+    std::optional<std::uint64_t> appliedDelay;
+
 private:
     mutable std::mutex m_mutex;
     std::atomic<bool> m_failed{false};
@@ -179,6 +182,74 @@ inline GstPadProbeReturn frameDropHandler(GstPad *pad, GstPadProbeInfo *info, Fa
     return GST_PAD_PROBE_OK;
 }
 
+// Frame duration from the negotiated framerate, falling back to the buffer duration.
+inline GstClockTime frameDuration(GstPad *pad, GstBuffer *buffer)
+{
+    GstClockTime duration{GST_CLOCK_TIME_NONE};
+    if (GstCaps *caps{gst_pad_get_current_caps(pad)})
+    {
+        gint numerator{0};
+        gint denominator{0};
+        if (gst_caps_get_size(caps) > 0 &&
+            gst_structure_get_fraction(gst_caps_get_structure(caps, 0), "framerate", &numerator, &denominator) &&
+            numerator > 0 && denominator > 0)
+        {
+            duration = gst_util_uint64_scale(GST_SECOND, denominator, numerator);
+        }
+        gst_caps_unref(caps);
+    }
+    if (duration == GST_CLOCK_TIME_NONE && GST_BUFFER_DURATION_IS_VALID(buffer) && GST_BUFFER_DURATION(buffer) > 0)
+    {
+        duration = GST_BUFFER_DURATION(buffer);
+    }
+    return duration;
+}
+
+// frame-repeat (single delayed buffer): holds one video buffer for delayFrames frame durations, so
+// the renderer has no new frame at the expected time and repeats the preceding one. The delay is
+// kept short (it must fit in the fault window) so that it is not an input starvation.
+inline GstPadProbeReturn frameRepeatHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
+                                            std::uint32_t, bool &applied)
+{
+    GstBuffer *buffer{GST_PAD_PROBE_INFO_BUFFER(info)};
+    if (!buffer)
+    {
+        return GST_PAD_PROBE_PASS;
+    }
+
+    // A frame must already have been presented for there to be a preceding frame to repeat.
+    gint64 position{0};
+    if (!gst_element_query_position(context.pipeline, GST_FORMAT_TIME, &position) || position < 0)
+    {
+        context.fail("frame-repeat: failed to query the current playback position.");
+        return GST_PAD_PROBE_PASS;
+    }
+    if (static_cast<GstClockTime>(position) < kFrameDropSettleTime)
+    {
+        return GST_PAD_PROBE_PASS; // Playback has not settled yet; try the next buffer
+    }
+
+    const GstClockTime duration{frameDuration(pad, buffer)};
+    if (duration == GST_CLOCK_TIME_NONE)
+    {
+        context.fail("frame-repeat: the frame duration is unknown (no fixed framerate in the caps and no buffer "
+                     "duration).");
+        return GST_PAD_PROBE_PASS;
+    }
+
+    const std::uint64_t delayNs{static_cast<std::uint64_t>(duration) * context.parameters.delayFrames};
+    if (delayNs / 1000 > static_cast<std::uint64_t>(context.parameters.windowSeconds) * G_USEC_PER_SEC)
+    {
+        context.fail("frame-repeat: the requested delay does not fit in the fault window.");
+        return GST_PAD_PROBE_PASS;
+    }
+
+    context.appliedDelay = delayNs;
+    g_usleep(static_cast<gulong>(delayNs / 1000));
+    applied = true;
+    return GST_PAD_PROBE_OK;
+}
+
 inline std::uint32_t bufferCountLimit(const FaultParameters &parameters)
 {
     return parameters.bufferCount;
@@ -193,7 +264,7 @@ inline const FaultScenarioInfo *scenarioTable(std::size_t &size)
 {
     static const FaultScenarioInfo table[]{
         {FaultScenario::FrameDrop, "frame-drop", frameDropHandler, bufferCountLimit},
-        {FaultScenario::FrameRepeat, "frame-repeat", nullptr, singleBufferLimit},
+        {FaultScenario::FrameRepeat, "frame-repeat", frameRepeatHandler, singleBufferLimit},
         {FaultScenario::BufferUnderflow, "buffer-underflow", nullptr, singleBufferLimit},
         {FaultScenario::DecoderError, "decoder-error", nullptr, bufferCountLimit},
     };

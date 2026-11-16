@@ -49,7 +49,11 @@ are implemented individually. `frame-drop` is implemented: once playback has
 advanced past two seconds, it moves the PTS (and DTS, where set) of
 `--fault-buffers` consecutive video buffers back so each lands one second behind
 the playback position; it fails if the position or segment cannot be obtained,
-and the run fails if no buffer was affected. The other scenarios fail with a
+and the run fails if no buffer was affected. `frame-repeat` is also implemented: once playback has advanced past two seconds,
+it holds a single video buffer for `--fault-delay-frames` frame durations
+(taken from the caps framerate, or the buffer duration), so the renderer
+repeats the preceding frame; it fails if the frame duration is unknown or the
+delay does not fit in `--fault-window-seconds`. The other scenarios fail with a
 "not implemented" error rather than silently running without the fault.
 
 Exit codes are deterministic: `0` means playback reached EOS or help was
