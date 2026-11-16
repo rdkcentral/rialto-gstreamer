@@ -18,12 +18,15 @@
 
 #include <gst/gst.h>
 
+#include "FaultInjection.h"
 #include "FrameCounters.h"
 
 #include <charconv>
 #include <cstdint>
 #include <iostream>
 #include <limits>
+#include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -39,17 +42,25 @@ struct Options
 {
     std::string uri;
     std::uint64_t timeoutSeconds{DEFAULT_TIMEOUT_SECONDS};
-    std::string faultScenario;
+    const metricscli::FaultScenarioInfo *faultScenario{nullptr};
+    metricscli::FaultParameters faultParameters;
 };
 
 void printUsage(const char *program)
 {
     std::cout << "Usage: " << program
-              << " --uri URI [--timeout SECONDS] [--fault-scenario NAME]\n"
+              << " --uri URI [--timeout SECONDS] [--fault-scenario NAME [fault options]]\n"
                  "Options:\n"
                  "  --uri URI                 Media URI to test (required)\n"
                  "  --timeout SECONDS         Test timeout in seconds (default: 30; must be positive)\n"
-                 "  --fault-scenario NAME     Optional fault scenario identifier\n"
+                 "  --fault-scenario NAME     Optional fault scenario: "
+              << metricscli::faultScenarioNames()
+              << "\n"
+                 "Fault options (require --fault-scenario; positive integers):\n"
+                 "  --fault-buffers N         Buffers affected by frame-drop and decoder-error (default: 3)\n"
+                 "  --fault-delay-frames N    Frame durations a buffer is held by frame-repeat (default: 3)\n"
+                 "  --fault-stall-ms N        Milliseconds video is blocked by buffer-underflow (default: 2000)\n"
+                 "  --fault-window-seconds N  Maximum time the fault probe stays installed (default: 10)\n"
                  "  --help                    Show this help and exit\n";
 }
 
@@ -72,11 +83,45 @@ bool parseTimeout(std::string_view value, std::uint64_t &timeoutSeconds)
     return true;
 }
 
+bool parsePositiveUint32(std::string_view value, std::uint32_t &result)
+{
+    std::uint32_t parsedValue{0};
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), parsedValue);
+    if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() || parsedValue == 0)
+    {
+        return false;
+    }
+    result = parsedValue;
+    return true;
+}
+
+std::uint32_t *faultParameterField(std::string_view argument, metricscli::FaultParameters &parameters)
+{
+    if (argument == "--fault-buffers")
+    {
+        return &parameters.bufferCount;
+    }
+    if (argument == "--fault-delay-frames")
+    {
+        return &parameters.delayFrames;
+    }
+    if (argument == "--fault-stall-ms")
+    {
+        return &parameters.stallMs;
+    }
+    if (argument == "--fault-window-seconds")
+    {
+        return &parameters.windowSeconds;
+    }
+    return nullptr;
+}
+
 bool parseOptions(int argc, char **argv, Options &options)
 {
     bool hasUri{false};
     bool hasTimeout{false};
     bool hasFaultScenario{false};
+    std::set<std::string_view> faultParameterArguments;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -92,7 +137,8 @@ bool parseOptions(int argc, char **argv, Options &options)
             return true;
         }
 
-        if (argument != "--uri" && argument != "--timeout" && argument != "--fault-scenario")
+        if (argument != "--uri" && argument != "--timeout" && argument != "--fault-scenario" &&
+            !faultParameterField(argument, options.faultParameters))
         {
             std::cerr << "Unknown option: " << argument << '\n';
             return false;
@@ -129,21 +175,45 @@ bool parseOptions(int argc, char **argv, Options &options)
             }
             hasTimeout = true;
         }
-        else
+        else if (argument == "--fault-scenario")
         {
             if (hasFaultScenario)
             {
                 std::cerr << "--fault-scenario may only be specified once\n";
                 return false;
             }
-            options.faultScenario = value;
+            options.faultScenario = metricscli::findFaultScenario(value);
+            if (!options.faultScenario)
+            {
+                std::cerr << "Unknown fault scenario: " << value
+                          << " (expected one of: " << metricscli::faultScenarioNames() << ")\n";
+                return false;
+            }
             hasFaultScenario = true;
+        }
+        else
+        {
+            if (!faultParameterArguments.insert(argument).second)
+            {
+                std::cerr << argument << " may only be specified once\n";
+                return false;
+            }
+            if (!parsePositiveUint32(value, *faultParameterField(argument, options.faultParameters)))
+            {
+                std::cerr << "Invalid " << argument << " value: " << value << " (expected a positive integer)\n";
+                return false;
+            }
         }
     }
 
     if (!hasUri)
     {
         std::cerr << "Missing required --uri option\n";
+        return false;
+    }
+    if (!faultParameterArguments.empty() && !hasFaultScenario)
+    {
+        std::cerr << "Fault options require --fault-scenario\n";
         return false;
     }
     return true;
@@ -194,9 +264,9 @@ bool validateFrameCounters(GstElement *videoSink)
 
 int runPlayback(const Options &options)
 {
-    if (!options.faultScenario.empty())
+    if (options.faultScenario && !options.faultScenario->handler)
     {
-        std::cerr << "Fault scenario '" << options.faultScenario
+        std::cerr << "Fault scenario '" << options.faultScenario->name
                   << "' is not implemented; refusing to run without applying it.\n";
         return EXIT_PLAYBACK_FAILURE;
     }
@@ -210,6 +280,7 @@ int runPlayback(const Options &options)
 
     int exitCode{EXIT_PLAYBACK_FAILURE};
     GstBus *bus{nullptr};
+    std::optional<metricscli::FaultInjector> faultInjector;
     GstElement *videoSink{gst_element_factory_make("rialtomsevideosink", "metrics-test-video-sink")};
     if (!videoSink)
     {
@@ -277,7 +348,32 @@ int runPlayback(const Options &options)
                     }
                 }
 
-                if (readyForCounters && validateFrameCounters(videoSink))
+                bool faultReady{true};
+                if (options.faultScenario && readyForCounters)
+                {
+                    std::string faultError;
+                    if (reachedEos)
+                    {
+                        std::cerr << "Playback reached EOS before fault scenario '" << options.faultScenario->name
+                                  << "' could be applied.\n";
+                        faultReady = false;
+                    }
+                    else
+                    {
+                        faultInjector.emplace(*options.faultScenario, options.faultParameters);
+                        faultReady = faultInjector->start(videoSink, faultError);
+                        if (faultReady)
+                        {
+                            std::cout << "Fault injection started: " << options.faultScenario->name << '\n';
+                        }
+                        else
+                        {
+                            std::cerr << faultError << '\n';
+                        }
+                    }
+                }
+
+                if (readyForCounters && faultReady && validateFrameCounters(videoSink))
                 {
                     if (reachedEos)
                     {
@@ -315,6 +411,7 @@ int runPlayback(const Options &options)
     {
         gst_object_unref(bus);
     }
+    faultInjector.reset();
     if (gst_element_set_state(pipeline, GST_STATE_NULL) == GST_STATE_CHANGE_FAILURE)
     {
         std::cerr << "Failed to stop the playbin pipeline during cleanup.\n";

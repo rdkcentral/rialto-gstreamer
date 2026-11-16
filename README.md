@@ -37,9 +37,16 @@ active, the CLI queries `frame-counters` and fails if the returned structure
 does not contain `rendered`, `dropped`, `corrupted`, and `timestamp` as
 `G_TYPE_UINT64` fields. It prints the returned values without requiring fixed
 or non-zero counts. Use `--help` to display
-the command syntax. `--fault-scenario NAME` is reserved for configured
-GStreamer-level scenarios; until those scenarios are implemented, requesting
-one fails rather than silently running without the fault.
+the command syntax. `--fault-scenario NAME` selects a GStreamer-level fault:
+`frame-drop`, `frame-repeat`, `buffer-underflow`, or `decoder-error`. Unknown
+names are argument errors. The fault is injected by a bounded buffer probe on
+`rialtomsevideosink`'s sink pad, installed only after playback is running and
+removed when the run ends (or after `--fault-window-seconds`, default 10). The
+optional positive-integer tuning options `--fault-buffers` (default 3),
+`--fault-delay-frames` (default 3), `--fault-stall-ms` (default 2000), and
+`--fault-window-seconds` require `--fault-scenario`. The scenarios themselves
+are implemented individually; until a scenario is implemented, requesting it
+fails rather than silently running without the fault.
 
 Exit codes are deterministic: `0` means playback reached EOS or help was
 shown, `1` means playback/setup failed, timed out, or a requested fault
