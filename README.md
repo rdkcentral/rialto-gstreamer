@@ -56,8 +56,14 @@ repeats the preceding frame; it fails if the frame duration is unknown or the
 delay does not fit in `--fault-window-seconds`. `buffer-underflow` is also implemented: once playback has advanced past two
 seconds, it blocks the video sink pad for `--fault-stall-ms` (the video stream
 only; audio keeps flowing), then releases it so the starvation ends; it fails
-if the stall does not fit in `--fault-window-seconds`. The other scenarios fail with a
-"not implemented" error rather than silently running without the fault.
+if the stall does not fit in `--fault-window-seconds`. `decoder-error` is also implemented for H.264 and H.265 (byte-stream and
+length-prefixed): once playback has advanced past two seconds, it corrupts the
+second half of the slice data in `--fault-buffers` non-key video buffers, leaving
+parameter sets, NAL headers and the start of each slice header intact. Buffers
+containing an IDR/IRAP slice are skipped. It fails for encrypted media and
+unsupported codecs. Corruption can propagate to later frames until the next key
+frame, so the decoder may report more errors than the buffers affected. All four
+scenarios are now implemented.
 
 Exit codes are deterministic: `0` means playback reached EOS or help was
 shown, `1` means playback/setup failed, timed out, or a requested fault

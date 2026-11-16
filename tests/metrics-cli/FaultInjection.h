@@ -26,6 +26,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace metricscli
 {
@@ -80,6 +81,9 @@ public:
 
     // Set by buffer-underflow: how long video buffers were blocked, in milliseconds.
     std::optional<std::uint32_t> appliedStallMs;
+
+    // Incremented by decoder-error: how many slice NAL units were corrupted.
+    std::atomic<std::uint32_t> corruptedSlices{0};
 
 private:
     mutable std::mutex m_mutex;
@@ -313,6 +317,250 @@ inline GstPadProbeReturn bufferUnderflowHandler(GstPad *, GstPadProbeInfo *info,
     return GST_PAD_PROBE_OK;
 }
 
+// Selects the slice NAL units of a buffer that decoder-error may corrupt. Parameter sets, SEI and other
+// non-slice NAL units are never touched, and neither are buffers containing an IDR/IRAP slice, since
+// corrupting those prevents the decoder from (re)starting rather than producing a per-frame error.
+struct NalUnit
+{
+    std::size_t offset{0};
+    std::size_t size{0};
+};
+
+struct CodecInfo
+{
+    enum class Type
+    {
+        H264,
+        H265
+    } type{Type::H264};
+    std::size_t nalLengthSize{0}; // 0 means byte-stream (start code) framing
+};
+
+constexpr std::size_t kMinCorruptibleSliceSize{16};
+
+inline bool getCodecInfo(GstPad *pad, CodecInfo &codec, std::string &error)
+{
+    GstCaps *caps{gst_pad_get_current_caps(pad)};
+    if (!caps || gst_caps_get_size(caps) == 0)
+    {
+        if (caps)
+        {
+            gst_caps_unref(caps);
+        }
+        error = "decoder-error: no caps negotiated on the video sink pad.";
+        return false;
+    }
+
+    const GstStructure *structure{gst_caps_get_structure(caps, 0)};
+    const std::string name{gst_structure_get_name(structure)};
+    const gchar *streamFormat{gst_structure_get_string(structure, "stream-format")};
+    const std::string format{streamFormat ? streamFormat : "byte-stream"};
+    bool supported{true};
+
+    if (name.rfind("application/x-", 0) == 0)
+    {
+        error = "decoder-error: encrypted media (" + name + ") cannot be corrupted.";
+        supported = false;
+    }
+    else if (name == "video/x-h264" || name == "video/x-h265")
+    {
+        const bool h265{name == "video/x-h265"};
+        codec.type = h265 ? CodecInfo::Type::H265 : CodecInfo::Type::H264;
+        const bool lengthPrefixed{format == "avc" || format == "avc3" || format == "hvc1" || format == "hev1"};
+        codec.nalLengthSize = 0;
+        if (lengthPrefixed)
+        {
+            codec.nalLengthSize = 4;
+            const GValue *codecData{gst_structure_get_value(structure, "codec_data")};
+            GstBuffer *codecBuffer{codecData && GST_VALUE_HOLDS_BUFFER(codecData) ? gst_value_get_buffer(codecData)
+                                                                                  : nullptr};
+            GstMapInfo map;
+            if (codecBuffer && gst_buffer_map(codecBuffer, &map, GST_MAP_READ))
+            {
+                const std::size_t lengthByte{h265 ? 21u : 4u};
+                if (map.size > lengthByte)
+                {
+                    codec.nalLengthSize = static_cast<std::size_t>(map.data[lengthByte] & 0x3) + 1;
+                }
+                gst_buffer_unmap(codecBuffer, &map);
+            }
+        }
+    }
+    else
+    {
+        error = "decoder-error: unsupported video codec '" + name + "' (supported: video/x-h264, video/x-h265).";
+        supported = false;
+    }
+
+    gst_caps_unref(caps);
+    return supported;
+}
+
+inline void collectNalUnits(const guint8 *data, std::size_t size, std::size_t lengthSize, std::vector<NalUnit> &nals)
+{
+    if (lengthSize > 0)
+    {
+        std::size_t pos{0};
+        while (pos + lengthSize <= size)
+        {
+            std::size_t length{0};
+            for (std::size_t i = 0; i < lengthSize; ++i)
+            {
+                length = (length << 8) | data[pos + i];
+            }
+            const std::size_t start{pos + lengthSize};
+            if (length == 0 || start + length > size)
+            {
+                return;
+            }
+            nals.push_back({start, length});
+            pos = start + length;
+        }
+        return;
+    }
+
+    // Byte-stream: NAL units follow 00 00 01 start codes and run to the next start code.
+    std::vector<std::size_t> starts;
+    for (std::size_t i = 0; i + 3 <= size; ++i)
+    {
+        if (data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1)
+        {
+            starts.push_back(i + 3);
+            i += 2;
+        }
+    }
+    for (std::size_t n = 0; n < starts.size(); ++n)
+    {
+        std::size_t end{n + 1 < starts.size() ? starts[n + 1] - 3 : size};
+        while (end > starts[n] && data[end - 1] == 0)
+        {
+            --end; // Strip trailing zero bytes belonging to the next start code
+        }
+        if (end > starts[n])
+        {
+            nals.push_back({starts[n], end - starts[n]});
+        }
+    }
+}
+
+// Returns true when nal is a non-IDR slice that can be corrupted; sets keyframe for IDR/IRAP slices.
+inline bool classifySlice(const guint8 *data, const NalUnit &nal, CodecInfo::Type type, bool &keyframe)
+{
+    if (type == CodecInfo::Type::H264)
+    {
+        const unsigned nalType{data[nal.offset] & 0x1Fu};
+        if (nalType == 5)
+        {
+            keyframe = true;
+            return false;
+        }
+        return nalType == 1;
+    }
+    const unsigned nalType{(data[nal.offset] >> 1) & 0x3Fu};
+    if (nalType >= 16 && nalType <= 21)
+    {
+        keyframe = true;
+        return false;
+    }
+    return nalType <= 9;
+}
+
+// Corrupts the second half of each eligible slice, leaving the NAL header and the start of the slice
+// header intact so the decoder reports the damage per frame instead of rejecting the stream.
+// Returns the number of slices corrupted.
+inline std::uint32_t corruptSlices(guint8 *data, std::size_t size, const CodecInfo &codec)
+{
+    std::vector<NalUnit> nals;
+    collectNalUnits(data, size, codec.nalLengthSize, nals);
+
+    const std::size_t headerSize{codec.type == CodecInfo::Type::H265 ? 2u : 1u};
+    std::vector<NalUnit> slices;
+    bool keyframe{false};
+    for (const NalUnit &nal : nals)
+    {
+        if (nal.size < headerSize)
+        {
+            continue;
+        }
+        bool nalIsKeyframe{false};
+        const bool eligible{classifySlice(data, nal, codec.type, nalIsKeyframe)};
+        keyframe = keyframe || nalIsKeyframe;
+        if (eligible && nal.size >= headerSize + kMinCorruptibleSliceSize)
+        {
+            slices.push_back(nal);
+        }
+    }
+    if (keyframe)
+    {
+        return 0;
+    }
+
+    for (const NalUnit &slice : slices)
+    {
+        const std::size_t payloadStart{slice.offset + headerSize};
+        const std::size_t corruptFrom{payloadStart + (slice.size - headerSize) / 2};
+        for (std::size_t i = corruptFrom; i < slice.offset + slice.size; ++i)
+        {
+            data[i] ^= 0xFF;
+        }
+    }
+    return static_cast<std::uint32_t>(slices.size());
+}
+
+// decoder-error (frame-level corruption): corrupts the slice payload of bufferCount non-key video
+// buffers, one affected frame per buffer. Fails for encrypted media and unsupported codecs.
+inline GstPadProbeReturn decoderErrorHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
+                                             std::uint32_t, bool &applied)
+{
+    GstBuffer *buffer{GST_PAD_PROBE_INFO_BUFFER(info)};
+    if (!buffer)
+    {
+        return GST_PAD_PROBE_PASS;
+    }
+
+    switch (checkPlaybackSettled(context, "decoder-error"))
+    {
+    case PlaybackState::Failed:
+    case PlaybackState::NotSettled:
+        return GST_PAD_PROBE_PASS;
+    case PlaybackState::Settled:
+        break;
+    }
+
+    if (gst_buffer_get_protection_meta(buffer))
+    {
+        context.fail("decoder-error: encrypted media (protection metadata) cannot be corrupted.");
+        return GST_PAD_PROBE_PASS;
+    }
+
+    CodecInfo codec;
+    std::string error;
+    if (!getCodecInfo(pad, codec, error))
+    {
+        context.fail(error);
+        return GST_PAD_PROBE_PASS;
+    }
+
+    buffer = gst_buffer_make_writable(buffer);
+    info->data = buffer;
+    GstMapInfo map;
+    if (!gst_buffer_map(buffer, &map, static_cast<GstMapFlags>(GST_MAP_READ | GST_MAP_WRITE)))
+    {
+        context.fail("decoder-error: the video buffer cannot be mapped writable.");
+        return GST_PAD_PROBE_PASS;
+    }
+    const std::uint32_t corrupted{corruptSlices(map.data, map.size, codec)};
+    gst_buffer_unmap(buffer, &map);
+
+    if (corrupted == 0)
+    {
+        return GST_PAD_PROBE_OK; // Key frame or no eligible slice; try the next buffer
+    }
+    context.corruptedSlices += corrupted;
+    applied = true;
+    return GST_PAD_PROBE_OK;
+}
+
 inline std::uint32_t bufferCountLimit(const FaultParameters &parameters)
 {
     return parameters.bufferCount;
@@ -329,7 +577,7 @@ inline const FaultScenarioInfo *scenarioTable(std::size_t &size)
         {FaultScenario::FrameDrop, "frame-drop", frameDropHandler, bufferCountLimit},
         {FaultScenario::FrameRepeat, "frame-repeat", frameRepeatHandler, singleBufferLimit},
         {FaultScenario::BufferUnderflow, "buffer-underflow", bufferUnderflowHandler, singleBufferLimit},
-        {FaultScenario::DecoderError, "decoder-error", nullptr, bufferCountLimit},
+        {FaultScenario::DecoderError, "decoder-error", decoderErrorHandler, bufferCountLimit},
     };
     size = sizeof(table) / sizeof(table[0]);
     return table;
