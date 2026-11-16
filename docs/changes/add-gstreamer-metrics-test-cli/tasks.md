@@ -19,7 +19,7 @@ Faults are injected with a pad probe on the `rialtomsevideosink` sink pad, so th
 - [x] 3.7 Add focused tests for the probe logic that do not need a Rialto server. For each scenario, cover that selected buffers are retimed, delayed, held, or corrupted as configured, that unselected buffers pass through unchanged, and that the probe is removed after its bounded window. Cover failure reporting for missing position, missing frame duration, and non-writable or encrypted buffers.
 
 ## 4. Metric Bus Validation
-- [ ] 4.1 Monitor `GST_MESSAGE_APPLICATION` messages and select the `media-pipeline-metric` structure; validate its agreed envelope and print observed fields.
+- [x] 4.1 Monitor `GST_MESSAGE_APPLICATION` messages and select the `media-pipeline-metric` structure; validate its agreed envelope and print observed fields.
 - [ ] 4.2 Update the bus bridge to omit absent `count` and `duration-ns` fields for occurrence messages; add regression tests for occurrence and episode message serialization.
 - [ ] 4.3 In fault-injection mode, require at least one valid metric application message before timeout and fail if it is absent; without injection, report observed messages but do not require one. Messages beyond the first valid one are reported, not treated as failures, because the scenarios overlap (a delayed buffer can cause a drop as well as a repeat, and a long stall can cause a repeat as well as an underflow).
 - [ ] 4.4 Leave numeric metric-category validation disabled until the producer-to-client mapping and fault-to-metric mapping are agreed (that is, which `metric` value each of `frame-drop`, `frame-repeat`, `buffer-underflow`, and `decode-error` must produce); capture that decision in the design/spec before enabling assertions.

@@ -68,6 +68,22 @@ scenarios are now implemented. At the end of every fault run the CLI prints one
 actually applied (`pts-shift-ns`, `delay-ns`, `stall-ms-applied`, or
 `slices-corrupted`), so a run can be matched with the metric messages observed.
 
+### Metric messages
+
+For the whole run the CLI watches the playbin bus for `GST_MESSAGE_APPLICATION`
+messages and selects those whose structure is named `media-pipeline-metric`
+(other application messages are ignored). Each one is validated and printed as a
+`Metric message:` line. Required fields are `metric`, `observation-kind` and
+`source_id` as `G_TYPE_UINT`, with `observation-kind` 1 (occurrence), 2
+(episode-started) or 3 (episode-resolved). Optional fields must have the right
+type: `session_id` `G_TYPE_UINT`, `pts-ns` `G_TYPE_INT64`, and `duration-ns` and
+`count` `G_TYPE_UINT64`; occurrence messages must omit `duration-ns` and `count`.
+A message that fails validation is reported as `Invalid metric message:` and is
+not counted as valid. The `metric` value is printed raw and its numeric category
+is not validated. At the end the CLI prints `Metric messages observed: valid=N,
+invalid=M`. At this stage messages are only reported; they do not change the
+exit code.
+
 Exit codes are deterministic: `0` means playback reached EOS or help was
 shown, `1` means playback/setup failed, timed out, or a requested fault
 scenario is not implemented, `2` means invalid or missing command-line

@@ -102,6 +102,7 @@ add_gtests (
         MediaPlayerClientBackendTests.cpp
         MediaPlayerManagerTests.cpp
         MessageQueueTests.cpp
+        MetricMessageTests.cpp
         RialtoGstTest.cpp
         TimerTests.cpp
         WebAudioClientBackendTests.cpp

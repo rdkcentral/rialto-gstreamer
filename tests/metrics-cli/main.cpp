@@ -20,6 +20,7 @@
 
 #include "FaultInjection.h"
 #include "FrameCounters.h"
+#include "MetricMessage.h"
 
 #include <charconv>
 #include <cstdint>
@@ -262,6 +263,41 @@ bool validateFrameCounters(GstElement *videoSink)
     return valid;
 }
 
+// Waits for one of the requested message types. GST_MESSAGE_APPLICATION messages seen while waiting
+// are handed to the observer and do not end the wait, so metric messages are monitored for the
+// whole run.
+GstMessage *popPlaybackMessage(GstBus *bus, GstClockTime timeout, GstMessageType types,
+                               metricscli::MetricObserver &observer)
+{
+    const GstClockTime start{gst_util_get_timestamp()};
+    while (true)
+    {
+        const GstClockTime elapsed{gst_util_get_timestamp() - start};
+        const GstClockTime remaining{elapsed >= timeout ? GstClockTime{0} : timeout - elapsed};
+        GstMessage *message{
+            gst_bus_timed_pop_filtered(bus, remaining, static_cast<GstMessageType>(types | GST_MESSAGE_APPLICATION))};
+        if (!message)
+        {
+            return nullptr;
+        }
+        if (GST_MESSAGE_TYPE(message) != GST_MESSAGE_APPLICATION)
+        {
+            return message;
+        }
+        observer.handle(message);
+        gst_message_unref(message);
+    }
+}
+
+void drainMetricMessages(GstBus *bus, metricscli::MetricObserver &observer)
+{
+    while (GstMessage *message{gst_bus_pop_filtered(bus, GST_MESSAGE_APPLICATION)})
+    {
+        observer.handle(message);
+        gst_message_unref(message);
+    }
+}
+
 int runPlayback(const Options &options)
 {
     if (options.faultScenario && !options.faultScenario->handler)
@@ -280,6 +316,7 @@ int runPlayback(const Options &options)
 
     int exitCode{EXIT_PLAYBACK_FAILURE};
     GstBus *bus{nullptr};
+    metricscli::MetricObserver metricObserver;
     std::optional<metricscli::FaultInjector> faultInjector;
     GstElement *videoSink{gst_element_factory_make("rialtomsevideosink", "metrics-test-video-sink")};
     if (!videoSink)
@@ -325,9 +362,10 @@ int runPlayback(const Options &options)
                 bool readyForCounters{stateResult != GST_STATE_CHANGE_ASYNC};
                 if (!readyForCounters)
                 {
-                    message = gst_bus_timed_pop_filtered(
+                    message = popPlaybackMessage(
                         bus, remainingTimeout(),
-                        static_cast<GstMessageType>(GST_MESSAGE_ASYNC_DONE | GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+                        static_cast<GstMessageType>(GST_MESSAGE_ASYNC_DONE | GST_MESSAGE_ERROR | GST_MESSAGE_EOS),
+                        metricObserver);
                     if (!message)
                     {
                         std::cerr << "Playback timed out after " << options.timeoutSeconds
@@ -382,8 +420,9 @@ int runPlayback(const Options &options)
                     }
                     else
                     {
-                        message = gst_bus_timed_pop_filtered(
-                            bus, remainingTimeout(), static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+                        message = popPlaybackMessage(bus, remainingTimeout(),
+                                                     static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS),
+                                                     metricObserver);
                         if (!message)
                         {
                             std::cerr << "Playback timed out after " << options.timeoutSeconds << " seconds.\n";
@@ -409,6 +448,9 @@ int runPlayback(const Options &options)
 
     if (bus)
     {
+        drainMetricMessages(bus, metricObserver);
+        std::cout << "Metric messages observed: valid=" << metricObserver.validCount()
+                  << ", invalid=" << metricObserver.invalidCount() << '\n';
         gst_object_unref(bus);
     }
     if (faultInjector)
