@@ -320,15 +320,22 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetStatsProperty)
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldGetFrameCountersProperty)
 {
-    RialtoMSEBaseSink *audioSink = createAudioSink();
-    GstElement *pipeline = createPipelineWithSink(audioSink);
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
 
-    setPausedState(pipeline, audioSink);
-    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
     allSourcesWillBeAttached();
 
-    GstCaps *caps{createAudioCaps()};
-    setCaps(audioSink, caps);
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    sendPlaybackStateNotification(videoSink, firebolt::rialto::PlaybackState::PAUSED);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
+
+    setPlayingState(pipeline);
+    sendPlaybackStateNotification(videoSink, firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
     EXPECT_CALL(m_mediaPipelineMock, getFrameCounters(_, _, _, _, _))
         .WillOnce(DoAll(SetArgReferee<1>(100u), SetArgReferee<2>(7u), SetArgReferee<3>(3u), SetArgReferee<4>(12345u),
@@ -352,9 +359,22 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetFrameCountersProperty)
     EXPECT_EQ(timestamp, 12345u);
 
     gst_structure_free(frameCounters);
+    pipelineWillGoToPausedState(videoSink);
     setNullState(pipeline, kSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetFrameCountersProperty)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    GstStructure *frameCounters{nullptr};
+    g_object_get(videoSink, "frame-counters", &frameCounters, nullptr);
+    EXPECT_EQ(frameCounters, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
 }
 
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)

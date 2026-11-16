@@ -87,6 +87,7 @@ add_gtests (
         # gtest code
         BufferParserTests.cpp
         ControlBackendTests.cpp
+        FrameCountersTests.cpp
         GStreamerEmeUtilsTests.cpp
         GstreamerMseAudioSinkInWebAudioModeTests.cpp
         GstreamerMseAudioSinkTests.cpp
@@ -116,6 +117,7 @@ target_include_directories(
         $<TARGET_PROPERTY:GstRialtoMocks,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoTestLib,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoStubs,INTERFACE_INCLUDE_DIRECTORIES>
+        ${CMAKE_SOURCE_DIR}/tests/metrics-cli
 )
 
 target_compile_definitions(GstRialtoUnitTests

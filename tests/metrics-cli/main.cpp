@@ -18,6 +18,8 @@
 
 #include <gst/gst.h>
 
+#include "FrameCounters.h"
+
 #include <charconv>
 #include <cstdint>
 #include <iostream>
@@ -169,53 +171,24 @@ void reportPipelineError(GstMessage *message)
 
 bool validateFrameCounters(GstElement *videoSink)
 {
-    GstStructure *frameCounters{nullptr};
-    g_object_get(videoSink, "frame-counters", &frameCounters, nullptr);
-    if (!frameCounters)
-    {
-        std::cerr << "Failed to query frame-counters from rialtomsevideosink.\n";
-        return false;
-    }
-
-    bool valid{true};
-    if (g_strcmp0(gst_structure_get_name(frameCounters), "frame-counters") != 0)
-    {
-        std::cerr << "Invalid frame-counters structure name: " << gst_structure_get_name(frameCounters) << '\n';
-        valid = false;
-    }
-
-    constexpr const char *requiredFields[]{"rendered", "dropped", "corrupted", "timestamp"};
-    for (const char *field : requiredFields)
-    {
-        if (gst_structure_get_field_type(frameCounters, field) != G_TYPE_UINT64)
-        {
-            std::cerr << "Invalid or missing frame-counters field '" << field << "' (expected G_TYPE_UINT64).\n";
-            valid = false;
-        }
-    }
-
+    GstStructure *structure{nullptr};
+    g_object_get(videoSink, "frame-counters", &structure, nullptr);
+    metricscli::FrameCounters counters;
+    std::string error;
+    const bool valid{metricscli::parseFrameCounters(structure, counters, error)};
     if (valid)
     {
-        guint64 rendered{0};
-        guint64 dropped{0};
-        guint64 corrupted{0};
-        guint64 timestamp{0};
-        if (!gst_structure_get_uint64(frameCounters, "rendered", &rendered) ||
-            !gst_structure_get_uint64(frameCounters, "dropped", &dropped) ||
-            !gst_structure_get_uint64(frameCounters, "corrupted", &corrupted) ||
-            !gst_structure_get_uint64(frameCounters, "timestamp", &timestamp))
-        {
-            std::cerr << "Failed to read the required values from frame-counters.\n";
-            valid = false;
-        }
-        else
-        {
-            std::cout << "Frame counters: rendered=" << rendered << ", dropped=" << dropped
-                      << ", corrupted=" << corrupted << ", timestamp=" << timestamp << '\n';
-        }
+        std::cout << "Frame counters: rendered=" << counters.rendered << ", dropped=" << counters.dropped
+                  << ", corrupted=" << counters.corrupted << ", timestamp=" << counters.timestamp << '\n';
     }
-
-    gst_structure_free(frameCounters);
+    else
+    {
+        std::cerr << error << '\n';
+    }
+    if (structure)
+    {
+        gst_structure_free(structure);
+    }
     return valid;
 }
 
