@@ -35,12 +35,12 @@ enum class FaultScenario
     FrameDrop,
     FrameRepeat,
     BufferUnderflow,
-    DecoderError
+    DecodeError
 };
 
 struct FaultParameters
 {
-    std::uint32_t bufferCount{3};      // Buffers affected by frame-drop and decoder-error
+    std::uint32_t bufferCount{3};      // Buffers affected by frame-drop and decode-error
     std::uint32_t delayFrames{3};      // Frame durations a buffer is held by frame-repeat
     std::uint32_t stallMs{2000};       // Time video buffers are blocked by buffer-underflow
     std::uint32_t windowSeconds{10};   // Upper bound on how long a probe stays installed
@@ -82,7 +82,7 @@ public:
     // Set by buffer-underflow: how long video buffers were blocked, in milliseconds.
     std::optional<std::uint32_t> appliedStallMs;
 
-    // Incremented by decoder-error: how many slice NAL units were corrupted.
+    // Incremented by decode-error: how many slice NAL units were corrupted.
     std::atomic<std::uint32_t> corruptedSlices{0};
 
 private:
@@ -317,7 +317,7 @@ inline GstPadProbeReturn bufferUnderflowHandler(GstPad *, GstPadProbeInfo *info,
     return GST_PAD_PROBE_OK;
 }
 
-// Selects the slice NAL units of a buffer that decoder-error may corrupt. Parameter sets, SEI and other
+// Selects the slice NAL units of a buffer that decode-error may corrupt. Parameter sets, SEI and other
 // non-slice NAL units are never touched, and neither are buffers containing an IDR/IRAP slice, since
 // corrupting those prevents the decoder from (re)starting rather than producing a per-frame error.
 struct NalUnit
@@ -347,7 +347,7 @@ inline bool getCodecInfo(GstPad *pad, CodecInfo &codec, std::string &error)
         {
             gst_caps_unref(caps);
         }
-        error = "decoder-error: no caps negotiated on the video sink pad.";
+        error = "decode-error: no caps negotiated on the video sink pad.";
         return false;
     }
 
@@ -359,7 +359,7 @@ inline bool getCodecInfo(GstPad *pad, CodecInfo &codec, std::string &error)
 
     if (name.rfind("application/x-", 0) == 0)
     {
-        error = "decoder-error: encrypted media (" + name + ") cannot be corrupted.";
+        error = "decode-error: encrypted media (" + name + ") cannot be corrupted.";
         supported = false;
     }
     else if (name == "video/x-h264" || name == "video/x-h265")
@@ -388,7 +388,7 @@ inline bool getCodecInfo(GstPad *pad, CodecInfo &codec, std::string &error)
     }
     else
     {
-        error = "decoder-error: unsupported video codec '" + name + "' (supported: video/x-h264, video/x-h265).";
+        error = "decode-error: unsupported video codec '" + name + "' (supported: video/x-h264, video/x-h265).";
         supported = false;
     }
 
@@ -507,9 +507,9 @@ inline std::uint32_t corruptSlices(guint8 *data, std::size_t size, const CodecIn
     return static_cast<std::uint32_t>(slices.size());
 }
 
-// decoder-error (frame-level corruption): corrupts the slice payload of bufferCount non-key video
+// decode-error (frame-level corruption): corrupts the slice payload of bufferCount non-key video
 // buffers, one affected frame per buffer. Fails for encrypted media and unsupported codecs.
-inline GstPadProbeReturn decoderErrorHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
+inline GstPadProbeReturn decodeErrorHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
                                              std::uint32_t, bool &applied)
 {
     GstBuffer *buffer{GST_PAD_PROBE_INFO_BUFFER(info)};
@@ -518,7 +518,7 @@ inline GstPadProbeReturn decoderErrorHandler(GstPad *pad, GstPadProbeInfo *info,
         return GST_PAD_PROBE_PASS;
     }
 
-    switch (checkPlaybackSettled(context, "decoder-error"))
+    switch (checkPlaybackSettled(context, "decode-error"))
     {
     case PlaybackState::Failed:
     case PlaybackState::NotSettled:
@@ -529,7 +529,7 @@ inline GstPadProbeReturn decoderErrorHandler(GstPad *pad, GstPadProbeInfo *info,
 
     if (gst_buffer_get_protection_meta(buffer))
     {
-        context.fail("decoder-error: encrypted media (protection metadata) cannot be corrupted.");
+        context.fail("decode-error: encrypted media (protection metadata) cannot be corrupted.");
         return GST_PAD_PROBE_PASS;
     }
 
@@ -546,7 +546,7 @@ inline GstPadProbeReturn decoderErrorHandler(GstPad *pad, GstPadProbeInfo *info,
     GstMapInfo map;
     if (!gst_buffer_map(buffer, &map, static_cast<GstMapFlags>(GST_MAP_READ | GST_MAP_WRITE)))
     {
-        context.fail("decoder-error: the video buffer cannot be mapped writable.");
+        context.fail("decode-error: the video buffer cannot be mapped writable.");
         return GST_PAD_PROBE_PASS;
     }
     const std::uint32_t corrupted{corruptSlices(map.data, map.size, codec)};
@@ -577,7 +577,7 @@ inline const FaultScenarioInfo *scenarioTable(std::size_t &size)
         {FaultScenario::FrameDrop, "frame-drop", frameDropHandler, bufferCountLimit},
         {FaultScenario::FrameRepeat, "frame-repeat", frameRepeatHandler, singleBufferLimit},
         {FaultScenario::BufferUnderflow, "buffer-underflow", bufferUnderflowHandler, singleBufferLimit},
-        {FaultScenario::DecoderError, "decoder-error", decoderErrorHandler, bufferCountLimit},
+        {FaultScenario::DecodeError, "decode-error", decodeErrorHandler, bufferCountLimit},
     };
     size = sizeof(table) / sizeof(table[0]);
     return table;

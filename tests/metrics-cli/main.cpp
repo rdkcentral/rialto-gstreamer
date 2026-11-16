@@ -57,7 +57,7 @@ void printUsage(const char *program)
               << metricscli::faultScenarioNames()
               << "\n"
                  "Fault options (require --fault-scenario; positive integers):\n"
-                 "  --fault-buffers N         Buffers affected by frame-drop and decoder-error (default: 3)\n"
+                 "  --fault-buffers N         Buffers affected by frame-drop and decode-error (default: 3)\n"
                  "  --fault-delay-frames N    Frame durations a buffer is held by frame-repeat (default: 3)\n"
                  "  --fault-stall-ms N        Milliseconds video is blocked by buffer-underflow (default: 2000)\n"
                  "  --fault-window-seconds N  Maximum time the fault probe stays installed (default: 10)\n"

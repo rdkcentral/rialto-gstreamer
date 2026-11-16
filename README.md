@@ -38,7 +38,7 @@ does not contain `rendered`, `dropped`, `corrupted`, and `timestamp` as
 `G_TYPE_UINT64` fields. It prints the returned values without requiring fixed
 or non-zero counts. Use `--help` to display
 the command syntax. `--fault-scenario NAME` selects a GStreamer-level fault:
-`frame-drop`, `frame-repeat`, `buffer-underflow`, or `decoder-error`. Unknown
+`frame-drop`, `frame-repeat`, `buffer-underflow`, or `decode-error`. Unknown
 names are argument errors. The fault is injected by a bounded buffer probe on
 `rialtomsevideosink`'s sink pad, installed only after playback is running and
 removed when the run ends (or after `--fault-window-seconds`, default 10). The
@@ -56,7 +56,7 @@ repeats the preceding frame; it fails if the frame duration is unknown or the
 delay does not fit in `--fault-window-seconds`. `buffer-underflow` is also implemented: once playback has advanced past two
 seconds, it blocks the video sink pad for `--fault-stall-ms` (the video stream
 only; audio keeps flowing), then releases it so the starvation ends; it fails
-if the stall does not fit in `--fault-window-seconds`. `decoder-error` is also implemented for H.264 and H.265 (byte-stream and
+if the stall does not fit in `--fault-window-seconds`. `decode-error` is also implemented for H.264 and H.265 (byte-stream and
 length-prefixed): once playback has advanced past two seconds, it corrupts the
 second half of the slice data in `--fault-buffers` non-key video buffers, leaving
 parameter sets, NAL headers and the start of each slice header intact. Buffers
