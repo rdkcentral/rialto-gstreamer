@@ -167,6 +167,37 @@ void reportPipelineError(GstMessage *message)
     std::cerr << '\n';
 }
 
+bool validateFrameCounters(GstElement *videoSink)
+{
+    GstStructure *frameCounters{nullptr};
+    g_object_get(videoSink, "frame-counters", &frameCounters, nullptr);
+    if (!frameCounters)
+    {
+        std::cerr << "Failed to query frame-counters from rialtomsevideosink.\n";
+        return false;
+    }
+
+    bool valid{true};
+    if (g_strcmp0(gst_structure_get_name(frameCounters), "frame-counters") != 0)
+    {
+        std::cerr << "Invalid frame-counters structure name: " << gst_structure_get_name(frameCounters) << '\n';
+        valid = false;
+    }
+
+    constexpr const char *requiredFields[]{"rendered", "dropped", "corrupted", "timestamp"};
+    for (const char *field : requiredFields)
+    {
+        if (gst_structure_get_field_type(frameCounters, field) != G_TYPE_UINT64)
+        {
+            std::cerr << "Invalid or missing frame-counters field '" << field << "' (expected G_TYPE_UINT64).\n";
+            valid = false;
+        }
+    }
+
+    gst_structure_free(frameCounters);
+    return valid;
+}
+
 int runPlayback(const Options &options)
 {
     if (!options.faultScenario.empty())
@@ -193,7 +224,6 @@ int runPlayback(const Options &options)
     else
     {
         g_object_set(pipeline, "uri", options.uri.c_str(), "video-sink", videoSink, nullptr);
-        gst_object_unref(videoSink);
 
         bus = gst_element_get_bus(pipeline);
         if (!bus)
@@ -202,6 +232,12 @@ int runPlayback(const Options &options)
         }
         else
         {
+            const GstClockTime timeout = static_cast<GstClockTime>(options.timeoutSeconds) * GST_SECOND;
+            const GstClockTime startTime = gst_util_get_timestamp();
+            const auto remainingTimeout = [timeout, startTime]() {
+                const GstClockTime elapsed = gst_util_get_timestamp() - startTime;
+                return elapsed >= timeout ? GstClockTime{0} : timeout - elapsed;
+            };
             const GstStateChangeReturn stateResult = gst_element_set_state(pipeline, GST_STATE_PLAYING);
             if (stateResult == GST_STATE_CHANGE_FAILURE)
             {
@@ -219,29 +255,63 @@ int runPlayback(const Options &options)
             else
             {
                 std::cout << "Playing " << options.uri << " through rialtomsevideosink.\n";
-                const GstClockTime timeout = static_cast<GstClockTime>(options.timeoutSeconds) * GST_SECOND;
-                GstMessage *message = gst_bus_timed_pop_filtered(
-                    bus, timeout, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
-                if (!message)
+                GstMessage *message{nullptr};
+                bool reachedEos{false};
+                bool readyForCounters{stateResult != GST_STATE_CHANGE_ASYNC};
+                if (!readyForCounters)
                 {
-                    std::cerr << "Playback timed out after " << options.timeoutSeconds << " seconds.\n";
-                }
-                else
-                {
-                    switch (GST_MESSAGE_TYPE(message))
+                    message = gst_bus_timed_pop_filtered(
+                        bus, remainingTimeout(),
+                        static_cast<GstMessageType>(GST_MESSAGE_ASYNC_DONE | GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+                    if (!message)
                     {
-                    case GST_MESSAGE_EOS:
+                        std::cerr << "Playback timed out after " << options.timeoutSeconds
+                                  << " seconds while waiting for the video source.\n";
+                    }
+                    else if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_ERROR)
+                    {
+                        reportPipelineError(message);
+                    }
+                    else
+                    {
+                        reachedEos = GST_MESSAGE_TYPE(message) == GST_MESSAGE_EOS;
+                        readyForCounters = true;
+                    }
+                    if (message)
+                    {
+                        gst_message_unref(message);
+                    }
+                }
+
+                if (readyForCounters && validateFrameCounters(videoSink))
+                {
+                    if (reachedEos)
+                    {
                         std::cout << "Playback reached EOS.\n";
                         exitCode = EXIT_SUCCESS_CODE;
-                        break;
-                    case GST_MESSAGE_ERROR:
-                        reportPipelineError(message);
-                        break;
-                    default:
-                        std::cerr << "Unexpected message received while waiting for playback completion.\n";
-                        break;
                     }
-                    gst_message_unref(message);
+                    else
+                    {
+                        message = gst_bus_timed_pop_filtered(
+                            bus, remainingTimeout(), static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+                        if (!message)
+                        {
+                            std::cerr << "Playback timed out after " << options.timeoutSeconds << " seconds.\n";
+                        }
+                        else
+                        {
+                            if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_EOS)
+                            {
+                                std::cout << "Playback reached EOS.\n";
+                                exitCode = EXIT_SUCCESS_CODE;
+                            }
+                            else
+                            {
+                                reportPipelineError(message);
+                            }
+                            gst_message_unref(message);
+                        }
+                    }
                 }
             }
         }
@@ -255,6 +325,10 @@ int runPlayback(const Options &options)
     {
         std::cerr << "Failed to stop the playbin pipeline during cleanup.\n";
         exitCode = EXIT_PLAYBACK_FAILURE;
+    }
+    if (videoSink)
+    {
+        gst_object_unref(videoSink);
     }
     gst_object_unref(pipeline);
     return exitCode;

@@ -3,7 +3,7 @@
 - [x] 1.2 Construct a GStreamer `playbin`, set the supplied URI, explicitly assign a `rialtomsevideosink` as `video-sink`, and handle missing plugin, pipeline errors, EOS, and cleanup.
 
 ## 2. Frame Counter Query
-- [ ] 2.1 Query the sink's `frame-counters` property while its video source is attached and the pipeline is alive; validate the structure name and required `G_TYPE_UINT64` fields.
+- [x] 2.1 Query the sink's `frame-counters` property while its video source is attached and the pipeline is alive; validate the structure name and required `G_TYPE_UINT64` fields.
 - [ ] 2.2 Print rendered, dropped, corrupted, and timestamp values; fail on query/structure errors without asserting fixed or non-zero target-dependent counts.
 - [ ] 2.3 Add focused tests for successful property parsing and query/field failures using the existing GStreamer test conventions.
 

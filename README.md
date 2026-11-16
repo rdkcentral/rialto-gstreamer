@@ -32,7 +32,10 @@ cmake --build build --target rialto-gstreamer-metrics-test
 must be a positive integer and defaults to 30 seconds. Playback ends
 successfully on EOS and fails on a pipeline error or timeout. The CLI explicitly
 uses `rialtomsevideosink` as `playbin`'s video sink; the Rialto plugin and a
-working Rialto client/server are required at runtime. Use `--help` to display
+working Rialto client/server are required at runtime. Once the video source is
+active, the CLI queries `frame-counters` and fails if the returned structure
+does not contain `rendered`, `dropped`, `corrupted`, and `timestamp` as
+`G_TYPE_UINT64` fields. Use `--help` to display
 the command syntax. `--fault-scenario NAME` is reserved for configured
 GStreamer-level scenarios; until those scenarios are implemented, requesting
 one fails rather than silently running without the fault.
