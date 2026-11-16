@@ -87,6 +87,7 @@ add_gtests (
         # gtest code
         BufferParserTests.cpp
         ControlBackendTests.cpp
+        FaultInjectionTests.cpp
         FrameCountersTests.cpp
         GStreamerEmeUtilsTests.cpp
         GstreamerMseAudioSinkInWebAudioModeTests.cpp

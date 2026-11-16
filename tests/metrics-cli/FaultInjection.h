@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -50,7 +51,27 @@ struct FaultParameters
 class FaultContext
 {
 public:
-    FaultContext(const FaultParameters &parameters, GstElement *pipeline) : parameters{parameters}, pipeline{pipeline} {}
+    // Returns the playback position in nanoseconds, or nullopt if it cannot be obtained.
+    using PositionQuery = std::function<std::optional<gint64>()>;
+
+    FaultContext(const FaultParameters &parameters, GstElement *pipeline, PositionQuery positionQuery = nullptr)
+        : parameters{parameters}, pipeline{pipeline}, m_positionQuery{std::move(positionQuery)}
+    {
+    }
+
+    std::optional<gint64> queryPosition() const
+    {
+        if (m_positionQuery)
+        {
+            return m_positionQuery();
+        }
+        gint64 position{0};
+        if (!pipeline || !gst_element_query_position(pipeline, GST_FORMAT_TIME, &position) || position < 0)
+        {
+            return std::nullopt;
+        }
+        return position;
+    }
 
     void fail(const std::string &message)
     {
@@ -87,6 +108,7 @@ public:
 
 private:
     mutable std::mutex m_mutex;
+    PositionQuery m_positionQuery;
     std::atomic<bool> m_failed{false};
     std::atomic<bool> m_cancelled{false};
     std::string m_failure;
@@ -128,16 +150,20 @@ enum class PlaybackState
 };
 
 // Reports a failure on the context if the playback position cannot be queried.
-inline PlaybackState checkPlaybackSettled(FaultContext &context, const char *scenario)
+inline PlaybackState checkPlaybackSettled(FaultContext &context, const char *scenario, gint64 *positionOut = nullptr)
 {
-    gint64 position{0};
-    if (!gst_element_query_position(context.pipeline, GST_FORMAT_TIME, &position) || position < 0)
+    const std::optional<gint64> position{context.queryPosition()};
+    if (!position)
     {
         context.fail(std::string{scenario} + ": failed to query the current playback position.");
         return PlaybackState::Failed;
     }
-    return static_cast<GstClockTime>(position) < kFrameDropSettleTime ? PlaybackState::NotSettled
-                                                                       : PlaybackState::Settled;
+    if (positionOut)
+    {
+        *positionOut = *position;
+    }
+    return static_cast<GstClockTime>(*position) < kFrameDropSettleTime ? PlaybackState::NotSettled
+                                                                        : PlaybackState::Settled;
 }
 
 // frame-drop (late frames): moves the PTS (and DTS, where set) of consecutive video buffers back
@@ -152,17 +178,16 @@ inline GstPadProbeReturn frameDropHandler(GstPad *pad, GstPadProbeInfo *info, Fa
         return GST_PAD_PROBE_PASS;
     }
 
+    gint64 position{0};
     if (!context.ptsShift)
     {
-        gint64 position{0};
-        if (!gst_element_query_position(context.pipeline, GST_FORMAT_TIME, &position) || position < 0)
+        switch (checkPlaybackSettled(context, "frame-drop", &position))
         {
-            context.fail("frame-drop: failed to query the current playback position.");
+        case PlaybackState::Failed:
+        case PlaybackState::NotSettled:
             return GST_PAD_PROBE_PASS;
-        }
-        if (static_cast<GstClockTime>(position) < kFrameDropSettleTime)
-        {
-            return GST_PAD_PROBE_PASS; // Playback has not settled yet; try the next buffer
+        case PlaybackState::Settled:
+            break;
         }
 
         GstEvent *segmentEvent{gst_pad_get_sticky_event(pad, GST_EVENT_SEGMENT, 0)};
@@ -616,8 +641,9 @@ inline std::string faultScenarioNames()
 class FaultInjector
 {
 public:
-    FaultInjector(const FaultScenarioInfo &info, const FaultParameters &parameters, GstElement *pipeline)
-        : m_info{info}, m_context{parameters, pipeline}
+    FaultInjector(const FaultScenarioInfo &info, const FaultParameters &parameters, GstElement *pipeline,
+                  FaultContext::PositionQuery positionQuery = nullptr)
+        : m_info{info}, m_context{parameters, pipeline, std::move(positionQuery)}
     {
     }
     FaultInjector(const FaultInjector &) = delete;
