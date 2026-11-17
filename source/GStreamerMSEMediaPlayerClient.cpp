@@ -77,21 +77,27 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         return false;
     }
 
-    // Validate metric field: numeric values per 0.7 spec
+    // Validate metric field against the current Rialto enum-based metric API.
     const guint metric = g_value_get_uint(gst_structure_get_value(structure, "metric"));
-    const std::array<guint, 7> validMetrics = {MEDIA_METRIC_VIDEO_FRAME_DROP, MEDIA_METRIC_AUDIO_FRAME_DROP,
-                                               MEDIA_METRIC_VIDEO_DECODE_ERROR, MEDIA_METRIC_AUDIO_DECODE_ERROR,
-                                               MEDIA_METRIC_VIDEO_FRAME_REPEAT, MEDIA_METRIC_AUDIO_GAP,
-                                               MEDIA_METRIC_BUFFER_UNDERFLOW};
+    const std::array<guint, 7> validMetrics = {
+        static_cast<guint>(firebolt::rialto::MetricType::VIDEO_FRAME_DROP),
+        static_cast<guint>(firebolt::rialto::MetricType::AUDIO_FRAME_DROP),
+        static_cast<guint>(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR),
+        static_cast<guint>(firebolt::rialto::MetricType::AUDIO_DECODE_ERROR),
+        static_cast<guint>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT),
+        static_cast<guint>(firebolt::rialto::MetricType::AUDIO_GAP),
+        static_cast<guint>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW)};
     if (std::find(validMetrics.begin(), validMetrics.end(), metric) == validMetrics.end())
     {
         return false;
     }
 
-    // Validate observation-kind field: occurrence, episode-started, episode-resolved
+    // Validate observation-kind field against the current Rialto metric phase enum.
     const guint observationKind = g_value_get_uint(gst_structure_get_value(structure, "observation-kind"));
-    const std::array<guint, 3> validObservationKinds = {OBSERVATION_KIND_OCCURRENCE, OBSERVATION_KIND_EPISODE_STARTED,
-                                                        OBSERVATION_KIND_EPISODE_RESOLVED};
+    const std::array<guint, 3> validObservationKinds = {
+        static_cast<guint>(firebolt::rialto::MetricPhase::OCCURRENCE),
+        static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_STARTED),
+        static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED)};
     if (std::find(validObservationKinds.begin(), validObservationKinds.end(), observationKind) ==
         validObservationKinds.end())
     {
@@ -120,17 +126,18 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         }
     }
 
-    // Enforce metric-specific rules for count and duration-ns per 0.7 spec
-    const bool isVideoFrameRepeat = (metric == MEDIA_METRIC_VIDEO_FRAME_REPEAT);
-    const bool isAudioGap = (metric == MEDIA_METRIC_AUDIO_GAP);
-    const bool isBufferUnderflow = (metric == MEDIA_METRIC_BUFFER_UNDERFLOW);
-    const bool isOccurrence = (observationKind == OBSERVATION_KIND_OCCURRENCE);
-    const bool isEpisodeResolved = (observationKind == OBSERVATION_KIND_EPISODE_RESOLVED);
+    // Enforce metric-specific rules for count and duration-ns per current Rialto API.
+    const bool isVideoFrameRepeat = (metric == static_cast<guint>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT));
+    const bool isAudioGap = (metric == static_cast<guint>(firebolt::rialto::MetricType::AUDIO_GAP));
+    const bool isBufferUnderflow = (metric == static_cast<guint>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW));
+    const bool isOccurrence = (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::OCCURRENCE));
+    const bool isEpisodeResolved =
+        (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED));
 
     bool hasCount = gst_structure_has_field(structure, "count");
     bool hasDurationNs = gst_structure_has_field(structure, "duration-ns");
 
-    // For OCCURRENCE messages, count and duration-ns must not be present
+    // For OCCURRENCE messages, count and duration-ns must not be present.
     if (isOccurrence)
     {
         if (hasCount || hasDurationNs)

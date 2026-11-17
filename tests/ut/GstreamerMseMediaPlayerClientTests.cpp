@@ -459,7 +459,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostMetricEventAsApplicationMes
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_STREQ(gst_structure_get_name(messageStructure), "media-pipeline-metric");
     EXPECT_FALSE(gst_structure_has_field(messageStructure, "session_id"));
-    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric")), 4u);
+    EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "metric")),
+              static_cast<guint>(firebolt::rialto::MetricType::AUDIO_DECODE_ERROR));
     EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "source_id")), kSourceId);
     EXPECT_EQ(g_value_get_int64(gst_structure_get_value(messageStructure, "pts-ns")), 1234567890);
     EXPECT_EQ(g_value_get_uint(gst_structure_get_value(messageStructure, "observation-kind")), kPhase);
@@ -1109,12 +1110,23 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldValidateMediaPipelineMetricMess
 {
     GstStructure *messageStructure{gst_structure_new(
         "media-pipeline-metric", "metric", G_TYPE_UINT, 1u, "observation-kind", G_TYPE_UINT, 1u, "source_id",
-        G_TYPE_UINT, 7u, "session_id", G_TYPE_UINT, 11u, "pts-ns", G_TYPE_INT64, gint64{1234567890},
-        "duration-ns", G_TYPE_UINT64, guint64{1500}, "count", G_TYPE_UINT64, guint64{7}, nullptr)};
+        G_TYPE_UINT, 7u, "session_id", G_TYPE_UINT, 11u, "pts-ns", G_TYPE_INT64, gint64{1234567890}, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_TRUE(validateMediaPipelineMetricMessage(messageStructure));
 
+    gst_structure_free(messageStructure);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectOccurrenceMetricWithDurationAndCount)
+{
+    GstStructure *messageStructure{gst_structure_new(
+        "media-pipeline-metric", "metric", G_TYPE_UINT, 1u, "observation-kind", G_TYPE_UINT, 1u, "source_id",
+        G_TYPE_UINT, 7u, "pts-ns", G_TYPE_INT64, gint64{1234567890}, "duration-ns", G_TYPE_UINT64,
+        guint64{1500}, "count", G_TYPE_UINT64, guint64{7}, nullptr)};
+
+    ASSERT_NE(messageStructure, nullptr);
+    EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
     gst_structure_free(messageStructure);
 }
 
