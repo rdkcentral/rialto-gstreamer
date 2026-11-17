@@ -450,8 +450,10 @@ bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameCoun
     out.timestamp = timestamp;
 
     std::lock_guard<std::mutex> lock{m_frameCountersMutex};
-    m_lastCounters[sourceId] = {sizeof(firebolt::rialto::VideoFrameCounters), renderedFrames, droppedFrames,
-                               corruptedFrames};
+    m_lastCounters[sourceId] = firebolt::rialto::VideoFrameCounters{
+        static_cast<uint32_t>(sizeof(firebolt::rialto::VideoFrameCounters)),
+        renderedFrames, droppedFrames, corruptedFrames
+    };
 
     GST_DEBUG("Frame counters fetched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
               " corrupted=%" G_GUINT64_FORMAT,
