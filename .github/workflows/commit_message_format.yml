@@ -36,7 +36,6 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Post commit message comment on PR
-        if: ${{ !github.event.pull_request.locked }}
         uses: mshick/add-pr-comment@v2
         with:
           message: |
