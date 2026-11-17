@@ -71,29 +71,30 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             }
             else
             {
-                std::unique_lock lock{m_mutex};
-                m_sourceAttached = true;
-                if (m_isMuteQueued)
                 {
-                    m_isMuteQueued = false;
-                    scheduleMuteUpdateLocked(client, m_isMuted.load());
-                }
-                if (m_isTextTrackIdentifierQueued)
-                {
-                    m_isTextTrackIdentifierQueued = false;
-                    scheduleTextTrackIdentifierUpdateLocked(client, m_textTrackIdentifier);
-                }
-                if (m_queuedOffset)
-                {
-                    GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
-                                     GST_TIME_ARGS(m_queuedOffset.value()));
-                    if (!client->scheduleSetSubtitleOffset(m_sourceId, m_queuedOffset.value()))
+                    std::lock_guard lock{m_mutex};
+                    m_sourceAttached = true;
+                    if (m_isMuteQueued)
                     {
-                        GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle offset update");
+                        m_isMuteQueued = false;
+                        scheduleMuteUpdateLocked(client, m_isMuted.load());
                     }
-                    m_queuedOffset.reset();
+                    if (m_isTextTrackIdentifierQueued)
+                    {
+                        m_isTextTrackIdentifierQueued = false;
+                        scheduleTextTrackIdentifierUpdateLocked(client, m_textTrackIdentifier);
+                    }
+                    if (m_queuedOffset)
+                    {
+                        GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
+                                         GST_TIME_ARGS(m_queuedOffset.value()));
+                        if (!client->scheduleSetSubtitleOffset(m_sourceId, m_queuedOffset.value()))
+                        {
+                            GST_ERROR_OBJECT(m_sink, "Failed to queue subtitle offset update");
+                        }
+                        m_queuedOffset.reset();
+                    }
                 }
-                lock.unlock();
 
                 // check if READY -> PAUSED was requested before source was attached
                 if (GST_STATE_NEXT(m_sink) == GST_STATE_PAUSED)
