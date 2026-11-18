@@ -131,11 +131,20 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
     const bool isAudioGap = (metric == static_cast<guint>(firebolt::rialto::MetricType::AUDIO_GAP));
     const bool isBufferUnderflow = (metric == static_cast<guint>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW));
     const bool isOccurrence = (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::OCCURRENCE));
+    const bool isEpisodeStarted =
+        (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_STARTED));
     const bool isEpisodeResolved =
         (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED));
 
-    bool hasCount = gst_structure_has_field(structure, "count");
-    bool hasDurationNs = gst_structure_has_field(structure, "duration-ns");
+    const bool hasCount = gst_structure_has_field(structure, "count");
+    const bool hasDurationNs = gst_structure_has_field(structure, "duration-ns");
+    const bool isEpisodeMetric = isVideoFrameRepeat || isAudioGap || isBufferUnderflow;
+
+    // Occurrence-only metrics must use OCCURRENCE; episode metrics must use episode phases.
+    if ((isEpisodeMetric && isOccurrence) || (!isEpisodeMetric && !isOccurrence))
+    {
+        return false;
+    }
 
     // For OCCURRENCE messages, count and duration-ns must not be present.
     if (isOccurrence)
@@ -146,9 +155,21 @@ const int32_t UNKNOWN_STREAMS_NUMBER = -1;
         }
     }
 
+    // EPISODE_STARTED messages must not have count or duration.
+    if (isEpisodeStarted && (hasCount || hasDurationNs))
+    {
+        return false;
+    }
+
     // For EPISODE_RESOLVED messages
     if (isEpisodeResolved)
     {
+        // All resolved episode messages must include duration.
+        if (!hasDurationNs)
+        {
+            return false;
+        }
+
         // BUFFER_UNDERFLOW episodes must not have count
         if (isBufferUnderflow && hasCount)
         {
@@ -194,6 +215,18 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
         return "UNKNOWN";
     }
     return "UNKNOWN";
+}
+
+bool isValidMetricPhase(const firebolt::rialto::MetricPhase phase)
+{
+    switch (phase)
+    {
+    case firebolt::rialto::MetricPhase::OCCURRENCE:
+    case firebolt::rialto::MetricPhase::EPISODE_STARTED:
+    case firebolt::rialto::MetricPhase::EPISODE_RESOLVED:
+        return true;
+    }
+    return false;
 }
 } // namespace
 #define GST_CAT_DEFAULT rialtoGStreamerCat
@@ -310,7 +343,17 @@ void GStreamerMSEMediaPlayerClient::notifyMetric(const firebolt::rialto::MetricE
               metric.presentationTimeStampNs.has_value() ? std::to_string(metric.presentationTimeStampNs.value()).c_str() : "absent",
               metric.count.has_value() ? std::to_string(metric.count.value()).c_str() : "absent",
               metric.durationNs.has_value() ? std::to_string(metric.durationNs.value()).c_str() : "absent");
-    onMetricEvent(metric.sourceId, metric);
+
+    if (!isValidMetricPhase(metric.phase))
+    {
+        GST_WARNING("Dropping metric event with invalid observation-kind=%u for sourceId=%d",
+                    static_cast<uint32_t>(metric.phase), metric.sourceId);
+        return;
+    }
+
+    m_backendQueue->scheduleInEventLoop([this, metric]() {
+        onMetricEvent(metric.sourceId, metric);
+    });
 }
 
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
@@ -554,14 +597,17 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
         return;
     }
 
-    GstMessage *metricMessage = gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), metricStructure);
-    if (!metricMessage || !gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), metricMessage))
+    GstMessage *metricMessage =
+        gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), metricStructure);
+    if (!metricMessage)
+    {
+        GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
+        return;
+    }
+
+    if (!gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), metricMessage))
     {
         GST_WARNING("Failed to post media-pipeline-metric message for sourceId=%d", sourceId);
-        if (metricMessage)
-        {
-            gst_message_unref(metricMessage);
-        }
         return;
     }
 
