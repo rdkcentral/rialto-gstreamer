@@ -221,8 +221,8 @@ static void rialto_mse_base_sink_get_property(GObject *object, guint propId, GVa
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Stats, value);
         break;
     case PROP_FRAME_COUNTERS:
-        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::FrameCounters,
-                                                 value);
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::FrameCounters, value);
         break;
     case PROP_ENABLE_LAST_SAMPLE:
         rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),

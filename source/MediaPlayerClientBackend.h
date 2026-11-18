@@ -118,7 +118,7 @@ public:
     }
 
     bool getFrameCounters(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames,
-                         uint64_t &corruptedFrames, uint64_t &timestamp) override
+                          uint64_t &corruptedFrames, uint64_t &timestamp) override
     {
         return m_mediaPlayerBackend->getFrameCounters(sourceId, renderedFrames, droppedFrames, corruptedFrames,
                                                       timestamp);
