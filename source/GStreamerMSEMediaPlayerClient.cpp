@@ -233,9 +233,9 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_position(0),
-      m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
-      m_subtitleStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+            m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
+            m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
+            m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight), m_isLive{isLive}
 {
@@ -1366,8 +1366,7 @@ IFlushAndDataSynchronizer &GStreamerMSEMediaPlayerClient::getFlushAndDataSynchro
 
 bool GStreamerMSEMediaPlayerClient::checkIfAllAttachedSourcesInStates(const std::vector<ClientState> &states)
 {
-    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(),
-                       [states](const auto &source)
+    return std::all_of(m_attachedSources.begin(), m_attachedSources.end(), [states](const auto &source)
                        { return std::find(states.begin(), states.end(), source.second.m_state) != states.end(); });
 }
 
@@ -1545,8 +1544,8 @@ firebolt::rialto::AddSegmentStatus GStreamerMSEMediaPlayerClient::addSegment(
 BufferPuller::BufferPuller(const std::shared_ptr<IMessageQueueFactory> &messageQueueFactory, GstElement *rialtoSink,
                            const std::shared_ptr<BufferParser> &bufferParser,
                            const std::shared_ptr<IPullModePlaybackDelegate> &delegate)
-    : m_queue{messageQueueFactory->createMessageQueue()}, m_rialtoSink(rialtoSink),
-      m_bufferParser(bufferParser), m_delegate{delegate}
+        : m_queue{messageQueueFactory->createMessageQueue()}, m_rialtoSink(rialtoSink), m_bufferParser(bufferParser),
+            m_delegate{delegate}
 {
 }
 

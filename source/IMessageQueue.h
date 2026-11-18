@@ -26,7 +26,7 @@ class Message
 public:
     virtual ~Message() {}
     virtual void handle() = 0;
-    virtual void skip(){};
+    virtual void skip() {};
 };
 
 class IMessageQueue
