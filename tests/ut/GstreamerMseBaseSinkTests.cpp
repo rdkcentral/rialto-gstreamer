@@ -357,6 +357,41 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldGetFrameCountersProperty)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetFrameCountersPropertyWithoutClient)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+
+    GstStructure *frameCounters{nullptr};
+    g_object_get(audioSink, "frame-counters", &frameCounters, nullptr);
+    EXPECT_EQ(frameCounters, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(audioSink), GST_STATE_NULL);
+    gst_object_unref(audioSink);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetFrameCountersPropertyWhenClientReturnsNoData)
+{
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, getFrameCounters(_, _, _, _, _)).WillOnce(Return(false));
+
+    GstStructure *frameCounters{nullptr};
+    g_object_get(audioSink, "frame-counters", &frameCounters, nullptr);
+    EXPECT_EQ(frameCounters, nullptr);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldFailToGetStatsProperty)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();
