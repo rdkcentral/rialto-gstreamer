@@ -534,9 +534,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
     EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
     g_object_set(sink, "mute", kMute, nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, getMute(kSourceId, _))
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(DoAll(SetArgReferee<1>(kMute), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, getMute(kSourceId, _)).Times(0);
     gboolean mute{FALSE};
     g_object_get(sink, "mute", &mute, nullptr);
     EXPECT_EQ(kMute, mute);
@@ -575,9 +573,7 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetTextTrackIdProperty)
     EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
     g_object_set(sink, "text-track-identifier", kTextTrackIdentifier.c_str(), nullptr);
 
-    EXPECT_CALL(m_mediaPipelineMock, getTextTrackIdentifier(_))
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, getTextTrackIdentifier(_)).Times(0);
     gchar *textTrackId{nullptr};
     g_object_get(sink, "text-track-identifier", &textTrackId, nullptr);
     EXPECT_EQ(kTextTrackIdentifier, std::string{textTrackId});

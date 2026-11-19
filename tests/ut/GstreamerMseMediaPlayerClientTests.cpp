@@ -1507,7 +1507,7 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetMute)
     gst_object_unref(audioSink);
 }
 
-TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleMuteAndTextTrackIdentifierWithoutCompletion)
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleMuteAndTextTrackIdentifier)
 {
     EXPECT_CALL(m_messageQueueMock, scheduleInEventLoop(_))
         .Times(2)
@@ -1520,8 +1520,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleMuteAndTextTrackIdentif
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setMute(kMute, kUnknownSourceId)).WillOnce(Return(true));
     EXPECT_CALL(*m_mediaPlayerClientBackendMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
 
-    EXPECT_TRUE(m_sut->scheduleSetMute(kMute, kUnknownSourceId, {}));
-    EXPECT_TRUE(m_sut->scheduleSetTextTrackIdentifier(kTextTrackIdentifier, {}));
+    EXPECT_TRUE(m_sut->scheduleSetMute(kMute, kUnknownSourceId));
+    EXPECT_TRUE(m_sut->scheduleSetTextTrackIdentifier(kTextTrackIdentifier));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldScheduleSubtitleOffsetForUnknownSource)
