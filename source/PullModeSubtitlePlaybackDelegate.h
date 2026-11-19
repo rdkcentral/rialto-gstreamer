@@ -36,7 +36,12 @@ public:
     void handleQos(uint64_t processed, uint64_t dropped) const override;
 
 private:
+    friend class PullModeSubtitlePlaybackDelegateTestPeer;
+
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
+    bool scheduleMuteUpdateLocked(const std::shared_ptr<GStreamerMSEMediaPlayerClient> &client, bool mute);
+    bool scheduleTextTrackIdentifierUpdateLocked(const std::shared_ptr<GStreamerMSEMediaPlayerClient> &client,
+                                                 const std::string &textTrackIdentifier);
 
 private:
     mutable std::mutex m_mutex;
