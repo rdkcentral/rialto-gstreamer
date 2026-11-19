@@ -1346,8 +1346,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectEpisodeResolvedWithoutDur
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMetricMessageWithZeroSourceId)
 {
     GstStructure *messageStructure{gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT, 1u,
-                                                     "observation-kind", G_TYPE_UINT, 1u, "source_id", G_TYPE_UINT,
-                                                     0u, nullptr)};
+                                                     "observation-kind", G_TYPE_UINT, 1u, "source_id", G_TYPE_UINT, 0u,
+                                                     nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
@@ -1357,8 +1357,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMetricMessageWithZeroSour
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMetricMessageWithInvalidOptionalFieldType)
 {
     GstStructure *messageStructure{gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT, 1u,
-                                                     "observation-kind", G_TYPE_UINT, 1u, "source_id", G_TYPE_UINT,
-                                                     7u, "count", G_TYPE_INT64, gint64{7}, nullptr)};
+                                                     "observation-kind", G_TYPE_UINT, 1u, "source_id", G_TYPE_UINT, 7u,
+                                                     "count", G_TYPE_INT64, gint64{7}, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
@@ -1368,8 +1368,8 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMetricMessageWithInvalidO
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMetricMessageWithInvalidSessionIdType)
 {
     GstStructure *messageStructure{gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT, 1u,
-                                                     "observation-kind", G_TYPE_UINT, 1u, "source_id", G_TYPE_UINT,
-                                                     7u, "session_id", G_TYPE_INT64, gint64{11}, nullptr)};
+                                                     "observation-kind", G_TYPE_UINT, 1u, "source_id", G_TYPE_UINT, 7u,
+                                                     "session_id", G_TYPE_INT64, gint64{11}, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
@@ -1378,12 +1378,12 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectMetricMessageWithInvalidS
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectBufferUnderflowEpisodeResolvedWithCount)
 {
-    GstStructure *messageStructure{
-        gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT,
-                          static_cast<guint>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW), "observation-kind",
-                          G_TYPE_UINT, static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED),
-                          "source_id", G_TYPE_UINT, 7u, "duration-ns", G_TYPE_UINT64, guint64{1500}, "count",
-                          G_TYPE_UINT64, guint64{1}, nullptr)};
+    GstStructure *messageStructure{gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT,
+                                                     static_cast<guint>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW),
+                                                     "observation-kind", G_TYPE_UINT,
+                                                     static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED),
+                                                     "source_id", G_TYPE_UINT, 7u, "duration-ns", G_TYPE_UINT64,
+                                                     guint64{1500}, "count", G_TYPE_UINT64, guint64{1}, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
@@ -1394,10 +1394,9 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRejectRepeatEpisodeResolvedWith
 {
     GstStructure *messageStructure{
         gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT,
-                          static_cast<guint>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT),
-                          "observation-kind", G_TYPE_UINT,
-                          static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED), "source_id", G_TYPE_UINT,
-                          7u, "duration-ns", G_TYPE_UINT64, guint64{1500}, nullptr)};
+                          static_cast<guint>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT), "observation-kind",
+                          G_TYPE_UINT, static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED), "source_id",
+                          G_TYPE_UINT, 7u, "duration-ns", G_TYPE_UINT64, guint64{1500}, nullptr)};
 
     ASSERT_NE(messageStructure, nullptr);
     EXPECT_FALSE(validateMediaPipelineMetricMessage(messageStructure));
