@@ -1974,6 +1974,7 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
                                            gst_event_new_flush_start()));
 
     EXPECT_CALL(m_mediaPipelineMock, flush(kSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, pause()).WillOnce(Return(true));
     std::mutex flushMutex;
     std::condition_variable flushCond;
     bool flushFlag{false};
@@ -1996,8 +1997,14 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
     }
     t.join();
 
-    audioSink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
-    audioSink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_CALL(m_mediaPipelineMock, play(_))
+        .WillOnce(Invoke(
+            [this, audioSink](bool &)
+            {
+                sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PLAYING);
+                return true;
+            }));
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
     pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
