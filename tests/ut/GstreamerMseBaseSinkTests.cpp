@@ -1997,10 +1997,17 @@ TEST_F(GstreamerMseBaseSinkTests, LostStateWhenTransitioningToPlaying)
     }
     t.join();
 
-    audioSink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PAUSED);
-    audioSink->priv->m_delegate->handleStateChanged(firebolt::rialto::PlaybackState::PLAYING);
+    EXPECT_CALL(m_mediaPipelineMock, play(_))
+        .WillOnce(Invoke(
+            [this, audioSink](bool &)
+            {
+                sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PLAYING);
+                return true;
+            }));
+    sendPlaybackStateNotification(audioSink, firebolt::rialto::PlaybackState::PAUSED);
     EXPECT_TRUE(waitForMessage(pipeline, GST_MESSAGE_ASYNC_DONE));
 
+    pipelineWillGoToPausedState(audioSink); // PLAYING -> PAUSED
     setNullState(pipeline, kSourceId);
 
     gst_caps_unref(caps);
