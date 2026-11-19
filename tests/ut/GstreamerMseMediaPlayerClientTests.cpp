@@ -1253,6 +1253,83 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlush)
     gst_object_unref(audioSink);
 }
 
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseServerWhenFlushingInPlayingState)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+    serverTransitionedToPaused();
+    allSourcesWantToPlay();
+    serverTransitionedToPlaying();
+
+    // First flushed source loses state - server pause is requested
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(m_videoSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, lostState());
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->flush(m_videoSourceId, kResetTime);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    // Second flushed source loses state - pause already requested, no additional pause
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(m_audioSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, lostState());
+    m_sut->flush(m_audioSourceId, kResetTime);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    // Server prerolled in PAUSED, playback is resumed only when sinks request play
+    serverTransitionedToPaused();
+    allSourcesWantToPlay();
+
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseServerWhenFlushingInAwaitingPlayingState)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+    serverTransitionedToPaused();
+    allSourcesWantToPlay();
+
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(m_videoSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, lostState());
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, pause()).WillOnce(Return(true));
+    m_sut->flush(m_videoSourceId, kResetTime);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    // Play requested while pause is in progress - play command must not be sent
+    EXPECT_CALL(*m_delegateMock, postAsyncStart());
+    EXPECT_EQ(m_sut->play(m_videoSourceId), StateChangeResult::SUCCESS_ASYNC);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    serverTransitionedToPaused();
+
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotPauseServerWhenFlushingInPausedState)
+{
+    attachAudioVideo();
+    allSourcesWantToPause();
+    serverTransitionedToPaused();
+
+    expectPostMessage();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, flush(m_videoSourceId, kResetTime, _)).WillOnce(Return(true));
+    EXPECT_CALL(*m_delegateMock, lostState());
+    m_sut->flush(m_videoSourceId, kResetTime);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
+    gst_element_set_state(GST_ELEMENT_CAST(m_audioSink), GST_STATE_NULL);
+    gst_element_set_state(GST_ELEMENT_CAST(m_videoSink), GST_STATE_NULL);
+    gst_object_unref(m_audioSink);
+    gst_object_unref(m_videoSink);
+}
+
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToFlushWhenNotAttached)
 {
     expectCallInEventLoop();
