@@ -1275,6 +1275,11 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPauseServerWhenFlushingInPlayin
     m_sut->flush(m_audioSourceId, kResetTime);
     EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
 
+    // Play requested before server's PAUSED - cached PLAYING state is outdated, play must wait for PAUSED
+    EXPECT_CALL(*m_delegateMock, postAsyncStart());
+    EXPECT_EQ(m_sut->play(m_videoSourceId), StateChangeResult::SUCCESS_ASYNC);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::AWAITING_PAUSED);
+
     // Server prerolled in PAUSED, playback is resumed only when sinks request play
     serverTransitionedToPaused();
     allSourcesWantToPlay();

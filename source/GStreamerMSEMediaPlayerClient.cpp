@@ -304,8 +304,9 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 return;
             }
 
-            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING ||
-                (m_serverPlaybackState == firebolt::rialto::PlaybackState::END_OF_STREAM && wasPlayingBeforeEos))
+            if (m_clientState != ClientState::AWAITING_PAUSED &&
+                (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING ||
+                 (m_serverPlaybackState == firebolt::rialto::PlaybackState::END_OF_STREAM && wasPlayingBeforeEos)))
             {
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
