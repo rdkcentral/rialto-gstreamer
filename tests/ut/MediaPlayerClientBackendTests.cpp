@@ -251,6 +251,18 @@ TEST_F(MediaPlayerClientBackendTests, ShouldGetMute)
     EXPECT_EQ(kMute, mute);
 }
 
+TEST_F(MediaPlayerClientBackendTests, ShouldGetTextTrackIdentifier)
+{
+    const std::string kTextTrackIdentifier{"TEXT"};
+    std::string textTrackIdentifier;
+    EXPECT_CALL(*m_mediaPipelineMock, getTextTrackIdentifier(_))
+        .WillOnce(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.getTextTrackIdentifier(textTrackIdentifier));
+    EXPECT_EQ(kTextTrackIdentifier, textTrackIdentifier);
+}
+
 TEST_F(MediaPlayerClientBackendTests, ShouldFlush)
 {
     constexpr int32_t kSourceId{12};
