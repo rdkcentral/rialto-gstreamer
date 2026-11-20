@@ -236,17 +236,17 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
       m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
       m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
+      m_subscribedMetricTypes{static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_DROP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_FRAME_DROP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_GAP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_DECODE_ERROR),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW)},
       m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight), m_isLive{isLive}
 {
-    m_subscribedMetricTypes = {static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_DROP),
-                               static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_FRAME_DROP),
-                               static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT),
-                               static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_GAP),
-                               static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR),
-                               static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_DECODE_ERROR),
-                               static_cast<uint32_t>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW)};
     m_backendQueue->start();
 }
 
