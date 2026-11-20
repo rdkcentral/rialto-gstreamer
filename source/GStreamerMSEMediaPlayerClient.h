@@ -47,10 +47,6 @@
 #define DEFAULT_MAX_VIDEO_WIDTH 3840
 #define DEFAULT_MAX_VIDEO_HEIGHT 2160
 
-#if defined(RIALTO_GSTREAMER_UNIT_TESTS)
-[[maybe_unused]] bool validateMediaPipelineMetricMessage(const GstStructure *structure);
-#endif
-
 class GStreamerMSEMediaPlayerClient;
 
 enum class ClientState

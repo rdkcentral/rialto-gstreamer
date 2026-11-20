@@ -19,6 +19,7 @@
 #include "GStreamerMSEMediaPlayerClient.h"
 #include "MediaPlayerClientBackendMock.h"
 #include "MediaSourceMock.h"
+#include "MetricMessageValidation.h"
 #include "MessageQueueMock.h"
 #include "PullModePlaybackDelegateMock.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
@@ -2277,6 +2278,24 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetQueuedFramesIfNoClientBac
     const int32_t kVideoSourceId = 1;
     uint32_t queuedFrames = 0;
     EXPECT_FALSE(m_sut->getQueuedFrames(kVideoSourceId, queuedFrames));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotGetStatsIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight, kIsLive);
+
+    const int32_t kSourceId{1};
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    EXPECT_FALSE(m_sut->getStats(kSourceId, renderedFrames, droppedFrames));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetLowLatency)
