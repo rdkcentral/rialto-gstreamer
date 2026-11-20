@@ -29,6 +29,7 @@
 #include <cctype>
 #include <chrono>
 #include <thread>
+#include <inttypes.h>
 
 namespace
 {
@@ -494,8 +495,8 @@ bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameCoun
         firebolt::rialto::VideoFrameCounters{static_cast<uint32_t>(sizeof(firebolt::rialto::VideoFrameCounters)),
                                              renderedFrames, droppedFrames, corruptedFrames};
 
-    GST_DEBUG("Frame counters fetched for sourceId=%d rendered=%" G_GUINT64_FORMAT " dropped=%" G_GUINT64_FORMAT
-              " corrupted=%" G_GUINT64_FORMAT,
+    GST_DEBUG("Frame counters fetched for sourceId=%d rendered=%" PRIu64 " dropped=%" PRIu64
+              " corrupted=%" PRIu64,
               sourceId, renderedFrames, droppedFrames, corruptedFrames);
     return true;
 }
@@ -599,16 +600,17 @@ void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const
     }
 
     GST_INFO("Posted media-pipeline-metric message for sourceId=%d metric=%u observation-kind=%u "
-             "observedAtMonotonicNs=%" G_GUINT64_FORMAT " observedAtUnixNs=%" G_GINT64_FORMAT,
-             sourceId, metricType, static_cast<guint>(event.phase), event.observedAtMonotonicNs, event.observedAtUnixNs);
+             "observedAtMonotonicNs=%" PRIu64 " observedAtUnixNs=%" PRId64,
+             sourceId, metricType, static_cast<guint>(event.phase), event.observedAtMonotonicNs,
+             static_cast<int64_t>(event.observedAtUnixNs));
 }
 
 void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const firebolt::rialto::MetricEvent &event)
 {
-    GST_DEBUG("Metric event dispatched for sourceId=%d type=%u phase=%u observedAtMonotonicNs=%" G_GUINT64_FORMAT
-              " observedAtUnixNs=%" G_GINT64_FORMAT,
+    GST_DEBUG("Metric event dispatched for sourceId=%d type=%u phase=%u observedAtMonotonicNs=%" PRIu64
+              " observedAtUnixNs=%" PRId64,
               sourceId, static_cast<uint32_t>(event.type), static_cast<uint32_t>(event.phase),
-              event.observedAtMonotonicNs, event.observedAtUnixNs);
+              event.observedAtMonotonicNs, static_cast<int64_t>(event.observedAtUnixNs));
 
     postMetricEventOnBus(sourceId, event);
     GST_DEBUG("Metric event for sourceId=%d was posted to the app bus", sourceId);
