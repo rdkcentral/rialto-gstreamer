@@ -122,10 +122,10 @@ bool validateMediaPipelineMetricMessage(const GstStructure *structure)
     }
 
     const guint observationKind = g_value_get_uint(gst_structure_get_value(structure, "observation-kind"));
-    const std::array<guint, 3> validObservationKinds = {
-        static_cast<guint>(firebolt::rialto::MetricPhase::OCCURRENCE),
-        static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_STARTED),
-        static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED)};
+    const std::array<guint, 3> validObservationKinds = {static_cast<guint>(firebolt::rialto::MetricPhase::OCCURRENCE),
+                                                        static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_STARTED),
+                                                        static_cast<guint>(
+                                                            firebolt::rialto::MetricPhase::EPISODE_RESOLVED)};
     if (std::find(validObservationKinds.begin(), validObservationKinds.end(), observationKind) ==
         validObservationKinds.end())
     {
@@ -154,8 +154,7 @@ bool validateMediaPipelineMetricMessage(const GstStructure *structure)
     const bool isAudioGap = (metric == static_cast<guint>(firebolt::rialto::MetricType::AUDIO_GAP));
     const bool isBufferUnderflow = (metric == static_cast<guint>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW));
     const bool isOccurrence = (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::OCCURRENCE));
-    const bool isEpisodeStarted =
-        (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_STARTED));
+    const bool isEpisodeStarted = (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_STARTED));
     const bool isEpisodeResolved =
         (observationKind == static_cast<guint>(firebolt::rialto::MetricPhase::EPISODE_RESOLVED));
 
