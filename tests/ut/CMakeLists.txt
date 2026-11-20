@@ -72,6 +72,11 @@ target_compile_options(gstRialtoTestLib
         -DVERSION="1.0"
         )
 
+target_compile_definitions(gstRialtoTestLib
+        PRIVATE
+        RIALTO_GSTREAMER_UNIT_TESTS
+        )
+
 set_target_properties(gstRialtoTestLib
         PROPERTIES LINK_FLAGS "-Wl,--unresolved-symbols=report-all"
         )
@@ -111,6 +116,11 @@ target_include_directories(
         $<TARGET_PROPERTY:GstRialtoMocks,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoTestLib,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:gstRialtoStubs,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+target_compile_definitions(GstRialtoUnitTests
+        PRIVATE
+        RIALTO_GSTREAMER_UNIT_TESTS
 )
 
 target_link_libraries(

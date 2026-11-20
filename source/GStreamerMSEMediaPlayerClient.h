@@ -21,6 +21,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -56,6 +57,14 @@ enum class ClientState
     PAUSED,
     AWAITING_PLAYING,
     PLAYING
+};
+
+struct FrameCounters
+{
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    uint64_t timestamp{0};
 };
 
 class BufferPuller
@@ -278,6 +287,7 @@ public:
     void notifyPlaybackError(int32_t sourceId, firebolt::rialto::PlaybackError error) override;
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
+    void notifyMetric(const firebolt::rialto::MetricEvent &metric) override;
 
     int64_t getPosition(int32_t sourceId);
     bool getDuration(int64_t &duration);
@@ -286,6 +296,11 @@ public:
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput);
     bool getQueuedFrames(int32_t sourceId, uint32_t &queuedFrames);
     bool getStats(int32_t sourceId, uint64_t &renderedFrames, uint64_t &droppedFrames);
+    bool getFrameCounters(int32_t sourceId, firebolt::rialto::VideoFrameCounters &out) const;
+    bool getFrameCounters(int32_t sourceId, FrameCounters &out) const;
+    void onMetricEvent(int32_t sourceId, const firebolt::rialto::MetricEvent &event);
+    void postMetricEventOnBus(int32_t sourceId, const firebolt::rialto::MetricEvent &event);
+    bool setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types);
 
     firebolt::rialto::AddSegmentStatus
     addSegment(unsigned int needDataRequestId,
@@ -354,7 +369,11 @@ private:
     int64_t m_position;
     int64_t m_duration;
     std::mutex m_playbackInfoMutex;
+    mutable std::mutex m_frameCountersMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
+    mutable std::map<int32_t, firebolt::rialto::VideoFrameCounters> m_lastCounters;
+    std::unordered_set<uint32_t> m_subscribedMetricTypes;
+    std::mutex m_metricSubscriptionMutex;
     bool m_wasAllSourcesAttachedSent = false;
     bool m_isStopping = false;
     int32_t m_audioStreams;

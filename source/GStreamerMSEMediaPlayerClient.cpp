@@ -25,7 +25,10 @@
 #include "RialtoGStreamerMSEVideoSink.h"
 
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <chrono>
+#include <inttypes.h>
 #include <thread>
 
 namespace
@@ -35,7 +38,10 @@ namespace
 // 1 second is probably erring on the side of caution, but should not have side effect.
 const int64_t segmentStartMaximumDiff = 1000000000;
 const int32_t UNKNOWN_STREAMS_NUMBER = -1;
+} // namespace
 
+namespace
+{
 const char *toString(const firebolt::rialto::PlaybackError &error)
 {
     switch (error)
@@ -64,6 +70,18 @@ const char *toString(const firebolt::rialto::MediaSourceType &src)
     }
     return "UNKNOWN";
 }
+
+bool isValidMetricPhase(const firebolt::rialto::MetricPhase phase)
+{
+    switch (phase)
+    {
+    case firebolt::rialto::MetricPhase::OCCURRENCE:
+    case firebolt::rialto::MetricPhase::EPISODE_STARTED:
+    case firebolt::rialto::MetricPhase::EPISODE_RESOLVED:
+        return true;
+    }
+    return false;
+}
 } // namespace
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
@@ -71,9 +89,16 @@ GStreamerMSEMediaPlayerClient::GStreamerMSEMediaPlayerClient(
     const std::shared_ptr<firebolt::rialto::client::MediaPlayerClientBackendInterface> &MediaPlayerClientBackend,
     const uint32_t maxVideoWidth, const uint32_t maxVideoHeight, bool isLive)
     : m_backendQueue{messageQueueFactory->createMessageQueue()}, m_messageQueueFactory{messageQueueFactory},
-      m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0), m_audioStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoStreams{UNKNOWN_STREAMS_NUMBER}, m_subtitleStreams{UNKNOWN_STREAMS_NUMBER},
-      m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
+      m_clientBackend(MediaPlayerClientBackend), m_position(0), m_duration(0),
+      m_subscribedMetricTypes{static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_DROP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_FRAME_DROP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_FRAME_REPEAT),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_GAP),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::VIDEO_DECODE_ERROR),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::AUDIO_DECODE_ERROR),
+                              static_cast<uint32_t>(firebolt::rialto::MetricType::BUFFER_UNDERFLOW)},
+      m_audioStreams{UNKNOWN_STREAMS_NUMBER}, m_videoStreams{UNKNOWN_STREAMS_NUMBER},
+      m_subtitleStreams{UNKNOWN_STREAMS_NUMBER}, m_videoRectangle{0, 0, 1920, 1080}, m_streamingStopped(false),
       m_maxWidth(maxVideoWidth == 0 ? DEFAULT_MAX_VIDEO_WIDTH : maxVideoWidth),
       m_maxHeight(maxVideoHeight == 0 ? DEFAULT_MAX_VIDEO_HEIGHT : maxVideoHeight), m_isLive{isLive}
 {
@@ -165,6 +190,26 @@ void GStreamerMSEMediaPlayerClient::notifySourceFlushed(int32_t sourceId)
     m_backendQueue->postMessage(std::make_shared<SourceFlushedMessage>(sourceId, this));
 }
 
+void GStreamerMSEMediaPlayerClient::notifyMetric(const firebolt::rialto::MetricEvent &metric)
+{
+    GST_DEBUG("Metric event received for sourceId=%d type=%u phase=%u presentationTimeStampNs=%s count=%s "
+              "durationNs=%s",
+              metric.sourceId, static_cast<uint32_t>(metric.type), static_cast<uint32_t>(metric.phase),
+              metric.presentationTimeStampNs.has_value() ? std::to_string(metric.presentationTimeStampNs.value()).c_str()
+                                                         : "absent",
+              metric.count.has_value() ? std::to_string(metric.count.value()).c_str() : "absent",
+              metric.durationNs.has_value() ? std::to_string(metric.durationNs.value()).c_str() : "absent");
+
+    if (!isValidMetricPhase(metric.phase))
+    {
+        GST_WARNING("Dropping metric event with invalid observation-kind=%u for sourceId=%d",
+                    static_cast<uint32_t>(metric.phase), metric.sourceId);
+        return;
+    }
+
+    m_backendQueue->scheduleInEventLoop([this, metric]() { onMetricEvent(metric.sourceId, metric); });
+}
+
 void GStreamerMSEMediaPlayerClient::notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo)
 {
     if (m_flushAndDataSynchronizer.isAnySourceFlushing())
@@ -254,6 +299,175 @@ bool GStreamerMSEMediaPlayerClient::getStats(int32_t sourceId, uint64_t &rendere
     m_backendQueue->callInEventLoop([&]()
                                     { status = m_clientBackend->getStats(sourceId, renderedFrames, droppedFrames); });
     return status;
+}
+
+bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, firebolt::rialto::VideoFrameCounters &out) const
+{
+    FrameCounters counters{};
+    if (!getFrameCounters(sourceId, counters))
+    {
+        return false;
+    }
+
+    out.size = sizeof(firebolt::rialto::VideoFrameCounters);
+    out.renderedFrames = counters.renderedFrames;
+    out.droppedFrames = counters.droppedFrames;
+    out.corruptedFrames = counters.corruptedFrames;
+    return true;
+}
+
+bool GStreamerMSEMediaPlayerClient::getFrameCounters(int32_t sourceId, FrameCounters &out) const
+{
+    if (!m_clientBackend)
+    {
+        GST_WARNING("Frame counter query rejected for sourceId=%d: client backend is not available", sourceId);
+        return false;
+    }
+
+    uint64_t renderedFrames{0};
+    uint64_t droppedFrames{0};
+    uint64_t corruptedFrames{0};
+    uint64_t timestamp{0};
+    bool status{false};
+    m_backendQueue->callInEventLoop(
+        [&]() {
+            status =
+                m_clientBackend->getFrameCounters(sourceId, renderedFrames, droppedFrames, corruptedFrames, timestamp);
+        });
+    if (!status)
+    {
+        GST_WARNING("Frame counter query failed for sourceId=%d", sourceId);
+        return false;
+    }
+
+    out.renderedFrames = renderedFrames;
+    out.droppedFrames = droppedFrames;
+    out.corruptedFrames = corruptedFrames;
+    out.timestamp = timestamp;
+
+    std::lock_guard<std::mutex> lock{m_frameCountersMutex};
+    m_lastCounters[sourceId] =
+        firebolt::rialto::VideoFrameCounters{static_cast<uint32_t>(sizeof(firebolt::rialto::VideoFrameCounters)),
+                                             renderedFrames, droppedFrames, corruptedFrames};
+
+    GST_DEBUG("Frame counters fetched for sourceId=%d rendered=%" PRIu64 " dropped=%" PRIu64 " corrupted=%" PRIu64,
+              sourceId, renderedFrames, droppedFrames, corruptedFrames);
+    return true;
+}
+
+bool GStreamerMSEMediaPlayerClient::setMetricSubscription(const std::vector<firebolt::rialto::MetricType> &types)
+{
+    if (!m_clientBackend)
+    {
+        GST_WARNING("Cannot set metric subscription: client backend is not available");
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setMetricSubscription(types); });
+
+    if (!status)
+    {
+        GST_WARNING("Failed to set metric subscription on server");
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock{m_metricSubscriptionMutex};
+    m_subscribedMetricTypes.clear();
+    for (const auto &type : types)
+    {
+        m_subscribedMetricTypes.insert(static_cast<uint32_t>(type));
+    }
+
+    GST_DEBUG("Metric subscription updated with %zu types", types.size());
+    return true;
+}
+
+void GStreamerMSEMediaPlayerClient::postMetricEventOnBus(int32_t sourceId, const firebolt::rialto::MetricEvent &event)
+{
+    const auto sourceIt = m_attachedSources.find(sourceId);
+    if (sourceIt == m_attachedSources.end())
+    {
+        GST_WARNING("Metric event for unknown sourceId=%d cannot be forwarded to the app bus", sourceId);
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock{m_metricSubscriptionMutex};
+        if (m_subscribedMetricTypes.empty())
+        {
+            GST_DEBUG("Metric event for sourceId=%d suppressed because subscription list is empty", sourceId);
+            return;
+        }
+
+        if (m_subscribedMetricTypes.find(static_cast<uint32_t>(event.type)) == m_subscribedMetricTypes.end())
+        {
+            GST_DEBUG("Metric event for sourceId=%d type=%u suppressed by subscription filter", sourceId,
+                      static_cast<uint32_t>(event.type));
+            return;
+        }
+    }
+
+    const guint metricType = static_cast<guint>(event.type);
+
+    GstStructure *metricStructure = gst_structure_new("media-pipeline-metric", "metric", G_TYPE_UINT, metricType,
+                                                      "observation-kind", G_TYPE_UINT, static_cast<guint>(event.phase),
+                                                      "source_id", G_TYPE_UINT, sourceId, nullptr);
+
+    if (event.presentationTimeStampNs.has_value())
+    {
+        gst_structure_set(metricStructure, "pts-ns", G_TYPE_INT64,
+                          static_cast<gint64>(event.presentationTimeStampNs.value()), nullptr);
+    }
+
+    if (event.count.has_value())
+    {
+        gst_structure_set(metricStructure, "count", G_TYPE_UINT64, event.count.value(), nullptr);
+    }
+
+    if (event.durationNs.has_value())
+    {
+        gst_structure_set(metricStructure, "duration-ns", G_TYPE_UINT64, event.durationNs.value(), nullptr);
+    }
+
+    gst_structure_set(metricStructure, "observed-at-monotonic-ns", G_TYPE_UINT64, event.observedAtMonotonicNs,
+                      "observed-at-unix-ns", G_TYPE_INT64, event.observedAtUnixNs, nullptr);
+
+    if (!metricStructure)
+    {
+        GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
+        return;
+    }
+
+    GstMessage *metricMessage =
+        gst_message_new_application(GST_OBJECT_CAST(sourceIt->second.m_rialtoSink), metricStructure);
+    if (!metricMessage)
+    {
+        GST_WARNING("Failed to create media-pipeline-metric message for sourceId=%d", sourceId);
+        return;
+    }
+
+    if (!gst_element_post_message(GST_ELEMENT_CAST(sourceIt->second.m_rialtoSink), metricMessage))
+    {
+        GST_WARNING("Failed to post media-pipeline-metric message for sourceId=%d", sourceId);
+        return;
+    }
+
+    GST_INFO("Posted media-pipeline-metric message for sourceId=%d metric=%u observation-kind=%u "
+             "observedAtMonotonicNs=%" PRIu64 " observedAtUnixNs=%" PRId64,
+             sourceId, metricType, static_cast<guint>(event.phase), event.observedAtMonotonicNs,
+             static_cast<int64_t>(event.observedAtUnixNs));
+}
+
+void GStreamerMSEMediaPlayerClient::onMetricEvent(int32_t sourceId, const firebolt::rialto::MetricEvent &event)
+{
+    GST_DEBUG("Metric event dispatched for sourceId=%d type=%u phase=%u observedAtMonotonicNs=%" PRIu64
+              " observedAtUnixNs=%" PRId64,
+              sourceId, static_cast<uint32_t>(event.type), static_cast<uint32_t>(event.phase),
+              event.observedAtMonotonicNs, static_cast<int64_t>(event.observedAtUnixNs));
+
+    postMetricEventOnBus(sourceId, event);
+    GST_DEBUG("Metric event for sourceId=%d was posted to the app bus", sourceId);
 }
 
 bool GStreamerMSEMediaPlayerClient::createBackend()
@@ -631,6 +845,13 @@ void GStreamerMSEMediaPlayerClient::removeSource(int32_t sourceId)
             {
                 GST_WARNING("Remove source %d failed", sourceId);
             }
+
+            const auto sourceIt = m_attachedSources.find(sourceId);
+            if (sourceIt != m_attachedSources.end())
+            {
+                sourceIt->second.m_bufferPuller->stop();
+            }
+
             m_attachedSources.erase(sourceId);
             m_flushAndDataSynchronizer.removeSource(sourceId);
         });
