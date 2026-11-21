@@ -21,6 +21,8 @@
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
 #include "RialtoGstTest.h"
+#include "RialtoVideoFrameCaptureHandle.h"
+#include "VideoFrameCaptureMock.h"
 
 using firebolt::rialto::IMediaPipelineCapabilitiesFactory;
 using firebolt::rialto::MediaPipelineCapabilitiesFactoryMock;
@@ -892,4 +894,56 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSendQosEvent)
 
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
+}
+
+namespace
+{
+std::shared_ptr<firebolt::rialto::IVideoFrameCapture> getCapture(GstElement *sink)
+{
+    RialtoVideoFrameCaptureHandle *handle{nullptr};
+    g_object_get(sink, "video-frame-capture", &handle, nullptr);
+    auto capture = rialto_video_frame_capture_handle_get(handle);
+    if (handle)
+        g_boxed_free(RIALTO_TYPE_VIDEO_FRAME_CAPTURE_HANDLE, handle);
+    return capture;
+}
+
+void setCapture(GstElement *sink, const std::shared_ptr<firebolt::rialto::IVideoFrameCapture> &capture)
+{
+    RialtoVideoFrameCaptureHandle *handle = capture ? rialto_video_frame_capture_handle_new(capture) : nullptr;
+    g_object_set(sink, "video-frame-capture", handle, nullptr);
+    if (handle)
+        g_boxed_free(RIALTO_TYPE_VIDEO_FRAME_CAPTURE_HANDLE, handle);
+}
+} // namespace
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetVideoFrameCaptureAndDropItOnDispose)
+{
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> capture{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+    GstElement *sink = GST_ELEMENT_CAST(textContext.m_sink);
+
+    EXPECT_EQ(getCapture(sink), nullptr);
+    setCapture(sink, capture);
+    EXPECT_EQ(capture.use_count(), 2); // the sink holds one reference
+    EXPECT_EQ(getCapture(sink), capture);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+    EXPECT_EQ(capture.use_count(), 1); // dropped with the sink
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldQueueVideoFrameCaptureBelowPausedAndDropItOnDispose)
+{
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> capture{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    setCapture(GST_ELEMENT_CAST(videoSink), capture);
+    EXPECT_EQ(getCapture(GST_ELEMENT_CAST(videoSink)), capture);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+    EXPECT_EQ(capture.use_count(), 1);
 }

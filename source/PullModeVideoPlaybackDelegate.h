@@ -18,7 +18,10 @@
 
 #pragma once
 
+#include "IVideoFrameCapture.h"
 #include "PullModePlaybackDelegate.h"
+
+#include <memory>
 
 class PullModeVideoPlaybackDelegate : public PullModePlaybackDelegate
 {
@@ -54,5 +57,7 @@ private:
     bool m_syncmodeStreamingQueued{false};
     bool m_videoMute{false};
     bool m_videoMuteQueued{false};
+    // the application's video frame capture; the sink only holds a reference to it
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> m_videoFrameCapture;
     // END of variables locked by propertyMutex
 };

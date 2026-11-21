@@ -20,6 +20,7 @@
 #include "GStreamerEMEUtils.h"
 #include "GStreamerMSEUtils.h"
 #include "GstreamerCatLog.h"
+#include "RialtoVideoFrameCaptureHandle.h"
 
 #define GST_CAT_DEFAULT rialtoGStreamerCat
 
@@ -266,6 +267,13 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
         g_value_set_int64(value, videoPts);
         break;
     }
+    case Property::VideoFrameCapture:
+    {
+        std::unique_lock lock{m_propertyMutex};
+        g_value_take_boxed(value,
+                           m_videoFrameCapture ? rialto_video_frame_capture_handle_new(m_videoFrameCapture) : nullptr);
+        break;
+    }
     default:
     {
         PullModePlaybackDelegate::getProperty(type, value);
@@ -279,6 +287,13 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
     std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
     switch (type)
     {
+    case Property::VideoFrameCapture:
+    {
+        const auto *kHandle = static_cast<const RialtoVideoFrameCaptureHandle *>(g_value_get_boxed(value));
+        std::unique_lock lock{m_propertyMutex};
+        m_videoFrameCapture = rialto_video_frame_capture_handle_get(kHandle);
+        break;
+    }
     case Property::WindowSet:
     {
         const gchar *rectangle = g_value_get_string(value);

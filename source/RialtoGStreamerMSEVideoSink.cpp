@@ -27,6 +27,7 @@
 #include "PullModeVideoPlaybackDelegate.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGStreamerMSEVideoSink.h"
+#include "RialtoVideoFrameCaptureHandle.h"
 
 using namespace firebolt::rialto::client;
 
@@ -54,6 +55,7 @@ enum
     PROP_VIDEO_PTS,
     PROP_REPORT_DECODE_ERRORS,
     PROP_QUEUED_FRAMES,
+    PROP_VIDEO_FRAME_CAPTURE,
     PROP_LAST
 };
 
@@ -95,6 +97,10 @@ static void rialto_mse_video_sink_get_property(GObject *object, guint propId, GV
 {
     switch (propId)
     {
+    case PROP_VIDEO_FRAME_CAPTURE:
+        rialto_mse_base_sink_handle_get_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::VideoFrameCapture, value);
+        break;
     case PROP_WINDOW_SET:
     {
         g_value_set_string(value, "0,0,1920,1080"); // Set default value
@@ -216,6 +222,12 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
                                                  IPlaybackDelegate::Property::ShowVideoWindow, value);
         break;
     }
+    case PROP_VIDEO_FRAME_CAPTURE:
+    {
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
+                                                 IPlaybackDelegate::Property::VideoFrameCapture, value);
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propId, pspec);
         break;
@@ -293,6 +305,13 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
                                     g_param_spec_boolean("syncmode-streaming", "Streaming Sync Mode",
                                                          "Enable/disable OTT streaming sync mode", FALSE,
                                                          G_PARAM_WRITABLE));
+
+    g_object_class_install_property(gobjectClass, PROP_VIDEO_FRAME_CAPTURE,
+                                    g_param_spec_boxed("video-frame-capture", "video frame capture",
+                                                       "Rialto video frame capture (RialtoVideoFrameCaptureHandle) to "
+                                                       "send video to instead of the video plane; set before commit",
+                                                       RIALTO_TYPE_VIDEO_FRAME_CAPTURE_HANDLE,
+                                                       GParamFlags(G_PARAM_READWRITE)));
 
     g_object_class_install_property(gobjectClass, PROP_IMMEDIATE_OUTPUT,
                                     g_param_spec_boolean("immediate-output", "immediate output", "immediate output",

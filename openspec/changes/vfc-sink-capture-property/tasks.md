@@ -8,7 +8,7 @@ Unit tests run with `./build_ut.py` in rialto-gstreamer (`tests/ut`). "Spec" mea
 
 ## 2. Sink property (D2, D3)
 
-- [ ] 2.1 Register `video-frame-capture` on the video sink and add `Property::VideoFrameCapture` to `IPlaybackDelegate`; store and read it in `PullModeVideoPlaybackDelegate`. Verify in `GstreamerMseVideoSinkTests`: set and get, and the reference is dropped on dispose.
+- [x] 2.1 Register `video-frame-capture` on the video sink and add `Property::VideoFrameCapture` to `IPlaybackDelegate`; store and read it in `PullModeVideoPlaybackDelegate`. Verify in `GstreamerMseVideoSinkTests`: set and get, and the reference is dropped on dispose.
 - [ ] 2.2 Reject setting the property after commit with a warning and no change. Verify with a test that commits and then sets the property.
 - [ ] 2.3 Skip `setVideoRectangle` while a capture is set, keeping the stored rectangle readable. Verify with a test that sets the rectangle with and without a capture.
 

@@ -62,6 +62,7 @@ public:
         VideoPts,
         ReportDecodeErrors,
         QueuedFrames,
+        VideoFrameCapture,
 
         // PullModeSubtitlePlaybackDelegate Properties
         TextTrackIdentifier,
