@@ -932,6 +932,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetVideoFrameCaptureAndDropItOnDi
     EXPECT_GE(capture.use_count(), 2); // the sink holds a reference
 
     const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    EXPECT_CALL(m_mediaPipelineMock, attachVideoFrameCapture(_)).WillOnce(Return(true)); // at commit
     allSourcesWillBeAttached();
     GstCaps *caps{createVideoCaps()};
     setCaps(videoSink, caps);
@@ -953,6 +954,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldRejectVideoFrameCaptureAfterCommit)
     setPausedState(pipeline, videoSink);
     setCapture(GST_ELEMENT_CAST(videoSink), first);
     const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    EXPECT_CALL(m_mediaPipelineMock, attachVideoFrameCapture(_)).WillOnce(Return(true)); // at commit
     allSourcesWillBeAttached();
     GstCaps *caps{createVideoCaps()};
     setCaps(videoSink, caps); // commits
@@ -1034,6 +1036,7 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetQueuedRectangleWhenCaptureIsSet)
     g_free(rectangle);
 
     const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    EXPECT_CALL(m_mediaPipelineMock, attachVideoFrameCapture(_)).WillOnce(Return(true)); // at commit
     allSourcesWillBeAttached();
     GstCaps *caps{createVideoCaps()};
     setCaps(videoSink, caps);

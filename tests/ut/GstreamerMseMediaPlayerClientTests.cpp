@@ -23,6 +23,7 @@
 #include "PullModePlaybackDelegateMock.h"
 #include "RialtoGStreamerMSEBaseSinkPrivate.h"
 #include "RialtoGstTest.h"
+#include "VideoFrameCaptureMock.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -2018,4 +2019,102 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToGetDurationIfNoClientBack
 
     int64_t duration{-1};
     EXPECT_FALSE(m_sut->getDuration(duration));
+}
+
+namespace
+{
+std::shared_ptr<firebolt::rialto::IVideoFrameCapture> createCapture()
+{
+    return std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>();
+}
+} // namespace
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldAttachVideoFrameCaptureBeforeCommit)
+{
+    const auto kCapture{createCapture()};
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(0, 1, 0);
+    EXPECT_TRUE(m_sut->setVideoFrameCapture(kCapture));
+
+    {
+        testing::InSequence sequence;
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachVideoFrameCapture(kCapture)).WillOnce(Return(true));
+        EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    }
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    EXPECT_EQ(m_sut->getClientState(), ClientState::READY);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostErrorAndNotCommitWhenAttachingCaptureFails)
+{
+    const auto kCapture{createCapture()};
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(0, 1, 0);
+    EXPECT_TRUE(m_sut->setVideoFrameCapture(kCapture));
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachVideoFrameCapture(kCapture)).WillOnce(Return(false));
+    EXPECT_CALL(*m_delegateMock, handleError(testing::HasSubstr("video frame capture"), _));
+    // allSourcesAttached() must not be sent: the StrictMock backend would flag it
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+    EXPECT_NE(m_sut->getClientState(), ClientState::READY);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldPostErrorWhenCommitFailsWithCapture)
+{
+    const auto kCapture{createCapture()};
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(0, 1, 0);
+    EXPECT_TRUE(m_sut->setVideoFrameCapture(kCapture));
+
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, attachVideoFrameCapture(kCapture)).WillOnce(Return(true));
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(false));
+    EXPECT_CALL(*m_delegateMock, handleError(testing::HasSubstr("video frame capture"), _));
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotAttachCaptureThatWasClearedBeforeCommit)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(0, 1, 0);
+    EXPECT_TRUE(m_sut->setVideoFrameCapture(createCapture()));
+    EXPECT_TRUE(m_sut->setVideoFrameCapture(nullptr));
+
+    // no attach: the StrictMock backend would flag it; commit fails without an error, as before
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(false));
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldRefuseVideoFrameCaptureAfterCommit)
+{
+    expectCallInEventLoop();
+    m_sut->handleStreamCollection(0, 1, 0);
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, allSourcesAttached()).WillOnce(Return(true));
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    EXPECT_FALSE(m_sut->setVideoFrameCapture(createCapture())); // and no attach is called
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
 }

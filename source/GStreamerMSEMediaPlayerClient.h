@@ -309,6 +309,7 @@ public:
     void handlePlaybackStateChange(firebolt::rialto::PlaybackState state);
     void handleSourceFlushed(int32_t sourceId);
     void sendAllSourcesAttachedIfPossible();
+    void postVideoFrameCaptureError(const std::string &message);
     void setStopping(bool stopping);
 
     void setVideoRectangle(const std::string &rectangleString);
@@ -365,6 +366,7 @@ private:
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
     std::shared_ptr<firebolt::rialto::IVideoFrameCapture> m_videoFrameCapture; // event loop only
+    bool m_videoFrameCaptureFailed = false;                                    // event loop only
     bool m_isStopping = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;

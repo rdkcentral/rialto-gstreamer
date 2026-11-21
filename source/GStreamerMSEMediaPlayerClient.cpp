@@ -602,12 +602,27 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
         return;
     }
 
-    if (!m_wasAllSourcesAttachedSent && areAllStreamsAttached())
+    if (!m_wasAllSourcesAttachedSent && !m_videoFrameCaptureFailed && areAllStreamsAttached())
     {
+        // a capture is attached first, on this loop, so it is always in place before commit
+        if (m_videoFrameCapture && !m_clientBackend->attachVideoFrameCapture(m_videoFrameCapture))
+        {
+            GST_ERROR("Rialto refused the video frame capture; not committing the pipeline");
+            m_videoFrameCaptureFailed = true;
+            postVideoFrameCaptureError("Rialto refused the video frame capture");
+            return;
+        }
+
         // RialtoServer doesn't support dynamic source attachment.
         // It means that when we notify that all sources were attached, we cannot add any more sources in the current session
         GST_INFO("All sources attached");
-        m_clientBackend->allSourcesAttached();
+        const bool kCommitted = m_clientBackend->allSourcesAttached();
+        if (!kCommitted && m_videoFrameCapture)
+        {
+            // with a capture, commit also sets up the capture path; failing it means no video at all
+            GST_ERROR("allSourcesAttached failed with a video frame capture attached");
+            postVideoFrameCaptureError("Rialto could not start video frame capture");
+        }
         m_wasAllSourcesAttachedSent = true;
         m_clientState = ClientState::READY;
 
@@ -618,6 +633,18 @@ void GStreamerMSEMediaPlayerClient::sendAllSourcesAttachedIfPossibleInternal()
             GST_INFO("Sending pause command, because all attached sources are ready to pause");
             m_clientBackend->pause();
             m_clientState = ClientState::AWAITING_PAUSED;
+        }
+    }
+}
+
+void GStreamerMSEMediaPlayerClient::postVideoFrameCaptureError(const std::string &message)
+{
+    // the capture belongs to the video sink, so the error is posted there
+    for (const auto &source : m_attachedSources)
+    {
+        if (source.second.getType() == firebolt::rialto::MediaSourceType::VIDEO && source.second.m_delegate)
+        {
+            source.second.m_delegate->handleError(message);
         }
     }
 }
