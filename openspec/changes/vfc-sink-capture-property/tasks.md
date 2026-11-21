@@ -4,7 +4,7 @@ Unit tests run with `./build_ut.py` in rialto-gstreamer (`tests/ut`). "Spec" mea
 
 ## 1. Property type (D1)
 
-- [ ] 1.1 Add the `RialtoVideoFrameCaptureHandle` boxed type and the helper to create one from a `std::shared_ptr<IVideoFrameCapture>`; require the Rialto version with `IVideoFrameCapture.h` in CMake. Verify with a unit test that copying and freeing a GValue holding the box changes the `shared_ptr` use count correctly.
+- [x] 1.1 Add the `RialtoVideoFrameCaptureHandle` boxed type and the helper to create one from a `std::shared_ptr<IVideoFrameCapture>`; require the Rialto version with `IVideoFrameCapture.h` in CMake. Verify with a unit test that copying and freeing a GValue holding the box changes the `shared_ptr` use count correctly.
 
 ## 2. Sink property (D2, D3)
 

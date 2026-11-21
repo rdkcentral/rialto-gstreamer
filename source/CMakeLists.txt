@@ -21,6 +21,10 @@ add_compile_options(
 )
 
 find_package(Rialto 1.0 REQUIRED)
+# Rialto's package version does not change with its API, so require the header of the V1.1 capture API itself
+if (NOT EXISTS "${RIALTO_INCLUDE_DIR}/IVideoFrameCapture.h")
+    message(FATAL_ERROR "rialto-gstreamer needs a Rialto with video frame capture (IVideoFrameCapture.h)")
+endif ()
 find_package(ocdmRialto 1.0 REQUIRED)
 
 add_library(gstrialtosinks
@@ -28,6 +32,7 @@ add_library(gstrialtosinks
         SHARED
         GstreamerCatLog.cpp
         RialtoGStreamerMSEVideoSink.cpp
+        RialtoVideoFrameCaptureHandle.cpp
         RialtoGStreamerMSEAudioSink.cpp
         RialtoGStreamerWebAudioSink.cpp
         RialtoGStreamerMSESubtitleSink.cpp
@@ -94,4 +99,10 @@ endif ()
 install(
        TARGETS gstrialtosinks
        DESTINATION lib/gstreamer-1.0
+       )
+
+# for applications that set the video sink's video-frame-capture property
+install(
+       FILES RialtoVideoFrameCaptureHandle.h
+       DESTINATION include/rialto
        )

@@ -25,6 +25,7 @@ add_library(
         STATIC
 
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEVideoSink.cpp
+        ${CMAKE_SOURCE_DIR}/source/RialtoVideoFrameCaptureHandle.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSEAudioSink.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerWebAudioSink.cpp
         ${CMAKE_SOURCE_DIR}/source/RialtoGStreamerMSESubtitleSink.cpp
@@ -81,6 +82,7 @@ add_gtests (
 
         # gtest code
         BufferParserTests.cpp
+        RialtoVideoFrameCaptureHandleTests.cpp
         ControlBackendTests.cpp
         GStreamerEmeUtilsTests.cpp
         GstreamerMseAudioSinkInWebAudioModeTests.cpp

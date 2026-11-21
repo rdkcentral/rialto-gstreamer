@@ -73,6 +73,7 @@ set(FILE_LIST
     RialtoGStreamerEMEProtectionMetadata.h
     RialtoGStreamerEMEProtectionMetadata.cpp
     IMediaPipeline.h
+    IVideoFrameCapture.h
     IMediaPipelineClient.h
     MediaCommon.h
     IMediaPipelineCapabilities.h
