@@ -34,6 +34,8 @@ public:
                 (override));
     MOCK_METHOD(bool, removeSource, (int32_t id), (override));
     MOCK_METHOD(bool, allSourcesAttached, (), (override));
+    MOCK_METHOD(bool, attachVideoFrameCapture,
+                (const std::shared_ptr<firebolt::rialto::IVideoFrameCapture> &videoFrameCapture), (override));
     MOCK_METHOD(bool, load,
                 (firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url, bool isLive),
                 (override));

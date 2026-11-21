@@ -58,6 +58,11 @@ public:
 
     bool allSourcesAttached() override { return m_mediaPlayerBackend->allSourcesAttached(); }
 
+    bool attachVideoFrameCapture(const std::shared_ptr<firebolt::rialto::IVideoFrameCapture> &videoFrameCapture) override
+    {
+        return m_mediaPlayerBackend->attachVideoFrameCapture(videoFrameCapture);
+    }
+
     bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url, bool isLive) override
     {
         return m_mediaPlayerBackend->load(type, mimeType, url, isLive);

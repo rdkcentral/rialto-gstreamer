@@ -14,7 +14,7 @@ Unit tests run with `./build_ut.py` in rialto-gstreamer (`tests/ut`). "Spec" mea
 
 ## 3. Attach at commit (D2)
 
-- [ ] 3.1 Add `attachVideoFrameCapture()` to the media player client backend interface and implementation. Verify the backend mock compiles and forwards.
+- [x] 3.1 Add `attachVideoFrameCapture()` to the media player client backend interface and implementation. Verify the backend mock compiles and forwards.
 - [ ] 3.2 In `sendAllSourcesAttachedIfPossibleInternal()`, attach before `allSourcesAttached()`, post an error and skip commit when attach fails, and post an error when commit fails with a capture. Verify in `GstreamerMseMediaPlayerClientTests` with a mocked `IMediaPipeline`: order attach-then-commit; attach failure posts an error and sends no commit; commit failure posts an error; no capture means no attach call.
 
 ## 4. Integration check

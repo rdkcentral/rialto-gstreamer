@@ -20,6 +20,7 @@
 #include "MediaPipelineClientMock.h"
 #include "MediaPipelineMock.h"
 #include "MediaPlayerClientBackend.h"
+#include "VideoFrameCaptureMock.h"
 
 #include <gtest/gtest.h>
 
@@ -112,6 +113,17 @@ TEST_F(MediaPlayerClientBackendTests, AllSourcesShouldBeAttached)
     initializeMediaPipeline();
     ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
     EXPECT_TRUE(m_sut.allSourcesAttached());
+}
+
+TEST_F(MediaPlayerClientBackendTests, ShouldAttachVideoFrameCapture)
+{
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> capture{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    EXPECT_CALL(*m_mediaPipelineMock, attachVideoFrameCapture(capture)).WillOnce(Return(true)).WillOnce(Return(false));
+    initializeMediaPipeline();
+    ASSERT_TRUE(m_sut.isMediaPlayerBackendCreated());
+    EXPECT_TRUE(m_sut.attachVideoFrameCapture(capture));
+    EXPECT_FALSE(m_sut.attachVideoFrameCapture(capture));
 }
 
 TEST_F(MediaPlayerClientBackendTests, ShouldLoad)

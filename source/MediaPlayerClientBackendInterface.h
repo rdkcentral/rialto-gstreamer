@@ -35,6 +35,8 @@ public:
     virtual bool attachSource(std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source) = 0;
     virtual bool removeSource(int32_t id) = 0;
     virtual bool allSourcesAttached() = 0;
+    virtual bool
+    attachVideoFrameCapture(const std::shared_ptr<firebolt::rialto::IVideoFrameCapture> &videoFrameCapture) = 0;
     virtual bool load(firebolt::rialto::MediaType type, const std::string &mimeType, const std::string &url,
                       bool isLive) = 0;
     virtual bool play(bool &async) = 0;
