@@ -19,7 +19,7 @@ Unit tests run with `./build_ut.py` in rialto-gstreamer (`tests/ut`). "Spec" mea
 
 ## 4. Integration check
 
-- [ ] 4.1 Run the full rialto-gstreamer unit tests, then with valgrind, and confirm no regressions or leaks of the boxed handle.
+- [x] 4.1 Run the full rialto-gstreamer unit tests, then with valgrind, and confirm no regressions or leaks of the boxed handle.
 
 ## Workflow follow-up
 
