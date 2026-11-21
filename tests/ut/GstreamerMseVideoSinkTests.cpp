@@ -921,17 +921,51 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetAndGetVideoFrameCaptureAndDropItOnDi
 {
     std::shared_ptr<firebolt::rialto::IVideoFrameCapture> capture{
         std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
-    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
-    GstElement *sink = GST_ELEMENT_CAST(textContext.m_sink);
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+    setPausedState(pipeline, videoSink); // the client is connected; nothing is committed yet
+    GstElement *sink = GST_ELEMENT_CAST(videoSink);
 
     EXPECT_EQ(getCapture(sink), nullptr);
     setCapture(sink, capture);
-    EXPECT_EQ(capture.use_count(), 2); // the sink holds one reference
     EXPECT_EQ(getCapture(sink), capture);
+    EXPECT_GE(capture.use_count(), 2); // the sink holds a reference
 
-    setNullState(textContext.m_pipeline, textContext.m_sourceId);
-    gst_object_unref(textContext.m_pipeline);
-    EXPECT_EQ(capture.use_count(), 1); // dropped with the sink
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+    gst_object_unref(pipeline);
+    EXPECT_EQ(capture.use_count(), 1); // dropped with the sink and its client
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldRejectVideoFrameCaptureAfterCommit)
+{
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> first{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> second{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+    setPausedState(pipeline, videoSink);
+    setCapture(GST_ELEMENT_CAST(videoSink), first);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps); // commits
+    gst_caps_unref(caps);
+
+    setCapture(GST_ELEMENT_CAST(videoSink), second); // refused with a warning
+    EXPECT_EQ(getCapture(GST_ELEMENT_CAST(videoSink)), first);
+    EXPECT_EQ(second.use_count(), 1);
+    setCapture(GST_ELEMENT_CAST(videoSink), nullptr); // clearing is refused too
+    EXPECT_EQ(getCapture(GST_ELEMENT_CAST(videoSink)), first);
+
+    setNullState(pipeline, kSourceId);
+    gst_object_unref(pipeline);
 }
 
 TEST_F(GstreamerMseVideoSinkTests, ShouldQueueVideoFrameCaptureBelowPausedAndDropItOnDispose)

@@ -55,6 +55,12 @@ GstStateChangeReturn PullModeVideoPlaybackDelegate::changeState(GstStateChange t
             m_rectangleSettingQueued = false;
             client->setVideoRectangle(m_videoRectangle);
         }
+        if (m_videoFrameCaptureQueued)
+        {
+            GST_DEBUG_OBJECT(m_sink, "Set queued video frame capture");
+            m_videoFrameCaptureQueued = false;
+            client->setVideoFrameCapture(m_videoFrameCapture); // before any source, so before commit
+        }
         break;
     }
     default:
@@ -290,8 +296,15 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
     case Property::VideoFrameCapture:
     {
         const auto *kHandle = static_cast<const RialtoVideoFrameCaptureHandle *>(g_value_get_boxed(value));
+        const auto kCapture = rialto_video_frame_capture_handle_get(kHandle);
+        if (client && !client->setVideoFrameCapture(kCapture))
+        {
+            GST_WARNING_OBJECT(m_sink, "Cannot change video-frame-capture after the pipeline was committed");
+            break;
+        }
         std::unique_lock lock{m_propertyMutex};
-        m_videoFrameCapture = rialto_video_frame_capture_handle_get(kHandle);
+        m_videoFrameCapture = kCapture;
+        m_videoFrameCaptureQueued = !client; // handed to the client when it connects
         break;
     }
     case Property::WindowSet:

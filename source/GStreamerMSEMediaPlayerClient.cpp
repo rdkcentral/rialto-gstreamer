@@ -776,6 +776,22 @@ void GStreamerMSEMediaPlayerClient::setVideoRectangle(const std::string &rectang
         });
 }
 
+bool GStreamerMSEMediaPlayerClient::setVideoFrameCapture(const std::shared_ptr<firebolt::rialto::IVideoFrameCapture> &capture)
+{
+    bool accepted{false};
+    m_backendQueue->callInEventLoop(
+        [&]()
+        {
+            // the same flag as commit, on the same loop: a capture is either attached at commit or refused
+            if (!m_wasAllSourcesAttachedSent)
+            {
+                m_videoFrameCapture = capture;
+                accepted = true;
+            }
+        });
+    return accepted;
+}
+
 std::string GStreamerMSEMediaPlayerClient::getVideoRectangle()
 {
     char rectangle[64] = {0};

@@ -59,5 +59,6 @@ private:
     bool m_videoMuteQueued{false};
     // the application's video frame capture; the sink only holds a reference to it
     std::shared_ptr<firebolt::rialto::IVideoFrameCapture> m_videoFrameCapture;
+    bool m_videoFrameCaptureQueued{false};
     // END of variables locked by propertyMutex
 };

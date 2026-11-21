@@ -39,6 +39,7 @@
 #include "IMediaPipeline.h"
 #include "IMessageQueue.h"
 #include "IPullModePlaybackDelegate.h"
+#include "IVideoFrameCapture.h"
 #include "MediaCommon.h"
 #include "MediaPlayerClientBackendInterface.h"
 #include "RialtoGStreamerMSEBaseSink.h"
@@ -311,6 +312,13 @@ public:
     void setStopping(bool stopping);
 
     void setVideoRectangle(const std::string &rectangleString);
+
+    /**
+     * @brief Sets the video frame capture to attach at commit, or clears it with null.
+     *
+     * @retval false, changing nothing, once allSourcesAttached() was sent.
+     */
+    bool setVideoFrameCapture(const std::shared_ptr<firebolt::rialto::IVideoFrameCapture> &capture);
     std::string getVideoRectangle();
 
     bool requestPullBuffer(int streamId, size_t frameCount, unsigned int needDataRequestId);
@@ -356,6 +364,7 @@ private:
     std::mutex m_playbackInfoMutex;
     std::unordered_map<int32_t, AttachedSource> m_attachedSources;
     bool m_wasAllSourcesAttachedSent = false;
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> m_videoFrameCapture; // event loop only
     bool m_isStopping = false;
     int32_t m_audioStreams;
     int32_t m_videoStreams;
