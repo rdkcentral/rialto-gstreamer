@@ -981,3 +981,63 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldQueueVideoFrameCaptureBelowPausedAndDro
     gst_object_unref(videoSink);
     EXPECT_EQ(capture.use_count(), 1);
 }
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldStoreButNotSetRectangleWhileCaptureIsSet)
+{
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> capture{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+    setPausedState(pipeline, videoSink);
+
+    // exactly one window update: the one made without a capture
+    EXPECT_CALL(m_mediaPipelineMock, setVideoWindow(20, 40, 640, 480)).WillOnce(Return(true));
+
+    // with a capture: stored and readable, no setVideoWindow
+    setCapture(GST_ELEMENT_CAST(videoSink), capture);
+    g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
+    gchar *rectangle{nullptr};
+    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    ASSERT_TRUE(rectangle);
+    EXPECT_EQ(std::string(rectangle), kCustomWindowSet);
+    g_free(rectangle);
+
+    // without one: as before
+    setCapture(GST_ELEMENT_CAST(videoSink), nullptr);
+    g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
+
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+    setNullState(pipeline, kSourceId);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetQueuedRectangleWhenCaptureIsSet)
+{
+    std::shared_ptr<firebolt::rialto::IVideoFrameCapture> capture{
+        std::make_shared<testing::NiceMock<firebolt::rialto::VideoFrameCaptureMock>>()};
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    // both set before the client connects
+    g_object_set(videoSink, "rectangle", kCustomWindowSet.c_str(), nullptr);
+    setCapture(GST_ELEMENT_CAST(videoSink), capture);
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+    EXPECT_CALL(m_mediaPipelineMock, setVideoWindow(_, _, _, _)).Times(0);
+    setPausedState(pipeline, videoSink);
+
+    gchar *rectangle{nullptr};
+    g_object_get(videoSink, "rectangle", &rectangle, nullptr);
+    ASSERT_TRUE(rectangle);
+    EXPECT_EQ(std::string(rectangle), kCustomWindowSet);
+    g_free(rectangle);
+
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+    setNullState(pipeline, kSourceId);
+    gst_object_unref(pipeline);
+}

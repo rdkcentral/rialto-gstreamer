@@ -51,9 +51,16 @@ GstStateChangeReturn PullModeVideoPlaybackDelegate::changeState(GstStateChange t
         std::unique_lock lock{m_propertyMutex};
         if (m_rectangleSettingQueued)
         {
-            GST_DEBUG_OBJECT(m_sink, "Set queued video rectangle");
             m_rectangleSettingQueued = false;
-            client->setVideoRectangle(m_videoRectangle);
+            if (m_videoFrameCapture)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Video goes to a capture: not setting the queued video rectangle");
+            }
+            else
+            {
+                GST_DEBUG_OBJECT(m_sink, "Set queued video rectangle");
+                client->setVideoRectangle(m_videoRectangle);
+            }
         }
         if (m_videoFrameCaptureQueued)
         {
@@ -160,10 +167,17 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
     {
         std::string rectangleValue;
         auto client = m_mediaPlayerManager.getMediaPlayerClient();
+        bool capturing{false};
 
         {
             std::unique_lock lock{m_propertyMutex};
-            if (!client)
+            if (m_videoFrameCapture)
+            {
+                // the window is not set while capturing, so the client does not know the stored value
+                capturing = true;
+                rectangleValue = m_videoRectangle;
+            }
+            else if (!client)
             {
                 // Return the default value and
                 // queue a setting event (for the default value) so that it will become true when
@@ -175,7 +189,7 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
             }
         } // lock released here
 
-        if (client)
+        if (client && !capturing)
         {
             rectangleValue = client->getVideoRectangle();
         }
@@ -320,7 +334,12 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
         {
             std::unique_lock lock{m_propertyMutex};
             m_videoRectangle = videoRectangle;
-            if (!client)
+            if (m_videoFrameCapture)
+            {
+                // video goes to the capture, and Rialto refuses setVideoWindow() while one is attached
+                GST_DEBUG_OBJECT(m_sink, "Video frame capture set: rectangle stored, video window not set");
+            }
+            else if (!client)
             {
                 GST_DEBUG_OBJECT(m_sink, "Rectangle setting enqueued");
                 m_rectangleSettingQueued = true;
