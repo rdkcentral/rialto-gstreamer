@@ -18,14 +18,31 @@
 
 #include "MessageQueue.h"
 #include "GstreamerCatLog.h"
+#include <algorithm>
+#include <utility>
 #define GST_CAT_DEFAULT rialtoGStreamerCat
+namespace
+{
+class PreparedCallInEventLoop : public IMessageQueueCall
+{
+public:
+    explicit PreparedCallInEventLoop(std::function<void()> waitFunc) : m_waitFunc{std::move(waitFunc)} {}
+    void wait() override { m_waitFunc(); }
+
+private:
+    std::function<void()> m_waitFunc;
+};
+} // namespace
+
 CallInEventLoopMessage::CallInEventLoopMessage(const std::function<void()> &func) : m_func(func), m_done{false} {}
 
 void CallInEventLoopMessage::handle()
 {
-    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
     m_func();
-    m_done = true;
+    {
+        const std::lock_guard<std::mutex> lock{m_callInEventLoopMutex};
+        m_done = true;
+    }
     m_callInEventLoopCondVar.notify_all();
 }
 
@@ -40,6 +57,12 @@ void CallInEventLoopMessage::wait()
 {
     std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
     m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
+}
+
+bool CallInEventLoopMessage::isDone() const
+{
+    const std::lock_guard<std::mutex> lock{m_callInEventLoopMutex};
+    return m_done;
 }
 
 ScheduleInEventLoopMessage::ScheduleInEventLoopMessage(const std::function<void()> &func) : m_func(func) {}
@@ -142,6 +165,54 @@ bool MessageQueue::callInEventLoop(const std::function<void()> &func)
     return callInEventLoopInternal(func);
 }
 
+std::shared_ptr<IMessageQueueCall> MessageQueue::prepareCallInEventLoop(const std::function<void()> &func)
+{
+    auto message{std::make_shared<CallInEventLoopMessage>(func)};
+    if (!postMessage(message))
+    {
+        return nullptr;
+    }
+
+    return std::make_shared<PreparedCallInEventLoop>([this, message = std::move(message)]()
+                                                     { waitForPreparedCall(message); });
+}
+
+void MessageQueue::waitForPreparedCall(const std::shared_ptr<CallInEventLoopMessage> &call)
+{
+    if (std::this_thread::get_id() != m_workerThread.get_id())
+    {
+        call->wait();
+        return;
+    }
+
+    // Re-entrant worker calls must process earlier messages before their reserved call can complete.
+    while (!call->isDone())
+    {
+        std::shared_ptr<Message> message{waitForMessageOrCallDone(call)};
+        if (message)
+        {
+            message->handle();
+        }
+    }
+}
+
+std::shared_ptr<Message> MessageQueue::waitForMessageOrCallDone(const std::shared_ptr<CallInEventLoopMessage> &call)
+{
+    std::unique_lock<std::mutex> lock{m_mutex};
+    while (m_queue.empty() && !call->isDone())
+    {
+        m_condVar.wait(lock);
+    }
+    if (m_queue.empty())
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<Message> message{m_queue.front()};
+    m_queue.pop_front();
+    return message;
+}
+
 bool MessageQueue::callInEventLoopInternal(const std::function<void()> &func)
 {
     if (std::this_thread::get_id() != m_workerThread.get_id())
@@ -200,5 +271,6 @@ void MessageQueue::doClear()
         m_queue.front()->skip();
         m_queue.pop_front();
     }
+    m_condVar.notify_all();
 }
 } // namespace rialto

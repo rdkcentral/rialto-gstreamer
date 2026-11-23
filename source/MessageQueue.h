@@ -28,17 +28,18 @@
 #include <mutex>
 #include <thread>
 
-class CallInEventLoopMessage : public Message
+class CallInEventLoopMessage : public Message, public IMessageQueueCall
 {
 public:
     explicit CallInEventLoopMessage(const std::function<void()> &func);
     void handle() override;
-    void wait();
+    void wait() override;
+    bool isDone() const;
     void skip() override;
 
 private:
     const std::function<void()> m_func;
-    std::mutex m_callInEventLoopMutex;
+    mutable std::mutex m_callInEventLoopMutex;
     std::condition_variable m_callInEventLoopCondVar;
     bool m_done;
 };
@@ -75,6 +76,7 @@ public:
     bool postMessage(const std::shared_ptr<Message> &msg) override;
     void processMessages() override;
     bool scheduleInEventLoop(const std::function<void()> &func) override;
+    std::shared_ptr<IMessageQueueCall> prepareCallInEventLoop(const std::function<void()> &func) override;
     bool callInEventLoop(const std::function<void()> &func) override;
 
 protected:
@@ -82,6 +84,8 @@ protected:
     void doClear();
     // We need to have a non-virtual method, which can be called in class destructor
     bool callInEventLoopInternal(const std::function<void()> &func);
+    void waitForPreparedCall(const std::shared_ptr<CallInEventLoopMessage> &call);
+    std::shared_ptr<Message> waitForMessageOrCallDone(const std::shared_ptr<CallInEventLoopMessage> &call);
 
 protected:
     std::condition_variable m_condVar;

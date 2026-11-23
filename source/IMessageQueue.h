@@ -29,6 +29,13 @@ public:
     virtual void skip() {};
 };
 
+class IMessageQueueCall
+{
+public:
+    virtual ~IMessageQueueCall() = default;
+    virtual void wait() = 0;
+};
+
 class IMessageQueue
 {
 public:
@@ -40,6 +47,8 @@ public:
     virtual bool postMessage(const std::shared_ptr<Message> &msg) = 0;
     virtual void processMessages() = 0;
     virtual bool scheduleInEventLoop(const std::function<void()> &func) = 0;
+    // Reserve FIFO order now; wait after releasing caller-owned locks. Worker waits service the queue in FIFO order.
+    virtual std::shared_ptr<IMessageQueueCall> prepareCallInEventLoop(const std::function<void()> &func) = 0;
     virtual bool callInEventLoop(const std::function<void()> &func) = 0;
 };
 
