@@ -19,9 +19,11 @@
 #include "MessageQueue.h"
 #include <atomic>
 #include <condition_variable>
+#include <future>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <mutex>
+#include <vector>
 
 namespace
 {
@@ -90,6 +92,11 @@ TEST_F(MessageQueueTests, ShouldFailToCallInEventLoopWhenNotRunning)
     EXPECT_FALSE(m_sut.callInEventLoop([]() {}));
 }
 
+TEST_F(MessageQueueTests, ShouldFailToPrepareCallInEventLoopWhenNotRunning)
+{
+    EXPECT_FALSE(m_sut.prepareCallInEventLoop([]() {}));
+}
+
 TEST_F(MessageQueueTests, ShouldCallInEventLoop)
 {
     std::mutex mtx;
@@ -108,6 +115,46 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoop)
     EXPECT_TRUE(callFlag);
 }
 
+TEST_F(MessageQueueTests, ShouldPrepareAndWaitForCallInEventLoop)
+{
+    std::atomic_bool callExecuted{false};
+    m_sut.start();
+    auto call{m_sut.prepareCallInEventLoop([&]() { callExecuted = true; })};
+
+    ASSERT_TRUE(call);
+    call->wait();
+    EXPECT_TRUE(callExecuted.load());
+}
+
+TEST_F(MessageQueueTests, ShouldReturnPreparedCallAfterQueueClear)
+{
+    std::promise<void> workerStarted;
+    std::promise<void> releaseWorker;
+    auto workerStartedFuture{workerStarted.get_future()};
+    auto releaseWorkerFuture{releaseWorker.get_future()};
+    std::atomic_bool callExecuted{false};
+    m_sut.start();
+    std::thread workerCall{[&]()
+                           {
+                               m_sut.callInEventLoop(
+                                   [&]()
+                                   {
+                                       workerStarted.set_value();
+                                       releaseWorkerFuture.wait();
+                                   });
+                           }};
+    ASSERT_EQ(std::future_status::ready, workerStartedFuture.wait_for(std::chrono::seconds{5}));
+
+    auto preparedCall{m_sut.prepareCallInEventLoop([&]() { callExecuted = true; })};
+    ASSERT_TRUE(preparedCall);
+    m_sut.clear();
+    releaseWorker.set_value();
+    workerCall.join();
+    preparedCall->wait();
+
+    EXPECT_FALSE(callExecuted.load());
+}
+
 TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
 {
     std::mutex mtx;
@@ -124,6 +171,66 @@ TEST_F(MessageQueueTests, ShouldCallInEventLoopInTheSameThread)
     EXPECT_TRUE(m_sut.callInEventLoop([&]() { m_sut.callInEventLoop(fun); }));
     cv.wait_for(lock, std::chrono::milliseconds(50), [&]() { return callFlag; });
     EXPECT_TRUE(callFlag);
+}
+
+TEST_F(MessageQueueTests, ShouldPrepareAndWaitForCallInEventLoopInTheSameThread)
+{
+    bool callWasDeferredUntilWait{false};
+    bool callExecutedAfterWait{false};
+    m_sut.start();
+    const bool workerCallCompleted{m_sut.callInEventLoop(
+        [&]()
+        {
+            bool callExecuted{false};
+            auto call{m_sut.prepareCallInEventLoop([&]() { callExecuted = true; })};
+            callWasDeferredUntilWait = call && !callExecuted;
+            call->wait();
+            callExecutedAfterWait = callExecuted;
+        })};
+
+    ASSERT_TRUE(workerCallCompleted);
+    EXPECT_TRUE(callWasDeferredUntilWait);
+    EXPECT_TRUE(callExecutedAfterWait);
+}
+
+TEST_F(MessageQueueTests, ShouldPreservePreparedCallOrderDuringWorkerReentry)
+{
+    std::promise<void> workerEntered;
+    std::promise<void> earlierCallPrepared;
+    auto workerEnteredFuture{workerEntered.get_future()};
+    auto earlierCallPreparedFuture{earlierCallPrepared.get_future()};
+    std::vector<int> appliedValues;
+    m_sut.start();
+    auto workerCall{m_sut.prepareCallInEventLoop(
+        [&]()
+        {
+            workerEntered.set_value();
+            if (earlierCallPreparedFuture.wait_for(std::chrono::seconds{5}) != std::future_status::ready)
+            {
+                ADD_FAILURE() << "Earlier call was not prepared";
+                return;
+            }
+            auto laterCall{m_sut.prepareCallInEventLoop([&]() { appliedValues.push_back(2); })};
+            ASSERT_TRUE(laterCall);
+            laterCall->wait();
+        })};
+    ASSERT_TRUE(workerCall);
+    const auto workerStatus{workerEnteredFuture.wait_for(std::chrono::seconds{5})};
+    if (workerStatus != std::future_status::ready)
+    {
+        earlierCallPrepared.set_value();
+        workerCall->wait();
+        FAIL() << "Worker did not enter the reentry barrier";
+    }
+
+    ASSERT_TRUE(m_sut.scheduleInEventLoop([&]() { appliedValues.push_back(0); }));
+    auto earlierCall{m_sut.prepareCallInEventLoop([&]() { appliedValues.push_back(1); })};
+    earlierCallPrepared.set_value();
+    ASSERT_TRUE(earlierCall);
+    workerCall->wait();
+    earlierCall->wait();
+
+    EXPECT_EQ((std::vector<int>{0, 1, 2}), appliedValues);
 }
 
 TEST_F(MessageQueueTests, ShouldDropTaskWhenCallInEventLoopIsCalledAfterStop)

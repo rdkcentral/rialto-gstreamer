@@ -19,6 +19,16 @@
 #include "IMessageQueue.h"
 #include <gmock/gmock.h>
 
+class TestMessageQueueCall : public IMessageQueueCall
+{
+public:
+    explicit TestMessageQueueCall(const std::function<void()> &func) : m_func{func} {}
+    void wait() override { m_func(); }
+
+private:
+    const std::function<void()> m_func;
+};
+
 class MessageQueueMock : public IMessageQueue
 {
 public:
@@ -29,6 +39,8 @@ public:
     MOCK_METHOD(bool, postMessage, (const std::shared_ptr<Message> &msg), (override));
     MOCK_METHOD(void, processMessages, (), (override));
     MOCK_METHOD(bool, scheduleInEventLoop, (const std::function<void()> &func), (override));
+    MOCK_METHOD(std::shared_ptr<IMessageQueueCall>, prepareCallInEventLoop, (const std::function<void()> &func),
+                (override));
     MOCK_METHOD(bool, callInEventLoop, (const std::function<void()> &func), (override));
 };
 

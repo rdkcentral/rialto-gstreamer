@@ -516,9 +516,10 @@ void GStreamerMSEMediaPlayerClient::setSubtitleOffset(int32_t sourceId, int64_t 
         });
 }
 
-bool GStreamerMSEMediaPlayerClient::scheduleSetSubtitleOffset(int32_t sourceId, int64_t position)
+std::shared_ptr<IMessageQueueCall> GStreamerMSEMediaPlayerClient::prepareSetSubtitleOffsetCall(int32_t sourceId,
+                                                                                               int64_t position)
 {
-    return m_backendQueue->scheduleInEventLoop(
+    return m_backendQueue->prepareCallInEventLoop(
         [this, sourceId, position]()
         {
             auto sourceIt = m_attachedSources.find(sourceId);
@@ -845,9 +846,9 @@ void GStreamerMSEMediaPlayerClient::setMute(bool mute, int32_t sourceId)
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
-bool GStreamerMSEMediaPlayerClient::scheduleSetMute(bool mute, int32_t sourceId)
+std::shared_ptr<IMessageQueueCall> GStreamerMSEMediaPlayerClient::prepareSetMuteCall(bool mute, int32_t sourceId)
 {
-    return m_backendQueue->scheduleInEventLoop([this, mute, sourceId]() { m_clientBackend->setMute(mute, sourceId); });
+    return m_backendQueue->prepareCallInEventLoop([this, mute, sourceId]() { m_clientBackend->setMute(mute, sourceId); });
 }
 
 bool GStreamerMSEMediaPlayerClient::getMute(int sourceId)
@@ -863,10 +864,11 @@ void GStreamerMSEMediaPlayerClient::setTextTrackIdentifier(const std::string &te
     m_backendQueue->callInEventLoop([&]() { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
 }
 
-bool GStreamerMSEMediaPlayerClient::scheduleSetTextTrackIdentifier(const std::string &textTrackIdentifier)
+std::shared_ptr<IMessageQueueCall>
+GStreamerMSEMediaPlayerClient::prepareSetTextTrackIdentifierCall(const std::string &textTrackIdentifier)
 {
-    return m_backendQueue->scheduleInEventLoop([this, textTrackIdentifier]()
-                                               { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
+    return m_backendQueue->prepareCallInEventLoop([this, textTrackIdentifier]()
+                                                  { m_clientBackend->setTextTrackIdentifier(textTrackIdentifier); });
 }
 
 std::string GStreamerMSEMediaPlayerClient::getTextTrackIdentifier()
