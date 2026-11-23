@@ -75,7 +75,6 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                 {
                     std::optional<bool> queuedMute;
                     bool textTrackIdentifierQueued{false};
-                    std::string textTrackIdentifier;
                     std::optional<int64_t> queuedOffset;
                     std::shared_ptr<IMessageQueueCall> muteCall;
                     std::shared_ptr<IMessageQueueCall> textTrackIdentifierCall;
@@ -88,7 +87,6 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                         }
                         m_isMuteQueued = false;
                         textTrackIdentifierQueued = m_isTextTrackIdentifierQueued;
-                        textTrackIdentifier = m_textTrackIdentifier;
                         m_isTextTrackIdentifierQueued = false;
                         queuedOffset = m_queuedOffset;
                         m_queuedOffset.reset();
@@ -105,6 +103,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                         }
                         if (textTrackIdentifierQueued)
                         {
+                            const std::string textTrackIdentifier{m_textTrackIdentifier};
                             textTrackIdentifierCall = client->prepareSetTextTrackIdentifierCall(textTrackIdentifier);
                         }
                         if (queuedOffset)
