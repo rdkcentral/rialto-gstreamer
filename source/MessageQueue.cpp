@@ -38,9 +38,11 @@ CallInEventLoopMessage::CallInEventLoopMessage(const std::function<void()> &func
 
 void CallInEventLoopMessage::handle()
 {
-    std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
     m_func();
-    m_done = true;
+    {
+        const std::lock_guard<std::mutex> lock{m_callInEventLoopMutex};
+        m_done = true;
+    }
     m_callInEventLoopCondVar.notify_all();
 }
 
@@ -54,12 +56,13 @@ void CallInEventLoopMessage::skip()
 void CallInEventLoopMessage::wait()
 {
     std::unique_lock<std::mutex> lock(m_callInEventLoopMutex);
-    m_callInEventLoopCondVar.wait(lock, [this]() { return m_done.load(); });
+    m_callInEventLoopCondVar.wait(lock, [this]() { return m_done; });
 }
 
 bool CallInEventLoopMessage::isDone() const
 {
-    return m_done.load();
+    const std::lock_guard<std::mutex> lock{m_callInEventLoopMutex};
+    return m_done;
 }
 
 ScheduleInEventLoopMessage::ScheduleInEventLoopMessage(const std::function<void()> &func) : m_func(func) {}
@@ -170,7 +173,8 @@ std::shared_ptr<IMessageQueueCall> MessageQueue::prepareCallInEventLoop(const st
         return nullptr;
     }
 
-    return std::make_shared<PreparedCallInEventLoop>([this, message]() { waitForPreparedCall(message); });
+    return std::make_shared<PreparedCallInEventLoop>([this, message = std::move(message)]()
+                                                     { waitForPreparedCall(message); });
 }
 
 void MessageQueue::waitForPreparedCall(const std::shared_ptr<CallInEventLoopMessage> &call)
@@ -195,7 +199,10 @@ void MessageQueue::waitForPreparedCall(const std::shared_ptr<CallInEventLoopMess
 std::shared_ptr<Message> MessageQueue::waitForMessageOrCallDone(const std::shared_ptr<CallInEventLoopMessage> &call)
 {
     std::unique_lock<std::mutex> lock{m_mutex};
-    m_condVar.wait(lock, [this, &call]() { return !m_queue.empty() || call->isDone(); });
+    while (m_queue.empty() && !call->isDone())
+    {
+        m_condVar.wait(lock);
+    }
     if (m_queue.empty())
     {
         return nullptr;

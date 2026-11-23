@@ -39,9 +39,9 @@ public:
 
 private:
     const std::function<void()> m_func;
-    std::mutex m_callInEventLoopMutex;
+    mutable std::mutex m_callInEventLoopMutex;
     std::condition_variable m_callInEventLoopCondVar;
-    std::atomic_bool m_done;
+    bool m_done;
 };
 
 class ScheduleInEventLoopMessage : public Message
