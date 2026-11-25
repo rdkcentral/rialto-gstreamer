@@ -304,8 +304,9 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 return;
             }
 
-            if (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING ||
-                (m_serverPlaybackState == firebolt::rialto::PlaybackState::END_OF_STREAM && wasPlayingBeforeEos))
+            if (m_clientState != ClientState::AWAITING_PAUSED &&
+                (m_serverPlaybackState == firebolt::rialto::PlaybackState::PLAYING ||
+                 (m_serverPlaybackState == firebolt::rialto::PlaybackState::END_OF_STREAM && wasPlayingBeforeEos)))
             {
                 GST_INFO("Server is already playing");
                 sourceIt->second.m_state = ClientState::PLAYING;
@@ -344,6 +345,10 @@ StateChangeResult GStreamerMSEMediaPlayerClient::play(int32_t sourceId)
                 {
                     GST_DEBUG("Not all sources are ready to play");
                 }
+            }
+            else if (m_clientState == ClientState::AWAITING_PAUSED)
+            {
+                GST_INFO("Play requested while awaiting server's PAUSED state - sink will request play once paused");
             }
             else
             {
@@ -464,9 +469,12 @@ void GStreamerMSEMediaPlayerClient::flush(int32_t sourceId, bool resetTime)
                 sourceIt->second.m_delegate->lostState();
 
                 sourceIt->second.m_state = ClientState::AWAITING_PAUSED;
-                if (m_clientState == ClientState::PLAYING)
+                if (m_clientState == ClientState::PLAYING || m_clientState == ClientState::AWAITING_PLAYING)
                 {
-                    m_clientState = ClientState::AWAITING_PLAYING;
+                    GST_INFO("Sink lost state in %u client state - sending pause command",
+                             static_cast<uint32_t>(m_clientState));
+                    m_clientBackend->pause();
+                    m_clientState = ClientState::AWAITING_PAUSED;
                 }
                 else if (m_clientState == ClientState::PAUSED)
                 {
