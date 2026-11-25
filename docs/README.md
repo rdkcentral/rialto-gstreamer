@@ -219,7 +219,7 @@ sequenceDiagram
 
 #### Runtime State Changes
 
-During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which post backend-queue messages that update internal caches (per-source position, `m_duration`) — they do not update the GStreamer segment or emit bus notifications. Position queries instead read the `PlaybackInfo` snapshot refreshed by `notifyPlaybackInfo`, while duration queries consult upstream first and then the backend cache.
+During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which post backend-queue messages that update internal caches (per-source position, `m_duration`) — they do not update the GStreamer segment or emit bus notifications. Position queries instead read the `PlaybackInfo` snapshot refreshed by `notifyPlaybackInfo`: audio and video sinks return the position reported by the matching server-side sink (`videoPosition` / `audioPosition`) and fall back to the pipeline position (`currentPosition`) when that is unavailable; other sinks use the pipeline position. Duration queries consult upstream first and then the backend cache.
 
 **State Change Triggers:**
 
@@ -482,8 +482,7 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 | `show-video-window`   | GObject property (bool, write-only) | true               | Video sink. Make the video window visible (`true`) or hidden (`false`).
 | `queued-frames`       | GObject property (uint, read-only)  | 0                  | Video sink. Number of frames currently queued in the decoder.
 | `is-master`           | GObject property (bool, read-only)  | true               | Video sink. Whether the platform is video master.
-| `video_pts`           | GObject property (int64, read-only) | 0                  | Video sink. Current video PTS value.
-| `maxVideoWidth` / `maxVideoHeight` | GObject property (uint) | 3840 / 2160         | Video sink. Deprecated aliases for `max-video-width` / `max-video-height`.
+| `video_pts`           | GObject property (int64, read-only) | -1                 | Video sink. Current video PTS reported by the platform video sink (server side), in 90 kHz ticks. -1 if unavailable.| `maxVideoWidth` / `maxVideoHeight` | GObject property (uint) | 3840 / 2160         | Video sink. Deprecated aliases for `max-video-width` / `max-video-height`.
 | `web-audio`           | GObject property (bool)             | false              | Audio sink. Enable web-audio mode; must be set before NULL→READY. When set, the sink uses `PushModeAudioPlaybackDelegate` instead of `PullModeAudioPlaybackDelegate`.
 | `async`               | GObject property (bool)             | false              | Audio and subtitle sinks. Asynchronous mode.
 | `gap`                 | GObject property (GstStructure, write-only) | —          | Audio sink. Signals an audio gap/discontinuity via `processAudioGap()`.

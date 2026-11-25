@@ -248,19 +248,18 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
     }
     case Property::VideoPts:
     {
-        int64_t videoPts = 0;
+        int64_t videoPts{-1};
 
         std::unique_lock lock{m_propertyMutex};
         auto client = m_mediaPlayerManager.getMediaPlayerClient();
         if (!client)
         {
-            GST_DEBUG_OBJECT(m_sink, "Getting video PTS: no client, returning 0");
+            GST_DEBUG_OBJECT(m_sink, "Getting video PTS: no client, returning -1");
         }
         else
         {
             lock.unlock();
-            gint64 position = client->getPosition(m_sourceId);
-            videoPts = ((position / 100000) * 9LL); // 90Khz PTS
+            videoPts = client->getVideoPts();
         }
 
         g_value_set_int64(value, videoPts);
