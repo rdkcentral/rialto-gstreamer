@@ -36,39 +36,64 @@ working Rialto client/server are required at runtime. Once the video source is
 active, the CLI queries `frame-counters` and fails if the returned structure
 does not contain `rendered`, `dropped`, `corrupted`, and `timestamp` as
 `G_TYPE_UINT64` fields. It prints the returned values without requiring fixed
-or non-zero counts. Use `--help` to display
+or non-zero counts. While playback continues it prints the counters again every
+15 seconds, and once more at EOS (`Final Frame counters:`); these later reads are
+informational and never change the exit code. Use `--help` to display
 the command syntax. `--fault-scenario NAME` selects a GStreamer-level fault:
 `frame-drop`, `frame-repeat`, `buffer-underflow`, or `decode-error`. Unknown
 names are argument errors. The fault is injected by a bounded buffer probe on
 `rialtomsevideosink`'s sink pad, installed only after playback is running and
-removed when the run ends (or after `--fault-window-seconds`, default 10). The
-optional positive-integer tuning options `--fault-buffers` (default 3),
-`--fault-delay-frames` (default 3), `--fault-stall-ms` (default 2000), and
+removed when the run ends (or after `--fault-window-seconds`, default 10, counted
+from the first buffer the fault affects). A fault is applied only once the sink
+has rendered at least 3 frames (read from `frame-counters`), so there is always
+a preceding frame on screen. The
+optional positive-integer tuning options `--fault-buffers` (default 10),
+`--fault-delay-frames` (default 10), `--fault-stall-ms` (default 5000),
+`--fault-drop-shift-ms` (default 500), and
 `--fault-window-seconds` require `--fault-scenario`. The scenarios themselves
-are implemented individually. `frame-drop` is implemented: once playback has
-advanced past two seconds, it moves the PTS (and DTS, where set) of
-`--fault-buffers` consecutive video buffers back so each lands one second behind
-the playback position; it fails if the position or segment cannot be obtained,
-and the run fails if no buffer was affected. `frame-repeat` is also implemented: once playback has advanced past two seconds,
-it holds a single video buffer for `--fault-delay-frames` frame durations
+are implemented individually. `frame-drop` is implemented: once the gate above
+is open, it moves the PTS (and DTS, where set) of
+`--fault-buffers` consecutive video buffers back by `--fault-drop-shift-ms`
+(clamped at time zero), so each frame reaches the renderer already late by about
+that much and misses its presentation deadline. The shift is relative to the
+neighbouring buffers, not to the playback position, because Rialto queues video
+well ahead of playback; no seek, flush or EOS is involved. The run fails if no buffer was affected. `frame-repeat` is also implemented: once the gate is open,
+it holds a single video buffer for the queued lead plus `--fault-delay-frames` frame durations
 (taken from the caps framerate, or the buffer duration), so the renderer
-repeats the preceding frame; it fails if the frame duration is unknown or the
-delay does not fit in `--fault-window-seconds`. `buffer-underflow` is also implemented: once playback has advanced past two
-seconds, it blocks the video sink pad for `--fault-stall-ms` (the video stream
+misses new frames for that many frame durations and repeats the preceding frame; it fails if the frame duration is unknown or the
+delay does not fit in `--fault-window-seconds`. `buffer-underflow` is also implemented: once the gate is open,
+it blocks the video sink pad for the queued lead plus `--fault-stall-ms` (the video stream
 only; audio keeps flowing), then releases it so the starvation ends; it fails
-if the stall does not fit in `--fault-window-seconds`. `decode-error` is also implemented for H.264 and H.265 (byte-stream and
-length-prefixed): once playback has advanced past two seconds, it corrupts the
-second half of the slice data in `--fault-buffers` non-key video buffers, leaving
-parameter sets, NAL headers and the start of each slice header intact. Buffers
+if the stall does not fit in `--fault-window-seconds`. The queued lead is how far the
+buffer's timestamp is ahead of the playback position when the fault starts; Rialto
+queues video well ahead of playback, so the hold has to outlast that queue before the
+renderer is actually starved. The hold therefore takes about lead + requested time, so
+`--timeout` must cover it. `decode-error` is also implemented for H.264 and H.265 (byte-stream and
+length-prefixed): once the gate is open, it inverts all but the first 8 bytes
+(or first eighth, if larger) of the slice data in `--fault-buffers` non-key video buffers, leaving
+parameter sets, NAL headers and the start of each slice header intact. `--decode-error-mode`
+selects the damage: `tail` (the default, as described), `payload` (the whole slice data after the
+NAL header) or `header` (only the first 8 bytes of the slice header, which the decoder cannot
+parse). `payload` and `header` are harsher; a decoder may drop the frame or lose sync instead of
+reporting an error, so use them when `tail` produces no decode-error metric. Buffers
 containing an IDR/IRAP slice are skipped. It fails for encrypted media and
 unsupported codecs. Corruption can propagate to later frames until the next key
 frame, so the decoder may report more errors than the buffers affected. All four
-scenarios are now implemented. At the end of every fault run the CLI prints one
+scenarios are now implemented. Because the probe sits on the client side of the
+sink, queues between the client and the server can hide a short stall or delay;
+increase `--fault-stall-ms` or `--fault-delay-frames`, or use longer, higher-bitrate
+media, if no effect is seen. At the end of every fault run the CLI prints one
 `Fault injected:` line with the scenario, buffers affected, and the values
 actually applied (`pts-shift-ns`, `delay-ns`, `stall-ms-applied`, or
-`slices-corrupted`), so a run can be matched with the metric messages observed.
+`slices-corrupted`), `lead-ms` (queued lead added to a repeat or underflow hold), followed by diagnostics (`buffers-probed`, `probed-pts-ms`,
+`last-rendered`, `last-position-ms`, `not-settled-skips`, and for decode-error
+`no-eligible-slice`) that show why a fault did or did not apply, so a run can be matched with the metric messages observed.
 
 ### Metric messages
+
+`--log-bus` prints every message read from the playbin bus as a `Bus message:`
+line (type, source element and, where present, the structure). It also reads
+the bus unfiltered, so it shows whether metric messages reach the CLI at all.
 
 For the whole run the CLI watches the playbin bus for `GST_MESSAGE_APPLICATION`
 messages and selects those whose structure is named `media-pipeline-metric`

@@ -22,8 +22,10 @@
 #include "FrameCounters.h"
 #include "MetricMessage.h"
 
+#include <algorithm>
 #include <charconv>
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -38,6 +40,17 @@ constexpr int EXIT_SUCCESS_CODE{0};
 constexpr int EXIT_PLAYBACK_FAILURE{1};
 constexpr int EXIT_ARGUMENT_ERROR{2};
 constexpr int EXIT_GSTREAMER_INIT_FAILURE{3};
+
+bool g_logBus{false};
+
+// Progress line prefixed with the seconds elapsed since the first log line.
+void logStep(const std::string &text)
+{
+    static const GstClockTime start{gst_util_get_timestamp()};
+    const double seconds{static_cast<double>(gst_util_get_timestamp() - start) / GST_SECOND};
+    std::cout << "[metrics-test +" << std::fixed << std::setprecision(1) << seconds << "s] " << text << std::endl;
+    std::cout.unsetf(std::ios::floatfield);
+}
 
 struct Options
 {
@@ -58,10 +71,19 @@ void printUsage(const char *program)
               << metricscli::faultScenarioNames()
               << "\n"
                  "Fault options (require --fault-scenario; positive integers):\n"
-                 "  --fault-buffers N         Buffers affected by frame-drop and decode-error (default: 3)\n"
-                 "  --fault-delay-frames N    Frame durations a buffer is held by frame-repeat (default: 3)\n"
-                 "  --fault-stall-ms N        Milliseconds video is blocked by buffer-underflow (default: 2000)\n"
-                 "  --fault-window-seconds N  Maximum time the fault probe stays installed (default: 10)\n"
+                 "  --fault-buffers N         Buffers affected by frame-drop and decode-error (default: 10)\n"
+                 "  --fault-drop-shift-ms N   Milliseconds frame-drop moves buffer timestamps back, so each\n"
+                 "                            affected frame is late by about that much (default: 500)\n"
+                 "  --fault-delay-frames N    Frame durations the renderer misses new frames for with frame-repeat\n"
+                 "                            (default: 10; the queued lead is added to the hold)\n"
+                 "  --fault-stall-ms N        Milliseconds the renderer is starved by buffer-underflow\n"
+                 "                            (default: 5000; the queued lead is added to the hold)\n"
+                 "  --fault-window-seconds N  Time the fault probe stays installed once a fault is first applied\n"
+                 "                            (default: 10)\n"
+                 "  --decode-error-mode MODE  How decode-error damages a slice: tail (default; most of the slice\n"
+                 "                            data, start of the slice header kept), payload (whole slice data)\n"
+                 "                            or header (slice header only). Harsher modes may stall the decoder.\n"
+                 "  --log-bus                 Print every playbin bus message (type, source, structure)\n"
                  "  --help                    Show this help and exit\n";
 }
 
@@ -114,6 +136,10 @@ std::uint32_t *faultParameterField(std::string_view argument, metricscli::FaultP
     {
         return &parameters.windowSeconds;
     }
+    if (argument == "--fault-drop-shift-ms")
+    {
+        return &parameters.dropShiftMs;
+    }
     return nullptr;
 }
 
@@ -122,6 +148,7 @@ bool parseOptions(int argc, char **argv, Options &options)
     bool hasUri{false};
     bool hasTimeout{false};
     bool hasFaultScenario{false};
+    bool hasDecodeErrorMode{false};
     std::set<std::string_view> faultParameterArguments;
 
     for (int i = 1; i < argc; ++i)
@@ -138,8 +165,14 @@ bool parseOptions(int argc, char **argv, Options &options)
             return true;
         }
 
+        if (argument == "--log-bus")
+        {
+            g_logBus = true;
+            continue;
+        }
+
         if (argument != "--uri" && argument != "--timeout" && argument != "--fault-scenario" &&
-            !faultParameterField(argument, options.faultParameters))
+            argument != "--decode-error-mode" && !faultParameterField(argument, options.faultParameters))
         {
             std::cerr << "Unknown option: " << argument << '\n';
             return false;
@@ -192,6 +225,22 @@ bool parseOptions(int argc, char **argv, Options &options)
             }
             hasFaultScenario = true;
         }
+        else if (argument == "--decode-error-mode")
+        {
+            if (hasDecodeErrorMode)
+            {
+                std::cerr << "--decode-error-mode may only be specified once\n";
+                return false;
+            }
+            const std::optional<metricscli::DecodeErrorMode> mode{metricscli::findDecodeErrorMode(value)};
+            if (!mode)
+            {
+                std::cerr << "Unknown decode-error mode: " << value << " (expected one of: tail, payload, header)\n";
+                return false;
+            }
+            options.faultParameters.decodeErrorMode = *mode;
+            hasDecodeErrorMode = true;
+        }
         else
         {
             if (!faultParameterArguments.insert(argument).second)
@@ -217,6 +266,11 @@ bool parseOptions(int argc, char **argv, Options &options)
         std::cerr << "Fault options require --fault-scenario\n";
         return false;
     }
+    if (hasDecodeErrorMode && (!hasFaultScenario || options.faultScenario->scenario != metricscli::FaultScenario::DecodeError))
+    {
+        std::cerr << "--decode-error-mode requires --fault-scenario decode-error\n";
+        return false;
+    }
     return true;
 }
 
@@ -240,8 +294,11 @@ void reportPipelineError(GstMessage *message)
     std::cerr << '\n';
 }
 
+constexpr GstClockTime kFrameCountersInterval{15 * GST_SECOND};
+
 bool validateFrameCounters(GstElement *videoSink)
 {
+    logStep("Querying frame-counters from rialtomsevideosink");
     GstStructure *structure{nullptr};
     g_object_get(videoSink, "frame-counters", &structure, nullptr);
     metricscli::FrameCounters counters;
@@ -263,6 +320,26 @@ bool validateFrameCounters(GstElement *videoSink)
     return valid;
 }
 
+// Set by --log-bus: every message popped from the bus is printed, and the bus is read unfiltered so
+// that messages the CLI would otherwise leave queued are seen as well.
+void logBusMessage(GstMessage *message)
+{
+    if (!g_logBus)
+    {
+        return;
+    }
+    const GstStructure *structure{gst_message_get_structure(message)};
+    gchar *text{structure ? gst_structure_to_string(structure) : nullptr};
+    std::cout << "Bus message: type=" << gst_message_type_get_name(GST_MESSAGE_TYPE(message))
+              << " src=" << (GST_MESSAGE_SRC(message) ? GST_OBJECT_NAME(GST_MESSAGE_SRC(message)) : "(none)");
+    if (text)
+    {
+        std::cout << " structure=" << text;
+        g_free(text);
+    }
+    std::cout << '\n';
+}
+
 // Waits for one of the requested message types. GST_MESSAGE_APPLICATION messages seen while waiting
 // are handed to the observer and do not end the wait, so metric messages are monitored for the
 // whole run.
@@ -270,30 +347,39 @@ GstMessage *popPlaybackMessage(GstBus *bus, GstClockTime timeout, GstMessageType
                                metricscli::MetricObserver &observer)
 {
     const GstClockTime start{gst_util_get_timestamp()};
+    const GstMessageType mask{g_logBus ? GST_MESSAGE_ANY : static_cast<GstMessageType>(types | GST_MESSAGE_APPLICATION)};
     while (true)
     {
         const GstClockTime elapsed{gst_util_get_timestamp() - start};
         const GstClockTime remaining{elapsed >= timeout ? GstClockTime{0} : timeout - elapsed};
-        GstMessage *message{
-            gst_bus_timed_pop_filtered(bus, remaining, static_cast<GstMessageType>(types | GST_MESSAGE_APPLICATION))};
+        GstMessage *message{gst_bus_timed_pop_filtered(bus, remaining, mask)};
         if (!message)
         {
             return nullptr;
         }
-        if (GST_MESSAGE_TYPE(message) != GST_MESSAGE_APPLICATION)
+        logBusMessage(message);
+        if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_APPLICATION)
+        {
+            observer.handle(message);
+        }
+        else if (GST_MESSAGE_TYPE(message) & types)
         {
             return message;
         }
-        observer.handle(message);
         gst_message_unref(message);
     }
 }
 
 void drainMetricMessages(GstBus *bus, metricscli::MetricObserver &observer)
 {
-    while (GstMessage *message{gst_bus_pop_filtered(bus, GST_MESSAGE_APPLICATION)})
+    const GstMessageType mask{g_logBus ? GST_MESSAGE_ANY : GST_MESSAGE_APPLICATION};
+    while (GstMessage *message{gst_bus_pop_filtered(bus, mask)})
     {
-        observer.handle(message);
+        logBusMessage(message);
+        if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_APPLICATION)
+        {
+            observer.handle(message);
+        }
         gst_message_unref(message);
     }
 }
@@ -303,22 +389,24 @@ void drainMetricMessages(GstBus *bus, metricscli::MetricObserver &observer)
 bool waitForValidMetric(GstBus *bus, GstClockTime timeout, metricscli::MetricObserver &observer)
 {
     const GstClockTime start{gst_util_get_timestamp()};
+    const GstMessageType mask{g_logBus ? GST_MESSAGE_ANY
+                                       : static_cast<GstMessageType>(GST_MESSAGE_APPLICATION | GST_MESSAGE_ERROR)};
     while (observer.validCount() == 0)
     {
         const GstClockTime elapsed{gst_util_get_timestamp() - start};
         const GstClockTime remaining{elapsed >= timeout ? GstClockTime{0} : timeout - elapsed};
-        GstMessage *message{gst_bus_timed_pop_filtered(
-            bus, remaining, static_cast<GstMessageType>(GST_MESSAGE_APPLICATION | GST_MESSAGE_ERROR))};
+        GstMessage *message{gst_bus_timed_pop_filtered(bus, remaining, mask)};
         if (!message)
         {
             return true;
         }
+        logBusMessage(message);
         const bool isError{GST_MESSAGE_TYPE(message) == GST_MESSAGE_ERROR};
         if (isError)
         {
             reportPipelineError(message);
         }
-        else
+        else if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_APPLICATION)
         {
             observer.handle(message);
         }
@@ -341,6 +429,7 @@ int runPlayback(const Options &options)
     }
 
     GstElement *pipeline{gst_element_factory_make("playbin", "metrics-test-playbin")};
+    logStep("Created playbin: " + std::string{pipeline ? "ok" : "FAILED"});
     if (!pipeline)
     {
         std::cerr << "Failed to create playbin; the required GStreamer plugin may be missing.\n";
@@ -352,6 +441,7 @@ int runPlayback(const Options &options)
     metricscli::MetricObserver metricObserver;
     std::optional<metricscli::FaultInjector> faultInjector;
     GstElement *videoSink{gst_element_factory_make("rialtomsevideosink", "metrics-test-video-sink")};
+    logStep("Created rialtomsevideosink: " + std::string{videoSink ? "ok" : "FAILED"});
     if (!videoSink)
     {
         std::cerr << "Failed to create rialtomsevideosink; the Rialto GStreamer plugin is unavailable.\n";
@@ -373,6 +463,8 @@ int runPlayback(const Options &options)
                 const GstClockTime elapsed = gst_util_get_timestamp() - startTime;
                 return elapsed >= timeout ? GstClockTime{0} : timeout - elapsed;
             };
+            logStep("Starting playback (setting playbin to PLAYING), timeout=" + std::to_string(options.timeoutSeconds) +
+                    "s");
             const GstStateChangeReturn stateResult = gst_element_set_state(pipeline, GST_STATE_PLAYING);
             if (stateResult == GST_STATE_CHANGE_FAILURE)
             {
@@ -395,6 +487,7 @@ int runPlayback(const Options &options)
                 bool readyForCounters{stateResult != GST_STATE_CHANGE_ASYNC};
                 if (!readyForCounters)
                 {
+                    logStep("Waiting for the pipeline to preroll (ASYNC_DONE)");
                     message = popPlaybackMessage(
                         bus, remainingTimeout(),
                         static_cast<GstMessageType>(GST_MESSAGE_ASYNC_DONE | GST_MESSAGE_ERROR | GST_MESSAGE_EOS),
@@ -412,6 +505,7 @@ int runPlayback(const Options &options)
                     {
                         reachedEos = GST_MESSAGE_TYPE(message) == GST_MESSAGE_EOS;
                         readyForCounters = true;
+                        logStep(reachedEos ? "Reached EOS while prerolling" : "Pipeline prerolled, playback running");
                     }
                     if (message)
                     {
@@ -432,6 +526,7 @@ int runPlayback(const Options &options)
                     else
                     {
                         faultInjector.emplace(*options.faultScenario, options.faultParameters, pipeline);
+                        logStep(std::string{"Starting fault injection: "} + options.faultScenario->name);
                         faultReady = faultInjector->start(videoSink, faultError);
                         if (faultReady)
                         {
@@ -453,9 +548,27 @@ int runPlayback(const Options &options)
                     }
                     else
                     {
-                        message = popPlaybackMessage(bus, remainingTimeout(),
-                                                     static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS),
-                                                     metricObserver);
+                        // Wait in slices so the frame counters are reported periodically until playback ends.
+                        logStep("Waiting for EOS or error; frame counters are re-read every 15s");
+                        while (true)
+                        {
+                            const GstClockTime remaining{remainingTimeout()};
+                            if (remaining == 0)
+                            {
+                                break;
+                            }
+                            message = popPlaybackMessage(bus, std::min(remaining, kFrameCountersInterval),
+                                                         static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS),
+                                                         metricObserver);
+                            if (message)
+                            {
+                                break;
+                            }
+                            if (remainingTimeout() > 0)
+                            {
+                                validateFrameCounters(videoSink);
+                            }
+                        }
                         if (!message)
                         {
                             std::cerr << "Playback timed out after " << options.timeoutSeconds << " seconds.\n";
@@ -465,6 +578,8 @@ int runPlayback(const Options &options)
                             if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_EOS)
                             {
                                 std::cout << "Playback reached EOS.\n";
+                                std::cout << "Final ";
+                                validateFrameCounters(videoSink);
                                 exitCode = EXIT_SUCCESS_CODE;
                             }
                             else
@@ -491,6 +606,7 @@ int runPlayback(const Options &options)
 
     if (bus)
     {
+        logStep("Draining remaining bus messages");
         drainMetricMessages(bus, metricObserver);
         std::cout << "Metric messages observed: valid=" << metricObserver.validCount()
                   << ", invalid=" << metricObserver.invalidCount() << '\n';
@@ -524,16 +640,14 @@ int runPlayback(const Options &options)
         }
     }
     faultInjector.reset();
+    logStep("Stopping playback (setting playbin to NULL)");
     if (gst_element_set_state(pipeline, GST_STATE_NULL) == GST_STATE_CHANGE_FAILURE)
     {
         std::cerr << "Failed to stop the playbin pipeline during cleanup.\n";
         exitCode = EXIT_PLAYBACK_FAILURE;
     }
-    if (videoSink)
-    {
-        gst_object_unref(videoSink);
-    }
-    gst_object_unref(pipeline);
+    gst_object_unref(pipeline); // Also releases the video sink, which playbin owns after g_object_set
+    logStep("Finished, exit code " + std::to_string(exitCode));
     return exitCode;
 }
 } // namespace

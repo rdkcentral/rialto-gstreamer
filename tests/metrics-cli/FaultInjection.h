@@ -20,6 +20,7 @@
 
 #include <gst/gst.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -39,12 +40,48 @@ enum class FaultScenario
     DecodeError
 };
 
+// How decode-error damages a slice.
+enum class DecodeErrorMode
+{
+    Tail,    // Invert all but the first bytes of the slice data (default)
+    Payload, // Invert the whole slice data after the NAL header, including the slice header
+    Header   // Invert only the slice header bytes, so the decoder cannot parse the slice
+};
+
+inline const char *decodeErrorModeName(DecodeErrorMode mode)
+{
+    switch (mode)
+    {
+    case DecodeErrorMode::Tail:
+        return "tail";
+    case DecodeErrorMode::Payload:
+        return "payload";
+    case DecodeErrorMode::Header:
+        return "header";
+    }
+    return "tail";
+}
+
+inline std::optional<DecodeErrorMode> findDecodeErrorMode(std::string_view name)
+{
+    for (const DecodeErrorMode mode : {DecodeErrorMode::Tail, DecodeErrorMode::Payload, DecodeErrorMode::Header})
+    {
+        if (name == decodeErrorModeName(mode))
+        {
+            return mode;
+        }
+    }
+    return std::nullopt;
+}
+
 struct FaultParameters
 {
-    std::uint32_t bufferCount{3};      // Buffers affected by frame-drop and decode-error
-    std::uint32_t delayFrames{3};      // Frame durations a buffer is held by frame-repeat
-    std::uint32_t stallMs{2000};       // Time video buffers are blocked by buffer-underflow
-    std::uint32_t windowSeconds{10};   // Upper bound on how long a probe stays installed
+    std::uint32_t bufferCount{10};     // Buffers affected by frame-drop and decode-error
+    std::uint32_t delayFrames{10};     // Frame durations a buffer is held by frame-repeat
+    std::uint32_t stallMs{5000};       // Time video buffers are blocked by buffer-underflow
+    std::uint32_t windowSeconds{10};   // How long the probe stays installed after a fault is first applied
+    std::uint32_t dropShiftMs{500};    // How far frame-drop moves buffer timestamps back
+    DecodeErrorMode decodeErrorMode{DecodeErrorMode::Tail};
 };
 
 // State shared between the CLI and a scenario handler running on the streaming thread.
@@ -53,10 +90,47 @@ class FaultContext
 public:
     // Returns the playback position in nanoseconds, or nullopt if it cannot be obtained.
     using PositionQuery = std::function<std::optional<gint64>()>;
+    // Returns the number of video frames rendered so far, or nullopt if it cannot be obtained.
+    using RenderedQuery = std::function<std::optional<std::uint64_t>()>;
 
-    FaultContext(const FaultParameters &parameters, GstElement *pipeline, PositionQuery positionQuery = nullptr)
-        : parameters{parameters}, pipeline{pipeline}, m_positionQuery{std::move(positionQuery)}
+    FaultContext(const FaultParameters &parameters, GstElement *pipeline, PositionQuery positionQuery = nullptr,
+                 RenderedQuery renderedQuery = nullptr)
+        : parameters{parameters}, pipeline{pipeline}, m_positionQuery{std::move(positionQuery)},
+          m_renderedQuery{std::move(renderedQuery)}
     {
+    }
+
+    // The sink whose frame-counters property is read when no RenderedQuery was supplied.
+    void setVideoSink(GstElement *sink) { m_videoSink = sink; }
+    bool hasRenderedSource() const { return m_renderedQuery || m_videoSink; }
+
+    // Called from the streaming thread only. Reads of the sink property are limited to one per 50 ms.
+    std::optional<std::uint64_t> queryRenderedFrames()
+    {
+        if (m_renderedQuery)
+        {
+            return m_renderedQuery();
+        }
+        const gint64 now{g_get_monotonic_time()};
+        if (m_lastRenderedQueryUs != 0 && now - m_lastRenderedQueryUs < 50000)
+        {
+            return m_cachedRendered;
+        }
+        GstStructure *counters{nullptr};
+        g_object_get(m_videoSink, "frame-counters", &counters, nullptr);
+        std::optional<std::uint64_t> rendered;
+        guint64 value{0};
+        if (counters && gst_structure_get_uint64(counters, "rendered", &value))
+        {
+            rendered = value;
+        }
+        if (counters)
+        {
+            gst_structure_free(counters);
+        }
+        m_lastRenderedQueryUs = now;
+        m_cachedRendered = rendered;
+        return rendered;
     }
 
     std::optional<gint64> queryPosition() const
@@ -94,7 +168,7 @@ public:
     const FaultParameters parameters;
     GstElement *const pipeline;
 
-    // Set by frame-drop on its first buffer: how far buffer timestamps are moved back, in nanoseconds.
+    // Set by frame-drop: how far buffer timestamps are moved back, in nanoseconds.
     std::optional<GstClockTime> ptsShift;
 
     // Set by frame-repeat: how long its buffer was held, in nanoseconds.
@@ -103,12 +177,25 @@ public:
     // Set by buffer-underflow: how long video buffers were blocked, in milliseconds.
     std::optional<std::uint32_t> appliedStallMs;
 
+    // Set by frame-repeat and buffer-underflow: queued lead added to the hold, in nanoseconds.
+    std::optional<std::uint64_t> appliedLeadNs;
+
     // Incremented by decode-error: how many slice NAL units were corrupted.
     std::atomic<std::uint32_t> corruptedSlices{0};
+
+    // Diagnostics for runs where a fault could not be applied.
+    std::atomic<gint64> lastPositionNs{-1};     // Last playback position seen by a handler
+    std::atomic<std::int64_t> lastRendered{-1};    // Last rendered frame count seen by a handler
+    std::atomic<std::uint32_t> notSettledSkips{0}; // Buffers passed because playback had not settled
+    std::atomic<std::uint32_t> noEligibleSlice{0}; // decode-error buffers with no corruptible slice
 
 private:
     mutable std::mutex m_mutex;
     PositionQuery m_positionQuery;
+    RenderedQuery m_renderedQuery;
+    GstElement *m_videoSink{nullptr};
+    gint64 m_lastRenderedQueryUs{0};
+    std::optional<std::uint64_t> m_cachedRendered;
     std::atomic<bool> m_failed{false};
     std::atomic<bool> m_cancelled{false};
     std::string m_failure;
@@ -131,11 +218,11 @@ struct FaultScenarioInfo
 
 namespace detail
 {
-// Playback must have advanced this far before frame-drop retimes buffers, and buffers are moved to
-// this far behind the playback position so they are unambiguously late.
-constexpr GstClockTime kFrameDropSettleTime{2 * GST_SECOND};
-constexpr GstClockTime kFrameDropLateMargin{1 * GST_SECOND};
+// Faults are applied once the sink has rendered this many frames, so there is a preceding frame on
+// screen and the pipeline is demonstrably running.
+constexpr std::uint64_t kSettleRenderedFrames{3};
 constexpr gulong kStallSliceUs{50000};
+constexpr GstClockTime kMaxLead{120 * GST_SECOND}; // Upper bound on the extra hold added for queued data
 
 inline GstClockTime subtractClamped(GstClockTime value, GstClockTime amount)
 {
@@ -149,27 +236,36 @@ enum class PlaybackState
     Settled
 };
 
-// Reports a failure on the context if the playback position cannot be queried.
-inline PlaybackState checkPlaybackSettled(FaultContext &context, const char *scenario, gint64 *positionOut = nullptr)
+// Reports a failure on the context if the rendered frame count cannot be read.
+inline PlaybackState checkPlaybackSettled(FaultContext &context, const char *scenario)
 {
-    const std::optional<gint64> position{context.queryPosition()};
-    if (!position)
+    bool settled{true};
+    if (context.hasRenderedSource())
     {
-        context.fail(std::string{scenario} + ": failed to query the current playback position.");
-        return PlaybackState::Failed;
+        const std::optional<std::uint64_t> rendered{context.queryRenderedFrames()};
+        if (!rendered)
+        {
+            context.fail(std::string{scenario} + ": failed to read the rendered frame count from frame-counters.");
+            return PlaybackState::Failed;
+        }
+        context.lastRendered = static_cast<std::int64_t>(*rendered);
+        settled = *rendered >= kSettleRenderedFrames;
     }
-    if (positionOut)
+    if (!settled)
     {
-        *positionOut = *position;
+        ++context.notSettledSkips;
+        return PlaybackState::NotSettled;
     }
-    return static_cast<GstClockTime>(*position) < kFrameDropSettleTime ? PlaybackState::NotSettled
-                                                                        : PlaybackState::Settled;
+    return PlaybackState::Settled;
 }
 
-// frame-drop (late frames): moves the PTS (and DTS, where set) of consecutive video buffers back
-// so each lands behind the current playback position and misses its presentation deadline. No
-// seek, flush or EOS is involved, since those are excluded from the drop definition.
-inline GstPadProbeReturn frameDropHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
+// frame-drop (late frames): moves the PTS (and DTS, where set) of consecutive video buffers back by
+// a small fixed amount (dropShiftMs) relative to their neighbours. When such a buffer reaches the
+// renderer its presentation time has already passed by about that amount, so it misses its deadline.
+// The shift is relative, not measured against the playback position, because Rialto queues video well
+// ahead of playback. No seek, flush or EOS is involved, since those are excluded from the drop
+// definition.
+inline GstPadProbeReturn frameDropHandler(GstPad *, GstPadProbeInfo *info, FaultContext &context,
                                           std::uint32_t, bool &applied)
 {
     GstBuffer *buffer{GST_PAD_PROBE_INFO_BUFFER(info)};
@@ -178,61 +274,23 @@ inline GstPadProbeReturn frameDropHandler(GstPad *pad, GstPadProbeInfo *info, Fa
         return GST_PAD_PROBE_PASS;
     }
 
-    gint64 position{0};
-    if (!context.ptsShift)
+    switch (checkPlaybackSettled(context, "frame-drop"))
     {
-        switch (checkPlaybackSettled(context, "frame-drop", &position))
-        {
-        case PlaybackState::Failed:
-        case PlaybackState::NotSettled:
-            return GST_PAD_PROBE_PASS;
-        case PlaybackState::Settled:
-            break;
-        }
-
-        GstEvent *segmentEvent{gst_pad_get_sticky_event(pad, GST_EVENT_SEGMENT, 0)};
-        if (!segmentEvent)
-        {
-            context.fail("frame-drop: no segment received on the video sink pad.");
-            return GST_PAD_PROBE_PASS;
-        }
-        const GstSegment *eventSegment{nullptr};
-        gst_event_parse_segment(segmentEvent, &eventSegment);
-        GstSegment segment;
-        gst_segment_init(&segment, GST_FORMAT_UNDEFINED);
-        gst_segment_copy_into(eventSegment, &segment);
-        gst_event_unref(segmentEvent);
-
-        // Position is a stream time, so compare in the same domain.
-        if (segment.format != GST_FORMAT_TIME)
-        {
-            context.fail("frame-drop: the video sink pad segment is not in time format.");
-            return GST_PAD_PROBE_PASS;
-        }
-        const guint64 streamTime{gst_segment_to_stream_time(&segment, GST_FORMAT_TIME, GST_BUFFER_PTS(buffer))};
-        if (streamTime == GST_CLOCK_TIME_NONE)
-        {
-            context.fail("frame-drop: cannot convert the buffer timestamp to stream time.");
-            return GST_PAD_PROBE_PASS;
-        }
-
-        const GstClockTime target{static_cast<GstClockTime>(position) - kFrameDropLateMargin};
-        if (streamTime <= target)
-        {
-            context.ptsShift = 0; // Already late enough
-        }
-        else
-        {
-            context.ptsShift = streamTime - target;
-        }
+    case PlaybackState::Failed:
+    case PlaybackState::NotSettled:
+        return GST_PAD_PROBE_PASS;
+    case PlaybackState::Settled:
+        break;
     }
 
+    const GstClockTime shift{static_cast<GstClockTime>(context.parameters.dropShiftMs) * GST_MSECOND};
+    context.ptsShift = shift;
     buffer = gst_buffer_make_writable(buffer);
     info->data = buffer;
-    GST_BUFFER_PTS(buffer) = subtractClamped(GST_BUFFER_PTS(buffer), *context.ptsShift);
+    GST_BUFFER_PTS(buffer) = subtractClamped(GST_BUFFER_PTS(buffer), shift);
     if (GST_BUFFER_DTS_IS_VALID(buffer))
     {
-        GST_BUFFER_DTS(buffer) = subtractClamped(GST_BUFFER_DTS(buffer), *context.ptsShift);
+        GST_BUFFER_DTS(buffer) = subtractClamped(GST_BUFFER_DTS(buffer), shift);
     }
     applied = true;
     return GST_PAD_PROBE_OK;
@@ -261,9 +319,67 @@ inline GstClockTime frameDuration(GstPad *pad, GstBuffer *buffer)
     return duration;
 }
 
-// frame-repeat (single delayed buffer): holds one video buffer for delayFrames frame durations, so
-// the renderer has no new frame at the expected time and repeats the preceding one. The delay is
-// kept short (it must fit in the fault window) so that it is not an input starvation.
+// How far ahead of the current playback position a buffer is. Rialto queues video well ahead of
+// playback, so holding a buffer only starves the renderer once the hold exceeds this lead. Returns
+// zero when the buffer has no timestamp; sets ok to false (and fails the context) if the position
+// cannot be queried.
+inline GstClockTime bufferLead(GstPad *pad, GstBuffer *buffer, FaultContext &context, const char *scenario, bool &ok)
+{
+    ok = true;
+    if (!GST_BUFFER_PTS_IS_VALID(buffer))
+    {
+        return 0;
+    }
+    const std::optional<gint64> position{context.queryPosition()};
+    if (!position)
+    {
+        context.fail(std::string{scenario} + ": failed to query the current playback position.");
+        ok = false;
+        return 0;
+    }
+    context.lastPositionNs = *position;
+
+    guint64 streamTime{GST_BUFFER_PTS(buffer)};
+    if (GstEvent *segmentEvent{gst_pad_get_sticky_event(pad, GST_EVENT_SEGMENT, 0)})
+    {
+        const GstSegment *eventSegment{nullptr};
+        gst_event_parse_segment(segmentEvent, &eventSegment);
+        if (eventSegment->format == GST_FORMAT_TIME)
+        {
+            const guint64 converted{gst_segment_to_stream_time(eventSegment, GST_FORMAT_TIME, GST_BUFFER_PTS(buffer))};
+            if (converted != GST_CLOCK_TIME_NONE)
+            {
+                streamTime = converted;
+            }
+        }
+        gst_event_unref(segmentEvent);
+    }
+
+    GstClockTime lead{streamTime > static_cast<guint64>(*position) ? streamTime - static_cast<guint64>(*position) : 0};
+    lead = std::min(lead, kMaxLead);
+    context.appliedLeadNs = lead;
+    return lead;
+}
+
+// Holds the streaming thread, in slices so a cancelled run is not held up by a long hold.
+inline void holdPad(const FaultContext &context, gint64 durationUs)
+{
+    const gint64 endUs{g_get_monotonic_time() + durationUs};
+    while (!context.cancelled())
+    {
+        const gint64 remainingUs{endUs - g_get_monotonic_time()};
+        if (remainingUs <= 0)
+        {
+            break;
+        }
+        g_usleep(static_cast<gulong>(std::min<gint64>(remainingUs, kStallSliceUs)));
+    }
+}
+
+// frame-repeat (single delayed buffer): holds one video buffer so the renderer has no new frame at
+// the expected time and repeats the preceding one. The hold is the lead (the time the queues keep the
+// renderer fed) plus delayFrames frame durations, so the renderer misses new frames for about
+// delayFrames frame durations. The requested delay must fit in the fault window.
 inline GstPadProbeReturn frameRepeatHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
                                             std::uint32_t, bool &applied)
 {
@@ -297,20 +413,29 @@ inline GstPadProbeReturn frameRepeatHandler(GstPad *pad, GstPadProbeInfo *info, 
         return GST_PAD_PROBE_PASS;
     }
 
+    bool leadKnown{false};
+    const GstClockTime lead{bufferLead(pad, buffer, context, "frame-repeat", leadKnown)};
+    if (!leadKnown)
+    {
+        return GST_PAD_PROBE_PASS;
+    }
+
     context.appliedDelay = delayNs;
-    g_usleep(static_cast<gulong>(delayNs / 1000));
     applied = true;
+    holdPad(context, static_cast<gint64>((delayNs + lead) / 1000));
     return GST_PAD_PROBE_OK;
 }
 
-// buffer-underflow (decoder input starvation): blocks the video sink pad for stallMs by holding the
-// streaming thread inside the probe, so no video buffer reaches the sink. Once the client and server
-// queues drain the decoder starves; releasing the buffer lets input resume and the starvation end.
+// buffer-underflow (decoder input starvation): blocks the video sink pad by holding the streaming
+// thread inside the probe, so no video buffer reaches the sink. The hold is the lead (how far the
+// queues run ahead of playback) plus stallMs, so the decoder starves for about stallMs once the
+// queues drain; releasing the buffer lets input resume and the starvation end.
 // Only the video pad is held, so audio keeps flowing. Independent of need-data flow control.
-inline GstPadProbeReturn bufferUnderflowHandler(GstPad *, GstPadProbeInfo *info, FaultContext &context,
+inline GstPadProbeReturn bufferUnderflowHandler(GstPad *pad, GstPadProbeInfo *info, FaultContext &context,
                                                 std::uint32_t, bool &applied)
 {
-    if (!GST_PAD_PROBE_INFO_BUFFER(info))
+    GstBuffer *buffer{GST_PAD_PROBE_INFO_BUFFER(info)};
+    if (!buffer)
     {
         return GST_PAD_PROBE_PASS;
     }
@@ -331,14 +456,16 @@ inline GstPadProbeReturn bufferUnderflowHandler(GstPad *, GstPadProbeInfo *info,
         return GST_PAD_PROBE_PASS;
     }
 
+    bool leadKnown{false};
+    const GstClockTime lead{bufferLead(pad, buffer, context, "buffer-underflow", leadKnown)};
+    if (!leadKnown)
+    {
+        return GST_PAD_PROBE_PASS;
+    }
+
     context.appliedStallMs = context.parameters.stallMs;
     applied = true;
-    const gint64 endUs{g_get_monotonic_time() + static_cast<gint64>(context.parameters.stallMs) * 1000};
-    // Sleep in slices so a cancelled run is not held up by a long stall.
-    while (!context.cancelled() && g_get_monotonic_time() < endUs)
-    {
-        g_usleep(kStallSliceUs);
-    }
+    holdPad(context, static_cast<gint64>(context.parameters.stallMs) * 1000 + static_cast<gint64>(lead / 1000));
     return GST_PAD_PROBE_OK;
 }
 
@@ -362,6 +489,7 @@ struct CodecInfo
 };
 
 constexpr std::size_t kMinCorruptibleSliceSize{16};
+constexpr std::size_t kSliceHeaderGuard{8}; // Bytes after the NAL header that are never corrupted
 
 inline bool getCodecInfo(GstPad *pad, CodecInfo &codec, std::string &error)
 {
@@ -490,10 +618,12 @@ inline bool classifySlice(const guint8 *data, const NalUnit &nal, CodecInfo::Typ
     return nalType <= 9;
 }
 
-// Corrupts the second half of each eligible slice, leaving the NAL header and the start of the slice
-// header intact so the decoder reports the damage per frame instead of rejecting the stream.
+// Corrupts each eligible slice according to the mode, always leaving the NAL header intact.
+// Tail (default) keeps the start of the slice header so the decoder reports the damage per frame;
+// Payload and Header are harsher and may make the decoder drop the slice or lose sync instead.
 // Returns the number of slices corrupted.
-inline std::uint32_t corruptSlices(guint8 *data, std::size_t size, const CodecInfo &codec)
+inline std::uint32_t corruptSlices(guint8 *data, std::size_t size, const CodecInfo &codec,
+                                   DecodeErrorMode mode = DecodeErrorMode::Tail)
 {
     std::vector<NalUnit> nals;
     collectNalUnits(data, size, codec.nalLengthSize, nals);
@@ -523,8 +653,19 @@ inline std::uint32_t corruptSlices(guint8 *data, std::size_t size, const CodecIn
     for (const NalUnit &slice : slices)
     {
         const std::size_t payloadStart{slice.offset + headerSize};
-        const std::size_t corruptFrom{payloadStart + (slice.size - headerSize) / 2};
-        for (std::size_t i = corruptFrom; i < slice.offset + slice.size; ++i)
+        const std::size_t payloadSize{slice.size - headerSize};
+        std::size_t corruptFrom{payloadStart + std::max(kSliceHeaderGuard, payloadSize / 8)};
+        std::size_t corruptEnd{slice.offset + slice.size};
+        if (mode == DecodeErrorMode::Payload)
+        {
+            corruptFrom = payloadStart;
+        }
+        else if (mode == DecodeErrorMode::Header)
+        {
+            corruptFrom = payloadStart;
+            corruptEnd = payloadStart + kSliceHeaderGuard;
+        }
+        for (std::size_t i = corruptFrom; i < corruptEnd; ++i)
         {
             data[i] ^= 0xFF;
         }
@@ -574,11 +715,12 @@ inline GstPadProbeReturn decodeErrorHandler(GstPad *pad, GstPadProbeInfo *info, 
         context.fail("decode-error: the video buffer cannot be mapped writable.");
         return GST_PAD_PROBE_PASS;
     }
-    const std::uint32_t corrupted{corruptSlices(map.data, map.size, codec)};
+    const std::uint32_t corrupted{corruptSlices(map.data, map.size, codec, context.parameters.decodeErrorMode)};
     gst_buffer_unmap(buffer, &map);
 
     if (corrupted == 0)
     {
+        ++context.noEligibleSlice;
         return GST_PAD_PROBE_OK; // Key frame or no eligible slice; try the next buffer
     }
     context.corruptedSlices += corrupted;
@@ -637,13 +779,15 @@ inline std::string faultScenarioNames()
 }
 
 // Installs a bounded buffer probe on a sink pad. The probe stops affecting buffers once the buffer
-// limit or the time window is reached, and is always removed by stop().
+// limit is reached or the time window (counted from the first affected buffer) has passed, and is
+// always removed by stop().
 class FaultInjector
 {
 public:
     FaultInjector(const FaultScenarioInfo &info, const FaultParameters &parameters, GstElement *pipeline,
-                  FaultContext::PositionQuery positionQuery = nullptr)
-        : m_info{info}, m_context{parameters, pipeline, std::move(positionQuery)}
+                  FaultContext::PositionQuery positionQuery = nullptr,
+                  FaultContext::RenderedQuery renderedQuery = nullptr)
+        : m_info{info}, m_context{parameters, pipeline, std::move(positionQuery), std::move(renderedQuery)}
     {
     }
     FaultInjector(const FaultInjector &) = delete;
@@ -673,7 +817,8 @@ public:
         const FaultParameters &parameters{m_context.parameters};
         m_limit = m_info.bufferLimit ? m_info.bufferLimit(parameters) : parameters.bufferCount;
         m_seen = 0;
-        m_deadlineUs = g_get_monotonic_time() + static_cast<gint64>(parameters.windowSeconds) * G_USEC_PER_SEC;
+        m_deadlineUs = 0; // The window starts when the first buffer is affected
+        m_context.setVideoSink(sink);
 
         const gulong id{gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, &FaultInjector::probeCallback, this, nullptr)};
         if (id == 0)
@@ -733,9 +878,30 @@ public:
         case FaultScenario::DecodeError:
             text += ", buffers-requested=" + std::to_string(parameters.bufferCount);
             text += ", slices-corrupted=" + std::to_string(m_context.corruptedSlices.load());
+            text += std::string{", decode-error-mode="} + decodeErrorModeName(parameters.decodeErrorMode);
             break;
         }
         text += ", window-seconds=" + std::to_string(parameters.windowSeconds);
+        if (m_context.appliedLeadNs)
+        {
+            text += ", lead-ms=" + std::to_string(*m_context.appliedLeadNs / GST_MSECOND);
+        }
+        text += ", buffers-probed=" + std::to_string(m_probed.load());
+        if (m_probed.load() > 0)
+        {
+            text += ", probed-pts-ms=" + std::to_string(m_firstPtsMs.load()) + ".." + std::to_string(m_lastPtsMs.load());
+        }
+        text += ", last-rendered=" +
+                (m_context.lastRendered.load() >= 0 ? std::to_string(m_context.lastRendered.load())
+                                                    : std::string{"unknown"});
+        text += ", last-position-ms=" +
+                (m_context.lastPositionNs.load() >= 0 ? std::to_string(m_context.lastPositionNs.load() / GST_MSECOND)
+                                                      : std::string{"unknown"});
+        text += ", not-settled-skips=" + std::to_string(m_context.notSettledSkips.load());
+        if (m_info.scenario == FaultScenario::DecodeError)
+        {
+            text += ", no-eligible-slice=" + std::to_string(m_context.noEligibleSlice.load());
+        }
         return text;
     }
 
@@ -747,7 +913,21 @@ private:
 
     GstPadProbeReturn onBuffer(GstPad *pad, GstPadProbeInfo *info)
     {
-        if (m_context.failed() || m_seen.load() >= m_limit || g_get_monotonic_time() >= m_deadlineUs)
+        if (GstBuffer *probed{GST_PAD_PROBE_INFO_BUFFER(info)}; probed && GST_BUFFER_PTS_IS_VALID(probed))
+        {
+            const gint64 ptsMs{static_cast<gint64>(GST_BUFFER_PTS(probed) / GST_MSECOND)};
+            if (m_probed.fetch_add(1) == 0)
+            {
+                m_firstPtsMs = ptsMs;
+            }
+            m_lastPtsMs = ptsMs;
+        }
+        else
+        {
+            ++m_probed;
+        }
+        const gint64 deadlineUs{m_deadlineUs.load()};
+        if (m_context.failed() || m_seen.load() >= m_limit || (deadlineUs != 0 && g_get_monotonic_time() >= deadlineUs))
         {
             // Only the side that clears the id may remove the probe, avoiding a double removal.
             return m_probeId.exchange(0) != 0 ? GST_PAD_PROBE_REMOVE : GST_PAD_PROBE_PASS;
@@ -757,6 +937,10 @@ private:
         if (applied)
         {
             ++m_seen;
+            gint64 notStarted{0};
+            m_deadlineUs.compare_exchange_strong(
+                notStarted, g_get_monotonic_time() +
+                                static_cast<gint64>(m_context.parameters.windowSeconds) * G_USEC_PER_SEC);
         }
         return result;
     }
@@ -766,7 +950,10 @@ private:
     GstPad *m_pad{nullptr};
     std::atomic<gulong> m_probeId{0};
     std::atomic<std::uint32_t> m_seen{0};
+    std::atomic<std::uint32_t> m_probed{0};
+    std::atomic<gint64> m_firstPtsMs{0};
+    std::atomic<gint64> m_lastPtsMs{0};
     std::uint32_t m_limit{0};
-    gint64 m_deadlineUs{0};
+    std::atomic<gint64> m_deadlineUs{0};
 };
 } // namespace metricscli

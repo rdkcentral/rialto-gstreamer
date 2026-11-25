@@ -32,7 +32,6 @@ using metricscli::FaultScenarioInfo;
 namespace
 {
 constexpr gint64 kSettledPosition{10 * GST_SECOND};
-constexpr gint64 kUnsettledPosition{1 * GST_SECOND};
 
 struct PadDeleter
 {
@@ -113,14 +112,19 @@ FaultContext::PositionQuery settledPosition()
     return []() { return positionAt(kSettledPosition); };
 }
 
-FaultContext::PositionQuery unsettledPosition()
-{
-    return []() { return positionAt(kUnsettledPosition); };
-}
-
 FaultContext::PositionQuery missingPosition()
 {
     return []() -> std::optional<gint64> { return std::nullopt; };
+}
+
+FaultContext::RenderedQuery unsettledRendered()
+{
+    return []() -> std::optional<std::uint64_t> { return 1; };
+}
+
+FaultContext::RenderedQuery missingRendered()
+{
+    return []() -> std::optional<std::uint64_t> { return std::nullopt; };
 }
 
 constexpr guint8 kFill{0xAA}; // Never forms a 00 00 01 start code, and is changed by inversion
@@ -137,8 +141,8 @@ constexpr std::size_t kH264SpsOffset{4};
 constexpr std::size_t kH264SpsSize{6};
 constexpr std::size_t kH264SliceOffset{14};
 constexpr std::size_t kH264SliceSize{41};
-// The second half of the slice payload is inverted; the header byte and first half stay intact.
-constexpr std::size_t kH264CorruptFrom{kH264SliceOffset + 1 + (kH264SliceSize - 1) / 2};
+// The slice payload is inverted after the first 8 bytes; the header byte and those bytes stay intact.
+constexpr std::size_t kH264CorruptFrom{kH264SliceOffset + 1 + 8};
 
 std::atomic<int> g_handlerCalls{0};
 
@@ -218,38 +222,40 @@ TEST_F(FaultInjectionTests, ShouldRegisterAllScenarios)
     EXPECT_EQ(metricscli::findFaultScenario("unknown"), nullptr);
 }
 
-TEST_F(FaultInjectionTests, ShouldMoveFrameDropBuffersBehindThePlaybackPosition)
+TEST_F(FaultInjectionTests, ShouldMoveFrameDropBuffersBackByTheConfiguredShift)
 {
     PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, settledPosition()};
+    m_parameters.dropShiftMs = 300;
+    FaultContext context{m_parameters, nullptr, nullptr};
 
-    // Position is 10 s and the margin is 1 s, so the first buffer (10 s) moves back by 1 s.
     auto first{runHandler("frame-drop", pad.get(), createBuffer({0}, 10 * GST_SECOND, 9900 * GST_MSECOND), context)};
     EXPECT_TRUE(first.applied);
-    EXPECT_EQ(GST_BUFFER_PTS(first.buffer.get()), 9 * GST_SECOND);
-    EXPECT_EQ(GST_BUFFER_DTS(first.buffer.get()), 8900 * GST_MSECOND);
+    EXPECT_EQ(GST_BUFFER_PTS(first.buffer.get()), 9700 * GST_MSECOND);
+    EXPECT_EQ(GST_BUFFER_DTS(first.buffer.get()), 9600 * GST_MSECOND);
 
     // The same shift is applied to following buffers so their spacing is preserved.
     auto second{runHandler("frame-drop", pad.get(), createBuffer({0}, 10040 * GST_MSECOND), context)};
     EXPECT_TRUE(second.applied);
-    EXPECT_EQ(GST_BUFFER_PTS(second.buffer.get()), 9040 * GST_MSECOND);
+    EXPECT_EQ(GST_BUFFER_PTS(second.buffer.get()), 9740 * GST_MSECOND);
+    ASSERT_TRUE(context.ptsShift.has_value());
+    EXPECT_EQ(*context.ptsShift, 300 * GST_MSECOND);
     EXPECT_FALSE(context.failed());
 }
 
-TEST_F(FaultInjectionTests, ShouldNotShiftFrameDropBuffersThatAreAlreadyLate)
+TEST_F(FaultInjectionTests, ShouldNotMoveFrameDropTimestampsBeforeZero)
 {
     PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, settledPosition()};
+    FaultContext context{m_parameters, nullptr, nullptr}; // Default shift is 500 ms
 
-    auto result{runHandler("frame-drop", pad.get(), createBuffer({0}, 5 * GST_SECOND), context)};
+    auto result{runHandler("frame-drop", pad.get(), createBuffer({0}, 200 * GST_MSECOND), context)};
     EXPECT_TRUE(result.applied);
-    EXPECT_EQ(GST_BUFFER_PTS(result.buffer.get()), 5 * GST_SECOND);
+    EXPECT_EQ(GST_BUFFER_PTS(result.buffer.get()), 0u);
 }
 
-TEST_F(FaultInjectionTests, ShouldPassFrameDropBuffersThroughUntilPlaybackSettles)
+TEST_F(FaultInjectionTests, ShouldPassFrameDropBuffersThroughUntilFramesAreRendered)
 {
     PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, unsettledPosition()};
+    FaultContext context{m_parameters, nullptr, nullptr, unsettledRendered()};
 
     auto result{runHandler("frame-drop", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
     EXPECT_FALSE(result.applied);
@@ -257,37 +263,25 @@ TEST_F(FaultInjectionTests, ShouldPassFrameDropBuffersThroughUntilPlaybackSettle
     EXPECT_EQ(GST_BUFFER_PTS(result.buffer.get()), 10 * GST_SECOND);
 }
 
+TEST_F(FaultInjectionTests, ShouldFailFrameDropWhenRenderedFramesAreUnavailable)
+{
+    PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
+    FaultContext context{m_parameters, nullptr, nullptr, missingRendered()};
+
+    auto result{runHandler("frame-drop", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
+    EXPECT_FALSE(result.applied);
+    ASSERT_TRUE(context.failed());
+    EXPECT_NE(context.failure().find("frame-counters"), std::string::npos);
+}
+
 TEST_F(FaultInjectionTests, ShouldPassFrameDropBuffersWithoutTimestampsThrough)
 {
     PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, settledPosition()};
+    FaultContext context{m_parameters, nullptr, nullptr};
 
     auto result{runHandler("frame-drop", pad.get(), createBuffer({0}), context)};
     EXPECT_FALSE(result.applied);
     EXPECT_FALSE(context.failed());
-}
-
-TEST_F(FaultInjectionTests, ShouldFailFrameDropWhenPositionIsUnavailable)
-{
-    PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, missingPosition()};
-
-    auto result{runHandler("frame-drop", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
-    EXPECT_FALSE(result.applied);
-    ASSERT_TRUE(context.failed());
-    EXPECT_NE(context.failure().find("playback position"), std::string::npos);
-}
-
-TEST_F(FaultInjectionTests, ShouldFailFrameDropWhenNoSegmentWasReceived)
-{
-    PadPtr pad{gst_pad_new("src", GST_PAD_SRC)};
-    gst_pad_set_active(pad.get(), TRUE);
-    FaultContext context{m_parameters, nullptr, settledPosition()};
-
-    auto result{runHandler("frame-drop", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
-    EXPECT_FALSE(result.applied);
-    ASSERT_TRUE(context.failed());
-    EXPECT_NE(context.failure().find("segment"), std::string::npos);
 }
 
 TEST_F(FaultInjectionTests, ShouldHoldFrameRepeatBufferForConfiguredFrameDurations)
@@ -321,6 +315,63 @@ TEST_F(FaultInjectionTests, ShouldUseBufferDurationWhenFramerateIsMissing)
     EXPECT_EQ(*context.appliedDelay, 2 * GST_MSECOND);
 }
 
+TEST_F(FaultInjectionTests, ShouldAddTheQueuedLeadToTheFrameRepeatHold)
+{
+    PadPtr pad{createVideoPad("video/x-h264, framerate=1000/1")};
+    m_parameters.delayFrames = 3;
+    FaultContext context{m_parameters, nullptr, settledPosition()};
+
+    // The buffer is 30 ms ahead of the 10 s position, so the hold is 30 ms + 3 ms.
+    const auto start{std::chrono::steady_clock::now()};
+    auto result{runHandler("frame-repeat", pad.get(), createBuffer({0}, 10 * GST_SECOND + 30 * GST_MSECOND), context)};
+    const auto elapsed{std::chrono::steady_clock::now() - start};
+
+    EXPECT_TRUE(result.applied);
+    EXPECT_GE(elapsed, std::chrono::milliseconds(33));
+    ASSERT_TRUE(context.appliedLeadNs.has_value());
+    EXPECT_EQ(*context.appliedLeadNs, 30 * GST_MSECOND);
+    EXPECT_EQ(*context.appliedDelay, 3 * GST_MSECOND); // The reported delay excludes the lead
+}
+
+TEST_F(FaultInjectionTests, ShouldFailFrameRepeatWhenPositionIsUnavailable)
+{
+    PadPtr pad{createVideoPad("video/x-h264, framerate=1000/1")};
+    FaultContext context{m_parameters, nullptr, missingPosition()};
+
+    auto result{runHandler("frame-repeat", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
+    EXPECT_FALSE(result.applied);
+    ASSERT_TRUE(context.failed());
+    EXPECT_NE(context.failure().find("playback position"), std::string::npos);
+}
+
+TEST_F(FaultInjectionTests, ShouldAddTheQueuedLeadToTheBufferUnderflowStall)
+{
+    PadPtr pad{createVideoPad("video/x-h264")};
+    m_parameters.stallMs = 30;
+    FaultContext context{m_parameters, nullptr, settledPosition()};
+
+    const auto start{std::chrono::steady_clock::now()};
+    auto result{runHandler("buffer-underflow", pad.get(), createBuffer({0}, 10 * GST_SECOND + 40 * GST_MSECOND), context)};
+    const auto elapsed{std::chrono::steady_clock::now() - start};
+
+    EXPECT_TRUE(result.applied);
+    EXPECT_GE(elapsed, std::chrono::milliseconds(70));
+    ASSERT_TRUE(context.appliedLeadNs.has_value());
+    EXPECT_EQ(*context.appliedLeadNs, 40 * GST_MSECOND);
+    EXPECT_EQ(*context.appliedStallMs, 30u);
+}
+
+TEST_F(FaultInjectionTests, ShouldFailBufferUnderflowWhenPositionIsUnavailable)
+{
+    PadPtr pad{createVideoPad("video/x-h264")};
+    FaultContext context{m_parameters, nullptr, missingPosition()};
+
+    auto result{runHandler("buffer-underflow", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
+    EXPECT_FALSE(result.applied);
+    ASSERT_TRUE(context.failed());
+    EXPECT_NE(context.failure().find("playback position"), std::string::npos);
+}
+
 TEST_F(FaultInjectionTests, ShouldFailFrameRepeatWhenFrameDurationIsUnknown)
 {
     PadPtr pad{createVideoPad("video/x-h264")};
@@ -344,26 +395,27 @@ TEST_F(FaultInjectionTests, ShouldFailFrameRepeatWhenDelayDoesNotFitInTheWindow)
     EXPECT_NE(context.failure().find("window"), std::string::npos);
 }
 
-TEST_F(FaultInjectionTests, ShouldPassFrameRepeatBufferThroughUntilPlaybackSettles)
+TEST_F(FaultInjectionTests, ShouldPassFrameRepeatBufferThroughUntilFramesAreRendered)
 {
     PadPtr pad{createVideoPad("video/x-h264, framerate=1000/1")};
-    FaultContext context{m_parameters, nullptr, unsettledPosition()};
+    FaultContext context{m_parameters, nullptr, settledPosition(), unsettledRendered()};
 
     auto result{runHandler("frame-repeat", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
     EXPECT_FALSE(result.applied);
     EXPECT_FALSE(context.failed());
     EXPECT_FALSE(context.appliedDelay.has_value());
+    EXPECT_EQ(context.notSettledSkips.load(), 1u);
 }
 
-TEST_F(FaultInjectionTests, ShouldFailFrameRepeatWhenPositionIsUnavailable)
+TEST_F(FaultInjectionTests, ShouldFailFrameRepeatWhenRenderedFramesAreUnavailable)
 {
     PadPtr pad{createVideoPad("video/x-h264, framerate=1000/1")};
-    FaultContext context{m_parameters, nullptr, missingPosition()};
+    FaultContext context{m_parameters, nullptr, settledPosition(), missingRendered()};
 
     auto result{runHandler("frame-repeat", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
     EXPECT_FALSE(result.applied);
     ASSERT_TRUE(context.failed());
-    EXPECT_NE(context.failure().find("playback position"), std::string::npos);
+    EXPECT_NE(context.failure().find("frame-counters"), std::string::npos);
 }
 
 TEST_F(FaultInjectionTests, ShouldBlockBufferUnderflowForConfiguredStall)
@@ -409,25 +461,25 @@ TEST_F(FaultInjectionTests, ShouldFailBufferUnderflowWhenStallDoesNotFitInTheWin
     EXPECT_NE(context.failure().find("window"), std::string::npos);
 }
 
-TEST_F(FaultInjectionTests, ShouldPassBufferUnderflowBufferThroughUntilPlaybackSettles)
+TEST_F(FaultInjectionTests, ShouldPassBufferUnderflowBufferThroughUntilFramesAreRendered)
 {
     PadPtr pad{createVideoPad("video/x-h264")};
-    FaultContext context{m_parameters, nullptr, unsettledPosition()};
+    FaultContext context{m_parameters, nullptr, settledPosition(), unsettledRendered()};
 
     auto result{runHandler("buffer-underflow", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
     EXPECT_FALSE(result.applied);
     EXPECT_FALSE(context.failed());
 }
 
-TEST_F(FaultInjectionTests, ShouldFailBufferUnderflowWhenPositionIsUnavailable)
+TEST_F(FaultInjectionTests, ShouldFailBufferUnderflowWhenRenderedFramesAreUnavailable)
 {
     PadPtr pad{createVideoPad("video/x-h264")};
-    FaultContext context{m_parameters, nullptr, missingPosition()};
+    FaultContext context{m_parameters, nullptr, settledPosition(), missingRendered()};
 
     auto result{runHandler("buffer-underflow", pad.get(), createBuffer({0}, 10 * GST_SECOND), context)};
     EXPECT_FALSE(result.applied);
     ASSERT_TRUE(context.failed());
-    EXPECT_NE(context.failure().find("playback position"), std::string::npos);
+    EXPECT_NE(context.failure().find("frame-counters"), std::string::npos);
 }
 
 TEST_F(FaultInjectionTests, ShouldCorruptOnlySliceDataOfH264ByteStream)
@@ -443,7 +495,7 @@ TEST_F(FaultInjectionTests, ShouldCorruptOnlySliceDataOfH264ByteStream)
 
     const std::vector<guint8> corrupted{readBytes(result.buffer.get())};
     ASSERT_EQ(corrupted.size(), original.size());
-    // Start codes, the SPS, the slice NAL header and the first half of the slice are untouched.
+    // Start codes, the SPS, the slice NAL header and the first bytes of the slice are untouched.
     for (std::size_t i = 0; i < kH264CorruptFrom; ++i)
     {
         EXPECT_EQ(corrupted[i], original[i]) << "byte " << i;
@@ -454,6 +506,55 @@ TEST_F(FaultInjectionTests, ShouldCorruptOnlySliceDataOfH264ByteStream)
     }
     EXPECT_EQ(corrupted[kH264SpsOffset], 0x67);
     EXPECT_EQ(kH264SpsOffset + kH264SpsSize + 4, kH264SliceOffset);
+}
+
+TEST_F(FaultInjectionTests, ShouldCorruptTheWholeSliceDataInPayloadMode)
+{
+    PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
+    m_parameters.decodeErrorMode = metricscli::DecodeErrorMode::Payload;
+    FaultContext context{m_parameters, nullptr, settledPosition()};
+    const std::vector<guint8> original{createH264ByteStream(0x41)};
+
+    auto result{runHandler("decode-error", pad.get(), createBuffer(original), context)};
+    EXPECT_TRUE(result.applied);
+
+    const std::vector<guint8> corrupted{readBytes(result.buffer.get())};
+    for (std::size_t i = 0; i <= kH264SliceOffset; ++i) // Up to and including the NAL header
+    {
+        EXPECT_EQ(corrupted[i], original[i]) << "byte " << i;
+    }
+    for (std::size_t i = kH264SliceOffset + 1; i < original.size(); ++i)
+    {
+        EXPECT_EQ(corrupted[i], static_cast<guint8>(original[i] ^ 0xFF)) << "byte " << i;
+    }
+}
+
+TEST_F(FaultInjectionTests, ShouldCorruptOnlyTheSliceHeaderInHeaderMode)
+{
+    PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
+    m_parameters.decodeErrorMode = metricscli::DecodeErrorMode::Header;
+    FaultContext context{m_parameters, nullptr, settledPosition()};
+    const std::vector<guint8> original{createH264ByteStream(0x41)};
+
+    auto result{runHandler("decode-error", pad.get(), createBuffer(original), context)};
+    EXPECT_TRUE(result.applied);
+
+    const std::vector<guint8> corrupted{readBytes(result.buffer.get())};
+    constexpr std::size_t kHeaderStart{kH264SliceOffset + 1};
+    constexpr std::size_t kHeaderEnd{kHeaderStart + 8};
+    for (std::size_t i = 0; i < original.size(); ++i)
+    {
+        const bool inHeader{i >= kHeaderStart && i < kHeaderEnd};
+        EXPECT_EQ(corrupted[i], inHeader ? static_cast<guint8>(original[i] ^ 0xFF) : original[i]) << "byte " << i;
+    }
+}
+
+TEST_F(FaultInjectionTests, ShouldFindDecodeErrorModesByName)
+{
+    EXPECT_EQ(metricscli::findDecodeErrorMode("tail"), metricscli::DecodeErrorMode::Tail);
+    EXPECT_EQ(metricscli::findDecodeErrorMode("payload"), metricscli::DecodeErrorMode::Payload);
+    EXPECT_EQ(metricscli::findDecodeErrorMode("header"), metricscli::DecodeErrorMode::Header);
+    EXPECT_FALSE(metricscli::findDecodeErrorMode("full").has_value());
 }
 
 TEST_F(FaultInjectionTests, ShouldNotCorruptBuffersContainingAKeyFrame)
@@ -482,7 +583,7 @@ TEST_F(FaultInjectionTests, ShouldCorruptLengthPrefixedH264Slices)
 
     const std::vector<guint8> corrupted{readBytes(result.buffer.get())};
     constexpr std::size_t kSliceOffset{4};
-    constexpr std::size_t kCorruptFrom{kSliceOffset + 1 + (41 - 1) / 2};
+    constexpr std::size_t kCorruptFrom{kSliceOffset + 1 + 8};
     for (std::size_t i = 0; i < kCorruptFrom; ++i)
     {
         EXPECT_EQ(corrupted[i], original[i]) << "byte " << i;
@@ -508,8 +609,7 @@ TEST_F(FaultInjectionTests, ShouldCorruptH265Slices)
 
     const std::vector<guint8> corrupted{readBytes(result.buffer.get())};
     constexpr std::size_t kSliceOffset{3};
-    constexpr std::size_t kSliceSize{42};
-    constexpr std::size_t kCorruptFrom{kSliceOffset + 2 + (kSliceSize - 2) / 2};
+    constexpr std::size_t kCorruptFrom{kSliceOffset + 2 + 8};
     EXPECT_EQ(corrupted[3], 0x02); // NAL header intact
     EXPECT_EQ(corrupted[4], 0x01);
     for (std::size_t i = kSliceOffset + 2; i < kCorruptFrom; ++i)
@@ -599,10 +699,10 @@ TEST_F(FaultInjectionTests, ShouldNotCountDecodeErrorBuffersWithoutEligibleSlice
     EXPECT_EQ(readBytes(result.buffer.get()), original);
 }
 
-TEST_F(FaultInjectionTests, ShouldPassDecodeErrorBuffersThroughUntilPlaybackSettles)
+TEST_F(FaultInjectionTests, ShouldPassDecodeErrorBuffersThroughUntilFramesAreRendered)
 {
     PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, unsettledPosition()};
+    FaultContext context{m_parameters, nullptr, settledPosition(), unsettledRendered()};
     const std::vector<guint8> original{createH264ByteStream(0x41)};
 
     auto result{runHandler("decode-error", pad.get(), createBuffer(original), context)};
@@ -611,15 +711,15 @@ TEST_F(FaultInjectionTests, ShouldPassDecodeErrorBuffersThroughUntilPlaybackSett
     EXPECT_EQ(readBytes(result.buffer.get()), original);
 }
 
-TEST_F(FaultInjectionTests, ShouldFailDecodeErrorWhenPositionIsUnavailable)
+TEST_F(FaultInjectionTests, ShouldFailDecodeErrorWhenRenderedFramesAreUnavailable)
 {
     PadPtr pad{createVideoPad("video/x-h264, stream-format=byte-stream")};
-    FaultContext context{m_parameters, nullptr, missingPosition()};
+    FaultContext context{m_parameters, nullptr, settledPosition(), missingRendered()};
 
     auto result{runHandler("decode-error", pad.get(), createBuffer(createH264ByteStream(0x41)), context)};
     EXPECT_FALSE(result.applied);
     ASSERT_TRUE(context.failed());
-    EXPECT_NE(context.failure().find("playback position"), std::string::npos);
+    EXPECT_NE(context.failure().find("frame-counters"), std::string::npos);
 }
 
 TEST_F(FaultInjectionTests, ShouldOnlyAffectTheConfiguredNumberOfBuffers)
@@ -671,13 +771,31 @@ TEST_F(FaultInjectionTests, ShouldRemoveTheProbeAfterTheFaultWindowExpires)
 
     std::string error;
     ASSERT_TRUE(injector.start(sink.element(), error)) << error;
+    sink.push(); // The window starts when the first buffer is affected
     g_usleep(1200 * 1000);
     sink.push();
     sink.push();
     injector.stop();
 
-    EXPECT_EQ(g_handlerCalls.load(), 0);
-    EXPECT_EQ(injector.buffersAffected(), 0u);
+    EXPECT_EQ(g_handlerCalls.load(), 1);
+    EXPECT_EQ(injector.buffersAffected(), 1u);
+}
+
+TEST_F(FaultInjectionTests, ShouldNotStartTheFaultWindowBeforeAFaultIsApplied)
+{
+    g_handlerCalls = 0;
+    TestSinkElement sink;
+    m_parameters.windowSeconds = 1;
+    const FaultScenarioInfo info{testScenario(countingHandler)};
+    metricscli::FaultInjector injector{info, m_parameters, nullptr};
+
+    std::string error;
+    ASSERT_TRUE(injector.start(sink.element(), error)) << error;
+    g_usleep(1200 * 1000); // No buffer has been affected yet, so the window has not started
+    sink.push();
+    injector.stop();
+
+    EXPECT_EQ(g_handlerCalls.load(), 1);
 }
 
 TEST_F(FaultInjectionTests, ShouldStopInjectingAfterAHandlerReportsAFailure)
