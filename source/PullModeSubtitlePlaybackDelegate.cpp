@@ -139,7 +139,6 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
             {
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-                std::unique_lock propertyLock{m_propertyUpdateMutex};
                 std::unique_lock lock{m_mutex};
                 if (!client || !m_sourceAttached)
                 {
@@ -148,9 +147,11 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                     break;
                 }
 
+                m_propertyUpdates.emplace_back([client, sourceId = m_sourceId.load(), ptsOffset]()
+                                               { client->setSubtitleOffset(sourceId, ptsOffset); });
                 lock.unlock();
                 GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
-                client->setSubtitleOffset(m_sourceId, ptsOffset);
+                drainPropertyUpdates();
             }
             else
             {
@@ -222,7 +223,6 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
     case Property::Mute:
     {
         const bool muteValue{g_value_get_boolean(value) != FALSE};
-        std::unique_lock propertyLock{m_propertyUpdateMutex};
         std::unique_lock lock{m_mutex};
         m_isMuted = muteValue;
         if (!client || !m_sourceAttached)
@@ -230,8 +230,10 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
             m_isMuteQueued.store(true);
             return;
         }
+        m_propertyUpdates.emplace_back([client, sourceId = m_sourceId.load(), muteValue]()
+                                       { client->setMute(muteValue, sourceId); });
         lock.unlock();
-        client->setMute(muteValue, m_sourceId);
+        drainPropertyUpdates();
         break;
     }
 
@@ -244,7 +246,6 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
             break;
         }
 
-        std::unique_lock propertyLock{m_propertyUpdateMutex};
         std::unique_lock lock{m_mutex};
         m_textTrackIdentifier = std::string(textTrackIdentifier);
         if (!client || !m_sourceAttached)
@@ -254,9 +255,10 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         }
         else
         {
-            const std::string identifier{m_textTrackIdentifier};
+            m_propertyUpdates.emplace_back([client, identifier = m_textTrackIdentifier]()
+                                           { client->setTextTrackIdentifier(identifier); });
             lock.unlock();
-            client->setTextTrackIdentifier(identifier);
+            drainPropertyUpdates();
         }
 
         break;
@@ -277,6 +279,25 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         break;
     }
     }
+}
+
+void PullModeSubtitlePlaybackDelegate::drainPropertyUpdates()
+{
+    std::unique_lock lock{m_mutex};
+    if (m_isDrainingPropertyUpdates)
+    {
+        return;
+    }
+    m_isDrainingPropertyUpdates = true;
+    while (!m_propertyUpdates.empty())
+    {
+        auto update{std::move(m_propertyUpdates.front())};
+        m_propertyUpdates.pop_front();
+        lock.unlock();
+        update();
+        lock.lock();
+    }
+    m_isDrainingPropertyUpdates = false;
 }
 
 void PullModeSubtitlePlaybackDelegate::handleQos(uint64_t processed, uint64_t dropped) const

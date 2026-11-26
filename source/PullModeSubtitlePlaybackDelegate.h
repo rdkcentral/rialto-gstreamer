@@ -20,6 +20,8 @@
 
 #include "PullModePlaybackDelegate.h"
 #include <atomic>
+#include <deque>
+#include <functional>
 #include <mutex>
 #include <string>
 
@@ -37,10 +39,12 @@ public:
 
 private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
+    void drainPropertyUpdates();
 
 private:
-    std::mutex m_propertyUpdateMutex;
     mutable std::mutex m_mutex;
+    std::deque<std::function<void()>> m_propertyUpdates;
+    bool m_isDrainingPropertyUpdates{false};
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};
     std::atomic<bool> m_isMuted{false};
