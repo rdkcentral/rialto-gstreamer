@@ -21,10 +21,17 @@
 #include "RialtoGStreamerMSESubtitleSink.h"
 #include "RialtoGstTest.h"
 
+#include <chrono>
+#include <future>
+#include <thread>
+#include <vector>
+
 using testing::_;
 using testing::DoAll;
+using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
+using testing::Truly;
 
 namespace
 {
@@ -171,22 +178,114 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
 
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
 {
+    constexpr guint64 kOffset{4325};
+    constexpr guint64 kLatestOffset{6789};
+    constexpr int32_t kSourceId{1};
     const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/ttml", kTextTrackIdentifier}};
     RialtoMSEBaseSink *sink = createSubtitleSink();
     GstElement *pipeline = createPipelineWithSink(sink);
 
-    g_object_set(sink, "mute", kMute, nullptr);
     g_object_set(sink, "text-track-identifier", kTextTrackIdentifier.c_str(), nullptr);
 
     setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(kExpectedSource)};
     allSourcesWillBeAttached();
 
+    std::promise<void> attachStartedPromise;
+    std::future<void> attachStarted{attachStartedPromise.get_future()};
+    std::promise<void> resumeAttachPromise;
+    std::shared_future<void> resumeAttach{resumeAttachPromise.get_future()};
+    std::promise<void> textTrackCallStartedPromise;
+    std::future<void> textTrackCallStarted{textTrackCallStartedPromise.get_future()};
+    std::promise<void> resumeTextTrackCallPromise;
+    std::shared_future<void> resumeTextTrackCall{resumeTextTrackCallPromise.get_future()};
+    std::promise<bool> newerOffsetEventResultPromise;
+    std::future<bool> newerOffsetEventResult{newerOffsetEventResultPromise.get_future()};
+    std::vector<int64_t> appliedOffsets;
+
+    EXPECT_CALL(m_mediaPipelineMock,
+                attachSource(Truly(
+                    [&](const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source)
+                    {
+                        const auto *matchedSource =
+                            dynamic_cast<const firebolt::rialto::IMediaPipeline::MediaSourceSubtitle *>(source.get());
+                        return matchedSource && matchedSource->getMimeType() == kExpectedSource.getMimeType() &&
+                               matchedSource->getTextTrackIdentifier() == kExpectedSource.getTextTrackIdentifier();
+                    })))
+        .WillOnce(Invoke(
+            [&](auto &source)
+            {
+                source->setId(kSourceId);
+                attachStartedPromise.set_value();
+                resumeAttach.wait();
+                return true;
+            }));
     EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
-    EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier))
+        .WillOnce(Invoke(
+            [&](const std::string &)
+            {
+                textTrackCallStartedPromise.set_value();
+                resumeTextTrackCall.wait();
+                return true;
+            }));
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, _))
+        .Times(2)
+        .WillRepeatedly(Invoke(
+            [&](int32_t, int64_t offset)
+            {
+                appliedOffsets.push_back(offset);
+                return true;
+            }));
 
     GstCaps *caps{createDefaultCaps()};
-    setCaps(sink, caps);
+    std::thread attachThread{[&]() { setCaps(sink, caps); }};
+
+    const bool didStartAttach{attachStarted.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+
+    if (didStartAttach)
+    {
+        g_object_set(sink, "mute", kMute, nullptr);
+        GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
+        gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure));
+    }
+
+    resumeAttachPromise.set_value();
+
+    const bool didStartTextTrackCall{textTrackCallStarted.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+
+    std::thread newerOffsetEventThread;
+    if (didStartTextTrackCall)
+    {
+        newerOffsetEventThread = std::thread(
+            [&]()
+            {
+                GstStructure *structure{
+                    gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kLatestOffset, nullptr)};
+                newerOffsetEventResultPromise.set_value(
+                    gst_pad_send_event(sink->priv->m_sinkPad,
+                                       gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure)));
+            });
+    }
+
+    const bool newerOffsetReturnedWhileTextTrackBlocked{
+        didStartTextTrackCall && newerOffsetEventResult.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+
+    resumeTextTrackCallPromise.set_value();
+    attachThread.join();
+    if (newerOffsetEventThread.joinable())
+    {
+        newerOffsetEventThread.join();
+    }
+    EXPECT_TRUE(didStartAttach);
+    EXPECT_TRUE(didStartTextTrackCall);
+    EXPECT_TRUE(newerOffsetReturnedWhileTextTrackBlocked);
+    if (didStartTextTrackCall)
+    {
+        EXPECT_TRUE(newerOffsetEventResult.get());
+    }
+    ASSERT_EQ(2U, appliedOffsets.size());
+    EXPECT_EQ(static_cast<int64_t>(kOffset), appliedOffsets[0]);
+    EXPECT_EQ(static_cast<int64_t>(kLatestOffset), appliedOffsets[1]);
 
     setNullState(pipeline, kSourceId);
 

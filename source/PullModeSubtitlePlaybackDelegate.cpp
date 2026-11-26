@@ -71,28 +71,49 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             }
             else
             {
-                m_sourceAttached = true;
-                if (m_isMuteQueued)
+                if (m_isMuteQueued.exchange(false))
                 {
                     client->setMute(m_isMuted, m_sourceId);
-                    m_isMuteQueued = false;
                 }
 
+                while (true)
                 {
-                    std::unique_lock lock{m_mutex};
-                    if (m_isTextTrackIdentifierQueued)
+                    bool textTrackIdentifierQueued{false};
+                    std::string textTrackIdentifier;
+                    std::optional<int64_t> queuedOffset;
                     {
-                        client->setTextTrackIdentifier(m_textTrackIdentifier);
-                        m_isTextTrackIdentifierQueued = false;
+                        std::unique_lock lock{m_mutex};
+                        textTrackIdentifierQueued = m_isTextTrackIdentifierQueued;
+                        if (textTrackIdentifierQueued)
+                        {
+                            textTrackIdentifier = m_textTrackIdentifier;
+                            m_isTextTrackIdentifierQueued = false;
+                        }
+                        queuedOffset = m_queuedOffset;
+                        m_queuedOffset.reset();
+
+                        if (!textTrackIdentifierQueued && !queuedOffset)
+                        {
+                            m_sourceAttached = true;
+                            break;
+                        }
                     }
 
-                    if (m_queuedOffset)
+                    if (textTrackIdentifierQueued)
+                    {
+                        client->setTextTrackIdentifier(textTrackIdentifier);
+                    }
+                    if (queuedOffset)
                     {
                         GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
-                                         GST_TIME_ARGS(m_queuedOffset.value()));
-                        client->setSubtitleOffset(m_sourceId, m_queuedOffset.value());
-                        m_queuedOffset.reset();
+                                         GST_TIME_ARGS(queuedOffset.value()));
+                        client->setSubtitleOffset(m_sourceId, queuedOffset.value());
                     }
+                }
+
+                if (m_isMuteQueued.exchange(false))
+                {
+                    client->setMute(m_isMuted, m_sourceId);
                 }
 
                 // check if READY -> PAUSED was requested before source was attached
@@ -119,15 +140,24 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             guint64 ptsOffset{GST_CLOCK_TIME_NONE};
             if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
             {
-                std::unique_lock lock{m_sinkMutex};
-
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-                if (!client || !m_sourceAttached)
+                bool offsetQueued{false};
                 {
-                    GST_DEBUG_OBJECT(m_sink, "offset setting enqueued");
-                    m_queuedOffset = static_cast<int64_t>(ptsOffset);
+                    std::unique_lock lock{m_mutex};
+                    if (!client || !m_sourceAttached)
+                    {
+                        GST_DEBUG_OBJECT(m_sink, "offset setting enqueued");
+                        m_queuedOffset = static_cast<int64_t>(ptsOffset);
+                        offsetQueued = true;
+                    }
                 }
-                else
+
+                if (offsetQueued)
+                {
+                    break;
+                }
+
+                if (client)
                 {
                     GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
                     client->setSubtitleOffset(m_sourceId, ptsOffset);
@@ -204,8 +234,12 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         m_isMuted = g_value_get_boolean(value);
         if (!client || !m_sourceAttached)
         {
-            m_isMuteQueued = true;
-            return;
+            m_isMuteQueued.store(true);
+            if (!client || !m_sourceAttached)
+            {
+                return;
+            }
+            m_isMuteQueued.exchange(false);
         }
 
         client->setMute(m_isMuted, m_sourceId);
