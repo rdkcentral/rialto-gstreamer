@@ -71,26 +71,46 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             }
             else
             {
-                m_sourceAttached = true;
-                if (m_isMuteQueued.exchange(false))
+                while (true)
                 {
-                    client->setMute(m_isMuted, m_sourceId);
-                }
-
-                {
-                    std::unique_lock lock{m_mutex};
-                    if (m_isTextTrackIdentifierQueued)
+                    bool muteQueued{false};
+                    bool muteValue{false};
+                    bool textTrackIdentifierQueued{false};
+                    std::string textTrackIdentifier;
+                    std::optional<int64_t> queuedOffset;
                     {
-                        client->setTextTrackIdentifier(m_textTrackIdentifier);
-                        m_isTextTrackIdentifierQueued = false;
+                        std::unique_lock lock{m_mutex};
+                        muteQueued = m_isMuteQueued.exchange(false);
+                        muteValue = m_isMuted;
+                        textTrackIdentifierQueued = m_isTextTrackIdentifierQueued;
+                        if (textTrackIdentifierQueued)
+                        {
+                            textTrackIdentifier = m_textTrackIdentifier;
+                            m_isTextTrackIdentifierQueued = false;
+                        }
+                        queuedOffset = m_queuedOffset;
+                        m_queuedOffset.reset();
+
+                        if (!muteQueued && !textTrackIdentifierQueued && !queuedOffset)
+                        {
+                            m_sourceAttached = true;
+                            break;
+                        }
                     }
 
-                    if (m_queuedOffset)
+                    if (muteQueued)
+                    {
+                        client->setMute(muteValue, m_sourceId);
+                    }
+                    if (textTrackIdentifierQueued)
+                    {
+                        client->setTextTrackIdentifier(textTrackIdentifier);
+                    }
+                    if (queuedOffset)
                     {
                         GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT,
-                                         GST_TIME_ARGS(m_queuedOffset.value()));
-                        client->setSubtitleOffset(m_sourceId, m_queuedOffset.value());
-                        m_queuedOffset.reset();
+                                         GST_TIME_ARGS(queuedOffset.value()));
+                        client->setSubtitleOffset(m_sourceId, queuedOffset.value());
                     }
                 }
 
@@ -202,16 +222,20 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
     switch (type)
     {
     case Property::Mute:
-        m_isMuted = g_value_get_boolean(value);
+    {
+        const bool muteValue{g_value_get_boolean(value) != FALSE};
+        std::unique_lock lock{m_mutex};
+        m_isMuted = muteValue;
         if (!client || !m_sourceAttached)
         {
             m_isMuteQueued.store(true);
             return;
         }
 
-        client->setMute(m_isMuted, m_sourceId);
-
+        lock.unlock();
+        client->setMute(muteValue, m_sourceId);
         break;
+    }
     case Property::TextTrackIdentifier:
     {
         const gchar *textTrackIdentifier = g_value_get_string(value);
