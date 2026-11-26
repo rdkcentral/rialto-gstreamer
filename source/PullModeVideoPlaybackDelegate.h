@@ -54,5 +54,7 @@ private:
     bool m_syncmodeStreamingQueued{false};
     bool m_videoMute{false};
     bool m_videoMuteQueued{false};
+    float m_zorder{0.0f};
+    bool m_zorderQueued{false};
     // END of variables locked by propertyMutex
 };

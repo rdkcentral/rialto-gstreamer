@@ -60,6 +60,7 @@ constexpr int64_t kDiscontinuityGap{1};
 constexpr bool kAudioAac{false};
 const std::string kTextTrackIdentifier{"TextTrackId"};
 constexpr bool kReportDecodeErrors{true};
+constexpr float kZorder{0.5f};
 constexpr uint32_t kQueuedFrames{12};
 constexpr bool kImmediateOutput{true};
 constexpr bool kLowLatency{true};
@@ -1551,6 +1552,50 @@ TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetReportDecodeErrorsIfNoCli
 
     const int32_t kVideoSourceId = 1;
     EXPECT_FALSE(m_sut->setReportDecodeErrors(kVideoSourceId, kReportDecodeErrors));
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetZorder)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const int32_t kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setZorder(kVideoSourceId, kZorder)).WillOnce(Return(true));
+    EXPECT_TRUE(m_sut->setZorder(kVideoSourceId, kZorder));
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldFailToSetZorder)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    bufferPullerWillBeCreated();
+    const int32_t kVideoSourceId = attachSource(videoSink, firebolt::rialto::MediaSourceType::VIDEO);
+
+    expectCallInEventLoop();
+    EXPECT_CALL(*m_mediaPlayerClientBackendMock, setZorder(kVideoSourceId, kZorder)).WillOnce(Return(false));
+    EXPECT_FALSE(m_sut->setZorder(kVideoSourceId, kZorder));
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
+TEST_F(GstreamerMseMediaPlayerClientTests, ShouldNotSetZorderIfNoClientBackend)
+{
+    // Need to create a new message queue as it has been moved
+    m_messageQueue = std::make_unique<StrictMock<MessageQueueMock>>();
+    StrictMock<MessageQueueMock> &messageQueueMock{*m_messageQueue};
+
+    EXPECT_CALL(*m_messageQueueFactoryMock, createMessageQueue()).WillOnce(Return(ByMove(std::move(m_messageQueue))));
+    EXPECT_CALL(messageQueueMock, start());
+    EXPECT_CALL(messageQueueMock, stop());
+    m_sut = std::make_shared<GStreamerMSEMediaPlayerClient>(m_messageQueueFactoryMock, nullptr, kMaxVideoWidth,
+                                                            kMaxVideoHeight, kIsLive);
+
+    const int32_t kVideoSourceId = 1;
+    EXPECT_FALSE(m_sut->setZorder(kVideoSourceId, kZorder));
 }
 
 TEST_F(GstreamerMseMediaPlayerClientTests, ShouldSetImmediateOutput)
