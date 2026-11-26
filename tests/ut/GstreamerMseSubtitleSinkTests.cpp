@@ -194,10 +194,12 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
     std::future<void> attachStarted{attachStartedPromise.get_future()};
     std::promise<void> resumeAttachPromise;
     std::shared_future<void> resumeAttach{resumeAttachPromise.get_future()};
-    std::promise<void> textTrackCallStartedPromise;
-    std::future<void> textTrackCallStarted{textTrackCallStartedPromise.get_future()};
-    std::promise<void> resumeTextTrackCallPromise;
-    std::shared_future<void> resumeTextTrackCall{resumeTextTrackCallPromise.get_future()};
+    std::promise<void> muteCallStartedPromise;
+    std::future<void> muteCallStarted{muteCallStartedPromise.get_future()};
+    std::promise<void> resumeMuteCallPromise;
+    std::shared_future<void> resumeMuteCall{resumeMuteCallPromise.get_future()};
+    std::promise<void> newerMuteSetterReturnedPromise;
+    std::future<void> newerMuteSetterReturned{newerMuteSetterReturnedPromise.get_future()};
     std::promise<bool> newerOffsetEventResultPromise;
     std::future<bool> newerOffsetEventResult{newerOffsetEventResultPromise.get_future()};
     std::vector<int64_t> appliedOffsets;
@@ -219,15 +221,16 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
                 resumeAttach.wait();
                 return true;
             }));
-    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
-    EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier))
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute))
         .WillOnce(Invoke(
-            [&](const std::string &)
+            [&](int32_t, bool)
             {
-                textTrackCallStartedPromise.set_value();
-                resumeTextTrackCall.wait();
+                muteCallStartedPromise.set_value();
+                resumeMuteCall.wait();
                 return true;
             }));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, false)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, _))
         .Times(2)
         .WillRepeatedly(Invoke(
@@ -251,10 +254,23 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
 
     resumeAttachPromise.set_value();
 
-    const bool didStartTextTrackCall{textTrackCallStarted.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+    const bool didStartMuteCall{muteCallStarted.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+
+    std::thread newerMuteSetterThread;
+    if (didStartMuteCall)
+    {
+        newerMuteSetterThread = std::thread(
+            [&]()
+            {
+                g_object_set(sink, "mute", FALSE, nullptr);
+                newerMuteSetterReturnedPromise.set_value();
+            });
+    }
+    const bool newerMuteQueuedWhileMuteCallBlocked{
+        didStartMuteCall && newerMuteSetterReturned.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
 
     std::thread newerOffsetEventThread;
-    if (didStartTextTrackCall)
+    if (didStartMuteCall)
     {
         newerOffsetEventThread = std::thread(
             [&]()
@@ -267,19 +283,24 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
             });
     }
 
-    const bool newerOffsetReturnedWhileTextTrackBlocked{
-        didStartTextTrackCall && newerOffsetEventResult.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+    const bool newerOffsetReturnedWhileMuteCallBlocked{
+        didStartMuteCall && newerOffsetEventResult.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
 
-    resumeTextTrackCallPromise.set_value();
+    resumeMuteCallPromise.set_value();
     attachThread.join();
+    if (newerMuteSetterThread.joinable())
+    {
+        newerMuteSetterThread.join();
+    }
     if (newerOffsetEventThread.joinable())
     {
         newerOffsetEventThread.join();
     }
     EXPECT_TRUE(didStartAttach);
-    EXPECT_TRUE(didStartTextTrackCall);
-    EXPECT_TRUE(newerOffsetReturnedWhileTextTrackBlocked);
-    if (didStartTextTrackCall)
+    EXPECT_TRUE(didStartMuteCall);
+    EXPECT_TRUE(newerMuteQueuedWhileMuteCallBlocked);
+    EXPECT_TRUE(newerOffsetReturnedWhileMuteCallBlocked);
+    if (didStartMuteCall)
     {
         EXPECT_TRUE(newerOffsetEventResult.get());
     }

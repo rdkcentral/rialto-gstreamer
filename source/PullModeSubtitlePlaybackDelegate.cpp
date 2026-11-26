@@ -71,18 +71,17 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             }
             else
             {
-                if (m_isMuteQueued.exchange(false))
-                {
-                    client->setMute(m_isMuted, m_sourceId);
-                }
-
                 while (true)
                 {
+                    bool muteQueued{false};
+                    bool muteValue{false};
                     bool textTrackIdentifierQueued{false};
                     std::string textTrackIdentifier;
                     std::optional<int64_t> queuedOffset;
                     {
                         std::unique_lock lock{m_mutex};
+                        muteQueued = m_isMuteQueued.exchange(false);
+                        muteValue = m_isMuted;
                         textTrackIdentifierQueued = m_isTextTrackIdentifierQueued;
                         if (textTrackIdentifierQueued)
                         {
@@ -92,13 +91,17 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                         queuedOffset = m_queuedOffset;
                         m_queuedOffset.reset();
 
-                        if (!textTrackIdentifierQueued && !queuedOffset)
+                        if (!muteQueued && !textTrackIdentifierQueued && !queuedOffset)
                         {
                             m_sourceAttached = true;
                             break;
                         }
                     }
 
+                    if (muteQueued)
+                    {
+                        client->setMute(muteValue, m_sourceId);
+                    }
                     if (textTrackIdentifierQueued)
                     {
                         client->setTextTrackIdentifier(textTrackIdentifier);
@@ -109,11 +112,6 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                                          GST_TIME_ARGS(queuedOffset.value()));
                         client->setSubtitleOffset(m_sourceId, queuedOffset.value());
                     }
-                }
-
-                if (m_isMuteQueued.exchange(false))
-                {
-                    client->setMute(m_isMuted, m_sourceId);
                 }
 
                 // check if READY -> PAUSED was requested before source was attached
@@ -141,27 +139,16 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
             {
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
-                bool offsetQueued{false};
+                std::unique_lock lock{m_mutex};
+                if (!client || !m_sourceAttached)
                 {
-                    std::unique_lock lock{m_mutex};
-                    if (!client || !m_sourceAttached)
-                    {
-                        GST_DEBUG_OBJECT(m_sink, "offset setting enqueued");
-                        m_queuedOffset = static_cast<int64_t>(ptsOffset);
-                        offsetQueued = true;
-                    }
-                }
-
-                if (offsetQueued)
-                {
+                    GST_DEBUG_OBJECT(m_sink, "offset setting enqueued");
+                    m_queuedOffset = static_cast<int64_t>(ptsOffset);
                     break;
                 }
 
-                if (client)
-                {
-                    GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
-                    client->setSubtitleOffset(m_sourceId, ptsOffset);
-                }
+                GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
+                client->setSubtitleOffset(m_sourceId, ptsOffset);
             }
             else
             {
@@ -231,20 +218,19 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
     switch (type)
     {
     case Property::Mute:
-        m_isMuted = g_value_get_boolean(value);
+    {
+        const bool muteValue{g_value_get_boolean(value) != FALSE};
+        std::unique_lock lock{m_mutex};
+        m_isMuted = muteValue;
         if (!client || !m_sourceAttached)
         {
             m_isMuteQueued.store(true);
-            if (!client || !m_sourceAttached)
-            {
-                return;
-            }
-            m_isMuteQueued.exchange(false);
+            return;
         }
-
-        client->setMute(m_isMuted, m_sourceId);
-
+        client->setMute(muteValue, m_sourceId);
         break;
+    }
+
     case Property::TextTrackIdentifier:
     {
         const gchar *textTrackIdentifier = g_value_get_string(value);
