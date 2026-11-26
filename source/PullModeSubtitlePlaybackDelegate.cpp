@@ -257,15 +257,16 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
     case Property::Mute:
     {
         const bool muteValue{g_value_get_boolean(value) != FALSE};
-        std::unique_lock lock{m_mutex};
-        m_isMuted = muteValue;
-        if (!client || !m_sourceAttached)
         {
-            m_isMuteQueued.store(true);
-            return;
+            std::lock_guard lock{m_mutex};
+            m_isMuted = muteValue;
+            if (!client || !m_sourceAttached)
+            {
+                m_isMuteQueued.store(true);
+                return;
+            }
         }
 
-        lock.unlock();
         client->setMute(muteValue, m_sourceId);
         break;
     }
