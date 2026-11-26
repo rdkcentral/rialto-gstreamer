@@ -479,6 +479,7 @@ Hardware-level operations are handled by the Rialto server. The Rialto Client AP
 | `rectangle`          | GObject property (string)               | `"0,0,1920,1080"` | Video display rectangle as `"x,y,width,height"` forwarded to the Rialto server.                                                                                                                                                                           |
 | `frame-step-on-preroll` | GObject property (bool)            | false             | Video sink. Allow frame stepping on preroll into pause (issues `renderFrame()`).
 | `report-decode-errors` | GObject property (bool, write-only) | false             | Video sink. Enable reporting of decode errors via `setReportDecodeErrors()`.
+| `zorder`              | GObject property (float, write-only) | 0.0               | Video sink. Z-order of the video plane (0.0 - 1.0), forwarded via `setZorder()` and applied to the `zorder` property of the video sink (e.g. `westerossink`) in the Rialto server.
 | `show-video-window`   | GObject property (bool, write-only) | true               | Video sink. Make the video window visible (`true`) or hidden (`false`).
 | `queued-frames`       | GObject property (uint, read-only)  | 0                  | Video sink. Number of frames currently queued in the decoder.
 | `is-master`           | GObject property (bool, read-only)  | true               | Video sink. Whether the platform is video master.

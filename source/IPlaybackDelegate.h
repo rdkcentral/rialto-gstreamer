@@ -61,6 +61,7 @@ public:
         ShowVideoWindow,
         VideoPts,
         ReportDecodeErrors,
+        Zorder,
         QueuedFrames,
 
         // PullModeSubtitlePlaybackDelegate Properties

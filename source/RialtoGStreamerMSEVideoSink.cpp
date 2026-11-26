@@ -54,6 +54,7 @@ enum
     PROP_VIDEO_PTS,
     PROP_REPORT_DECODE_ERRORS,
     PROP_QUEUED_FRAMES,
+    PROP_ZORDER,
     PROP_LAST
 };
 
@@ -198,6 +199,12 @@ static void rialto_mse_video_sink_set_property(GObject *object, guint propId, co
                                                  IPlaybackDelegate::Property::ReportDecodeErrors, value);
         break;
     }
+    case PROP_ZORDER:
+    {
+        rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object), IPlaybackDelegate::Property::Zorder,
+                                                 value);
+        break;
+    }
     case PROP_IMMEDIATE_OUTPUT:
     {
         rialto_mse_base_sink_handle_set_property(RIALTO_MSE_BASE_SINK(object),
@@ -273,6 +280,10 @@ static void rialto_mse_video_sink_class_init(RialtoMSEVideoSinkClass *klass)
     g_object_class_install_property(gobjectClass, PROP_REPORT_DECODE_ERRORS,
                                     g_param_spec_boolean("report-decode-errors", "Report decode errors",
                                                          "Enable reporting of decode errors", FALSE, G_PARAM_WRITABLE));
+
+    g_object_class_install_property(gobjectClass, PROP_ZORDER,
+                                    g_param_spec_float("zorder", "zorder", "Z-order of the video plane (0.0 - 1.0)",
+                                                       0.0f, 1.0f, 0.0f, G_PARAM_WRITABLE));
 
     g_object_class_install_property(gobjectClass, PROP_QUEUED_FRAMES,
                                     g_param_spec_uint("queued-frames", "Queued frames",

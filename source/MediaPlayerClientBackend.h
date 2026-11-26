@@ -97,6 +97,11 @@ public:
         return m_mediaPlayerBackend->setReportDecodeErrors(sourceId, reportDecodeErrors);
     }
 
+    bool setZorder(int32_t sourceId, float zorder) override
+    {
+        return m_mediaPlayerBackend->setZorder(sourceId, zorder);
+    }
+
     bool getImmediateOutput(int32_t sourceId, bool &immediateOutput) override
     {
         return m_mediaPlayerBackend->getImmediateOutput(sourceId, immediateOutput);

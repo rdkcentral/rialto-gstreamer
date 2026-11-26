@@ -51,6 +51,7 @@ public:
     MOCK_METHOD(bool, getPosition, (int64_t & position), (override));
     MOCK_METHOD(bool, getDuration, (int64_t & duration), (override));
     MOCK_METHOD(bool, setReportDecodeErrors, (int32_t sourceId, bool reportDecodeErrors), (override));
+    MOCK_METHOD(bool, setZorder, (int32_t sourceId, float zorder), (override));
     MOCK_METHOD(bool, setImmediateOutput, (int32_t sourceId, bool immediateOutput), (override));
     MOCK_METHOD(bool, getImmediateOutput, (int32_t sourceId, bool &immediateOutput), (override));
     MOCK_METHOD(bool, getQueuedFrames, (int32_t sourceId, uint32_t &queuedFrames), (override));

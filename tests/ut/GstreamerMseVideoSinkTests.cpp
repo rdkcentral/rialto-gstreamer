@@ -529,6 +529,117 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedShowVideoWindow)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetZorder)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    constexpr gfloat kZorder{0.5f};
+    EXPECT_CALL(m_mediaPipelineMock, setZorder(textContext.m_sourceId, kZorder)).WillOnce(Return(true));
+    g_object_set(textContext.m_sink, "zorder", kZorder, nullptr);
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldFailToSetZorderOnRialtoFailure)
+{
+    TestContext textContext = createPipelineWithVideoSinkAndSetToPaused();
+
+    constexpr gfloat kZorder{0.5f};
+    EXPECT_CALL(m_mediaPipelineMock, setZorder(textContext.m_sourceId, kZorder)).WillOnce(Return(false));
+    g_object_set(textContext.m_sink, "zorder", kZorder, nullptr);
+
+    // Error is logged
+
+    setNullState(textContext.m_pipeline, textContext.m_sourceId);
+    gst_object_unref(textContext.m_pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedZorder)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    // No client yet - zorder should be cached
+    constexpr gfloat kZorder{0.5f};
+    g_object_set(videoSink, "zorder", kZorder, nullptr);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setZorder(kSourceId, kZorder)).WillOnce(Return(true));
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldSetCachedZorderWhenSourceIsNotAttached)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+
+    // Client exists, but source is not attached yet - zorder should be cached
+    constexpr gfloat kZorder{0.5f};
+    g_object_set(videoSink, "zorder", kZorder, nullptr);
+
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setZorder(kSourceId, kZorder)).WillOnce(Return(true));
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetCachedZorderOnRialtoFailure)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    constexpr gfloat kZorder{0.5f};
+    g_object_set(videoSink, "zorder", kZorder, nullptr);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    EXPECT_CALL(m_mediaPipelineMock, setZorder(kSourceId, kZorder)).WillOnce(Return(false));
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+    gst_caps_unref(caps);
+
+    // Error is logged
+
+    setNullState(pipeline, kSourceId);
+
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseVideoSinkTests, ShouldNotSetZorderWithoutPipeline)
+{
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+
+    // No pipeline therefore the m_mediaPipelineMock method setZorder() will not be called
+    g_object_set(videoSink, "zorder", 0.5f, nullptr);
+
+    gst_element_set_state(GST_ELEMENT_CAST(videoSink), GST_STATE_NULL);
+    gst_object_unref(videoSink);
+}
+
 TEST_F(GstreamerMseVideoSinkTests, ShouldNotAttachSourceTwice)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();

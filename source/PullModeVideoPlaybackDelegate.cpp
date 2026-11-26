@@ -130,6 +130,15 @@ gboolean PullModeVideoPlaybackDelegate::handleEvent(GstPad *pad, GstObject *pare
                     m_videoMuteQueued = false;
                     client->setMute(m_videoMute, m_sourceId);
                 }
+                if (m_zorderQueued)
+                {
+                    GST_DEBUG_OBJECT(m_sink, "Set queued zorder");
+                    m_zorderQueued = false;
+                    if (!client->setZorder(m_sourceId, m_zorder))
+                    {
+                        GST_ERROR_OBJECT(m_sink, "Could not set zorder");
+                    }
+                }
             }
         }
         else
@@ -342,6 +351,33 @@ void PullModeVideoPlaybackDelegate::setProperty(const Property &type, const GVal
             if (!client->setReportDecodeErrors(m_sourceId, reportDecodeErrors))
             {
                 GST_ERROR_OBJECT(m_sink, "Could not set report-decode-errors");
+            }
+        }
+        break;
+    }
+    case Property::Zorder:
+    {
+        const float kZorder{g_value_get_float(value)};
+        bool shouldSetZorder{false};
+        {
+            std::unique_lock lock{m_propertyMutex};
+            m_zorder = kZorder;
+            if (!client || !m_sourceAttached)
+            {
+                GST_DEBUG_OBJECT(m_sink, "Zorder setting enqueued");
+                m_zorderQueued = true;
+            }
+            else
+            {
+                shouldSetZorder = true;
+            }
+        } // lock released here
+
+        if (shouldSetZorder)
+        {
+            if (!client->setZorder(m_sourceId, kZorder))
+            {
+                GST_ERROR_OBJECT(m_sink, "Could not set zorder");
             }
         }
         break;

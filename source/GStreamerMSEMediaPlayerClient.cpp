@@ -219,6 +219,18 @@ bool GStreamerMSEMediaPlayerClient::setReportDecodeErrors(int32_t sourceId, bool
     return status;
 }
 
+bool GStreamerMSEMediaPlayerClient::setZorder(int32_t sourceId, float zorder)
+{
+    if (!m_clientBackend)
+    {
+        return false;
+    }
+
+    bool status{false};
+    m_backendQueue->callInEventLoop([&]() { status = m_clientBackend->setZorder(sourceId, zorder); });
+    return status;
+}
+
 bool GStreamerMSEMediaPlayerClient::getImmediateOutput(int32_t sourceId, bool &immediateOutput)
 {
     if (!m_clientBackend)
