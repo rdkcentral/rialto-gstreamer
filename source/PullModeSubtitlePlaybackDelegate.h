@@ -40,6 +40,8 @@ private:
 
 private:
     mutable std::mutex m_mutex;
+    std::atomic<uint64_t> m_attachmentGeneration{0};
+    std::atomic<bool> m_acceptingAttachments{false};
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};
     std::atomic<bool> m_isMuted{false};

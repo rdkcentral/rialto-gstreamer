@@ -303,12 +303,43 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
     {
         EXPECT_TRUE(newerOffsetEventResult.get());
     }
-    ASSERT_EQ(2U, appliedOffsets.size());
-    EXPECT_EQ(static_cast<int64_t>(kOffset), appliedOffsets[0]);
-    EXPECT_EQ(static_cast<int64_t>(kLatestOffset), appliedOffsets[1]);
+    EXPECT_THAT(appliedOffsets, testing::ElementsAre(static_cast<int64_t>(kOffset), static_cast<int64_t>(kLatestOffset)));
 
     setNullState(pipeline, kSourceId);
 
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldReattachAfterTeardownDuringQueuedPropertyDrain)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    g_object_set(sink, "mute", kMute, nullptr);
+
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    const int32_t kFirstSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(kFirstSourceId)).WillRepeatedly(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kFirstSourceId, kMute))
+        .WillOnce(Invoke(
+            [&](int32_t, bool)
+            {
+                EXPECT_EQ(GST_STATE_CHANGE_SUCCESS,
+                          sink->priv->m_delegate->changeState(GST_STATE_CHANGE_PAUSED_TO_READY));
+                EXPECT_EQ(GST_STATE_CHANGE_ASYNC, sink->priv->m_delegate->changeState(GST_STATE_CHANGE_READY_TO_PAUSED));
+                return true;
+            }));
+
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(sink, caps);
+
+    EXPECT_CALL(m_mediaPipelineMock, pause()).WillRepeatedly(Return(true));
+    const int32_t kSecondSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    setCaps(sink, caps);
+
+    setNullState(pipeline, kSecondSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }

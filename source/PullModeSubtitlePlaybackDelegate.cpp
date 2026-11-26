@@ -37,6 +37,18 @@ GstStateChangeReturn PullModeSubtitlePlaybackDelegate::changeState(GstStateChang
         {
             return GST_STATE_CHANGE_FAILURE;
         }
+        std::unique_lock lock{m_mutex};
+        ++m_attachmentGeneration;
+        m_acceptingAttachments = true;
+        break;
+    }
+    case GST_STATE_CHANGE_PAUSED_TO_READY:
+    case GST_STATE_CHANGE_READY_TO_NULL:
+    {
+        std::unique_lock lock{m_mutex};
+        ++m_attachmentGeneration;
+        m_acceptingAttachments = false;
+        break;
     }
     default:
         break;
@@ -52,10 +64,19 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
     {
         GstCaps *caps;
         gst_event_parse_caps(event, &caps);
-        if (m_sourceAttached)
+        uint64_t attachmentGeneration{0};
         {
-            GST_INFO_OBJECT(m_sink, "Source already attached. Skip calling attachSource");
-            break;
+            std::unique_lock lock{m_mutex};
+            if (!m_acceptingAttachments)
+            {
+                break;
+            }
+            attachmentGeneration = m_attachmentGeneration.load();
+            if (m_sourceAttached)
+            {
+                GST_INFO_OBJECT(m_sink, "Source already attached. Skip calling attachSource");
+                break;
+            }
         }
 
         GST_INFO_OBJECT(m_sink, "Attaching SUBTITLE source with caps %" GST_PTR_FORMAT, caps);
@@ -71,6 +92,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             }
             else
             {
+                bool attachmentCompleted{false};
                 while (true)
                 {
                     bool muteQueued{false};
@@ -80,6 +102,11 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                     std::optional<int64_t> queuedOffset;
                     {
                         std::unique_lock lock{m_mutex};
+                        if (!m_acceptingAttachments.load() || attachmentGeneration != m_attachmentGeneration.load())
+                        {
+                            GST_DEBUG_OBJECT(m_sink, "Subtitle attachment invalidated by state transition");
+                            break;
+                        }
                         muteQueued = m_isMuteQueued.exchange(false);
                         muteValue = m_isMuted;
                         textTrackIdentifierQueued = m_isTextTrackIdentifierQueued;
@@ -94,6 +121,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                         if (!muteQueued && !textTrackIdentifierQueued && !queuedOffset)
                         {
                             m_sourceAttached = true;
+                            attachmentCompleted = true;
                             break;
                         }
                     }
@@ -112,6 +140,11 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                                          GST_TIME_ARGS(queuedOffset.value()));
                         client->setSubtitleOffset(m_sourceId, queuedOffset.value());
                     }
+                }
+
+                if (!attachmentCompleted)
+                {
+                    break;
                 }
 
                 // check if READY -> PAUSED was requested before source was attached
