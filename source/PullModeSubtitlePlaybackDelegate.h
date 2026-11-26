@@ -39,6 +39,7 @@ private:
     std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> createMediaSource(GstCaps *caps) const;
 
 private:
+    std::mutex m_propertyUpdateMutex;
     mutable std::mutex m_mutex;
     std::string m_textTrackIdentifier{};
     bool m_isTextTrackIdentifierQueued{false};

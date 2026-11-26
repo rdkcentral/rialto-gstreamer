@@ -340,6 +340,69 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMuteProperty)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldReadTextTrackFromQosHandlerDuringPropertyUpdates)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+
+    setPausedState(pipeline, sink);
+    const int32_t kSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createDefaultCaps()};
+    setCaps(sink, caps);
+
+    struct HandlerContext
+    {
+        RialtoMSEBaseSink *sink;
+        unsigned reads{0};
+    } context{sink};
+    GstBus *bus{gst_element_get_bus(pipeline)};
+    gst_bus_set_sync_handler(
+        bus,
+        [](GstBus *, GstMessage *message, gpointer data)
+        {
+            if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_QOS)
+            {
+                auto &context{*static_cast<HandlerContext *>(data)};
+                gchar *identifier{nullptr};
+                g_object_get(context.sink, "text-track-identifier", &identifier, nullptr);
+                EXPECT_STREQ(kTextTrackIdentifier.c_str(), identifier);
+                g_free(identifier);
+                ++context.reads;
+            }
+            return GST_BUS_PASS;
+        },
+        &context, nullptr);
+
+    const auto postQos = [&]()
+    {
+        EXPECT_TRUE(gst_bus_post(bus, gst_message_new_qos(GST_OBJECT(sink), FALSE, GST_CLOCK_TIME_NONE,
+                                                          GST_CLOCK_TIME_NONE, GST_CLOCK_TIME_NONE, GST_CLOCK_TIME_NONE)));
+        return true;
+    };
+    EXPECT_CALL(m_mediaPipelineMock, getTextTrackIdentifier(_))
+        .Times(3)
+        .WillRepeatedly(DoAll(SetArgReferee<0>(kTextTrackIdentifier), Return(true)));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Invoke([&](int32_t, bool) { return postQos(); }));
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, 4325))
+        .WillOnce(Invoke([&](int32_t, int64_t) { return postQos(); }));
+    EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier))
+        .WillOnce(Invoke([&](const std::string &) { return postQos(); }));
+
+    g_object_set(sink, "mute", kMute, nullptr);
+    GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, guint64{4325}, nullptr)};
+    EXPECT_TRUE(
+        gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure)));
+    g_object_set(sink, "text-track-identifier", kTextTrackIdentifier.c_str(), nullptr);
+    EXPECT_EQ(3U, context.reads);
+
+    gst_bus_set_sync_handler(bus, nullptr, nullptr, nullptr);
+    setNullState(pipeline, kSourceId);
+    gst_object_unref(bus);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldSetAndGetMutePropertyWithoutSourceAttached)
 {
     RialtoMSEBaseSink *sink = createSubtitleSink();

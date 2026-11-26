@@ -139,6 +139,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
             if (gst_structure_get_uint64(structure, "pts-offset", &ptsOffset) == TRUE)
             {
                 std::shared_ptr<GStreamerMSEMediaPlayerClient> client = m_mediaPlayerManager.getMediaPlayerClient();
+                std::unique_lock propertyLock{m_propertyUpdateMutex};
                 std::unique_lock lock{m_mutex};
                 if (!client || !m_sourceAttached)
                 {
@@ -147,6 +148,7 @@ gboolean PullModeSubtitlePlaybackDelegate::handleEvent(GstPad *pad, GstObject *p
                     break;
                 }
 
+                lock.unlock();
                 GST_DEBUG_OBJECT(m_sink, "Setting subtitle offset to: %" GST_TIME_FORMAT, GST_TIME_ARGS(ptsOffset));
                 client->setSubtitleOffset(m_sourceId, ptsOffset);
             }
@@ -220,6 +222,7 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
     case Property::Mute:
     {
         const bool muteValue{g_value_get_boolean(value) != FALSE};
+        std::unique_lock propertyLock{m_propertyUpdateMutex};
         std::unique_lock lock{m_mutex};
         m_isMuted = muteValue;
         if (!client || !m_sourceAttached)
@@ -227,6 +230,7 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
             m_isMuteQueued.store(true);
             return;
         }
+        lock.unlock();
         client->setMute(muteValue, m_sourceId);
         break;
     }
@@ -240,6 +244,7 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
             break;
         }
 
+        std::unique_lock propertyLock{m_propertyUpdateMutex};
         std::unique_lock lock{m_mutex};
         m_textTrackIdentifier = std::string(textTrackIdentifier);
         if (!client || !m_sourceAttached)
@@ -249,7 +254,9 @@ void PullModeSubtitlePlaybackDelegate::setProperty(const Property &type, const G
         }
         else
         {
-            client->setTextTrackIdentifier(m_textTrackIdentifier);
+            const std::string identifier{m_textTrackIdentifier};
+            lock.unlock();
+            client->setTextTrackIdentifier(identifier);
         }
 
         break;
