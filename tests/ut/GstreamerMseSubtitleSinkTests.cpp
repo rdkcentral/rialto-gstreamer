@@ -21,10 +21,17 @@
 #include "RialtoGStreamerMSESubtitleSink.h"
 #include "RialtoGstTest.h"
 
+#include <chrono>
+#include <future>
+#include <thread>
+#include <vector>
+
 using testing::_;
 using testing::DoAll;
+using testing::Invoke;
 using testing::Return;
 using testing::SetArgReferee;
+using testing::Truly;
 
 namespace
 {
@@ -171,25 +178,168 @@ TEST_F(GstreamerMseSubtitleSinkTests, ShouldNotAttachSourceTwice)
 
 TEST_F(GstreamerMseSubtitleSinkTests, ShouldAttachSourceWithQueuedProperties)
 {
+    constexpr guint64 kOffset{4325};
+    constexpr guint64 kLatestOffset{6789};
+    constexpr int32_t kSourceId{1};
     const auto kExpectedSource{firebolt::rialto::IMediaPipeline::MediaSourceSubtitle{"text/ttml", kTextTrackIdentifier}};
     RialtoMSEBaseSink *sink = createSubtitleSink();
     GstElement *pipeline = createPipelineWithSink(sink);
 
-    g_object_set(sink, "mute", kMute, nullptr);
     g_object_set(sink, "text-track-identifier", kTextTrackIdentifier.c_str(), nullptr);
 
     setPausedState(pipeline, sink);
-    const int32_t kSourceId{subtitleSourceWillBeAttached(kExpectedSource)};
     allSourcesWillBeAttached();
 
-    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute)).WillOnce(Return(true));
+    std::promise<void> attachStartedPromise;
+    std::future<void> attachStarted{attachStartedPromise.get_future()};
+    std::promise<void> resumeAttachPromise;
+    std::shared_future<void> resumeAttach{resumeAttachPromise.get_future()};
+    std::promise<void> muteCallStartedPromise;
+    std::future<void> muteCallStarted{muteCallStartedPromise.get_future()};
+    std::promise<void> resumeMuteCallPromise;
+    std::shared_future<void> resumeMuteCall{resumeMuteCallPromise.get_future()};
+    std::promise<void> newerMuteSetterReturnedPromise;
+    std::future<void> newerMuteSetterReturned{newerMuteSetterReturnedPromise.get_future()};
+    std::promise<bool> newerOffsetEventResultPromise;
+    std::future<bool> newerOffsetEventResult{newerOffsetEventResultPromise.get_future()};
+    std::vector<int64_t> appliedOffsets;
+
+    EXPECT_CALL(m_mediaPipelineMock,
+                attachSource(Truly(
+                    [&](const std::unique_ptr<firebolt::rialto::IMediaPipeline::MediaSource> &source)
+                    {
+                        const auto *matchedSource =
+                            dynamic_cast<const firebolt::rialto::IMediaPipeline::MediaSourceSubtitle *>(source.get());
+                        return matchedSource && matchedSource->getMimeType() == kExpectedSource.getMimeType() &&
+                               matchedSource->getTextTrackIdentifier() == kExpectedSource.getTextTrackIdentifier();
+                    })))
+        .WillOnce(Invoke(
+            [&](auto &source)
+            {
+                source->setId(kSourceId);
+                attachStartedPromise.set_value();
+                resumeAttach.wait();
+                return true;
+            }));
+    testing::Sequence muteSequence;
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, kMute))
+        .InSequence(muteSequence)
+        .WillOnce(Invoke(
+            [&](int32_t, bool)
+            {
+                muteCallStartedPromise.set_value();
+                resumeMuteCall.wait();
+                return true;
+            }));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kSourceId, false)).InSequence(muteSequence).WillOnce(Return(true));
     EXPECT_CALL(m_mediaPipelineMock, setTextTrackIdentifier(kTextTrackIdentifier)).WillOnce(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setSubtitleOffset(kSourceId, _))
+        .Times(2)
+        .WillRepeatedly(Invoke(
+            [&](int32_t, int64_t offset)
+            {
+                appliedOffsets.push_back(offset);
+                return true;
+            }));
+
+    GstCaps *caps{createDefaultCaps()};
+    std::thread attachThread{[&]() { setCaps(sink, caps); }};
+
+    const bool didStartAttach{attachStarted.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+    bool offsetEventResult{false};
+
+    if (didStartAttach)
+    {
+        g_object_set(sink, "mute", kMute, nullptr);
+        GstStructure *structure{gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kOffset, nullptr)};
+        offsetEventResult =
+            gst_pad_send_event(sink->priv->m_sinkPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure));
+    }
+
+    resumeAttachPromise.set_value();
+    const bool didStartMuteCall{muteCallStarted.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+
+    std::thread newerMuteSetterThread;
+    std::thread newerOffsetEventThread;
+    if (didStartMuteCall)
+    {
+        newerMuteSetterThread = std::thread(
+            [&]()
+            {
+                g_object_set(sink, "mute", FALSE, nullptr);
+                newerMuteSetterReturnedPromise.set_value();
+            });
+        newerOffsetEventThread = std::thread(
+            [&]()
+            {
+                GstStructure *structure{
+                    gst_structure_new("set-pts-offset", "pts-offset", G_TYPE_UINT64, kLatestOffset, nullptr)};
+                newerOffsetEventResultPromise.set_value(
+                    gst_pad_send_event(sink->priv->m_sinkPad,
+                                       gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, structure)));
+            });
+    }
+    const bool newerMuteQueuedWhileMuteCallBlocked{
+        didStartMuteCall && newerMuteSetterReturned.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+    const bool newerOffsetQueuedWhileMuteCallBlocked{
+        didStartMuteCall && newerOffsetEventResult.wait_for(std::chrono::seconds{5}) == std::future_status::ready};
+
+    resumeMuteCallPromise.set_value();
+    attachThread.join();
+    if (newerMuteSetterThread.joinable())
+    {
+        newerMuteSetterThread.join();
+    }
+    if (newerOffsetEventThread.joinable())
+    {
+        newerOffsetEventThread.join();
+    }
+    EXPECT_TRUE(didStartAttach);
+    EXPECT_TRUE(offsetEventResult);
+    EXPECT_TRUE(didStartMuteCall);
+    EXPECT_TRUE(newerMuteQueuedWhileMuteCallBlocked);
+    EXPECT_TRUE(newerOffsetQueuedWhileMuteCallBlocked);
+    if (didStartMuteCall)
+    {
+        EXPECT_TRUE(newerOffsetEventResult.get());
+    }
+    EXPECT_THAT(appliedOffsets, testing::ElementsAre(static_cast<int64_t>(kOffset), static_cast<int64_t>(kLatestOffset)));
+
+    setNullState(pipeline, kSourceId);
+
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseSubtitleSinkTests, ShouldReattachAfterTeardownDuringQueuedPropertyDrain)
+{
+    RialtoMSEBaseSink *sink = createSubtitleSink();
+    GstElement *pipeline = createPipelineWithSink(sink);
+    g_object_set(sink, "mute", kMute, nullptr);
+
+    load(pipeline);
+    EXPECT_EQ(GST_STATE_CHANGE_ASYNC, gst_element_set_state(pipeline, GST_STATE_PAUSED));
+    const int32_t kFirstSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    allSourcesWillBeAttached();
+    EXPECT_CALL(m_mediaPipelineMock, removeSource(kFirstSourceId)).WillRepeatedly(Return(true));
+    EXPECT_CALL(m_mediaPipelineMock, setMute(kFirstSourceId, kMute))
+        .WillOnce(Invoke(
+            [&](int32_t, bool)
+            {
+                EXPECT_EQ(GST_STATE_CHANGE_SUCCESS,
+                          sink->priv->m_delegate->changeState(GST_STATE_CHANGE_PAUSED_TO_READY));
+                EXPECT_EQ(GST_STATE_CHANGE_ASYNC, sink->priv->m_delegate->changeState(GST_STATE_CHANGE_READY_TO_PAUSED));
+                return true;
+            }));
 
     GstCaps *caps{createDefaultCaps()};
     setCaps(sink, caps);
 
-    setNullState(pipeline, kSourceId);
+    EXPECT_CALL(m_mediaPipelineMock, pause()).WillRepeatedly(Return(true));
+    const int32_t kSecondSourceId{subtitleSourceWillBeAttached(createDefaultMediaSource())};
+    setCaps(sink, caps);
 
+    setNullState(pipeline, kSecondSourceId);
     gst_caps_unref(caps);
     gst_object_unref(pipeline);
 }
