@@ -279,7 +279,7 @@ public:
     void notifySourceFlushed(int32_t sourceId) override;
     void notifyPlaybackInfo(const firebolt::rialto::PlaybackInfo &playbackInfo) override;
 
-    int64_t getPosition(int32_t sourceId);
+    int64_t getPosition(firebolt::rialto::MediaSourceType mediaSourceType);
     bool getDuration(int64_t &duration);
     bool setImmediateOutput(int32_t sourceId, bool immediateOutput);
     bool setReportDecodeErrors(int32_t sourceId, bool reportDecodeErrors);

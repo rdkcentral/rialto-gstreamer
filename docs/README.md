@@ -219,7 +219,7 @@ sequenceDiagram
 
 #### Runtime State Changes
 
-During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which post backend-queue messages that update internal caches (per-source position, `m_duration`) — they do not update the GStreamer segment or emit bus notifications. Position queries instead read the `PlaybackInfo` snapshot refreshed by `notifyPlaybackInfo`, while duration queries consult upstream first and then the backend cache.
+During normal playback, the Rialto server periodically sends `notifyNeedMediaData` to request more frames. The delegate responds by dequeuing buffered samples already queued from the GStreamer pipeline and submitting them. Position and duration updates arrive via `notifyPosition` and `notifyDuration`, which post backend-queue messages that update internal caches (per-source position, `m_duration`) — they do not update the GStreamer segment or emit bus notifications. Position queries instead read the `PlaybackInfo` snapshot refreshed by `notifyPlaybackInfo`: audio and video sinks return the position reported by the matching server-side sink (`videoPosition` / `audioPosition`) and fall back to the pipeline position (`currentPosition`) when that is unavailable; other sinks use the pipeline position. Duration queries consult upstream first and then the backend cache.
 
 **State Change Triggers:**
 

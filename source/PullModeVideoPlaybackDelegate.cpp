@@ -259,7 +259,7 @@ void PullModeVideoPlaybackDelegate::getProperty(const Property &type, GValue *va
         else
         {
             lock.unlock();
-            gint64 position = client->getPosition(m_sourceId);
+            gint64 position = client->getPosition(m_mediaSourceType);
             videoPts = ((position / 100000) * 9LL); // 90Khz PTS
         }
 

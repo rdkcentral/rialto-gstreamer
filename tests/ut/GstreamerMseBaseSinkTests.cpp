@@ -720,6 +720,58 @@ TEST_F(GstreamerMseBaseSinkTests, ShouldQueryPosition)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseBaseSinkTests, ShouldQueryAudioSinkPosition)
+{
+    constexpr gint64 kPosition{1234};
+    constexpr gint64 kVideoPosition{1235};
+    constexpr gint64 kAudioPosition{1233};
+    RialtoMSEBaseSink *audioSink = createAudioSink();
+    GstElement *pipeline = createPipelineWithSink(audioSink);
+
+    setPausedState(pipeline, audioSink);
+    const int32_t kSourceId{audioSourceWillBeAttached(createAudioMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createAudioCaps()};
+    setCaps(audioSink, caps);
+
+    gint64 position{0};
+    constexpr double kVolume{0.8};
+    sendPlaybackInfoNotification(audioSink,
+                                 firebolt::rialto::PlaybackInfo{kPosition, kVolume, kVideoPosition, kAudioPosition});
+    EXPECT_TRUE(gst_element_query_position(GST_ELEMENT_CAST(audioSink), GST_FORMAT_TIME, &position));
+    EXPECT_EQ(position, kAudioPosition);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
+TEST_F(GstreamerMseBaseSinkTests, ShouldQueryVideoSinkPosition)
+{
+    constexpr gint64 kPosition{1234};
+    constexpr gint64 kVideoPosition{1235};
+    constexpr gint64 kAudioPosition{1233};
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    gint64 position{0};
+    constexpr double kVolume{0.8};
+    sendPlaybackInfoNotification(videoSink,
+                                 firebolt::rialto::PlaybackInfo{kPosition, kVolume, kVideoPosition, kAudioPosition});
+    EXPECT_TRUE(gst_element_query_position(GST_ELEMENT_CAST(videoSink), GST_FORMAT_TIME, &position));
+    EXPECT_EQ(position, kVideoPosition);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseBaseSinkTests, ShouldSkipQueryingPositionWithInvalidFormat)
 {
     RialtoMSEBaseSink *audioSink = createAudioSink();

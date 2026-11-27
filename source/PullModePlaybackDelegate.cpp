@@ -490,7 +490,7 @@ std::optional<gboolean> PullModePlaybackDelegate::handleQuery(GstQuery *query) c
         {
         case GST_FORMAT_TIME:
         {
-            gint64 position = client->getPosition(m_sourceId);
+            gint64 position = client->getPosition(m_mediaSourceType);
             GST_DEBUG_OBJECT(m_sink, "Queried position is %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
             if (position < 0)
             {

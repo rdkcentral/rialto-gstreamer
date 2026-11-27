@@ -352,6 +352,33 @@ TEST_F(GstreamerMseVideoSinkTests, ShouldGetVideoPtsProperty)
     gst_object_unref(pipeline);
 }
 
+TEST_F(GstreamerMseVideoSinkTests, ShouldGetVideoPtsPropertyFromVideoPosition)
+{
+    constexpr gint64 kPosition{2500000000};
+    constexpr gint64 kVideoPosition{3000000000};
+    constexpr double kVolume{1.0};
+    constexpr gint64 kExpectedVideoPts{270000};
+
+    RialtoMSEBaseSink *videoSink = createVideoSink();
+    GstElement *pipeline = createPipelineWithSink(videoSink);
+
+    setPausedState(pipeline, videoSink);
+    const int32_t kSourceId{videoSourceWillBeAttached(createVideoMediaSource())};
+    allSourcesWillBeAttached();
+
+    GstCaps *caps{createVideoCaps()};
+    setCaps(videoSink, caps);
+
+    sendPlaybackInfoNotification(videoSink, firebolt::rialto::PlaybackInfo{kPosition, kVolume, kVideoPosition, -1});
+    gint64 videoPts{0};
+    g_object_get(videoSink, "video-pts", &videoPts, nullptr);
+    EXPECT_EQ(videoPts, kExpectedVideoPts);
+
+    setNullState(pipeline, kSourceId);
+    gst_caps_unref(caps);
+    gst_object_unref(pipeline);
+}
+
 TEST_F(GstreamerMseVideoSinkTests, ShouldFailToGetVideoPtsProperty)
 {
     RialtoMSEBaseSink *videoSink = createVideoSink();
