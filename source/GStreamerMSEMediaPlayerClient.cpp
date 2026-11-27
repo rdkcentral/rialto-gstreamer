@@ -191,12 +191,6 @@ int64_t GStreamerMSEMediaPlayerClient::getPosition(firebolt::rialto::MediaSource
     return (sinkPosition >= 0) ? sinkPosition : m_playbackInfo.currentPosition;
 }
 
-int64_t GStreamerMSEMediaPlayerClient::getVideoPts()
-{
-    std::unique_lock lock{m_playbackInfoMutex};
-    return m_playbackInfo.videoPts;
-}
-
 bool GStreamerMSEMediaPlayerClient::getDuration(int64_t &duration)
 {
     if (!m_clientBackend)
@@ -731,7 +725,6 @@ void GStreamerMSEMediaPlayerClient::handlePlaybackStateChange(firebolt::rialto::
                     m_playbackInfo.currentPosition = 0;
                     m_playbackInfo.videoPosition = -1;
                     m_playbackInfo.audioPosition = -1;
-                    m_playbackInfo.videoPts = -1;
                 }
 
                 break;
